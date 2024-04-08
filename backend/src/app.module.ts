@@ -9,6 +9,7 @@ import { AppController } from "./app.controller";
 import { MetricsController } from "./metrics.controller";
 import { TerminusModule } from '@nestjs/terminus';
 import { HealthController } from "./health.controller";
+import { JWTAuthModule } from "./auth/jwtauth.module";
 
 const DB_HOST = process.env.POSTGRES_HOST || "localhost";
 const DB_USER = process.env.POSTGRES_USER || "postgres";
@@ -17,6 +18,7 @@ const DB_PORT = process.env.POSTGRES_PORT || 5432;
 const DB_NAME = process.env.POSTGRES_DATABASE || "postgres";
 const DB_SCHEMA = process.env.DB_SCHEMA || "users";
 const dataSourceURL = `postgresql://${DB_USER}:${DB_PWD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=${DB_SCHEMA}&connection_limit=5`;
+
 function getMiddlewares() {
   if (process.env.PRISMA_LOGGING) {
     return [
@@ -45,7 +47,8 @@ function getMiddlewares() {
         middlewares: getMiddlewares(),
       },
     }),
-    UsersModule
+    UsersModule,
+    JWTAuthModule
   ],
   controllers: [AppController,MetricsController, HealthController],
   providers: [AppService]

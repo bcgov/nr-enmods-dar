@@ -11,6 +11,9 @@ import TableRow from '@mui/material/TableRow'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import { useEffect, useState } from 'react'
 import type { AxiosResponse } from '~/axios'
+// import config from '../config'
+import _kc from '@/keycloak'
+import UserService from '@/service/user-service'
 
 const columns = [
   {
@@ -63,6 +66,10 @@ export default function Dashboard() {
   const handleClose = () => {
     setSelectedRow(null)
   }
+
+  const logout = () => {
+    UserService.doLogout();
+  }
   return (
     <div
       style={{
@@ -108,6 +115,7 @@ export default function Dashboard() {
           </Button>
         </DialogActions>
       </Dialog>
+      <Button variant="contained" color="secondary" onClick={logout}>Logout</Button>
     </div>
   )
 }
