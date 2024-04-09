@@ -67,9 +67,6 @@ export default function Dashboard() {
     setSelectedRow(null)
   }
 
-  const logout = () => {
-    UserService.doLogout();
-  }
   return (
     <div
       style={{
@@ -115,7 +112,7 @@ export default function Dashboard() {
           </Button>
         </DialogActions>
       </Dialog>
-      <Button variant="contained" color="secondary" onClick={logout}>Logout</Button>
+
     </div>
   )
 }
