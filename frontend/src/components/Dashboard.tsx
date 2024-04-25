@@ -72,7 +72,7 @@ export default function Dashboard() {
       style={{
         minHeight: '45em',
         maxHeight: '45em',
-        width: '100%',
+        width: '95%',
         marginLeft: '4em',
       }}
     >
