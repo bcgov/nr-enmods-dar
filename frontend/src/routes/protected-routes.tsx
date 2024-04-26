@@ -10,7 +10,6 @@ export const ProtectedRoutes: FC<{ roles: Array<Roles> }> = () => {
         <Layout fixedHeader fixedSidebar>
             <Outlet />
         </Layout>
-        // <Dashboard />
     ) : (
         <Navigate to="/not-authorized" />
     )

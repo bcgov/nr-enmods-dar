@@ -28,7 +28,7 @@ export default function AppRoutes() {
       <Route element = {< ProtectedRoutes roles={[Roles.ENMODS_USER]} />}>
         <Route 
           path="/" 
-          element={<NotFound />}
+          element={<Dashboard />}
         />
       </Route>
 

@@ -1,21 +1,4 @@
-import apiService from '@/service/api-service'
-import Button from '@mui/material/Button'
-import Dialog from '@mui/material/Dialog'
-import DialogActions from '@mui/material/DialogActions'
-import DialogContent from '@mui/material/DialogContent'
-import DialogTitle from '@mui/material/DialogTitle'
-import Table from '@mui/material/Table'
-import TableBody from '@mui/material/TableBody'
-import TableCell from '@mui/material/TableCell'
-import TableRow from '@mui/material/TableRow'
-import { DataGrid, GridToolbar } from '@mui/x-data-grid'
-import { useEffect, useState } from 'react'
-import type { AxiosResponse } from '~/axios'
-// import config from '../config'
 import _kc from '@/keycloak'
-import UserService from '@/service/user-service'
-import { Link } from 'react-router-dom'
-import { style, width } from '@mui/system'
 
 export default function SideBar() {
 
@@ -34,12 +17,12 @@ export default function SideBar() {
   }
 
   return (
-    <div className='sidebarPanel'
+    <div className='d-flex flex-column flex-shrink-0 comp-side-bar'
       style={{
-        width: '10%'
+        width: '20%'
 
       }}>
-      <ul style={styles.listStyle}>
+      <ul className="nav nav-pills flex-column mb-auto comp-nav-item-list" style={styles.listStyle}>
         <li style={styles.activeNav}>
           <a href="/">Dashboard</a>
         </li>
@@ -48,7 +31,7 @@ export default function SideBar() {
         </li>
        
         
-      </ul>
+      </ul> 
     </div>
   )
 }
