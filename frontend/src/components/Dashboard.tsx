@@ -1,4 +1,4 @@
-import apiService from '@/service/api-service'
+// import apiService from '@/service/api-service'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
 import DialogActions from '@mui/material/DialogActions'
@@ -10,7 +10,7 @@ import TableCell from '@mui/material/TableCell'
 import TableRow from '@mui/material/TableRow'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import { useEffect, useState } from 'react'
-import type { AxiosResponse } from '~/axios'
+// import type { AxiosResponse } from '~/axios'
 
 const columns = [
   {
@@ -36,29 +36,51 @@ const columns = [
   },
 ]
 export default function Dashboard() {
-  const [data, setData] = useState<any>([])
+  // const [data, setData] = useState<any>([])
+
+  const data = [
+    {
+      id: 1,
+      name: 'Michael',
+      email: 'michael@email.com',
+    },
+    {
+      id: 2,
+      name: 'Test',
+      email: 'test@email.com',
+    },
+    {
+      id: 3,
+      name: 'User',
+      email: 'user@email.com',
+    },
+  ]
 
   useEffect(() => {
-    apiService
-      .getAxiosInstance()
-      .get('/v1/users')
-      .then((response: AxiosResponse) => {
-        const users = []
-        for (const user of response.data) {
-          const userDto = {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-          }
-          users.push(userDto)
-        }
-        setData(users)
-      })
-      .catch((error) => {
-        console.error(error)
-      })
+    // apiService
+    //   .getAxiosInstance()
+    //   .get('/v1/users')
+    //   .then((response: AxiosResponse) => {
+    //     const users = []
+    //     for (const user of response.data) {
+    //       const userDto = {
+    //         id: user.id,
+    //         name: user.name,
+    //         email: user.email,
+    //       }
+    //       users.push(userDto)
+    //     }
+    //     setData(users)
+    //   })
+    //   .catch((error) => {
+    //     console.error(error)
+    //   })
   }, [])
-  const [selectedRow, setSelectedRow] = useState(null)
+  interface DataRow {
+    [key: string]: any
+  }
+
+  const [selectedRow, setSelectedRow] = useState<DataRow | null>(null)
 
   const handleClose = () => {
     setSelectedRow(null)

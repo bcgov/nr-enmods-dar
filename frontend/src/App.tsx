@@ -3,6 +3,7 @@ import Header from '@/components/Header'
 import Footer from '@/components/Footer'
 import AppRoutes from '@/routes'
 import { BrowserRouter } from 'react-router-dom'
+import Sidebar from './components/Sidebar'
 
 const styles = {
   container: {
@@ -10,27 +11,48 @@ const styles = {
     flexDirection: 'column',
     minHeight: '100vh',
   },
-  content: {
-    flexGrow: 1,
-    marginTop: '5em',
-    marginRight: '1em',
-    marginLeft: '1em',
-    marginBottom: '5em',
-    height: '100%',
+  contentWrapper: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'flex-start',
+
+    width: '100%',
+  },
+  content: {
+    display: 'flex',
+    width: '1200px',
+  },
+  sidebar: {
+    marginTop: '8em',
+    width: '28%',
+  },
+  mainContent: {
+    marginTop: '8em',
+    width: '70%',
+  },
+  separator: {
+    width: '1px',
+    bgcolor: 'rgb(217, 217, 217)',
   },
 }
+
 export default function App() {
   return (
     <Box sx={styles.container}>
       <Header />
-      <Box sx={styles.content}>
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
-      </Box>
+      <BrowserRouter>
+        <Box sx={styles.contentWrapper}>
+          <Box sx={styles.content}>
+            <Box sx={styles.sidebar}>
+              <Sidebar />
+            </Box>
+            <Box sx={styles.separator} />
+            <Box sx={styles.mainContent}>
+              <AppRoutes />
+            </Box>
+          </Box>
+        </Box>
+      </BrowserRouter>
       <Footer />
     </Box>
   )
