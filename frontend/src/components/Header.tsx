@@ -7,7 +7,7 @@ const styles = {
   appBar: {
     color: '#ffffff',
     backgroundColor: '#ffffff',
-    borderBottom: '0.1em solid rgb(252, 186, 25) !important',
+    borderBottom: '1px solid rgb(217, 217, 217)',
     display: 'flex',
     zIndex: (theme: any) => theme.zIndex.drawer + 1,
   },
