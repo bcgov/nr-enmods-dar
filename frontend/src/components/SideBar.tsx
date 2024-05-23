@@ -1,37 +1,55 @@
 import _kc from '@/keycloak'
+import SideBarItem from '@/types/sidebar-item';
+import React, { FC, useState } from "react";
+import { Link } from 'react-router-dom';
 
-export default function SideBar() {
 
-  const styles={
+export const SideBar: FC = () => {
 
-    listStyle: {
-      listStyleType:'none'
-    },
+  const [activeId, setActiveId] = useState<number>();
 
-    activeNav: {
-      backgroundColor: `rgb(246, 249, 252)`,
-      borderColor: `rgb(26, 90, 150)`,
-      color: `rgb(26, 90, 150)`,
-      fontWeight: `700`,
+  const sidebarItems: Array<SideBarItem> = [
+    {
+      id: "dashboard-link",
+      name: "Dashboard",
+      route: "/"
+    }, 
+    
+    {
+      id: "search-link",
+      name: "Search",
+      route: "/search"
+    }, 
+    
+    {
+      id: "admin-link",
+      name: "Admin Panel",
+      route: "/admin"
     }
+  ]
+
+  const renderSideBar = (idx: number, item: SideBarItem): JSX.Element => {
+    const {id, name, route} = item;
+
+    return (
+      <li key={`sb-open-${idx}`} onClick={() => setActiveId(idx)}>
+        {activeId === idx ? "Active" : "Inactive"}
+        <Link to={`${route}`} id={`${id}`}>
+          <span className='comp-nav-item-name'>
+            {name}
+          </span>
+        </Link>
+      </li>
+    )
   }
 
   return (
-    <div className='d-flex flex-column flex-shrink-0 comp-side-bar'
-      style={{
-        width: '20%'
-
-      }}>
-      <ul className="nav nav-pills flex-column mb-auto comp-nav-item-list" style={styles.listStyle}>
-        <li style={styles.activeNav}>
-          <a href="/">Dashboard</a>
-        </li>
-        <li>
-          <a href="/admin" className="active">Admin Page</a>
-        </li>
-       
-        
-      </ul> 
+    <div className='d-flex flex-column flex-shrink-0 comp-side-bar'>
+      <ul className='nav nav-pills flex-column mb-auto comp-nav-item-list'>
+        {sidebarItems.map((item, idx) =>{
+          return renderSideBar(idx, item);
+        })}
+      </ul>
     </div>
   )
 }
