@@ -1,7 +1,7 @@
 import { FC } from "react"
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { SideBar } from "./SideBar";
+// import { SideBar } from "./SideBar";
 import '@/assets/layout.scss'
 
 type Props = {
@@ -29,7 +29,6 @@ export const Layout: FC<Props> = ({ fixedSidebar, fixedHeader, children }) => {
             width: '100%',
           }}>
             <Header />
-            <SideBar/>
             <div className="comp-main-content">{children}</div>
             <Footer />
         </div>

@@ -7,9 +7,7 @@ import { Layout } from "@/components/Layout";
 export const ProtectedRoutes: FC<{ roles: Array<Roles> }> = () => {
     let auth = { token: true }
     return auth.token ? (
-        <Layout fixedHeader fixedSidebar>
-            <Outlet />
-        </Layout>
+       <Dashboard/>
     ) : (
         <Navigate to="/not-authorized" />
     )
