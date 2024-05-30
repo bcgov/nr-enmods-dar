@@ -10,6 +10,7 @@ import {
   List,
   ListItem,
   ListItemText,
+  Typography,
 } from '@mui/material'
 import React, { useState } from 'react'
 import { FileUploader } from 'react-drag-drop-files'
@@ -105,7 +106,7 @@ function FileUpload() {
                 sx={{ float: 'right' }}
                 onClick={toggleCheckBoxes}
                 value="end"
-                control={<Checkbox />}
+                control={<Checkbox color="secondary" />}
                 label="Select All"
                 labelPlacement="end"
                 className={'selectAllEmailCheckbox'}
@@ -169,8 +170,9 @@ function FileUpload() {
                           <Grid item xs={4}>
                             <FormControlLabel
                               sx={{ float: 'right', paddingTop: '10px' }}
-                              value="end"
-                              control={<Checkbox />}
+                              control={
+                                <Checkbox color="secondary" defaultChecked />
+                              }
                               label="Receive Email Conformation"
                               labelPlacement="end"
                               className={`emailCheckbox emailCheckbox-` + index}
@@ -184,21 +186,33 @@ function FileUpload() {
                             xs={9}
                             sx={{ paddingLeft: '20px', paddingTop: '10px' }}
                           >
-                            <LinearProgress
-                              color="secondary"
-                              variant="determinate"
-                              value={20}
-                              sx={{
-                                width: '90%',
-                                borderRadius: '5px',
-                                height: '15px',
-                              }}
-                            />
+                            <Box>
+                              <LinearProgress
+                                color="secondary"
+                                variant="determinate"
+                                value={20}
+                                sx={{
+                                  borderRadius: '5px',
+                                  height: '15px',
+                                }}
+                              />
+                              <Typography
+                                variant="body2"
+                                color="gray"
+                                sx={{ float: 'right' }}
+                              >
+                                20%
+                              </Typography>
+                            </Box>
                           </Grid>
                           <Grid item xs={3}>
                             <ButtonGroup
                               variant="text"
-                              style={{ color: 'black', float: 'right', paddingBottom: '10px' }}
+                              style={{
+                                color: 'black',
+                                float: 'right',
+                                paddingBottom: '10px',
+                              }}
                             >
                               <Button
                                 variant="contained"
@@ -223,7 +237,7 @@ function FileUpload() {
             </List>
 
             <div className="all-file-action">
-              <Box sx={{paddingTop: '20px'}}>
+              <Box sx={{ paddingTop: '20px' }}>
                 {files && selectedFiles.length > 0 ? (
                   <ButtonGroup variant="text" style={{ color: 'black' }}>
                     <Button
