@@ -50,6 +50,12 @@
   margin: auto;
 }
 
-.file-list{
+.file-list, .file-drop-list{
   width: 1000px;
+  align-items: center;
+  margin: auto;
+}
+
+.all-file-action{
+ float: right;
 }
