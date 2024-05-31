@@ -59,7 +59,27 @@ function FileUpload() {
     setExpandList(!expandList)
   }
 
-  const toggleCheckBoxes = () => {}
+  const [checkedItems, setCheckedItems] = useState({
+    master: true,
+    items: [],
+  })
+
+  const handleMasterCheckboxChange = (event) => {
+    const isChecked = event.target.checked
+    setCheckedItems({
+      master: isChecked,
+      items: checkedItems.items.map(() => isChecked),
+    })
+  }
+
+  // const handleCheckboxChange = (index) => (event) => {
+  //   const newItems = [...checkedItems.items]
+  //   newItems[index] = event.target.checked;
+  //   setCheckedItems({
+  //     master: newItems.every((item) => item),
+  //     items: newItems,
+  //   })
+  // }
 
   return (
     <div>
@@ -104,9 +124,14 @@ function FileUpload() {
             <Grid item xs={6}>
               <FormControlLabel
                 sx={{ float: 'right' }}
-                onClick={toggleCheckBoxes}
                 value="end"
-                control={<Checkbox color="secondary" />}
+                control={
+                  <Checkbox
+                    checked={checkedItems.master}
+                    onChange={handleMasterCheckboxChange}
+                    color="secondary"
+                  />
+                }
                 label="Select All"
                 labelPlacement="end"
                 className={'selectAllEmailCheckbox'}
@@ -120,73 +145,54 @@ function FileUpload() {
         {expandList && (
           <div className="file-list">
             <List>
-              {files && selectedFiles.length > 0
+              {selectedFiles.length > 0
                 ? selectedFiles.map((file, index) => (
-                    <>
-                      <Box id={'file-' + index}>
-                        <Grid container>
-                          <Grid item xs={5}>
-                            <ListItem key={index}>
-                              <ListItemText
-                                key={index}
-                                primary={file.name}
-                                secondary={
-                                  (file.size / (1024 * 1024)).toFixed(2) + 'MB'
-                                }
-                              />
-                            </ListItem>
-                          </Grid>
+                    <ListItem key={index}>
+                      <Grid container>
+                        <Grid item xs={5}>
+                          <ListItemText
+                            key="test1"
+                            primary={file.name}
+                            secondary={
+                              (file.size / (1024 * 1024)).toFixed(2) + 'MB'
+                            }
+                          ></ListItemText>
+                        </Grid>
+                        <Grid item xs={3}>
+                          <ButtonGroup style={{ color: 'black' }}>
+                            {validationSuccess ? (
+                              <Button style={{ color: 'green' }}>
+                                <CheckCircle />
+                              </Button>
+                            ) : (
+                              <Button style={{ color: 'green' }}>
+                                <Error />
+                              </Button>
+                            )}
 
-                          <Grid item xs={3}>
-                            <div
-                              style={{
-                                width: 'max-content',
-                                alignItems: 'center',
-                                margin: 'auto',
-                                paddingTop: '10px',
+                            <Button
+                              style={{ color: 'black' }}
+                              onClick={() => {
+                                handleChange(files, index)
                               }}
                             >
-                              {validationSuccess ? (
-                                <Button style={{ color: 'green' }}>
-                                  <CheckCircle />
-                                </Button>
-                              ) : (
-                                <Button style={{ color: 'red' }}>
-                                  <Error />
-                                </Button>
-                              )}
-
-                              <Button
-                                style={{ color: 'black' }}
-                                onClick={() => {
-                                  handleChange(files, index)
-                                }}
-                              >
-                                <DeleteRounded />
-                              </Button>
-                            </div>
-                          </Grid>
-
-                          <Grid item xs={4}>
-                            <FormControlLabel
-                              sx={{ float: 'right', paddingTop: '10px' }}
-                              control={
-                                <Checkbox color="secondary" defaultChecked />
-                              }
-                              label="Receive Email Conformation"
-                              labelPlacement="end"
-                              className={`emailCheckbox emailCheckbox-` + index}
-                            />
-                          </Grid>
+                              <DeleteRounded />
+                            </Button>
+                          </ButtonGroup>
                         </Grid>
-
-                        <Grid container>
-                          <Grid
-                            item
-                            xs={9}
-                            sx={{ paddingLeft: '20px', paddingTop: '10px' }}
-                          >
-                            <Box>
+                        <Grid item xs={4}>
+                          <FormControlLabel
+                            sx={{ float: 'right', paddingTop: '10px' }}
+                            control={
+                              <Checkbox color="secondary" defaultChecked />
+                            }
+                            label="Receive Email Conformation"
+                            labelPlacement="end"
+                            className={`emailCheckbox emailCheckbox-` + index}
+                          />
+                        </Grid>
+                        <Grid item xs={9}>
+                        <Box>
                               <LinearProgress
                                 color="secondary"
                                 variant="determinate"
@@ -204,34 +210,36 @@ function FileUpload() {
                                 20%
                               </Typography>
                             </Box>
-                          </Grid>
-                          <Grid item xs={3}>
-                            <ButtonGroup
-                              variant="text"
-                              style={{
-                                color: 'black',
-                                float: 'right',
-                                paddingBottom: '10px',
+                        </Grid>
+                        <Grid item xs={3}>
+                          <ButtonGroup
+                            variant="text"
+                            style={{
+                              color: 'black',
+                              float: 'right',
+                              paddingBottom: '10px',
+                            }}
+                          >
+                            <Button
+                              variant="contained"
+                              color="secondary"
+                              onClick={() => {
+                                validateFile(file, index)
                               }}
                             >
-                              <Button
-                                variant="contained"
-                                color="secondary"
-                                onClick={() => {
-                                  validateFile(file, index)
-                                }}
-                              >
-                                Validate
-                              </Button>
-                              <Button variant="contained" color="secondary">
-                                Submit
-                              </Button>
-                            </ButtonGroup>
-                          </Grid>
+                              Validate
+                            </Button>
+                            <Button variant="contained" color="secondary">
+                              Submit
+                            </Button>
+                          </ButtonGroup>
                         </Grid>
-                        <Divider component="li" variant="fullWidth" />
-                      </Box>
-                    </>
+
+                        <Grid item xs={12}>
+                          <Divider variant="fullWidth" />
+                        </Grid>
+                      </Grid>
+                    </ListItem>
                   ))
                 : ''}
             </List>
