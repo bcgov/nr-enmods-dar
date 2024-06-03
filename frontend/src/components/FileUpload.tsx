@@ -31,7 +31,7 @@ let validationSuccess = {}
 function FileUpload() {
   const [files, setFiles] = useState(null)
 
-  const handleChange = (files, index) => {
+  const handleFileSelect = (files, index) => {
     setFiles(files)
     selectedFiles = Array.from(files)
 
@@ -89,7 +89,7 @@ function FileUpload() {
           fileOrFiles
           multiple={true}
           types={fileTypes}
-          handleChange={handleChange}
+          handleChange={handleFileSelect}
           name="file"
           hoverTitle="Click to browse for files to upload"
           children={
@@ -173,7 +173,7 @@ function FileUpload() {
                             <Button
                               style={{ color: 'black' }}
                               onClick={() => {
-                                handleChange(files, index)
+                                handleFileSelect(files, index)
                               }}
                             >
                               <DeleteRounded />
