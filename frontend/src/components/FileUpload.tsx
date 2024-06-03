@@ -30,6 +30,9 @@ let validationSuccess = {}
 
 function FileUpload() {
   const [files, setFiles] = useState(null)
+  const [validationProgress, setValidationProgress] = useState({
+    items: []
+  })
 
   const handleFileSelect = (files, index) => {
     setFiles(files)
@@ -47,7 +50,11 @@ function FileUpload() {
   }
 
   const validateFile = (file, index: number) => {
-    console.log(file)
+    const newItems = [...validationProgress.items];
+    newItems[index] = Math.floor(Math.random() * 100);
+    setValidationProgress({
+      items: newItems,
+    });
   }
 
   const validateAllFiles = (files) => {
@@ -83,6 +90,7 @@ function FileUpload() {
 
   useEffect(() => {
     checkedItems.items = selectedFiles.map((index) => true)
+    validationProgress.items = selectedFiles.map((index) => 0)
     
   }, [selectedFiles]);
 
@@ -99,7 +107,6 @@ function FileUpload() {
           hoverTitle="Click to browse for files to upload"
           children={
             <label className="upload-container">
-              {/* <input className="file-input" accept=".xlsx, .csv, .txt" type="file" multiple></input> */}
               <div className="upload-children">
                 <span>
                   <UploadFile width="32" height="32" fontSize="large" />
@@ -201,7 +208,7 @@ function FileUpload() {
                               <LinearProgress
                                 color="secondary"
                                 variant="determinate"
-                                value={20}
+                                value={validationProgress.items[index]}
                                 sx={{
                                   borderRadius: '5px',
                                   height: '15px',
@@ -212,7 +219,7 @@ function FileUpload() {
                                 color="gray"
                                 sx={{ float: 'right' }}
                               >
-                                20%
+                                {validationProgress.items[index] + '%'}
                               </Typography>
                             </Box>
                         </Grid>
