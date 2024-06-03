@@ -12,7 +12,7 @@ import {
   ListItemText,
   Typography,
 } from '@mui/material'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { FileUploader } from 'react-drag-drop-files'
 import {
   DeleteRounded,
@@ -65,21 +65,26 @@ function FileUpload() {
   })
 
   const handleMasterCheckboxChange = (event) => {
-    const isChecked = event.target.checked
+    const isChecked = event.target.checked;
     setCheckedItems({
       master: isChecked,
       items: checkedItems.items.map(() => isChecked),
-    })
+    });
   }
 
-  // const handleCheckboxChange = (index) => (event) => {
-  //   const newItems = [...checkedItems.items]
-  //   newItems[index] = event.target.checked;
-  //   setCheckedItems({
-  //     master: newItems.every((item) => item),
-  //     items: newItems,
-  //   })
-  // }
+  const handleCheckboxChange = (index) => (event) => {
+    const newItems = [...checkedItems.items];
+    newItems[index] = event.target.checked;
+    setCheckedItems({
+      master: newItems.every((item) => item),
+      items: newItems,
+    });
+  }
+
+  useEffect(() => {
+    checkedItems.items = selectedFiles.map((index) => true)
+    
+  }, [selectedFiles]);
 
   return (
     <div>
@@ -184,7 +189,7 @@ function FileUpload() {
                           <FormControlLabel
                             sx={{ float: 'right', paddingTop: '10px' }}
                             control={
-                              <Checkbox color="secondary" defaultChecked />
+                              <Checkbox color="secondary" checked={checkedItems.items[index]} onChange={handleCheckboxChange(index)}/>
                             }
                             label="Receive Email Conformation"
                             labelPlacement="end"
