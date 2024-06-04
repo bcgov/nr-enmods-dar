@@ -62,10 +62,20 @@ function FileUpload() {
     setValidationProgress({
       items: newItems,
     })
+
+    return true
   }
 
   const validateAllFiles = (files) => {
-    console.log(files)
+    confirm('Validation for all files \n TODO')
+  }
+
+  const submitFile = (file, index: number) => {
+    confirm('Submission for one file \n TODO')
+  }
+
+  const submitAllFiles = (files) => {
+    confirm('Submission for all files \n TODO')
   }
 
   const [expandList, setExpandList] = useState(false)
@@ -172,13 +182,15 @@ function FileUpload() {
                           ></ListItemText>
                         </Grid>
                         <Grid item xs={3}>
-                          <ButtonGroup style={{ color: 'black' }}>
+                          <ButtonGroup
+                            sx={{ float: 'right', paddingTop: '10px' }}
+                          >
                             {validationSuccess ? (
                               <Button style={{ color: 'green' }}>
                                 <CheckCircle />
                               </Button>
                             ) : (
-                              <Button style={{ color: 'green' }}>
+                              <Button style={{ color: 'orange' }}>
                                 <Error />
                               </Button>
                             )}
@@ -246,7 +258,13 @@ function FileUpload() {
                             >
                               Validate
                             </Button>
-                            <Button variant="contained" color="secondary">
+                            <Button
+                              variant="contained"
+                              color="secondary"
+                              onClick={() => {
+                                submitFile(file, index)
+                              }}
+                            >
                               Submit
                             </Button>
                           </ButtonGroup>
@@ -274,7 +292,13 @@ function FileUpload() {
                     >
                       Validate All
                     </Button>
-                    <Button variant="contained" color="secondary">
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      onClick={() => {
+                        submitAllFiles(files)
+                      }}
+                    >
                       Submit All
                     </Button>
                   </ButtonGroup>
