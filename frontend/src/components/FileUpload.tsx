@@ -31,30 +31,37 @@ let validationSuccess = {}
 function FileUpload() {
   const [files, setFiles] = useState(null)
   const [validationProgress, setValidationProgress] = useState({
-    items: []
+    items: [],
   })
 
   const handleFileSelect = (files, index) => {
-    setFiles(files)
-    selectedFiles = Array.from(files)
-
     if (index != undefined) {
       selectedFiles.splice(index, 1)
       files = selectedFiles
 
       setFiles(files)
       selectedFiles = Array.from(files)
+
+      const newItems = [...validationProgress.items]
+      newItems.splice(index, 1)
+      setValidationProgress({
+        items: newItems,
+      })
     } else {
-      files = null
+      setFiles(files)
+      selectedFiles = Array.from(files)
+
+      validationProgress.items = selectedFiles.map((index) => 0)
+      checkedItems.items = selectedFiles.map((index) => true)
     }
   }
 
   const validateFile = (file, index: number) => {
-    const newItems = [...validationProgress.items];
-    newItems[index] = Math.floor(Math.random() * 100);
+    const newItems = [...validationProgress.items]
+    newItems[index] = Math.floor(Math.random() * 100)
     setValidationProgress({
       items: newItems,
-    });
+    })
   }
 
   const validateAllFiles = (files) => {
@@ -72,27 +79,21 @@ function FileUpload() {
   })
 
   const handleMasterCheckboxChange = (event) => {
-    const isChecked = event.target.checked;
+    const isChecked = event.target.checked
     setCheckedItems({
       master: isChecked,
       items: checkedItems.items.map(() => isChecked),
-    });
+    })
   }
 
   const handleCheckboxChange = (index) => (event) => {
-    const newItems = [...checkedItems.items];
-    newItems[index] = event.target.checked;
+    const newItems = [...checkedItems.items]
+    newItems[index] = event.target.checked
     setCheckedItems({
       master: newItems.every((item) => item),
       items: newItems,
-    });
+    })
   }
-
-  useEffect(() => {
-    checkedItems.items = selectedFiles.map((index) => true)
-    validationProgress.items = selectedFiles.map((index) => 0)
-    
-  }, [selectedFiles]);
 
   return (
     <div>
@@ -132,7 +133,7 @@ function FileUpload() {
             </Button>
           </Grid>
 
-          {expandList ? (
+          {expandList && selectedFiles.length > 0 ? (
             <Grid item xs={6}>
               <FormControlLabel
                 sx={{ float: 'right' }}
@@ -196,7 +197,11 @@ function FileUpload() {
                           <FormControlLabel
                             sx={{ float: 'right', paddingTop: '10px' }}
                             control={
-                              <Checkbox color="secondary" checked={checkedItems.items[index]} onChange={handleCheckboxChange(index)}/>
+                              <Checkbox
+                                color="secondary"
+                                checked={checkedItems.items[index]}
+                                onChange={handleCheckboxChange(index)}
+                              />
                             }
                             label="Receive Email Conformation"
                             labelPlacement="end"
@@ -204,24 +209,24 @@ function FileUpload() {
                           />
                         </Grid>
                         <Grid item xs={9}>
-                        <Box>
-                              <LinearProgress
-                                color="secondary"
-                                variant="determinate"
-                                value={validationProgress.items[index]}
-                                sx={{
-                                  borderRadius: '5px',
-                                  height: '15px',
-                                }}
-                              />
-                              <Typography
-                                variant="body2"
-                                color="gray"
-                                sx={{ float: 'right' }}
-                              >
-                                {validationProgress.items[index] + '%'}
-                              </Typography>
-                            </Box>
+                          <Box>
+                            <LinearProgress
+                              color="secondary"
+                              variant="determinate"
+                              value={validationProgress.items[index]}
+                              sx={{
+                                borderRadius: '5px',
+                                height: '15px',
+                              }}
+                            />
+                            <Typography
+                              variant="body2"
+                              color="gray"
+                              sx={{ float: 'right' }}
+                            >
+                              {validationProgress.items[index] + '%'}
+                            </Typography>
+                          </Box>
                         </Grid>
                         <Grid item xs={3}>
                           <ButtonGroup
