@@ -155,6 +155,12 @@ function FileUpload() {
               {expandList ? <ExpandMore /> : <ChevronRight />}
               {selectedFiles.length > 0 && selectedFiles.length <= 10 ? (
                 <label>{selectedFiles.length + ' files selected'}</label>
+              ) : selectedFiles.length > 10 ? (
+                <label>
+                  {'Cannot select more than 10 files. ' +
+                    selectedFiles.length +
+                    ' files selected'}
+                </label>
               ) : (
                 <label>{'0 files selected'}</label>
               )}
