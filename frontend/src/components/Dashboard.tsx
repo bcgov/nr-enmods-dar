@@ -41,18 +41,9 @@ export default function Dashboard() {
   useEffect(() => {
     apiService
       .getAxiosInstance()
-      .get('/v1/users')
+      .post('/v1/dryrun')
       .then((response: AxiosResponse) => {
-        const users = []
-        for (const user of response.data) {
-          const userDto = {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-          }
-          users.push(userDto)
-        }
-        setData(users)
+       console.log(response)
       })
       .catch((error) => {
         console.error(error)

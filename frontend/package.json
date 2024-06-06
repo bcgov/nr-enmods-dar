@@ -28,6 +28,7 @@
     "react-dom": "^18.2.0",
     "react-router": "^6.12.1",
     "react-router-dom": "^6.12.1",
+    "redux": "^5.0.1",
     "vite": "^5.0.0",
     "vite-tsconfig-paths": "^4.2.0"
   },
