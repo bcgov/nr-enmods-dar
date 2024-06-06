@@ -6,7 +6,6 @@ import {
   Divider,
   FormControlLabel,
   Grid,
-  LinearProgress,
   List,
   ListItem,
   ListItemText,
@@ -114,6 +113,10 @@ function FileUpload() {
     })
   }
 
+  const fileSizeError = () => {
+    confirm('File size error \n TODO')
+  }
+
   return (
     <div>
       <div>
@@ -125,6 +128,8 @@ function FileUpload() {
           handleChange={handleFileSelect}
           name="file"
           hoverTitle="Click to browse for files to upload"
+          maxSize={10}
+          onSizeError={fileSizeError}
           children={
             <label className="upload-container">
               <div className="upload-children">
@@ -148,11 +153,17 @@ function FileUpload() {
           <Grid item xs={6}>
             <Button sx={{ color: 'black' }} onClick={handleExpandList}>
               {expandList ? <ExpandMore /> : <ChevronRight />}
-              <label>{selectedFiles.length + ' files selected'}</label>
+              {selectedFiles.length > 0 && selectedFiles.length <= 10 ? (
+                <label>{selectedFiles.length + ' files selected'}</label>
+              ) : (
+                <label>{'0 files selected'}</label>
+              )}
             </Button>
           </Grid>
 
-          {expandList && selectedFiles.length > 0 ? (
+          {expandList &&
+          selectedFiles.length > 0 &&
+          selectedFiles.length <= 10 ? (
             <Grid item xs={6}>
               <FormControlLabel
                 sx={{ float: 'right' }}
@@ -177,7 +188,7 @@ function FileUpload() {
         {expandList && (
           <div className="file-list">
             <List>
-              {selectedFiles.length > 0
+              {selectedFiles.length > 0 && selectedFiles.length <= 10
                 ? selectedFiles.map((file, index) => (
                     <ListItem key={index}>
                       <Grid container>
