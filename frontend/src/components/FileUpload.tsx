@@ -11,6 +11,7 @@ import {
   ListItem,
   ListItemText,
   Typography,
+  Modal,
 } from '@mui/material'
 import React, { useEffect, useState } from 'react'
 import { FileUploader } from 'react-drag-drop-files'
@@ -27,28 +28,51 @@ import '@/index.css'
 const fileTypes = ['xlsx', 'csv', 'txt']
 let selectedFiles: any[] = []
 let validationSuccess = {}
+const validate = false
+const submit = false
+
+const modalStyle = {
+  position: 'absolute',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  width: 400,
+  bgcolor: 'background.paper',
+  border: '2px solid #000',
+  boxShadow: 24,
+  p: 4,
+}
 
 function FileUpload() {
   const [files, setFiles] = useState(null)
 
-  const handleFileSelect = (files, index) => {
-    if (index != undefined) {
-      selectedFiles.splice(index, 1)
-      files = selectedFiles
+  const [open, setOpen] = useState(false)
+  const [currentItem, setCurrentItem] = useState(null);
+  const handleOpen = (index) => {
+    setCurrentItem(selectedFiles[index])
+    setOpen(true)
+  }
+  const handleClose = () => {
+    setOpen(false)
+    setCurrentItem(null)
+  }
 
-      setFiles(files)
-      selectedFiles = Array.from(files)
+  const handleFileSelect = (files) => {
+    setFiles(files)
+    selectedFiles = Array.from(files)
 
-    } else {
-      setFiles(files)
-      selectedFiles = Array.from(files)
+    checkedItems.items = selectedFiles.map((index) => true)
+  }
 
-      checkedItems.items = selectedFiles.map((index) => true)
-    }
+  const deleteFile = (file) => {
+    const index = selectedFiles.indexOf(file)
+    selectedFiles.splice(index, 1)
+    checkedItems.items.splice(index, 1)
+    setOpen(false)
   }
 
   const validateFile = (file, index: number) => {
-   confirm('Validation for one file \n TODO')
+    confirm('Validation for one file \n TODO')
   }
 
   const validateAllFiles = (files) => {
@@ -183,7 +207,7 @@ function FileUpload() {
                             <Button
                               style={{ color: 'black' }}
                               onClick={() => {
-                                handleFileSelect(files, index)
+                                handleOpen(index)
                               }}
                             >
                               <DeleteRounded />
@@ -207,7 +231,14 @@ function FileUpload() {
                         </Grid>
                         <Grid item xs={9}>
                           <Box>
-                           
+                            {/* TODO */}
+                            {validate ? (
+                              <Typography>Validating</Typography>
+                            ) : submit ? (
+                              <Typography>Submitting</Typography>
+                            ) : (
+                              ''
+                            )}
                           </Box>
                         </Grid>
                         <Grid item xs={3}>
@@ -248,6 +279,37 @@ function FileUpload() {
                   ))
                 : ''}
             </List>
+
+            <Modal
+                open={open}
+                onClose={handleClose}
+                aria-labelledby="modal-title"
+                aria-describedby="modal-description"
+              >
+                <Box sx={modalStyle}>
+                  <Typography id="modal-description" sx={{ mt: 2 }}>
+                    Are you sure you want to delete {currentItem ? currentItem.name : ''}`?
+                  </Typography>
+                  <Box
+                    sx={{
+                      mt: 4,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <Button variant="contained" color="primary" onClick={() => deleteFile(currentItem)}>
+                      Confirm
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="secondary"
+                      onClick={handleClose}
+                    >
+                      Cancel
+                    </Button>
+                  </Box>
+                </Box>
+              </Modal>
 
             <div className="all-file-action">
               <Box sx={{ paddingTop: '20px' }}>
