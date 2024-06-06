@@ -30,9 +30,6 @@ let validationSuccess = {}
 
 function FileUpload() {
   const [files, setFiles] = useState(null)
-  const [validationProgress, setValidationProgress] = useState({
-    items: [],
-  })
 
   const handleFileSelect = (files, index) => {
     if (index != undefined) {
@@ -42,28 +39,16 @@ function FileUpload() {
       setFiles(files)
       selectedFiles = Array.from(files)
 
-      const newItems = [...validationProgress.items]
-      newItems.splice(index, 1)
-      setValidationProgress({
-        items: newItems,
-      })
     } else {
       setFiles(files)
       selectedFiles = Array.from(files)
 
-      validationProgress.items = selectedFiles.map((index) => 0)
       checkedItems.items = selectedFiles.map((index) => true)
     }
   }
 
   const validateFile = (file, index: number) => {
-    const newItems = [...validationProgress.items]
-    newItems[index] = Math.floor(Math.random() * 100)
-    setValidationProgress({
-      items: newItems,
-    })
-
-    return true
+   confirm('Validation for one file \n TODO')
   }
 
   const validateAllFiles = (files) => {
@@ -222,22 +207,7 @@ function FileUpload() {
                         </Grid>
                         <Grid item xs={9}>
                           <Box>
-                            <LinearProgress
-                              color="secondary"
-                              variant="determinate"
-                              value={validationProgress.items[index]}
-                              sx={{
-                                borderRadius: '5px',
-                                height: '15px',
-                              }}
-                            />
-                            <Typography
-                              variant="body2"
-                              color="gray"
-                              sx={{ float: 'right' }}
-                            >
-                              {validationProgress.items[index] + '%'}
-                            </Typography>
+                           
                           </Box>
                         </Grid>
                         <Grid item xs={3}>
