@@ -47,7 +47,7 @@ function FileUpload() {
   const [files, setFiles] = useState(null)
 
   const [open, setOpen] = useState(false)
-  const [currentItem, setCurrentItem] = useState(null);
+  const [currentItem, setCurrentItem] = useState(null)
   const handleOpen = (index) => {
     setCurrentItem(selectedFiles[index])
     setOpen(true)
@@ -281,35 +281,40 @@ function FileUpload() {
             </List>
 
             <Modal
-                open={open}
-                onClose={handleClose}
-                aria-labelledby="modal-title"
-                aria-describedby="modal-description"
-              >
-                <Box sx={modalStyle}>
-                  <Typography id="modal-description" sx={{ mt: 2 }}>
-                    Are you sure you want to delete {currentItem ? currentItem.name : ''}`?
-                  </Typography>
-                  <Box
-                    sx={{
-                      mt: 4,
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                    }}
+              open={open}
+              onClose={handleClose}
+              aria-labelledby="modal-title"
+              aria-describedby="modal-description"
+            >
+              <Box sx={modalStyle}>
+                <Typography id="modal-description" sx={{ mt: 2 }}>
+                  Are you sure you want to delete{' '}
+                  {currentItem ? currentItem.name : ''}`?
+                </Typography>
+                <Box
+                  sx={{
+                    mt: 4,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() => deleteFile(currentItem)}
                   >
-                    <Button variant="contained" color="primary" onClick={() => deleteFile(currentItem)}>
-                      Confirm
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      color="secondary"
-                      onClick={handleClose}
-                    >
-                      Cancel
-                    </Button>
-                  </Box>
+                    Confirm
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    color="secondary"
+                    onClick={handleClose}
+                  >
+                    Cancel
+                  </Button>
                 </Box>
-              </Modal>
+              </Box>
+            </Modal>
 
             <div className="all-file-action">
               <Box sx={{ paddingTop: '20px' }}>
