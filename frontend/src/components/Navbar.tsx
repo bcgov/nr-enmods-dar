@@ -1,5 +1,6 @@
 import { Breadcrumbs, Link, Typography } from '@mui/material'
 import type { FC } from 'react'
+import { useLocation } from 'react-router'
 
 const styles = {
   navbar: {
@@ -17,14 +18,18 @@ const styles = {
 
 const paths = [
   { name: 'Home', url: '/' },
-  { name: 'Users', url: '/users' },
-  { name: 'Profile' },
+  { name: 'Admin', url: '/admin' },
 ]
 
 const Navbar: FC = () => {
+  const location = useLocation()
+  const currentPath = location.pathname
+
+  const breadcrumbs = paths.filter((path) => currentPath.includes(path.url))
+
   return (
     <Breadcrumbs aria-label="breadcrumb">
-      {paths.map((path, index) => {
+      {breadcrumbs.map((path, index) => {
         const isLast = index === paths.length - 1
         return isLast ? (
           <Typography color="textPrimary" key={index}>

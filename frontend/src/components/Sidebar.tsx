@@ -1,20 +1,24 @@
-import { List, ListItem, ListItemText } from '@mui/material'
+import { List, ListItemButton, ListItemText } from '@mui/material'
 import { Link } from 'react-router-dom'
 
 const topics = [
-  { name: 'Web policy and content standards', link: '/web-policy' },
-  { name: 'Web Style Guide', link: '/web-style-guide' },
-  { name: 'CMS Lite manual', link: '/cms-lite' },
-  { name: 'Enhanced Search Manual', link: '/enhanced-search' },
+  { name: 'BC Home', link: '/' },
+  { name: 'Ministry of Environment', link: '/' },
+  { name: 'EDT', link: '/' },
+  { name: 'Submit', link: '/' },
+  { name: 'Dashboard', link: '/' },
+  { name: 'Web User - FTP User Links', link: '/' },
+  { name: 'EMS', link: '/' },
+  { name: 'Admin', link: '/admin' },
 ]
 
 const Sidebar = () => {
   return (
     <List component="nav" aria-label="secondary mailbox folders">
       {topics.map((topic, index) => (
-        <ListItem button key={index} component={Link} to={topic.link}>
+        <ListItemButton key={index} component={Link} to={topic.link}>
           <ListItemText primary={topic.name} />
-        </ListItem>
+        </ListItemButton>
       ))}
     </List>
   )

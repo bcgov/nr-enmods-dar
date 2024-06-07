@@ -24,7 +24,8 @@ const styles = {
   },
   sidebar: {
     marginTop: '8em',
-    width: '28%',
+    // width: '28%',
+    width: '20%',
   },
   mainContent: {
     marginTop: '8em',
@@ -38,9 +39,9 @@ const styles = {
 
 export default function App() {
   return (
-    <Box sx={styles.container}>
-      <Header />
-      <BrowserRouter>
+    <BrowserRouter>
+      <Box sx={styles.container}>
+        <Header />
         <Box sx={styles.contentWrapper}>
           <Box sx={styles.content}>
             <Box sx={styles.sidebar}>
@@ -52,8 +53,8 @@ export default function App() {
             </Box>
           </Box>
         </Box>
-      </BrowserRouter>
-      <Footer />
-    </Box>
+        <Footer />
+      </Box>
+    </BrowserRouter>
   )
 }

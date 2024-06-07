@@ -47,7 +47,7 @@ export default function Header() {
       <Box sx={styles.innerContent}>
         <Toolbar sx={{ justifyContent: 'space-between' }}>
           <img style={{ maxHeight: '60px' }} alt="Logo" src={BCGovLogo} />
-          <Typography>Quickstart OpenShift</Typography>
+          <Typography>EMSEDT</Typography>
           <a href={'/'} target={'_self'}>
             <IconButton color="secondary">
               <HomeRounded color="secondary"></HomeRounded>
