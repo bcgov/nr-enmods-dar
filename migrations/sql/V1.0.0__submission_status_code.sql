@@ -1,5 +1,5 @@
-CREATE SCHEMA IF NOT EXISTS ENMODS;
-CREATE TABLE IF NOT EXISTS ENMODS.submission_status_code (
+CREATE SCHEMA IF NOT EXISTS enmods;
+CREATE TABLE IF NOT EXISTS enmods.submission_status_code (
     submission_status_code varchar(20) NOT NULL,
     description varchar(250) NOT NULL,
     display_order int4 NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS ENMODS.submission_status_code (
     update_utc_timestamp timestamp NOT NULL,
     CONSTRAINT submission_status_code_pk PRIMARY KEY (submission_status_code)
 );
-INSERT INTO ENMODS.submission_status_code(
+INSERT INTO enmods.submission_status_code(
         submission_status_code,
         description,
         display_order,
