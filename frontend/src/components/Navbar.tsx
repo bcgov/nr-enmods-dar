@@ -19,6 +19,7 @@ const styles = {
 const paths = [
   { name: 'Home', url: '/' },
   { name: 'Admin', url: '/admin' },
+  { name: 'Dashboard', url: '/dashboard' },
 ]
 
 const Navbar: FC = () => {
@@ -30,7 +31,7 @@ const Navbar: FC = () => {
   return (
     <Breadcrumbs aria-label="breadcrumb">
       {breadcrumbs.map((path, index) => {
-        const isLast = index === paths.length - 1
+        const isLast = index === breadcrumbs.length - 1
         return isLast ? (
           <Typography color="textPrimary" key={index}>
             {path.name}

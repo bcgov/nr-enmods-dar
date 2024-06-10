@@ -6,7 +6,7 @@ const topics = [
   { name: 'Ministry of Environment', link: '/' },
   { name: 'EDT', link: '/' },
   { name: 'Submit', link: '/' },
-  { name: 'Dashboard', link: '/' },
+  { name: 'Dashboard', link: '/dashboard' },
   { name: 'Web User - FTP User Links', link: '/' },
   { name: 'EMS', link: '/' },
   { name: 'Admin', link: '/admin' },
