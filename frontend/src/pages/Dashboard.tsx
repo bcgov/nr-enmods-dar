@@ -38,23 +38,23 @@ const columns = [
 export default function Dashboard() {
   // const [data, setData] = useState<any>([])
 
-  const data = [
-    {
-      id: 1,
-      name: 'Michael',
-      email: 'michael@email.com',
-    },
-    {
-      id: 2,
-      name: 'Test',
-      email: 'test@email.com',
-    },
-    {
-      id: 3,
-      name: 'User',
-      email: 'user@email.com',
-    },
-  ]
+  // const data = [
+  //   {
+  //     id: 1,
+  //     name: 'Michael',
+  //     email: 'michael@email.com',
+  //   },
+  //   {
+  //     id: 2,
+  //     name: 'Test',
+  //     email: 'test@email.com',
+  //   },
+  //   {
+  //     id: 3,
+  //     name: 'User',
+  //     email: 'user@email.com',
+  //   },
+  // ]
 
   useEffect(() => {
     // apiService
@@ -94,7 +94,8 @@ export default function Dashboard() {
         marginLeft: '4em',
       }}
     >
-      <DataGrid
+      Dashboard
+      {/* <DataGrid
         slots={{ toolbar: GridToolbar }}
         slotProps={{
           toolbar: {
@@ -129,7 +130,7 @@ export default function Dashboard() {
             Close
           </Button>
         </DialogActions>
-      </Dialog>
+      </Dialog> */}
     </div>
   )
 }
