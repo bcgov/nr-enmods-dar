@@ -23,7 +23,7 @@ export default function Admin() {
   const [selectedTab, setSelectedTab] = useState(0)
 
   // const [data, setData] = useState<any>([])
-  const [data] = useState([
+  const [userData] = useState([
     {
       id: 1,
       name: 'Michael Tennant',
@@ -50,6 +50,19 @@ export default function Admin() {
     },
   ])
 
+  const [companyData] = useState([
+    {
+      id: 'pqr123',
+      name: 'Salus Systems',
+      email: 'salus@email.com',
+    },
+    {
+      id: 'asd321',
+      name: 'Test Company',
+      email: 'testtester@email.com',
+    },
+  ])
+
   const handleRevoke = (id: number) => {
     setSelectedUserId(id)
     setOpen(true)
@@ -65,7 +78,7 @@ export default function Admin() {
     setSelectedUserId(null)
   }
 
-  const columns = [
+  const userColumns = [
     {
       field: 'name',
       headerName: 'Name',
@@ -105,6 +118,53 @@ export default function Admin() {
       filterable: true,
       flex: 1,
       minWidth: 140,
+    },
+    {
+      field: 'revoke',
+      headerName: '',
+      sortable: false,
+      filterable: false,
+      flex: 1,
+      minWidth: 100,
+      renderCell: (params: GridRenderCellParams) => (
+        <Link
+          href="#"
+          onClick={(event) => {
+            event.preventDefault()
+            handleRevoke(params.row.id)
+          }}
+          style={{ color: 'blue', cursor: 'pointer' }}
+        >
+          Revoke
+        </Link>
+      ),
+    },
+  ]
+
+  const companyColumns = [
+    {
+      field: 'id',
+      headerName: 'Company/Agency ID',
+      sortable: true,
+      filterable: true,
+      flex: 1,
+      minWidth: 280,
+    },
+    {
+      field: 'name',
+      headerName: 'Company/Agency Name',
+      sortable: true,
+      filterable: true,
+      flex: 1,
+      minWidth: 280,
+    },
+    {
+      field: 'email',
+      headerName: 'Email',
+      sortable: true,
+      filterable: true,
+      flex: 1,
+      minWidth: 240,
     },
     {
       field: 'revoke',
@@ -183,8 +243,8 @@ export default function Admin() {
             }}
             experimentalFeatures={{ ariaV7: true }}
             checkboxSelection={false}
-            rows={data}
-            columns={columns}
+            rows={userData}
+            columns={userColumns}
             pageSizeOptions={[5, 10, 20, 50, 100]}
             getRowId={(row) => row['id']}
             style={{ minWidth: 920 }}
@@ -198,7 +258,23 @@ export default function Admin() {
         aria-labelledby={`tab-1`}
         style={{ minHeight: '45em', maxHeight: '45em', width: '100%' }}
       >
-        {selectedTab === 1 && <div>Company table</div>}
+        {selectedTab === 1 && (
+          <DataGrid
+            slots={{ toolbar: GridToolbar }}
+            slotProps={{
+              toolbar: {
+                showQuickFilter: true,
+              },
+            }}
+            experimentalFeatures={{ ariaV7: true }}
+            checkboxSelection={false}
+            rows={companyData}
+            columns={companyColumns}
+            pageSizeOptions={[5, 10, 20, 50, 100]}
+            getRowId={(row) => row['id']}
+            style={{ minWidth: 920 }}
+          />
+        )}
       </Box>
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>Revoke User Privileges</DialogTitle>
