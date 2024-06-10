@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
-import NotFound from '@/components/NotFound'
-import Dashboard from '@/components/Dashboard'
-import Admin from '@/components/Admin'
+import NotFound from '@/pages/NotFound'
+import Dashboard from '@/pages/Dashboard'
+import Admin from '@/pages/Admin'
 
 export default function AppRoutes() {
   return (

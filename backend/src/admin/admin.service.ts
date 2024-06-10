@@ -13,12 +13,13 @@ export class AdminService {
    */
   async findAll(): Promise<any[]> {
     const bearerToken = await this.getToken();
-    const role = "???";
+    const role = "Enmods Admin";
     const url = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/roles/${role}/users`;
     const config = {
       headers: { Authorization: "Bearer " + bearerToken },
     };
     try {
+      console.log("trying user api");
       const response = await firstValueFrom(this.httpService.get(url, config));
       console.log(response);
       return response.data.data;
