@@ -8,15 +8,19 @@ import {
   DialogTitle,
   Button,
   Typography,
+  Tabs,
+  Tab,
 } from '@mui/material'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import { useState } from 'react'
+import { Box } from '@mui/system'
 // import { useState } from 'react'
 // import type { AxiosResponse } from '~/axios'
 
 export default function Admin() {
   const [open, setOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
+  const [selectedTab, setSelectedTab] = useState(0)
 
   // const [data, setData] = useState<any>([])
   const [data] = useState([
@@ -124,6 +128,13 @@ export default function Admin() {
     },
   ]
 
+  const handleTabChange = (
+    event: React.SyntheticEvent,
+    newValue: number,
+  ): void => {
+    setSelectedTab(newValue)
+  }
+
   return (
     <div
       style={{
@@ -133,21 +144,62 @@ export default function Admin() {
         marginLeft: '4em',
       }}
     >
-      <DataGrid
-        slots={{ toolbar: GridToolbar }}
-        slotProps={{
-          toolbar: {
-            showQuickFilter: true,
-          },
+      <Tabs
+        value={selectedTab}
+        onChange={handleTabChange}
+        aria-label="admin tabs"
+      >
+        <Tab
+          label="Users"
+          style={{
+            color: selectedTab === 0 ? 'black' : 'lightgray',
+          }}
+        />
+        <Tab
+          label="Company"
+          style={{
+            color: selectedTab === 1 ? 'black' : 'lightgray',
+          }}
+        />
+      </Tabs>
+      <Box
+        role="tabpanel"
+        hidden={selectedTab !== 0}
+        id={`tabpanel-0`}
+        aria-labelledby={`tab-0`}
+        style={{
+          minHeight: '45em',
+          maxHeight: '45em',
+          width: '100%',
         }}
-        experimentalFeatures={{ ariaV7: true }}
-        checkboxSelection={false}
-        rows={data}
-        columns={columns}
-        pageSizeOptions={[5, 10, 20, 50, 100]}
-        getRowId={(row) => row['id']}
-        style={{ minWidth: 920 }}
-      />
+      >
+        {selectedTab === 0 && (
+          <DataGrid
+            slots={{ toolbar: GridToolbar }}
+            slotProps={{
+              toolbar: {
+                showQuickFilter: true,
+              },
+            }}
+            experimentalFeatures={{ ariaV7: true }}
+            checkboxSelection={false}
+            rows={data}
+            columns={columns}
+            pageSizeOptions={[5, 10, 20, 50, 100]}
+            getRowId={(row) => row['id']}
+            style={{ minWidth: 920 }}
+          />
+        )}
+      </Box>
+      <Box
+        role="tabpanel"
+        hidden={selectedTab !== 1}
+        id={`tabpanel-1`}
+        aria-labelledby={`tab-1`}
+        style={{ minHeight: '45em', maxHeight: '45em', width: '100%' }}
+      >
+        {selectedTab === 1 && <div>Company table</div>}
+      </Box>
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>Revoke User Privileges</DialogTitle>
         <DialogContent sx={{ paddingTop: '24px' }}>
