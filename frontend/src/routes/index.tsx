@@ -4,6 +4,7 @@ import Roles from '../roles'
 import NotFound from '@/pages/NotFound'
 import Dashboard from '@/pages/Dashboard'
 import AdminPage from '@/pages/AdminPage'
+import FileUpload from '@/pages/FileUpload'
 
 export default function AppRoutes() {
   return (
@@ -12,10 +13,12 @@ export default function AppRoutes() {
         <Route element={<ProtectedRoutes roles={[Roles.ENMODS_ADMIN]} />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/submit" element={<FileUpload />} />
         </Route>
 
         <Route element={<ProtectedRoutes roles={[Roles.ENMODS_USER]} />}>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/submit" element={<FileUpload />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />
