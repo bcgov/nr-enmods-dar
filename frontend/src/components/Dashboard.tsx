@@ -41,7 +41,7 @@ export default function Dashboard() {
   useEffect(() => {
     apiService
       .getAxiosInstance()
-      .post('/v1/dryrun')
+      .get('/v1/dryrun')
       .then((response: AxiosResponse) => {
        console.log(response)
       })

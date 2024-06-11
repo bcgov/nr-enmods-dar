@@ -1,16 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { CreateDryrunDto } from './dto/create-dryrun.dto';
 import { UpdateDryrunDto } from './dto/update-dryrun.dto';
+import { PrismaService } from 'nestjs-prisma';
+import { Prisma } from "@prisma/client";
+import { DryrunDto } from './dto/dryrun.dto';
 
 @Injectable()
 export class DryrunService {
+  constructor(
+    private prisma: PrismaService
+  ) {
+  }
+  
   create(createDryrunDto: CreateDryrunDto) {
     console.log("I WILL SEND THE POST FROM HERE!!!");
     return 'This action adds a new dryrun';
   }
 
-  findAll() {
-    return `This action returns all dryrun`;
+  async findAll() {
+    const files = await this.prisma.file_submissions.findMany();
+    console.log(files)
   }
 
   findOne(id: number) {

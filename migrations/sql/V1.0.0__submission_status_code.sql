@@ -29,7 +29,7 @@ values (
         (now() at time zone 'utc'),
         'VMANAWAT',
         (now() at time zone 'utc')
-    ), 
+    ),
     (
         'INPROGRESS',
         'In Progress',
@@ -60,4 +60,3 @@ values (
         'VMANAWAT',
         (now() at time zone 'utc')
     );
-    

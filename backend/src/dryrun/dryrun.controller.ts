@@ -2,8 +2,11 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { DryrunService } from './dryrun.service';
 import { CreateDryrunDto } from './dto/create-dryrun.dto';
 import { UpdateDryrunDto } from './dto/update-dryrun.dto';
+import { ApiTags } from '@nestjs/swagger';
+import { DryrunDto } from './dto/dryrun.dto';
 
-@Controller('dryrun')
+@ApiTags("dryrun")
+@Controller({path: "dryrun", version: "1"})
 export class DryrunController {
   constructor(private readonly dryrunService: DryrunService) {}
 
@@ -15,6 +18,7 @@ export class DryrunController {
 
   @Get()
   findAll() {
+    console.log('FIND ALL HERE!!!')
     return this.dryrunService.findAll();
   }
 

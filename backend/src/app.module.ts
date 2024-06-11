@@ -3,7 +3,6 @@ import { Logger, MiddlewareConsumer, Module, RequestMethod } from "@nestjs/commo
 import { HTTPLoggerMiddleware } from "./middleware/req.res.logger";
 import { loggingMiddleware, PrismaModule } from "nestjs-prisma";
 import { ConfigModule } from "@nestjs/config";
-import { UsersModule } from "./users/users.module";
 import { AppService } from "./app.service";
 import { AppController } from "./app.controller";
 import { MetricsController } from "./metrics.controller";
@@ -46,7 +45,6 @@ function getMiddlewares() {
         middlewares: getMiddlewares(),
       },
     }),
-    UsersModule,
     DryrunModule
   ],
   controllers: [AppController,MetricsController, HealthController],
