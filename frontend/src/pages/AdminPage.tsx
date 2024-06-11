@@ -1,20 +1,11 @@
 // import apiService from '@/service/api-service'
 import _kc from '@/keycloak'
 import type { GridRenderCellParams } from '@mui/x-data-grid'
-import {
-  Link,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Button,
-  Typography,
-  Tabs,
-  Tab,
-} from '@mui/material'
+import { Link, Dialog, DialogActions, DialogContent, DialogTitle, Button, Typography, Tabs, Tab } from '@mui/material'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Box } from '@mui/system'
+import { getUsers } from '@/common/admin'
 // import { useState } from 'react'
 // import type { AxiosResponse } from '~/axios'
 
@@ -22,6 +13,17 @@ export default function AdminPage() {
   const [open, setOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
   const [selectedTab, setSelectedTab] = useState(0)
+
+  useEffect(() => {
+    console.log('getting users')
+    fetchUsers()
+  }, [])
+
+  const fetchUsers = async () => {
+    const users = await getUsers()
+    console.log('users:', users)
+    return users
+  }
 
   // const [data, setData] = useState<any>([])
   const [userData] = useState([
@@ -189,10 +191,7 @@ export default function AdminPage() {
     },
   ]
 
-  const handleTabChange = (
-    event: React.SyntheticEvent,
-    newValue: number,
-  ): void => {
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number): void => {
     setSelectedTab(newValue)
   }
 
@@ -205,11 +204,7 @@ export default function AdminPage() {
         marginLeft: '4em',
       }}
     >
-      <Tabs
-        value={selectedTab}
-        onChange={handleTabChange}
-        aria-label="admin tabs"
-      >
+      <Tabs value={selectedTab} onChange={handleTabChange} aria-label="admin tabs">
         <Tab
           label="Users"
           style={{
@@ -280,9 +275,7 @@ export default function AdminPage() {
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>Revoke User Privileges</DialogTitle>
         <DialogContent sx={{ paddingTop: '24px' }}>
-          <Typography>
-            Are you sure you want to revoke access for this user?
-          </Typography>
+          <Typography>Are you sure you want to revoke access for this user?</Typography>
         </DialogContent>
         <DialogActions sx={{ paddingBottom: '24px' }}>
           <Button
@@ -299,12 +292,7 @@ export default function AdminPage() {
           >
             Cancel
           </Button>
-          <Button
-            color="secondary"
-            onClick={handleConfirmRevoke}
-            variant="contained"
-            autoFocus
-          >
+          <Button color="secondary" onClick={handleConfirmRevoke} variant="contained" autoFocus>
             Confirm
           </Button>
         </DialogActions>

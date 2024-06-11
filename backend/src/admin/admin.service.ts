@@ -1,6 +1,7 @@
 import { HttpService } from "@nestjs/axios";
 import { Injectable } from "@nestjs/common";
 import { firstValueFrom } from "rxjs";
+import { Role } from "src/enum/role.enum";
 
 @Injectable()
 export class AdminService {
@@ -13,17 +14,70 @@ export class AdminService {
    */
   async findAll(): Promise<any[]> {
     const bearerToken = await this.getToken();
-    const role = "Enmods Admin";
-    const url = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/roles/${role}/users`;
+    const adminUrl = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/roles/${Role.ENMODS_ADMIN}/users`;
+    const userUrl = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/roles/${Role.ENMODS_USER}/users`;
     const config = {
       headers: { Authorization: "Bearer " + bearerToken },
     };
     try {
-      console.log("trying user api");
-      const response = await firstValueFrom(this.httpService.get(url, config));
-      console.log(response);
-      return response.data.data;
+      const adminResponse = await firstValueFrom(
+        this.httpService.get(adminUrl, config)
+      );
+      type IdirUserInfo = {
+        username: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        attributes: {
+          idir_user_guid: any[];
+          idir_username: any[];
+          display_name: any[];
+        };
+      };
+      type UserInfo = {
+        username: string;
+        email: string;
+        name: string;
+        company: string;
+        role: string[];
+      };
+      const returnData: UserInfo[] = [];
+      const adminData = adminResponse.data.data;
+      adminData.map((admin: IdirUserInfo) => {
+        console.log(admin);
+        returnData.push({
+          username: admin.attributes.idir_username[0],
+          email: admin.email,
+          name: admin.firstName + " " + admin.lastName,
+          company: "Not Implemented",
+          role: [Role.ENMODS_ADMIN],
+        });
+      });
+      const userResponse = await firstValueFrom(
+        this.httpService.get(userUrl, config)
+      );
+      const userData = userResponse.data.data;
+      userData.map((user: IdirUserInfo) => {
+        const existingUser = returnData.find(
+          (u) => u.username === user.attributes.idir_username[0]
+        );
+        if (existingUser) {
+          existingUser.role.push(Role.ENMODS_USER);
+        } else {
+          returnData.push({
+            username: user.attributes.idir_username[0],
+            email: user.email,
+            name: user.firstName + " " + user.lastName,
+            company: "Not Implemented",
+            role: [Role.ENMODS_USER],
+          });
+        }
+      });
+      console.log([...adminData, ...userData]);
+      console.log(adminData[0].attributes);
+      return returnData;
     } catch (err) {
+      console.log("Error findAll Admin");
       console.log(err.response?.data || err.message);
       throw err;
     }
