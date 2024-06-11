@@ -11,13 +11,13 @@ export default function AppRoutes() {
     <>
       <Routes>
         <Route element={<ProtectedRoutes roles={[Roles.ENMODS_ADMIN]} />}>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/submit" element={<FileUpload />} />
         </Route>
 
         <Route element={<ProtectedRoutes roles={[Roles.ENMODS_USER]} />}>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/submit" element={<FileUpload />} />
         </Route>
 
