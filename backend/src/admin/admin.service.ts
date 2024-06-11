@@ -2,6 +2,7 @@ import { HttpService } from "@nestjs/axios";
 import { Injectable } from "@nestjs/common";
 import { firstValueFrom } from "rxjs";
 import { Role } from "src/enum/role.enum";
+import { IdirUserInfo, UserInfo } from "src/types/types";
 
 @Injectable()
 export class AdminService {
@@ -23,24 +24,7 @@ export class AdminService {
       const adminResponse = await firstValueFrom(
         this.httpService.get(adminUrl, config)
       );
-      type IdirUserInfo = {
-        username: string;
-        email: string;
-        firstName: string;
-        lastName: string;
-        attributes: {
-          idir_user_guid: any[];
-          idir_username: any[];
-          display_name: any[];
-        };
-      };
-      type UserInfo = {
-        username: string;
-        email: string;
-        name: string;
-        company: string;
-        role: string[];
-      };
+
       const returnData: UserInfo[] = [];
       const adminData = adminResponse.data.data;
       adminData.map((admin: IdirUserInfo) => {
