@@ -1,4 +1,5 @@
 // import apiService from '@/service/api-service'
+import _kc from '@/keycloak'
 import type { GridRenderCellParams } from '@mui/x-data-grid'
 import {
   Link,
@@ -17,7 +18,7 @@ import { Box } from '@mui/system'
 // import { useState } from 'react'
 // import type { AxiosResponse } from '~/axios'
 
-export default function Admin() {
+export default function AdminPage() {
   const [open, setOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
   const [selectedTab, setSelectedTab] = useState(0)
