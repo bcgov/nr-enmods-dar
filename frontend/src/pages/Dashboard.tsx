@@ -1,101 +1,82 @@
-// import apiService from '@/service/api-service'
-// import Button from '@mui/material/Button'
-// import Dialog from '@mui/material/Dialog'
-// import DialogActions from '@mui/material/DialogActions'
-// import DialogContent from '@mui/material/DialogContent'
-// import DialogTitle from '@mui/material/DialogTitle'
-// import Table from '@mui/material/Table'
-// import TableBody from '@mui/material/TableBody'
-// import TableCell from '@mui/material/TableCell'
-// import TableRow from '@mui/material/TableRow'
-// import { DataGrid, GridToolbar } from '@mui/x-data-grid'
-// import { useEffect, useState } from 'react'
-// import type { AxiosResponse } from '~/axios'
+import apiService from '@/service/api-service'
+import Button from '@mui/material/Button'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import Table from '@mui/material/Table'
+import TableBody from '@mui/material/TableBody'
+import TableCell from '@mui/material/TableCell'
+import TableRow from '@mui/material/TableRow'
+import { DataGrid, GridToolbar } from '@mui/x-data-grid'
+import { useEffect, useState } from 'react'
+import type { AxiosResponse } from '~/axios'
+// import config from '../config'
+import _kc from '@/keycloak'
+import UserService from '@/service/user-service'
 
-// const columns = [
-//   {
-//     field: 'id',
-//     headerName: 'Employee ID',
-//     sortable: true,
-//     filterable: true,
-//     flex: 1,
-//   },
-//   {
-//     field: 'name',
-//     headerName: 'Employee Name',
-//     sortable: true,
-//     filterable: true,
-//     flex: 1,
-//   },
-//   {
-//     field: 'email',
-//     headerName: 'Employee Email',
-//     sortable: true,
-//     filterable: true,
-//     flex: 1,
-//   },
-// ]
+const columns = [
+  {
+    field: 'id',
+    headerName: 'Employee ID',
+    sortable: true,
+    filterable: true,
+    flex: 1,
+  },
+  {
+    field: 'name',
+    headerName: 'Employee Name',
+    sortable: true,
+    filterable: true,
+    flex: 1,
+  },
+  {
+    field: 'email',
+    headerName: 'Employee Email',
+    sortable: true,
+    filterable: true,
+    flex: 1,
+  },
+]
 export default function Dashboard() {
-  // const [data, setData] = useState<any>([])
+  const [data, setData] = useState<any>([])
 
-  // const data = [
-  //   {
-  //     id: 1,
-  //     name: 'Michael',
-  //     email: 'michael@email.com',
-  //   },
-  //   {
-  //     id: 2,
-  //     name: 'Test',
-  //     email: 'test@email.com',
-  //   },
-  //   {
-  //     id: 3,
-  //     name: 'User',
-  //     email: 'user@email.com',
-  //   },
-  // ]
+  useEffect(() => {
+    apiService
+      .getAxiosInstance()
+      .get('/v1/users')
+      .then((response: AxiosResponse) => {
+        const users = []
+        for (const user of response.data) {
+          const userDto = {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+          }
+          users.push(userDto)
+        }
+        setData(users)
+      })
+      .catch((error) => {
+        console.error(error)
+      })
+  }, [])
+  const [selectedRow, setSelectedRow] = useState(null)
 
-  // useEffect(() => {
-  // apiService
-  //   .getAxiosInstance()
-  //   .get('/v1/users')
-  //   .then((response: AxiosResponse) => {
-  //     const users = []
-  //     for (const user of response.data) {
-  //       const userDto = {
-  //         id: user.id,
-  //         name: user.name,
-  //         email: user.email,
-  //       }
-  //       users.push(userDto)
-  //     }
-  //     setData(users)
-  //   })
-  //   .catch((error) => {
-  //     console.error(error)
-  //   })
-  // }, [])
-  // interface DataRow {
-  //   [key: string]: any
-  // }
+  const handleClose = () => {
+    setSelectedRow(null)
+  }
 
-  // const [selectedRow, setSelectedRow] = useState<DataRow | null>(null)
-
-  // const handleClose = () => {
-  //   setSelectedRow(null)
-  // }
   return (
     <div
       style={{
         minHeight: '45em',
         maxHeight: '45em',
-        width: '100%',
+        width: '90%',
         marginLeft: '4em',
       }}
     >
-      Dashboard
-      {/* <DataGrid
+      <DataGrid
         slots={{ toolbar: GridToolbar }}
         slotProps={{
           toolbar: {
@@ -130,7 +111,7 @@ export default function Dashboard() {
             Close
           </Button>
         </DialogActions>
-      </Dialog> */}
+      </Dialog>
     </div>
   )
 }
