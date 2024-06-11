@@ -14,6 +14,17 @@
 		}
 		level {$LOG_LEVEL}
 	}
+	handle /static/js/config.js {
+		header {
+		Content-Type text/javascript
+		}
+		respond `window.REACT_APP_KEYCLOAK_URL={$KEYCLOAK_URL};
+                window.REACT_APP_KEYCLOAK_REALM="standard";
+                window.REACT_APP_KEYCLOAK_CLIENT_ID={$KEYCLOAK_CLIENT_ID};
+                window.REACT_APP_API_URL={$BACKEND_URL};
+                window.REACT_APP_COMS_URL={$COMS_URL};
+                window.REACT_APP_COMS_BUCKET={$COMS_BUCKET};`
+  	}
 	root * /srv
 	encode zstd gzip
 	file_server

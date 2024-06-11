@@ -1,15 +1,20 @@
-import * as React from 'react'
+import { StrictMode } from 'react'
 import * as ReactDOM from 'react-dom/client'
 import { ThemeProvider } from '@emotion/react'
 import { CssBaseline } from '@mui/material'
 import theme from './theme'
 import App from './App'
+import UserService from './service/user-service'
 
-ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-  <React.StrictMode>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <App />
-    </ThemeProvider>
-  </React.StrictMode>,
-)
+const onAuthenticatedCallback = () => {
+  ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
+    <StrictMode>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <App />
+      </ThemeProvider>
+    </StrictMode>,
+  )
+}
+
+UserService.initKeycloak(onAuthenticatedCallback)

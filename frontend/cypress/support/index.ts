@@ -1,2 +1,1 @@
-declare namespace Cypress {
-}
+declare namespace Cypress {}

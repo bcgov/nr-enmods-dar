@@ -11,6 +11,9 @@ import TableRow from '@mui/material/TableRow'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import { useEffect, useState } from 'react'
 import type { AxiosResponse } from '~/axios'
+// import config from '../config'
+import _kc from '@/keycloak'
+import UserService from '@/service/user-service'
 
 const columns = [
   {
@@ -36,30 +39,42 @@ const columns = [
   },
 ]
 export default function Dashboard() {
-  const [data, setData] = useState<any>([])
+  const [data, setData] = useState<any>([
+    { id: 1, name: 'Michael', email: 'michael@email.com' },
+  ])
 
   useEffect(() => {
-    apiService
-      .getAxiosInstance()
-      .get('/v1/dryrun')
-      .then((response: AxiosResponse) => {
-       console.log(response)
-      })
-      .catch((error) => {
-        console.error(error)
-      })
+    // apiService
+    //   .getAxiosInstance()
+    //   .get('/v1/users')
+    //   .then((response: AxiosResponse) => {
+    //     const users = []
+    //     for (const user of response.data) {
+    //       const userDto = {
+    //         id: user.id,
+    //         name: user.name,
+    //         email: user.email,
+    //       }
+    //       users.push(userDto)
+    //     }
+    //     setData(users)
+    //   })
+    //   .catch((error) => {
+    //     console.error(error)
+    //   })
   }, [])
-  const [selectedRow, setSelectedRow] = useState(null)
+  const [selectedRow, setSelectedRow] = useState<null | any[]>(null)
 
   const handleClose = () => {
     setSelectedRow(null)
   }
+
   return (
     <div
       style={{
         minHeight: '45em',
         maxHeight: '45em',
-        width: '100%',
+        width: '90%',
         marginLeft: '4em',
       }}
     >

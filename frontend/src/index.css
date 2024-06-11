@@ -26,3 +26,37 @@
 .MuiDrawer-paperAnchorLeft {
   margin-top: 4.2em !important;
 }
+
+.custom-file-upload {
+  width: 1000px !important;
+  height: 200px !important;
+  padding-left: 20%;
+}
+
+.upload-container{
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 400px;
+  max-width: 1000px;
+  border: 2px dashed rgb(6, 88, 194);
+  border-radius: 5px;
+  cursor: pointer;
+  padding: 50px 100px 50px 110px
+}
+
+.upload-children{
+  width: max-content;
+  align-items: center;
+  margin: auto;
+}
+
+.file-list, .file-drop-list{
+  width: 1000px;
+  align-items: center;
+  margin: auto;
+}
+
+.all-file-action{
+ float: right;
+}
