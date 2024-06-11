@@ -39,29 +39,31 @@ const columns = [
   },
 ]
 export default function Dashboard() {
-  const [data, setData] = useState<any>([])
+  const [data, setData] = useState<any>([
+    { id: 1, name: 'Michael', email: 'michael@email.com' },
+  ])
 
   useEffect(() => {
-    apiService
-      .getAxiosInstance()
-      .get('/v1/users')
-      .then((response: AxiosResponse) => {
-        const users = []
-        for (const user of response.data) {
-          const userDto = {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-          }
-          users.push(userDto)
-        }
-        setData(users)
-      })
-      .catch((error) => {
-        console.error(error)
-      })
+    // apiService
+    //   .getAxiosInstance()
+    //   .get('/v1/users')
+    //   .then((response: AxiosResponse) => {
+    //     const users = []
+    //     for (const user of response.data) {
+    //       const userDto = {
+    //         id: user.id,
+    //         name: user.name,
+    //         email: user.email,
+    //       }
+    //       users.push(userDto)
+    //     }
+    //     setData(users)
+    //   })
+    //   .catch((error) => {
+    //     console.error(error)
+    //   })
   }, [])
-  const [selectedRow, setSelectedRow] = useState(null)
+  const [selectedRow, setSelectedRow] = useState<null | any[]>(null)
 
   const handleClose = () => {
     setSelectedRow(null)
