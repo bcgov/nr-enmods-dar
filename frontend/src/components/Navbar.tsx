@@ -20,6 +20,7 @@ const paths = [
   { name: 'Home', url: '/' },
   { name: 'Admin', url: '/admin' },
   { name: 'Dashboard', url: '/dashboard' },
+  { name: 'Submit', url: '/submit' },
 ]
 
 const Navbar: FC = () => {

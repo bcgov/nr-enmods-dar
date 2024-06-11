@@ -30,6 +30,7 @@
 .custom-file-upload {
   width: 1000px !important;
   height: 200px !important;
+  padding-left: 20%;
 }
 
 .upload-container{
