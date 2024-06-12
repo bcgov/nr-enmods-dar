@@ -1,15 +1,41 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["metrics"]
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("POSTGRESQL_URL")
 }
 
-model users {
-  id    Decimal @id(map: "USER_PK") @default(dbgenerated("nextval('\"USER_SEQ\"'::regclass)")) @db.Decimal
-  name  String  @db.VarChar(200)
-  email String  @db.VarChar(200)
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model submission_status_code {
+  submission_status_code                                                           String             @id(map: "submission_status_code_pk") @db.VarChar(20)
+  description                                                                      String             @db.VarChar(250)
+  display_order                                                                    Int
+  active_ind                                                                       Boolean            @default(true)
+  create_user_id                                                                   String             @db.VarChar(200)
+  create_utc_timestamp                                                             DateTime           @db.Timestamp(6)
+  update_user_id                                                                   String             @db.VarChar(200)
+  update_utc_timestamp                                                             DateTime           @db.Timestamp(6)
+  file_submissions_file_submissions_submission_status_codeTosubmission_status_code file_submissions[] @relation("file_submissions_submission_status_codeTosubmission_status_code")
+}
+
+model file_submissions {
+  submission_id                                                                          String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  file_name                                                                              String                 @db.VarChar(200)
+  submission_date                                                                        DateTime               @db.Timestamp(6)
+  submitter_user_id                                                                      String                 @db.VarChar(200)
+  submission_status_code                                                                 String                 @db.VarChar(10)
+  submitter_agency_name                                                                  String                 @db.VarChar(200)
+  sample_count                                                                           Int?
+  results_count                                                                          Int?
+  active_ind                                                                             Boolean                @default(true)
+  error_log                                                                              String?
+  organization_guid                                                                      String?                @db.Uuid
+  create_user_id                                                                         String                 @db.VarChar(200)
+  create_utc_timestamp                                                                   DateTime               @db.Timestamp(6)
+  update_user_id                                                                         String                 @db.VarChar(200)
+  update_utc_timestamp                                                                   DateTime               @db.Timestamp(6)
+  submission_status_code_file_submissions_submission_status_codeTosubmission_status_code submission_status_code @relation("file_submissions_submission_status_codeTosubmission_status_code", fields: [submission_status_code], references: [submission_status_code], onDelete: NoAction, onUpdate: NoAction, map: "submission_status_code_fk")
 }
