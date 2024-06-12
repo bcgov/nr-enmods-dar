@@ -28,7 +28,6 @@ export class AdminService {
       const returnData: UserInfo[] = [];
       const adminData = adminResponse.data.data;
       adminData.map((admin: IdirUserInfo) => {
-        console.log(admin);
         returnData.push({
           username: admin.attributes.idir_username[0],
           email: admin.email,
@@ -57,8 +56,6 @@ export class AdminService {
           });
         }
       });
-      console.log([...adminData, ...userData]);
-      console.log(adminData[0].attributes);
       return returnData;
     } catch (err) {
       console.log("Error findAll Admin");

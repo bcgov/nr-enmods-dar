@@ -1,57 +1,40 @@
-// import apiService from '@/service/api-service'
-import _kc from '@/keycloak'
 import type { GridRenderCellParams } from '@mui/x-data-grid'
-import { Link, Dialog, DialogActions, DialogContent, DialogTitle, Button, Typography, Tabs, Tab } from '@mui/material'
+import {
+  Link,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Button,
+  Typography,
+  Tabs,
+  Tab,
+  Select,
+  MenuItem,
+} from '@mui/material'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import { useEffect, useState } from 'react'
 import { Box } from '@mui/system'
 import { getUsers } from '@/common/admin'
-// import { useState } from 'react'
-// import type { AxiosResponse } from '~/axios'
+import type { UserInfo } from '@/types/types'
+import Roles from '@/roles'
 
 export default function AdminPage() {
   const [open, setOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
   const [selectedTab, setSelectedTab] = useState(0)
+  const [userData, setUserData] = useState<UserInfo[]>([])
 
   useEffect(() => {
     console.log('getting users')
-    fetchUsers()
+    const getUserData = async () => {
+      // setUserData(await getUsers())
+      const users: UserInfo[] = await getUsers()
+      console.log(users[0])
+      setUserData(users)
+    }
+    getUserData()
   }, [])
-
-  const fetchUsers = async () => {
-    const users = await getUsers()
-    console.log('users:', users)
-    return users
-  }
-
-  // const [data, setData] = useState<any>([])
-  const [userData] = useState([
-    {
-      id: 1,
-      name: 'Michael Tennant',
-      username: 'mtennant',
-      email: 'michael@email.com',
-      company: 'Salus Systems',
-      role: 'Admin',
-    },
-    {
-      id: 2,
-      name: 'Test tester',
-      username: 'ttester',
-      email: 'test@email.com',
-      company: 'Test Company',
-      role: 'Data Submitter',
-    },
-    {
-      id: 3,
-      name: 'Harold Ackerman',
-      username: 'hackerman',
-      email: 'hackerman@email.com',
-      company: 'Test Company',
-      role: 'Operational Staff',
-    },
-  ])
 
   const [companyData] = useState([
     {
@@ -81,6 +64,9 @@ export default function AdminPage() {
     setSelectedUserId(null)
   }
 
+  const allRoles = [Roles.ENMODS_ADMIN, Roles.ENMODS_USER]
+  console.log(allRoles)
+
   const userColumns = [
     {
       field: 'name',
@@ -104,7 +90,7 @@ export default function AdminPage() {
       sortable: true,
       filterable: true,
       flex: 1,
-      minWidth: 180,
+      minWidth: 240,
     },
     {
       field: 'company',
@@ -112,7 +98,7 @@ export default function AdminPage() {
       sortable: true,
       filterable: true,
       flex: 1,
-      minWidth: 180,
+      minWidth: 170,
     },
     {
       field: 'role',
@@ -120,7 +106,21 @@ export default function AdminPage() {
       sortable: true,
       filterable: true,
       flex: 1,
-      minWidth: 140,
+      minWidth: 170,
+      renderCell: (params: GridRenderCellParams) => {
+        const roles = params.value as string[]
+        console.log(roles)
+
+        return (
+          <Select value={roles[0]}>
+            {allRoles.map((role) => (
+              <MenuItem key={role} value={role}>
+                {role}
+              </MenuItem>
+            ))}
+          </Select>
+        )
+      },
     },
     {
       field: 'revoke',
@@ -191,7 +191,10 @@ export default function AdminPage() {
     },
   ]
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number): void => {
+  const handleTabChange = (
+    event: React.SyntheticEvent,
+    newValue: number,
+  ): void => {
     setSelectedTab(newValue)
   }
 
@@ -204,7 +207,11 @@ export default function AdminPage() {
         marginLeft: '4em',
       }}
     >
-      <Tabs value={selectedTab} onChange={handleTabChange} aria-label="admin tabs">
+      <Tabs
+        value={selectedTab}
+        onChange={handleTabChange}
+        aria-label="admin tabs"
+      >
         <Tab
           label="Users"
           style={{
@@ -242,8 +249,8 @@ export default function AdminPage() {
             rows={userData}
             columns={userColumns}
             pageSizeOptions={[5, 10, 20, 50, 100]}
-            getRowId={(row) => row['id']}
-            style={{ minWidth: 920 }}
+            getRowId={(row) => row['username']}
+            style={{ minWidth: 1000 }}
           />
         )}
       </Box>
@@ -275,7 +282,9 @@ export default function AdminPage() {
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>Revoke User Privileges</DialogTitle>
         <DialogContent sx={{ paddingTop: '24px' }}>
-          <Typography>Are you sure you want to revoke access for this user?</Typography>
+          <Typography>
+            Are you sure you want to revoke access for this user?
+          </Typography>
         </DialogContent>
         <DialogActions sx={{ paddingBottom: '24px' }}>
           <Button
@@ -292,7 +301,12 @@ export default function AdminPage() {
           >
             Cancel
           </Button>
-          <Button color="secondary" onClick={handleConfirmRevoke} variant="contained" autoFocus>
+          <Button
+            color="secondary"
+            onClick={handleConfirmRevoke}
+            variant="contained"
+            autoFocus
+          >
             Confirm
           </Button>
         </DialogActions>
