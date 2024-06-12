@@ -15,6 +15,7 @@ import { TerminusModule } from "@nestjs/terminus";
 import { HealthController } from "./health.controller";
 import { JWTAuthModule } from "./auth/jwtauth.module";
 import { AdminModule } from "./admin/admin.module";
+import { DryrunModule } from "./dryrun/dryrun.module";
 
 const DB_HOST = process.env.POSTGRES_HOST || "localhost";
 const DB_USER = process.env.POSTGRES_USER || "postgres";
@@ -52,6 +53,7 @@ function getMiddlewares() {
         middlewares: getMiddlewares(),
       },
     }),
+    DryrunModule,
     JWTAuthModule,
     AdminModule,
   ],
