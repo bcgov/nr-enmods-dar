@@ -23,6 +23,7 @@ import {
   ChevronRight,
 } from '@mui/icons-material'
 import '@/index.css'
+import { insertFile } from '@/common/manage-files'
 
 const fileTypes = ['xlsx', 'csv', 'txt']
 let selectedFiles: any[] = []
@@ -70,8 +71,8 @@ function FileUpload() {
     setOpen(false)
   }
 
-  const validateFile = (file, index: number) => {
-    confirm('Validation for one file \n TODO')
+  const validateFile = async (file, index: number) => {
+    await insertFile(file)
   }
 
   const validateAllFiles = (files) => {

@@ -8,3 +8,22 @@ export type UserInfo = {
   company: string
   role: string[]
 }
+
+
+export type FileInfo = {
+  submissionID: string
+  filename: string
+  submissionDate: Date
+  submitterUserID: string
+  submissionStatusCode: string
+  submitterAgencyName: string
+  sampleCount: number
+  resultCount: number
+  activeInd: boolean
+  errorLog: string
+  organizationGUID: string
+  createUserId: string
+  createTimestamp: Date
+  updateUserId: string
+  updateTimestamp: Date
+}
