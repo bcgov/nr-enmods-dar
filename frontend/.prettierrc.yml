@@ -5,7 +5,6 @@ singleQuote: true
 
 # Use 2 spaces for indentation
 tabWidth: 2
-printWidth: 120
 
 # Use spaces instead of tabs
 useTabs: false
@@ -20,5 +19,4 @@ semi: false
 proseWrap: 'always'
 
 # Format files with windows line endings
-endOfLine: 'crlf'
-
+endOfLine: 'lf'
