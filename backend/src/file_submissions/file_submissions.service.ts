@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { CreateFileSubmissionDto } from './dto/create-file_submission.dto';
 import { UpdateFileSubmissionDto } from './dto/update-file_submission.dto';
 import { PrismaService } from 'nestjs-prisma';
+import { PrismaClient, Prisma } from '@prisma/client';
 
 @Injectable()
 export class FileSubmissionsService {
@@ -30,22 +31,29 @@ export class FileSubmissionsService {
     createFileSubmissionDto.update_user_id = body.userID;
     createFileSubmissionDto.update_utc_timestamp = new Date();
 
-    const File_submissions = await this.prisma.file_submissions.create({
-      data: {
-        file_name: createFileSubmissionDto.filename,
-        submission_date: createFileSubmissionDto.submission_date,
-        submitter_user_id: createFileSubmissionDto.submitter_user_id,
-        submission_status_code: { connect: {submission_status_code: "INPROGRESS"}},
-        submitter_agency_name: createFileSubmissionDto.submitter_agency_name,
-        sample_count: createFileSubmissionDto.sample_count,
-        results_count: createFileSubmissionDto.result_count,
-        active_ind: createFileSubmissionDto.active_ind,
-        error_log: createFileSubmissionDto.error_log,
-        organization_guid: createFileSubmissionDto.organization_guid,
-        create_user_id: createFileSubmissionDto.create_user_id,
-        create_utc_timestamp: createFileSubmissionDto.create_utc_timestamp,
-      }
+
+    const newFilePostData: Prisma.file_submissionCreateInput = {
+      file_name: createFileSubmissionDto.filename,
+      submission_date: createFileSubmissionDto.submission_date,
+      submitter_user_id: createFileSubmissionDto.submitter_user_id,
+      submission_status: { connect: {submission_status_code: 'INPROGRESS'}},
+      submitter_agency_name: createFileSubmissionDto.submitter_agency_name,
+      sample_count: createFileSubmissionDto.sample_count,
+      results_count: createFileSubmissionDto.result_count,
+      active_ind: createFileSubmissionDto.active_ind,
+      error_log: createFileSubmissionDto.error_log,
+      organization_guid: createFileSubmissionDto.organization_guid,
+      create_user_id: createFileSubmissionDto.create_user_id,
+      create_utc_timestamp: createFileSubmissionDto.create_utc_timestamp,
+      update_user_id: createFileSubmissionDto.update_user_id,
+      update_utc_timestamp: createFileSubmissionDto.update_utc_timestamp
+    }
+
+    const newFile = await this.prisma.file_submission.create({
+      data: newFilePostData
     })
+
+    console.log(newFile)
   }
 
   findAll() {
