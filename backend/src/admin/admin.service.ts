@@ -3,6 +3,7 @@ import { Injectable } from "@nestjs/common";
 import { firstValueFrom } from "rxjs";
 import { Role } from "src/enum/role.enum";
 import { IdirUserInfo, UserInfo } from "src/types/types";
+import { UserRolesDto } from "./dto/user-roles.dto";
 
 @Injectable()
 export class AdminService {
@@ -85,5 +86,91 @@ export class AdminService {
       console.log(error.response?.data || error.message);
       throw error;
     }
+  }
+
+  async userEmailSearch(email: string): Promise<any> {
+    return null;
+  }
+
+  async addRoles(userRolesDto: UserRolesDto): Promise<any> {
+    console.log("add roles");
+    const addRolesUrl = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/user-role-mappings`;
+    const bearerToken = await this.getToken();
+
+    const config = {
+      headers: { Authorization: "Bearer " + bearerToken },
+    };
+
+    // add admin role if specified
+    if (userRolesDto.roles.includes(Role.ENMODS_ADMIN)) {
+      await firstValueFrom(
+        this.httpService.post(
+          addRolesUrl,
+          {
+            roleName: Role.ENMODS_ADMIN,
+            username: userRolesDto.idirUsername,
+            operation: "add",
+          },
+          config
+        )
+      )
+        .then((res) => {
+          return res.data;
+        })
+        .catch((err) => {
+          console.log(err);
+          throw new Error("Failed to add admin role");
+        });
+    }
+    // add user role if included
+    if (userRolesDto.roles.includes(Role.ENMODS_USER)) {
+      await firstValueFrom(
+        this.httpService.post(
+          addRolesUrl,
+          {
+            roleName: Role.ENMODS_USER,
+            username: userRolesDto.idirUsername,
+            operation: "add",
+          },
+          config
+        )
+      )
+        .then((res) => {
+          return res.data;
+        })
+        .catch((err) => {
+          console.log(err);
+          throw new Error("Failed to add user role");
+        });
+    }
+    return null;
+  }
+
+  async removeRoles(userRolesDto: UserRolesDto): Promise<any> {
+    console.log("remove roles");
+    const bearerToken = await this.getToken();
+    const config = {
+      headers: { Authorization: "Bearer " + bearerToken },
+    };
+    for (const role of userRolesDto.roles) {
+      console.log(role);
+      if (role === Role.ENMODS_USER) {
+        const url = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/users/${userRolesDto.idirUsername}@idir/roles/${Role.ENMODS_USER}`;
+        await firstValueFrom(this.httpService.get(url, config))
+          .then((res) => {
+            return res.data.data;
+          })
+          .catch((err) => console.log(err.response.data));
+      }
+      if (role === Role.ENMODS_ADMIN) {
+        const url = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/users/${userRolesDto.idirUsername}@idir/roles/${Role.ENMODS_ADMIN}`;
+        await firstValueFrom(this.httpService.get(url, config))
+          .then((res) => {
+            return res.data.data;
+          })
+          .catch((err) => console.log(err.response.data));
+      }
+    }
+    return null;
   }
 }
