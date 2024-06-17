@@ -11,6 +11,7 @@ import {
   ListItemText,
   Typography,
   Modal,
+  CircularProgress,
 } from '@mui/material'
 import React, { useEffect, useState } from 'react'
 import { FileUploader } from 'react-drag-drop-files'
@@ -24,12 +25,11 @@ import {
 } from '@mui/icons-material'
 import '@/index.css'
 import { jwtDecode } from "jwt-decode";
-import { insertFile } from '@/common/manage-files'
+import { getFile, insertFile } from '@/common/manage-files'
 import UserService from '@/service/user-service'
 
 const fileTypes = ['xlsx', 'csv', 'txt']
 let selectedFiles: any[] = []
-let validationSuccess = {}
 const validate = false
 const submit = false
 
@@ -47,6 +47,7 @@ const modalStyle = {
 
 function FileUpload() {
   const [files, setFiles] = useState(null)
+  const [fileStatusCodes, setFileStatusCodes] = useState(null)
 
   const [open, setOpen] = useState(false)
   const [currentItem, setCurrentItem] = useState(null)
@@ -64,6 +65,7 @@ function FileUpload() {
     selectedFiles = Array.from(files)
 
     checkedItems.items = selectedFiles.map((index) => true)
+    setFileStatusCodes(selectedFiles.map(() => null))
   }
 
   const deleteFile = (file) => {
@@ -81,7 +83,16 @@ function FileUpload() {
       formData.append('userID', JWT.idir_username) // TODO: This will need to be updated based on BCeID 
       formData.append('orgGUID', JWT.idir_user_guid) // TODO: This will need to be updated based on BCeID and company GUID
 
-      await insertFile(formData)
+      await insertFile(formData).then((response) => {
+        setFileStatusCodes(() => {
+          const newStatusCodes = [...fileStatusCodes]
+          newStatusCodes[index] = response.submission_status_code
+          return newStatusCodes
+        })
+
+        validateFile(response.submission_id)
+
+      })
     }
   }
 
@@ -222,15 +233,19 @@ function FileUpload() {
                           <ButtonGroup
                             sx={{ float: 'right', paddingTop: '10px' }}
                           >
-                            {validationSuccess ? (
+                            {fileStatusCodes[index] == 'ACCEPTED' ? (
                               <Button style={{ color: 'green' }}>
                                 <CheckCircle />
                               </Button>
-                            ) : (
+                            ) : fileStatusCodes[index] == 'REJECTED' ? (
                               <Button style={{ color: 'orange' }}>
                                 <Error />
                               </Button>
-                            )}
+                            ) : fileStatusCodes[index] == 'INPROGRESS' ? (
+                              <Button style={{ color: 'orange' }}>
+                                <CircularProgress color="secondary" />
+                              </Button>
+                            ) : ''}
 
                             <Button
                               style={{ color: 'black' }}

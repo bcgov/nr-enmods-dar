@@ -36,7 +36,7 @@ export class FileSubmissionsController {
     file: Express.Multer.File,
     @Body() body: any
   ) {
-    await this.fileSubmissionsService.create(body, file)
+    return this.fileSubmissionsService.create(body, file)
   }
 
   @Get()

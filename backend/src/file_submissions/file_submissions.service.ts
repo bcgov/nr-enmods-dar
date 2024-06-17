@@ -52,8 +52,8 @@ export class FileSubmissionsService {
     const newFile = await this.prisma.file_submission.create({
       data: newFilePostData
     })
-
-    console.log(newFile)
+    
+    return newFile;
   }
 
   findAll() {
