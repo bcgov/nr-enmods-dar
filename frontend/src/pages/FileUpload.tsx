@@ -23,7 +23,9 @@ import {
   ChevronRight,
 } from '@mui/icons-material'
 import '@/index.css'
+import { jwtDecode } from "jwt-decode";
 import { insertFile } from '@/common/manage-files'
+import UserService from '@/service/user-service'
 
 const fileTypes = ['xlsx', 'csv', 'txt']
 let selectedFiles: any[] = []
@@ -72,7 +74,15 @@ function FileUpload() {
   }
 
   const validateFile = async (file, index: number) => {
-    await insertFile(file)
+    if (file) {
+      const formData = new FormData()
+      var JWT = jwtDecode(UserService.getToken()?.toString())
+      formData.append('file', file)
+      formData.append('userID', JWT.idir_username) // TODO: This will need to be updated based on BCeID 
+      formData.append('orgGUID', JWT.idir_user_guid) // TODO: This will need to be updated based on BCeID and company GUID
+
+      await insertFile(formData)
+    }
   }
 
   const validateAllFiles = (files) => {
@@ -87,7 +97,7 @@ function FileUpload() {
     confirm('Submission for all files \n TODO')
   }
 
-  const [expandList, setExpandList] = useState(false)
+  const [expandList, setExpandList] = useState(true)
   const handleExpandList = () => {
     setExpandList(!expandList)
   }
@@ -119,7 +129,7 @@ function FileUpload() {
   }
 
   return (
-    <div>
+    <div style={{ marginLeft: '4em' }}>
       <div>
         <FileUploader
           classes="custom-file-upload"
