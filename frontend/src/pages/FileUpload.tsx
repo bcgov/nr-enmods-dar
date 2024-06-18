@@ -58,7 +58,7 @@ function FileUpload() {
 
   const [open, setOpen] = useState(false)
   const [currentItem, setCurrentItem] = useState(null)
-  const handleOpen = (index) => {
+  const handleOpen = (index: number) => {
     setCurrentItem(selectedFiles[index])
     setOpen(true)
   }
@@ -76,7 +76,7 @@ function FileUpload() {
 
   }
 
-  const deleteFile = (file) => {
+  const deleteFile = (file: string | Blob) => {
     const index = selectedFiles.indexOf(file)
     selectedFiles.splice(index, 1)
     checkedItems.items.splice(index, 1)
@@ -84,7 +84,7 @@ function FileUpload() {
     setOpen(false)
   }
 
-  const validateFile = async (file, index: number) => {
+  const validateFile = async (file: string | Blob, index: number) => {
     if (file) {
       const formData = new FormData()
       var JWT = jwtDecode(UserService.getToken()?.toString())
@@ -126,11 +126,11 @@ function FileUpload() {
     }
   }
 
-  const submitFile = (file, index: number) => {
+  const submitFile = (file: any, index: number) => {
     confirm('Submission for one file \n TODO')
   }
 
-  const submitAllFiles = (files) => {
+  const submitAllFiles = (files: any) => {
     confirm('Submission for all files \n TODO')
   }
 
@@ -144,7 +144,7 @@ function FileUpload() {
     items: [],
   })
 
-  const handleMasterCheckboxChange = (event) => {
+  const handleMasterCheckboxChange = (event: { target: { checked: any } }) => {
     const isChecked = event.target.checked
     setCheckedItems({
       master: isChecked,
@@ -152,7 +152,7 @@ function FileUpload() {
     })
   }
 
-  const handleCheckboxChange = (index) => (event) => {
+  const handleCheckboxChange = (index: number) => (event: { target: { checked: any } }) => {
     const newItems = [...checkedItems.items]
     newItems[index] = event.target.checked
     setCheckedItems({
