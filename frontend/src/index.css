@@ -28,7 +28,7 @@
 }
 
 .custom-file-upload {
-  width: 1000px !important;
+  width: 1500px !important;
   height: 200px !important;
   padding-left: 20%;
 }
@@ -37,8 +37,8 @@
   position: relative;
   display: flex;
   align-items: center;
-  min-width: 400px;
-  max-width: 1000px;
+  min-width: 1200px;
+  max-width: 1500px;
   border: 2px dashed rgb(6, 88, 194);
   border-radius: 5px;
   cursor: pointer;
@@ -52,7 +52,7 @@
 }
 
 .file-list, .file-drop-list{
-  width: 1000px;
+  width: 1200px;
   align-items: center;
   margin: auto;
 }

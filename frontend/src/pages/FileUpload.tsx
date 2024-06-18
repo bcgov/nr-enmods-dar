@@ -10,14 +10,13 @@ import {
   ListItem,
   ListItemText,
   Typography,
-  Modal,
   CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
 } from '@mui/material'
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { FileUploader } from 'react-drag-drop-files'
 import {
   DeleteRounded,
@@ -26,7 +25,6 @@ import {
   Error,
   ExpandMore,
   ChevronRight,
-  Title,
 } from '@mui/icons-material'
 import '@/index.css'
 import { jwtDecode } from 'jwt-decode'
@@ -35,20 +33,6 @@ import UserService from '@/service/user-service'
 
 const fileTypes = ['xlsx', 'csv', 'txt']
 let selectedFiles: any[] = []
-const validate = false
-const submit = false
-
-const modalStyle = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: 400,
-  bgcolor: 'background.paper',
-  border: '2px solid #000',
-  boxShadow: 24,
-  p: 4,
-}
 
 function FileUpload() {
   const [files, setFiles] = useState(null)
@@ -73,7 +57,6 @@ function FileUpload() {
 
     checkedItems.items = selectedFiles.map((index) => true)
     fileStatusCodes.items = selectedFiles.map((index) => null)
-
   }
 
   const deleteFile = (file: string | Blob) => {
@@ -152,14 +135,15 @@ function FileUpload() {
     })
   }
 
-  const handleCheckboxChange = (index: number) => (event: { target: { checked: any } }) => {
-    const newItems = [...checkedItems.items]
-    newItems[index] = event.target.checked
-    setCheckedItems({
-      master: newItems.every((item) => item),
-      items: newItems,
-    })
-  }
+  const handleCheckboxChange =
+    (index: number) => (event: { target: { checked: any } }) => {
+      const newItems = [...checkedItems.items]
+      newItems[index] = event.target.checked
+      setCheckedItems({
+        master: newItems.every((item) => item),
+        items: newItems,
+      })
+    }
 
   const fileSizeError = () => {
     confirm('File size error \n TODO')
@@ -167,7 +151,7 @@ function FileUpload() {
 
   return (
     <div style={{ marginLeft: '4em', width: '100%' }}>
-      <Box sx={{ width: '100%' }}>
+      <Box sx={{ width: '1200px' }}>
         <Typography variant="h3" component="h1" gutterBottom>
           Electronic Data Transfer - Upload
         </Typography>
@@ -176,6 +160,7 @@ function FileUpload() {
           results.
         </Typography>
       </Box>
+      
       <div>
         <FileUploader
           classes="custom-file-upload"
@@ -250,7 +235,7 @@ function FileUpload() {
 
         {expandList && (
           <div className="file-list">
-            <List sx={{ maxHeight: 300, overflow: 'auto'}}>
+            <List sx={{ maxHeight: 300, overflow: 'auto' }}>
               {selectedFiles.length > 0 && selectedFiles.length <= 10
                 ? selectedFiles.map((file, index) => (
                     <ListItem key={index}>
