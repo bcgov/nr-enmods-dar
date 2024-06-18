@@ -52,7 +52,9 @@ const modalStyle = {
 
 function FileUpload() {
   const [files, setFiles] = useState(null)
-  const [fileStatusCodes, setFileStatusCodes] = useState(null)
+  const [fileStatusCodes, setFileStatusCodes] = useState({
+    items: [],
+  })
 
   const [open, setOpen] = useState(false)
   const [currentItem, setCurrentItem] = useState(null)
@@ -70,13 +72,15 @@ function FileUpload() {
     selectedFiles = Array.from(files)
 
     checkedItems.items = selectedFiles.map((index) => true)
-    setFileStatusCodes(selectedFiles.map(() => null))
+    fileStatusCodes.items = selectedFiles.map((index) => null)
+
   }
 
   const deleteFile = (file) => {
     const index = selectedFiles.indexOf(file)
     selectedFiles.splice(index, 1)
     checkedItems.items.splice(index, 1)
+    fileStatusCodes.items.splice(index, 1)
     setOpen(false)
   }
 
@@ -89,10 +93,11 @@ function FileUpload() {
       formData.append('orgGUID', JWT.idir_user_guid) // TODO: This will need to be updated based on BCeID and company GUID
 
       await insertFile(formData).then((response) => {
-        setFileStatusCodes(() => {
-          const newStatusCodes = [...fileStatusCodes]
-          newStatusCodes[index] = response.submission_status_code
-          return newStatusCodes
+        const newStatusCodes = fileStatusCodes.items
+        newStatusCodes[index] = response.submission_status_code
+        console.log(newStatusCodes)
+        setFileStatusCodes({
+          items: newStatusCodes,
         })
 
         validationRequest(response.submission_id)
@@ -102,18 +107,19 @@ function FileUpload() {
 
   const validateAllFiles = (files) => {
     if (files) {
-      Object.entries(files).forEach(([key, value], index) => {
+      Object.entries(files).forEach(async ([key, value], index) => {
         const formData = new FormData()
         var JWT = jwtDecode(UserService.getToken()?.toString())
         formData.append('file', value)
         formData.append('userID', JWT.idir_username) // TODO: This will need to be updated based on BCeID
         formData.append('orgGUID', JWT.idir_user_guid) // TODO: This will need to be updated based on BCeID and company GUID
 
-        insertFile(formData).then((response) => {
-          setFileStatusCodes(() => {
-            const newStatusCodes = [...fileStatusCodes]
-            newStatusCodes[index] = response.submission_status_code
-            return newStatusCodes
+        await insertFile(formData).then((response) => {
+          console.log(fileStatusCodes.items)
+          const newStatusCodes = fileStatusCodes.items
+          newStatusCodes[index] = response.submission_status_code
+          setFileStatusCodes({
+            items: newStatusCodes,
           })
         })
       })
@@ -244,7 +250,7 @@ function FileUpload() {
 
         {expandList && (
           <div className="file-list">
-            <List>
+            <List sx={{ maxHeight: 300, overflow: 'auto'}}>
               {selectedFiles.length > 0 && selectedFiles.length <= 10
                 ? selectedFiles.map((file, index) => (
                     <ListItem key={index}>
@@ -262,15 +268,15 @@ function FileUpload() {
                           <ButtonGroup
                             sx={{ float: 'right', paddingTop: '10px' }}
                           >
-                            {fileStatusCodes[index] == 'ACCEPTED' ? (
+                            {fileStatusCodes.items[index] == 'ACCEPTED' ? (
                               <Button style={{ color: 'green' }}>
                                 <CheckCircle />
                               </Button>
-                            ) : fileStatusCodes[index] == 'REJECTED' ? (
+                            ) : fileStatusCodes.items[index] == 'REJECTED' ? (
                               <Button style={{ color: 'orange' }}>
                                 <Error />
                               </Button>
-                            ) : fileStatusCodes[index] == 'INPROGRESS' ? (
+                            ) : fileStatusCodes.items[index] == 'INPROGRESS' ? (
                               <Button style={{ color: 'orange' }}>
                                 <CircularProgress color="secondary" />
                               </Button>
@@ -305,13 +311,13 @@ function FileUpload() {
                         </Grid>
                         <Grid item xs={9}>
                           <Box>
-                            {fileStatusCodes[index] == 'ACCEPTED' ? (
+                            {fileStatusCodes.items[index] == 'ACCEPTED' ? (
                               <Typography>ACCEPTED</Typography>
-                            ) : fileStatusCodes[index] == 'REJECTED' ? (
+                            ) : fileStatusCodes.items[index] == 'REJECTED' ? (
                               <Typography>REJECTED</Typography>
-                            ) : fileStatusCodes[index] == 'INPROGRESS' ? (
+                            ) : fileStatusCodes.items[index] == 'INPROGRESS' ? (
                               <Typography>IN PROGRESS</Typography>
-                            ) : fileStatusCodes[index] == 'SUBMITTED' ? (
+                            ) : fileStatusCodes.items[index] == 'SUBMITTED' ? (
                               <Typography>SUBMITTED</Typography>
                             ) : (
                               ''
