@@ -12,6 +12,10 @@ import {
   Typography,
   Modal,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material'
 import React, { useEffect, useState } from 'react'
 import { FileUploader } from 'react-drag-drop-files'
@@ -22,10 +26,11 @@ import {
   Error,
   ExpandMore,
   ChevronRight,
+  Title,
 } from '@mui/icons-material'
 import '@/index.css'
-import { jwtDecode } from "jwt-decode";
-import { getFile, insertFile } from '@/common/manage-files'
+import { jwtDecode } from 'jwt-decode'
+import { getFile, insertFile, validationRequest } from '@/common/manage-files'
 import UserService from '@/service/user-service'
 
 const fileTypes = ['xlsx', 'csv', 'txt']
@@ -80,7 +85,7 @@ function FileUpload() {
       const formData = new FormData()
       var JWT = jwtDecode(UserService.getToken()?.toString())
       formData.append('file', file)
-      formData.append('userID', JWT.idir_username) // TODO: This will need to be updated based on BCeID 
+      formData.append('userID', JWT.idir_username) // TODO: This will need to be updated based on BCeID
       formData.append('orgGUID', JWT.idir_user_guid) // TODO: This will need to be updated based on BCeID and company GUID
 
       await insertFile(formData).then((response) => {
@@ -90,14 +95,29 @@ function FileUpload() {
           return newStatusCodes
         })
 
-        validateFile(response.submission_id)
-
+        validationRequest(response.submission_id)
       })
     }
   }
 
   const validateAllFiles = (files) => {
-    confirm('Validation for all files \n TODO')
+    if (files) {
+      Object.entries(files).forEach(([key, value], index) => {
+        const formData = new FormData()
+        var JWT = jwtDecode(UserService.getToken()?.toString())
+        formData.append('file', value)
+        formData.append('userID', JWT.idir_username) // TODO: This will need to be updated based on BCeID
+        formData.append('orgGUID', JWT.idir_user_guid) // TODO: This will need to be updated based on BCeID and company GUID
+
+        insertFile(formData).then((response) => {
+          setFileStatusCodes(() => {
+            const newStatusCodes = [...fileStatusCodes]
+            newStatusCodes[index] = response.submission_status_code
+            return newStatusCodes
+          })
+        })
+      })
+    }
   }
 
   const submitFile = (file, index: number) => {
@@ -140,7 +160,16 @@ function FileUpload() {
   }
 
   return (
-    <div style={{ marginLeft: '4em' }}>
+    <div style={{ marginLeft: '4em', width: '100%' }}>
+      <Box sx={{ width: '100%' }}>
+        <Typography variant="h3" component="h1" gutterBottom>
+          Electronic Data Transfer - Upload
+        </Typography>
+        <Typography variant="h6" component="h2" gutterBottom>
+          This screen allows an authorized user to upload EMS samples and
+          results.
+        </Typography>
+      </Box>
       <div>
         <FileUploader
           classes="custom-file-upload"
@@ -245,7 +274,9 @@ function FileUpload() {
                               <Button style={{ color: 'orange' }}>
                                 <CircularProgress color="secondary" />
                               </Button>
-                            ) : ''}
+                            ) : (
+                              ''
+                            )}
 
                             <Button
                               style={{ color: 'black' }}
@@ -274,11 +305,14 @@ function FileUpload() {
                         </Grid>
                         <Grid item xs={9}>
                           <Box>
-                            {/* TODO */}
-                            {validate ? (
-                              <Typography>Validating</Typography>
-                            ) : submit ? (
-                              <Typography>Submitting</Typography>
+                            {fileStatusCodes[index] == 'ACCEPTED' ? (
+                              <Typography>ACCEPTED</Typography>
+                            ) : fileStatusCodes[index] == 'REJECTED' ? (
+                              <Typography>REJECTED</Typography>
+                            ) : fileStatusCodes[index] == 'INPROGRESS' ? (
+                              <Typography>IN PROGRESS</Typography>
+                            ) : fileStatusCodes[index] == 'SUBMITTED' ? (
+                              <Typography>SUBMITTED</Typography>
                             ) : (
                               ''
                             )}
@@ -323,41 +357,39 @@ function FileUpload() {
                 : ''}
             </List>
 
-            <Modal
-              open={open}
-              onClose={handleClose}
-              aria-labelledby="modal-title"
-              aria-describedby="modal-description"
-            >
-              <Box sx={modalStyle}>
-                <Typography id="modal-description" sx={{ mt: 2 }}>
+            <Dialog open={open} onClose={handleClose}>
+              <DialogTitle>Delete File </DialogTitle>
+              <DialogContent sx={{ paddingTop: '24px' }}>
+                <Typography>
                   Are you sure you want to delete{' '}
-                  {currentItem ? currentItem.name : ''}`?
+                  {currentItem ? currentItem.name : ''}
                 </Typography>
-                <Box
+              </DialogContent>
+              <DialogActions sx={{ paddingBottom: '24px' }}>
+                <Button
+                  onClick={handleClose}
+                  variant="contained"
+                  color="primary"
                   sx={{
-                    mt: 4,
-                    display: 'flex',
-                    justifyContent: 'space-between',
+                    backgroundColor: 'gray',
+                    color: 'white',
+                    '&:hover': {
+                      backgroundColor: 'darkgray',
+                    },
                   }}
                 >
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={() => deleteFile(currentItem)}
-                  >
-                    Confirm
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    color="secondary"
-                    onClick={handleClose}
-                  >
-                    Cancel
-                  </Button>
-                </Box>
-              </Box>
-            </Modal>
+                  Cancel
+                </Button>
+                <Button
+                  color="secondary"
+                  onClick={() => deleteFile(currentItem)}
+                  variant="contained"
+                  autoFocus
+                >
+                  Confirm
+                </Button>
+              </DialogActions>
+            </Dialog>
 
             <div className="all-file-action">
               <Box sx={{ paddingTop: '20px' }}>

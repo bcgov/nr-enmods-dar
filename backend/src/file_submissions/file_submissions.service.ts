@@ -13,9 +13,7 @@ export class FileSubmissionsService {
     /*
       TODO:
       - Create a new record in the file_submissions table with the submission_status_code set to INPROGRESS
-      - Do the initial validation first (validate the fields in the file that are not in the AQI API)
-      - Once the initial validation has passed, then call the AQI API on the rest of the fields. If failed, set the submission_status_code to FAILED, populate error_log column and return with error message.
-      - Once the AQI API call is done, then update the submission_status_code field in the database to PASSED. If failed, set the submission_status_code to FAILED, populate error_log column and return with error message.
+      - Crrate a record in the S3 bucket for this file, use the newly created file submission_id when uploading to S3 for future reference
     */
 
     createFileSubmissionDto.filename = file.originalname;
@@ -60,7 +58,18 @@ export class FileSubmissionsService {
     return `This action returns all fileSubmissions`;
   }
 
-  findOne(id: number) {
+  async findOne(id: string) {
+    /*
+      TODO: 
+      - Find the file_submission record with the submission_id = id
+      - Grab the file from the S3 bucket
+      - Do the initial validation first (validate the fields in the file that are not in the AQI API). if failed, set the submission_status_code to FAILED, populate the error_log column and return with the error message.
+      - Once the initial validation has passed, then call the AQI API on the rest of the fields. If failed, set the submission_status_code to FAILED, populate error_log column and return with error message.
+      - Once the AQI API call is done, then update the submission_status_code field in the database to PASSED. If failed, set the submission_status_code to FAILED, populate error_log column and return with error message.
+    */
+    const dbFileObject = await this.prisma.file_submission.findUnique({where: {submission_id: id}})
+    // const s3FileObject = 
+    console.log(dbFileObject)
     return `This action returns a #${id} fileSubmission`;
   }
 

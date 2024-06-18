@@ -46,7 +46,7 @@ export class FileSubmissionsController {
 
   @Get(":id")
   findOne(@Param("id") id: string) {
-    return this.fileSubmissionsService.findOne(+id);
+    return this.fileSubmissionsService.findOne(id);
   }
 
   @Patch(":id")

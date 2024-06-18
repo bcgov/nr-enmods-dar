@@ -10,7 +10,7 @@ export const insertFile = async (formData: FormData): Promise<String> => {
 
 }
 
-export const validateFile = async (submission_id: String): Promise<String> => {
+export const validationRequest = async (submission_id: String): Promise<String> => {
     const url = `${config.API_BASE_URL}/v1/file_submissions/${submission_id}`;
     const getParameters = api.generateApiParameters(url)
     const response: String = await api.get<String>(getParameters)
