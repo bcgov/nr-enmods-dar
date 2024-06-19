@@ -9,10 +9,33 @@ import { UserRolesDto } from "./dto/user-roles.dto";
 export class AdminService {
   constructor(private readonly httpService: HttpService) {}
 
+  async getToken() {
+    const url = process.env.users_api_token_url;
+    const token = `${process.env.users_api_client_id}:${process.env.users_api_client_secret}`;
+    const encodedToken = Buffer.from(token).toString("base64");
+    const config = {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: "Basic " + encodedToken,
+      },
+    };
+    const grantTypeParam = new URLSearchParams();
+    grantTypeParam.append("grant_type", "client_credentials");
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(url, grantTypeParam.toString(), config)
+      );
+      return response.data.access_token;
+    } catch (error) {
+      console.log(error.response?.data || error.message);
+      throw error;
+    }
+  }
+
   /**
-   * Gets a list of all ??? users
+   * Gets a list of all users with the Enmods_Admin or the Enmods_User role
    *
-   * @returns all ??? users
+   * @returns all users with specified roles users
    */
   async findAll(): Promise<any[]> {
     const bearerToken = await this.getToken();
@@ -65,33 +88,39 @@ export class AdminService {
     }
   }
 
-  async getToken() {
-    const url = process.env.users_api_token_url;
-    const token = `${process.env.users_api_client_id}:${process.env.users_api_client_secret}`;
-    const encodedToken = Buffer.from(token).toString("base64");
-    const config = {
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: "Basic " + encodedToken,
-      },
-    };
-    const grantTypeParam = new URLSearchParams();
-    grantTypeParam.append("grant_type", "client_credentials");
-    try {
-      const response = await firstValueFrom(
-        this.httpService.post(url, grantTypeParam.toString(), config)
-      );
-      return response.data.access_token;
-    } catch (error) {
-      console.log(error.response?.data || error.message);
-      throw error;
-    }
-  }
-
+  /**
+   * finds a user given their email address
+   *
+   * @param email
+   * @returns
+   */
   async userEmailSearch(email: string): Promise<any> {
-    return null;
+    const url = `${process.env.users_api_base_url}/${process.env.css_environment}/idir/users?&email=${email}`;
+    const bearerToken = await this.getToken();
+
+    const config = {
+      headers: { Authorization: "Bearer " + bearerToken },
+    };
+
+    const searchData: IdirUserInfo[] = await firstValueFrom(
+      this.httpService.get(url, config)
+    )
+      .then((res) => {
+        return res.data.data;
+      })
+      .catch((err) => {
+        console.log(err.response.data);
+        throw new Error("No users found");
+      });
+    return searchData[0] || null;
   }
 
+  /**
+   * Adds Enmods_Admin role, Enmods_User role, or both to a user
+   *
+   * @param userRolesDto
+   * @returns
+   */
   async addRoles(userRolesDto: UserRolesDto): Promise<any> {
     console.log("add roles");
     const addRolesUrl = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/user-role-mappings`;
@@ -146,6 +175,12 @@ export class AdminService {
     return null;
   }
 
+  /**
+   * Removes Enmods_Admin role, Enmods_User role, or both from a user
+   *
+   * @param userRolesDto
+   * @returns
+   */
   async removeRoles(userRolesDto: UserRolesDto): Promise<any> {
     console.log("remove roles");
     const bearerToken = await this.getToken();

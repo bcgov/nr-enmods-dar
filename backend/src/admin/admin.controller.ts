@@ -20,16 +20,8 @@ export class AdminController {
   }
 
   @Post("user-email-search")
-  userEmailSearch(@Body() email: string): Promise<{
-    userObject: {
-      firstName: string;
-      lastName: string;
-      username: string;
-      idirUsername: string;
-    };
-    error: string;
-  }> {
-    return this.adminService.userEmailSearch(email);
+  userEmailSearch(@Body() body: { email: string }): Promise<IdirUserInfo> {
+    return this.adminService.userEmailSearch(body.email);
   }
 
   @Post("add-roles")

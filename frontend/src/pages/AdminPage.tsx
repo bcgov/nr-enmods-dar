@@ -18,12 +18,16 @@ import { Box } from '@mui/system'
 import { getUsers } from '@/common/admin'
 import type { UserInfo } from '@/types/types'
 import Roles from '@/roles'
+import AddAdmin from '@/components/modal/admin/AddAdmin'
+import { set } from 'cypress/types/lodash'
 
 export default function AdminPage() {
   const [open, setOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
   const [selectedTab, setSelectedTab] = useState(0)
   const [userData, setUserData] = useState<UserInfo[]>([])
+  const [showAddAdmin, setShowAddAdmin] = useState(false)
+  const [showRemoveAdmin, setShowRemoveAdmin] = useState(false)
 
   useEffect(() => {
     console.log('getting users')
@@ -64,8 +68,10 @@ export default function AdminPage() {
     setSelectedUserId(null)
   }
 
+  const handleCloseAddAdmin = () => setShowAddAdmin(false)
+  const handleCloseRemoveAdmin = () => setShowRemoveAdmin(false)
+
   const allRoles = [Roles.ENMODS_ADMIN, Roles.ENMODS_USER]
-  console.log(allRoles)
 
   const userColumns = [
     {
@@ -109,8 +115,6 @@ export default function AdminPage() {
       minWidth: 170,
       renderCell: (params: GridRenderCellParams) => {
         const roles = params.value as string[]
-        console.log(roles)
-
         return (
           <Select value={roles[0]}>
             {allRoles.map((role) => (
@@ -231,7 +235,6 @@ export default function AdminPage() {
         id={`tabpanel-0`}
         aria-labelledby={`tab-0`}
         style={{
-          minHeight: '45em',
           maxHeight: '45em',
           width: '100%',
         }}
@@ -259,7 +262,7 @@ export default function AdminPage() {
         hidden={selectedTab !== 1}
         id={`tabpanel-1`}
         aria-labelledby={`tab-1`}
-        style={{ minHeight: '45em', maxHeight: '45em', width: '100%' }}
+        style={{ maxHeight: '45em', width: '100%' }}
       >
         {selectedTab === 1 && (
           <DataGrid
@@ -278,6 +281,22 @@ export default function AdminPage() {
             style={{ minWidth: 920 }}
           />
         )}
+      </Box>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          marginTop: '1em',
+          width: '100%',
+        }}
+      >
+        <Button
+          variant="contained"
+          color="secondary"
+          onClick={() => setShowAddAdmin(true)}
+        >
+          Add Admin
+        </Button>
       </Box>
       <Dialog open={open} onClose={handleClose}>
         <DialogTitle>Revoke User Privileges</DialogTitle>
@@ -311,6 +330,8 @@ export default function AdminPage() {
           </Button>
         </DialogActions>
       </Dialog>
+      <AddAdmin show={showAddAdmin} onHide={handleCloseAddAdmin} />
+      {/* <RemoveAdmin show={showRemoveAdmin} onHide={handleCloseRemoveAdmin} /> */}
     </div>
   )
 }
