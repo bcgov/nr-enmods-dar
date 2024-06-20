@@ -1,8 +1,10 @@
 DO $$
     DECLARE i integer := 0;
     v_fileName varchar(200);
+    v_submissionDate date;
 BEGIN 
     WHILE i < 50 LOOP 
+        v_submissionDate := date '2022-01-01' + (floor(random() * (date '2024-12-31' - date '2022-01-01'))::int);
         BEGIN 
             v_fileName := CONCAT('file_', substring(md5(random()::text), 0, 10));
             IF NOT EXISTS (SELECT 1 FROM enmods.file_submissions WHERE file_name = v_fileName) THEN
@@ -24,7 +26,7 @@ BEGIN
                 )
                 VALUES (
                     v_fileName,
-                    (now() at time zone 'utc'),
+                    v_submissionDate,
                     'VMANAWAT',
                     'SUBMITTED',
                     'MANAWAT CORP',
