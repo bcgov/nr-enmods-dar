@@ -17,12 +17,12 @@ export const validationRequest = async (submission_id: String): Promise<String> 
     return response;
 }
 
-export const getFile = async (formData: FormData): Promise<FileInfo> => {
-    const url = `${config.API_BASE_URL}/v1/file_submissions`;
-    const getParameters = api.generateApiParameters(url, formData)
-    for (var pair of formData.entries()) {
-        console.log(pair[0]+ ', ' + pair[1]); 
-    }
+export const getFiles = async (substring: String): Promise<FileInfo> => {
+    const url = `${config.API_BASE_URL}/v1/file_submissions/${substring}`;
+    const getParameters = api.generateApiParameters(url)
+    // for (var pair of formData.entries()) {
+    //     console.log(pair[0]+ ', ' + pair[1]); 
+    // }
     const response: FileInfo = await api.get<FileInfo>(getParameters)
     return response;
 }

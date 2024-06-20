@@ -10,7 +10,7 @@ const styles = {
   container: {
     display: 'flex',
     flexDirection: 'column',
-    minHeight: '100vh'
+    minHeight: '100vh',
   },
   contentWrapper: {
     display: 'flex',

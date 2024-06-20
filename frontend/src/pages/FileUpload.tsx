@@ -28,7 +28,7 @@ import {
 } from '@mui/icons-material'
 import '@/index.css'
 import { jwtDecode } from 'jwt-decode'
-import { getFile, insertFile, validationRequest } from '@/common/manage-files'
+import { getFiles, insertFile, validationRequest } from '@/common/manage-files'
 import UserService from '@/service/user-service'
 
 const fileTypes = ['xlsx', 'csv', 'txt']
@@ -76,6 +76,7 @@ function FileUpload() {
       formData.append('orgGUID', JWT.idir_user_guid) // TODO: This will need to be updated based on BCeID and company GUID
 
       await insertFile(formData).then((response) => {
+        console.log(response)
         const newStatusCodes = fileStatusCodes.items
         newStatusCodes[index] = response.submission_status_code
         console.log(newStatusCodes)
@@ -83,7 +84,8 @@ function FileUpload() {
           items: newStatusCodes,
         })
 
-        validationRequest(response.submission_id)
+        getFiles("1");
+        // validationRequest(response.submission_id)
       })
     }
   }
@@ -98,12 +100,14 @@ function FileUpload() {
         formData.append('orgGUID', JWT.idir_user_guid) // TODO: This will need to be updated based on BCeID and company GUID
 
         await insertFile(formData).then((response) => {
+          console.log(response)
           console.log(fileStatusCodes.items)
           const newStatusCodes = fileStatusCodes.items
           newStatusCodes[index] = response.submission_status_code
           setFileStatusCodes({
             items: newStatusCodes,
           })
+          getFiles("fiorhfioru3hfouih");
         })
       })
     }

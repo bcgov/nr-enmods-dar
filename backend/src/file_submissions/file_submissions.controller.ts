@@ -22,6 +22,9 @@ import { Roles } from "src/auth/decorators/roles.decorators";
 import { Role } from "src/enum/role.enum";
 import { JwtRoleGuard } from "src/auth/jwtrole.guard";
 import { JwtAuthGuard } from "src/auth/jwtauth.guard";
+import { FileResultsWithCount } from "src/interface/fileResultsWithCount";
+import { file_submission } from "@prisma/client";
+import { SanitizeService } from "src/sanitize/sanitize.service";
 
 @ApiTags("file_submissions")
 @Controller({ path: "file_submissions", version: "1" })
@@ -30,7 +33,8 @@ import { JwtAuthGuard } from "src/auth/jwtauth.guard";
 @Roles(Role.ENMODS_ADMIN)
 export class FileSubmissionsController {
   constructor(
-    private readonly fileSubmissionsService: FileSubmissionsService
+    private readonly fileSubmissionsService: FileSubmissionsService, 
+    private readonly sanitizeService: SanitizeService
   ) {}
 
   @Post()
@@ -53,7 +57,8 @@ export class FileSubmissionsController {
   }
 
   @Get(":id")
-  findOne(@Param("id") id: string) {
+  findOne(@Param("id") id: string): Promise<FileResultsWithCount<file_submission>> {
+    const sanitizedParam = this.sanitizeService.sanitizeInput(id);
     return this.fileSubmissionsService.findOne(id);
   }
 
