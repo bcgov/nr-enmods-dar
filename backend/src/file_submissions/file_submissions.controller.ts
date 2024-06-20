@@ -10,6 +10,7 @@ import {
   UploadedFile,
   ParseFilePipe,
   MaxFileSizeValidator,
+  UseGuards,
 } from "@nestjs/common";
 import { FileSubmissionsService } from "./file_submissions.service";
 import { CreateFileSubmissionDto } from "./dto/create-file_submission.dto";
@@ -17,9 +18,16 @@ import { UpdateFileSubmissionDto } from "./dto/update-file_submission.dto";
 import { ApiTags } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
 import { Express } from "express";
+import { Roles } from "src/auth/decorators/roles.decorators";
+import { Role } from "src/enum/role.enum";
+import { JwtRoleGuard } from "src/auth/jwtrole.guard";
+import { JwtAuthGuard } from "src/auth/jwtauth.guard";
 
 @ApiTags("file_submissions")
 @Controller({ path: "file_submissions", version: "1" })
+@UseGuards(JwtAuthGuard)
+@UseGuards(JwtRoleGuard)
+@Roles(Role.ENMODS_ADMIN)
 export class FileSubmissionsController {
   constructor(
     private readonly fileSubmissionsService: FileSubmissionsService
