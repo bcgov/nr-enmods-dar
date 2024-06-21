@@ -228,7 +228,7 @@ const AddRoles = ({
             variant="contained"
             color="primary"
             onClick={addRolesHandler}
-            disabled={loading || !userObject}
+            disabled={loading || !userObject || rolesToAdd.length === 0}
             style={{ marginLeft: '8px' }}
           >
             {loading ? <CircularProgress size={24} /> : 'Add Roles'}
