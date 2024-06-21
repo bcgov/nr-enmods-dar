@@ -1,40 +1,38 @@
-import { useEffect, useState } from 'react'
+import { ChangeEvent, useEffect, useState } from 'react'
 import {
   Modal,
   Button,
   TextField,
   FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Alert,
   CircularProgress,
-  SelectChangeEvent,
+  FormLabel,
+  FormGroup,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material'
 import { addRoles, removeRoles, findIdirUser } from '@/common/admin'
 import { IdirUserInfo } from '@/types/types'
 import Roles from '@/roles'
 import theme from '@/theme'
 
-type AddAdminProps = { show: boolean; onHide: () => void }
+type AddRolesProps = { show: boolean; onHide: () => void }
 
-const AddAdmin = ({ show, onHide }: AddAdminProps) => {
+const AddRoles = ({ show, onHide }: AddRolesProps) => {
   const [email, setEmail] = useState<string>('')
   const [userObject, setUserObject] = useState<IdirUserInfo | null>(null)
   const [loading, setLoading] = useState<boolean>(false)
   const [showError, setShowError] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
-  const [roleToAdd, setRoleToAdd] = useState<string>(Roles.ENMODS_USER)
+  const [rolesToAdd, setRolesToAdd] = useState<string[]>([])
 
   const searchUsers = async () => {
     setShowError(false)
     setLoading(true)
     try {
       const data = await findIdirUser(email)
-      console.log(data)
       setUserObject(data)
     } catch (error) {
-      console.error('Removal error:', error)
       setError('An error occurred during removal.')
       setShowError(true)
     } finally {
@@ -47,22 +45,25 @@ const AddAdmin = ({ show, onHide }: AddAdminProps) => {
       setShowError(false)
       setLoading(true)
       try {
-        // const response = await addRoles(userObject?.username, )
+        const response = await addRoles(userObject?.username, rolesToAdd)
+        console.log(response)
       } catch (err) {
-        //
+        setError('Failed to add role to user.')
+        setShowError(true)
+      } finally {
+        setLoading(false)
       }
     }
   }
 
-  const handleRoleChange = (
-    event: SelectChangeEvent<Roles.ENMODS_USER | Roles.ENMODS_ADMIN>,
-  ) => {
-    setRoleToAdd(event.target.value)
+  const handleRoleChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = event.target
+    if (checked) {
+      setRolesToAdd([...rolesToAdd, name])
+    } else {
+      setRolesToAdd(rolesToAdd.filter((role) => role !== name))
+    }
   }
-
-  useEffect(() => {
-    console.log(userObject)
-  }, [userObject])
 
   return (
     <Modal
@@ -97,10 +98,11 @@ const AddAdmin = ({ show, onHide }: AddAdminProps) => {
           sx={{
             marginBottom: 1,
           }}
+          color="primary"
         />
         <Button
           variant="contained"
-          color="secondary"
+          color="primary"
           onClick={searchUsers}
           disabled={loading}
           sx={{
@@ -121,6 +123,8 @@ const AddAdmin = ({ show, onHide }: AddAdminProps) => {
           InputProps={{
             readOnly: true,
           }}
+          variant="filled"
+          color="info"
         />
         <TextField
           id="searchLastName"
@@ -134,6 +138,8 @@ const AddAdmin = ({ show, onHide }: AddAdminProps) => {
           InputProps={{
             readOnly: true,
           }}
+          variant="filled"
+          color="info"
         />
         <TextField
           id="searchUsername"
@@ -146,39 +152,59 @@ const AddAdmin = ({ show, onHide }: AddAdminProps) => {
           }}
           InputProps={{
             readOnly: true,
-            style: {
-              borderColor: 'black', // Set the border color to black
-            },
-            focused: {
-              borderColor: 'black', // Set the border color to black when focused
-            },
           }}
+          variant="filled"
+          color="info"
         />
         <FormControl fullWidth>
-          <InputLabel id="searchRole-label">Role</InputLabel>
-          <Select
-            labelId="searchRole-label"
-            id="searchRole"
-            label="Role"
-            value={Roles.ENMODS_USER}
-            onChange={handleRoleChange}
-            sx={{
-              marginBottom: 1,
-            }}
-            disabled={loading || !userObject}
-          >
-            <MenuItem value={Roles.ENMODS_USER}>{Roles.ENMODS_USER}</MenuItem>
-            <MenuItem value={Roles.ENMODS_ADMIN}>{Roles.ENMODS_ADMIN}</MenuItem>
-          </Select>
+          <FormLabel component="legend" color="primary" sx={{ marginTop: 1 }}>
+            Roles
+          </FormLabel>
+          <FormGroup>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={rolesToAdd.includes(Roles.ENMODS_USER)}
+                  onChange={handleRoleChange}
+                  name={Roles.ENMODS_USER}
+                  disabled={loading || !userObject}
+                  color="primary"
+                />
+              }
+              label={Roles.ENMODS_USER}
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={rolesToAdd.includes(Roles.ENMODS_ADMIN)}
+                  onChange={handleRoleChange}
+                  name={Roles.ENMODS_ADMIN}
+                  disabled={loading || !userObject}
+                  color="primary"
+                />
+              }
+              label={Roles.ENMODS_ADMIN}
+            />
+          </FormGroup>
         </FormControl>
+
         {showError && <Alert severity="error">{error}</Alert>}
-        <div>
-          <Button onClick={onHide}>Cancel</Button>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            marginTop: 'auto',
+          }}
+        >
+          <Button onClick={onHide} color="secondary" sx={{ marginRight: 1 }}>
+            Cancel
+          </Button>
           <Button
             variant="contained"
-            color="secondary"
+            color="primary"
             onClick={addRolesHandler}
             disabled={loading || !userObject}
+            style={{ marginLeft: '8px' }}
           >
             {loading ? <CircularProgress size={24} /> : 'Add Roles'}
           </Button>
@@ -188,4 +214,4 @@ const AddAdmin = ({ show, onHide }: AddAdminProps) => {
   )
 }
 
-export default AddAdmin
+export default AddRoles

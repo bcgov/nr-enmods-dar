@@ -1,40 +1,26 @@
 import type { GridRenderCellParams } from '@mui/x-data-grid'
-import {
-  Link,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Button,
-  Typography,
-  Tabs,
-  Tab,
-  Select,
-  MenuItem,
-} from '@mui/material'
+import { Link, Button, Tabs, Tab, Select, MenuItem } from '@mui/material'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import { useEffect, useState } from 'react'
 import { Box } from '@mui/system'
 import { getUsers } from '@/common/admin'
 import type { UserInfo } from '@/types/types'
 import Roles from '@/roles'
-import AddAdmin from '@/components/modal/admin/AddAdmin'
-import { set } from 'cypress/types/lodash'
+import AddRoles from '@/components/modal/admin/AddRoles'
+import RemoveRoles from '@/components/modal/admin/RemoveRoles'
 
 export default function AdminPage() {
-  const [open, setOpen] = useState(false)
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
+  const [selectedUserInfo, setSelectedUserInfo] = useState<UserInfo | null>(
+    null,
+  )
   const [selectedTab, setSelectedTab] = useState(0)
   const [userData, setUserData] = useState<UserInfo[]>([])
-  const [showAddAdmin, setShowAddAdmin] = useState(false)
-  const [showRemoveAdmin, setShowRemoveAdmin] = useState(false)
+  const [showAddRoles, setShowAddRoles] = useState(false)
+  const [showRemoveRoles, setShowRemoveRoles] = useState(false)
 
   useEffect(() => {
-    console.log('getting users')
     const getUserData = async () => {
-      // setUserData(await getUsers())
       const users: UserInfo[] = await getUsers()
-      console.log(users[0])
       setUserData(users)
     }
     getUserData()
@@ -53,23 +39,24 @@ export default function AdminPage() {
     },
   ])
 
-  const handleRevoke = (id: number) => {
-    setSelectedUserId(id)
-    setOpen(true)
+  const handleOpenRevoke = (username: string) => {
+    console.log(username)
+    const foundUser = userData.find((user) => user.username === username)
+    console.log(foundUser)
+    setSelectedUserInfo(foundUser || null)
+    setShowRemoveRoles(true)
   }
 
-  const handleConfirmRevoke = () => {
-    console.log('Revoke user with id:', selectedUserId)
-    setOpen(false)
-  }
+  useEffect(() => {
+    console.log('selectedUserInfo changed')
+    console.log(selectedUserInfo)
+  }, [selectedUserInfo])
 
-  const handleClose = () => {
-    setOpen(false)
-    setSelectedUserId(null)
+  const handleCloseAddRoles = () => setShowAddRoles(false)
+  const handleCloseRemoveRoles = () => {
+    setShowRemoveRoles(false)
+    setSelectedUserInfo(null)
   }
-
-  const handleCloseAddAdmin = () => setShowAddAdmin(false)
-  const handleCloseRemoveAdmin = () => setShowRemoveAdmin(false)
 
   const allRoles = [Roles.ENMODS_ADMIN, Roles.ENMODS_USER]
 
@@ -138,7 +125,7 @@ export default function AdminPage() {
           href="#"
           onClick={(event) => {
             event.preventDefault()
-            handleRevoke(params.row.id)
+            handleOpenRevoke(params.row.username)
           }}
           style={{ color: 'blue', cursor: 'pointer' }}
         >
@@ -185,7 +172,7 @@ export default function AdminPage() {
           href="#"
           onClick={(event) => {
             event.preventDefault()
-            handleRevoke(params.row.id)
+            handleOpenRevoke(params.row.id)
           }}
           style={{ color: 'blue', cursor: 'pointer' }}
         >
@@ -292,46 +279,18 @@ export default function AdminPage() {
       >
         <Button
           variant="contained"
-          color="secondary"
-          onClick={() => setShowAddAdmin(true)}
+          color="primary"
+          onClick={() => setShowAddRoles(true)}
         >
-          Add Admin
+          Add User
         </Button>
       </Box>
-      <Dialog open={open} onClose={handleClose}>
-        <DialogTitle>Revoke User Privileges</DialogTitle>
-        <DialogContent sx={{ paddingTop: '24px' }}>
-          <Typography>
-            Are you sure you want to revoke access for this user?
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ paddingBottom: '24px' }}>
-          <Button
-            onClick={handleClose}
-            variant="contained"
-            color="primary"
-            sx={{
-              backgroundColor: 'gray',
-              color: 'white',
-              '&:hover': {
-                backgroundColor: 'darkgray',
-              },
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            color="secondary"
-            onClick={handleConfirmRevoke}
-            variant="contained"
-            autoFocus
-          >
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
-      <AddAdmin show={showAddAdmin} onHide={handleCloseAddAdmin} />
-      {/* <RemoveAdmin show={showRemoveAdmin} onHide={handleCloseRemoveAdmin} /> */}
+      <AddRoles show={showAddRoles} onHide={handleCloseAddRoles} />
+      <RemoveRoles
+        show={showRemoveRoles}
+        onHide={handleCloseRemoveRoles}
+        userObject={selectedUserInfo}
+      />
     </div>
   )
 }

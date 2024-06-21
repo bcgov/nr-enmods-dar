@@ -56,7 +56,10 @@ export class AdminService {
           username: admin.attributes.idir_username[0],
           email: admin.email,
           name: admin.firstName + " " + admin.lastName,
+          firstName: admin.firstName,
+          lastName: admin.lastName,
           company: "Not Implemented",
+          idirUsername: admin.username,
           role: [Role.ENMODS_ADMIN],
         });
       });
@@ -75,7 +78,10 @@ export class AdminService {
             username: user.attributes.idir_username[0],
             email: user.email,
             name: user.firstName + " " + user.lastName,
+            firstName: user.firstName,
+            lastName: user.lastName,
             company: "Not Implemented",
+            idirUsername: user.username,
             role: [Role.ENMODS_USER],
           });
         }
@@ -122,7 +128,6 @@ export class AdminService {
    * @returns
    */
   async addRoles(userRolesDto: UserRolesDto): Promise<any> {
-    console.log("add roles");
     const addRolesUrl = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/user-role-mappings`;
     const bearerToken = await this.getToken();
 
@@ -182,15 +187,14 @@ export class AdminService {
    * @returns
    */
   async removeRoles(userRolesDto: UserRolesDto): Promise<any> {
-    console.log("remove roles");
     const bearerToken = await this.getToken();
     const config = {
       headers: { Authorization: "Bearer " + bearerToken },
     };
     for (const role of userRolesDto.roles) {
-      console.log(role);
       if (role === Role.ENMODS_USER) {
-        const url = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/users/${userRolesDto.idirUsername}@idir/roles/${Role.ENMODS_USER}`;
+        const url = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/users/${userRolesDto.idirUsername}/roles/${Role.ENMODS_USER}`;
+        console.log(url);
         await firstValueFrom(this.httpService.get(url, config))
           .then((res) => {
             return res.data.data;
@@ -198,7 +202,7 @@ export class AdminService {
           .catch((err) => console.log(err.response.data));
       }
       if (role === Role.ENMODS_ADMIN) {
-        const url = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/users/${userRolesDto.idirUsername}@idir/roles/${Role.ENMODS_ADMIN}`;
+        const url = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/users/${userRolesDto.idirUsername}/roles/${Role.ENMODS_ADMIN}`;
         await firstValueFrom(this.httpService.get(url, config))
           .then((res) => {
             return res.data.data;

@@ -20,6 +20,9 @@ export type UserInfo = {
   username: string;
   email: string;
   name: string;
+  firstName: string;
+  lastName: string;
   company: string;
+  idirUsername: string;
   role: string[];
 };
