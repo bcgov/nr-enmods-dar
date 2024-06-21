@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useState } from 'react'
+import { ChangeEvent, useState } from 'react'
 import {
   Modal,
   Button,
@@ -11,14 +11,24 @@ import {
   FormControlLabel,
   Checkbox,
 } from '@mui/material'
-import { addRoles, removeRoles, findIdirUser } from '@/common/admin'
-import { IdirUserInfo } from '@/types/types'
+import { findIdirUser, updateRoles } from '@/common/admin'
+import { IdirUserInfo, UserInfo } from '@/types/types'
 import Roles from '@/roles'
 import theme from '@/theme'
 
-type AddRolesProps = { show: boolean; onHide: () => void }
+type AddRolesProps = {
+  show: boolean
+  existingUsers: UserInfo[]
+  refreshTable: () => void
+  onHide: () => void
+}
 
-const AddRoles = ({ show, onHide }: AddRolesProps) => {
+const AddRoles = ({
+  show,
+  existingUsers,
+  refreshTable,
+  onHide,
+}: AddRolesProps) => {
   const [email, setEmail] = useState<string>('')
   const [userObject, setUserObject] = useState<IdirUserInfo | null>(null)
   const [loading, setLoading] = useState<boolean>(false)
@@ -31,7 +41,12 @@ const AddRoles = ({ show, onHide }: AddRolesProps) => {
     setLoading(true)
     try {
       const data = await findIdirUser(email)
-      setUserObject(data)
+      if (existingUsers.some((user) => user.idirUsername === data.username)) {
+        setError('User already exists.')
+        setShowError(true)
+      } else {
+        setUserObject(data)
+      }
     } catch (error) {
       setError('An error occurred during removal.')
       setShowError(true)
@@ -45,13 +60,14 @@ const AddRoles = ({ show, onHide }: AddRolesProps) => {
       setShowError(false)
       setLoading(true)
       try {
-        const response = await addRoles(userObject?.username, rolesToAdd)
-        console.log(response)
+        await updateRoles(userObject?.username, [], rolesToAdd)
+        refreshTable()
       } catch (err) {
         setError('Failed to add role to user.')
         setShowError(true)
       } finally {
         setLoading(false)
+        handleOnHide()
       }
     }
   }
@@ -65,10 +81,15 @@ const AddRoles = ({ show, onHide }: AddRolesProps) => {
     }
   }
 
+  const handleOnHide = () => {
+    setUserObject(null)
+    onHide()
+  }
+
   return (
     <Modal
       open={show}
-      onClose={onHide}
+      onClose={handleOnHide}
       aria-labelledby="add-roles-modal"
       aria-describedby="add-roles-modal-description"
     >
@@ -196,7 +217,11 @@ const AddRoles = ({ show, onHide }: AddRolesProps) => {
             marginTop: 'auto',
           }}
         >
-          <Button onClick={onHide} color="secondary" sx={{ marginRight: 1 }}>
+          <Button
+            onClick={handleOnHide}
+            color="secondary"
+            sx={{ marginRight: 1 }}
+          >
             Cancel
           </Button>
           <Button

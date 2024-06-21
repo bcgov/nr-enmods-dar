@@ -37,4 +37,20 @@ export class AdminController {
   ): Promise<{ error: string | null }> {
     return this.adminService.removeRoles(userRolesDto);
   }
+
+  @Post("update-roles")
+  updateRoles(
+    @Body()
+    data: {
+      idirUsername: string;
+      existingRoles: string[];
+      roles: string[];
+    }
+  ): Promise<{ error: string | null }> {
+    return this.adminService.updateRoles(
+      data.idirUsername,
+      data.existingRoles,
+      data.roles
+    );
+  }
 }

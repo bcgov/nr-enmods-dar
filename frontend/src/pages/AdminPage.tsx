@@ -5,9 +5,8 @@ import { useEffect, useState } from 'react'
 import { Box } from '@mui/system'
 import { getUsers } from '@/common/admin'
 import type { UserInfo } from '@/types/types'
-import Roles from '@/roles'
 import AddRoles from '@/components/modal/admin/AddRoles'
-import RemoveRoles from '@/components/modal/admin/RemoveRoles'
+import EditRoles from '@/components/modal/admin/EditRoles'
 
 export default function AdminPage() {
   const [selectedUserInfo, setSelectedUserInfo] = useState<UserInfo | null>(
@@ -18,11 +17,12 @@ export default function AdminPage() {
   const [showAddRoles, setShowAddRoles] = useState(false)
   const [showRemoveRoles, setShowRemoveRoles] = useState(false)
 
+  const getUserData = async () => {
+    const users: UserInfo[] = await getUsers()
+    setUserData(users)
+  }
+
   useEffect(() => {
-    const getUserData = async () => {
-      const users: UserInfo[] = await getUsers()
-      setUserData(users)
-    }
     getUserData()
   }, [])
 
@@ -39,26 +39,17 @@ export default function AdminPage() {
     },
   ])
 
-  const handleOpenRevoke = (username: string) => {
-    console.log(username)
+  const handleOpenEdit = (username: string) => {
     const foundUser = userData.find((user) => user.username === username)
-    console.log(foundUser)
     setSelectedUserInfo(foundUser || null)
     setShowRemoveRoles(true)
   }
-
-  useEffect(() => {
-    console.log('selectedUserInfo changed')
-    console.log(selectedUserInfo)
-  }, [selectedUserInfo])
 
   const handleCloseAddRoles = () => setShowAddRoles(false)
   const handleCloseRemoveRoles = () => {
     setShowRemoveRoles(false)
     setSelectedUserInfo(null)
   }
-
-  const allRoles = [Roles.ENMODS_ADMIN, Roles.ENMODS_USER]
 
   const userColumns = [
     {
@@ -99,12 +90,12 @@ export default function AdminPage() {
       sortable: true,
       filterable: true,
       flex: 1,
-      minWidth: 170,
+      minWidth: 180,
       renderCell: (params: GridRenderCellParams) => {
         const roles = params.value as string[]
         return (
-          <Select value={roles[0]}>
-            {allRoles.map((role) => (
+          <Select value={roles[0]} sx={{ width: '100%' }}>
+            {roles.map((role) => (
               <MenuItem key={role} value={role}>
                 {role}
               </MenuItem>
@@ -125,11 +116,11 @@ export default function AdminPage() {
           href="#"
           onClick={(event) => {
             event.preventDefault()
-            handleOpenRevoke(params.row.username)
+            handleOpenEdit(params.row.username)
           }}
           style={{ color: 'blue', cursor: 'pointer' }}
         >
-          Revoke
+          Edit
         </Link>
       ),
     },
@@ -161,7 +152,7 @@ export default function AdminPage() {
       minWidth: 240,
     },
     {
-      field: 'revoke',
+      field: 'edit',
       headerName: '',
       sortable: false,
       filterable: false,
@@ -172,11 +163,11 @@ export default function AdminPage() {
           href="#"
           onClick={(event) => {
             event.preventDefault()
-            handleOpenRevoke(params.row.id)
+            handleOpenEdit(params.row.id)
           }}
           style={{ color: 'blue', cursor: 'pointer' }}
         >
-          Revoke
+          Edit
         </Link>
       ),
     },
@@ -285,11 +276,17 @@ export default function AdminPage() {
           Add User
         </Button>
       </Box>
-      <AddRoles show={showAddRoles} onHide={handleCloseAddRoles} />
-      <RemoveRoles
+      <AddRoles
+        show={showAddRoles}
+        existingUsers={userData}
+        refreshTable={getUserData}
+        onHide={handleCloseAddRoles}
+      />
+      <EditRoles
         show={showRemoveRoles}
-        onHide={handleCloseRemoveRoles}
         userObject={selectedUserInfo}
+        refreshTable={getUserData}
+        onHide={handleCloseRemoveRoles}
       />
     </div>
   )

@@ -1,4 +1,4 @@
-import { ChangeEvent, useState } from 'react'
+import { ChangeEvent, useEffect, useState } from 'react'
 import {
   Modal,
   Button,
@@ -11,59 +11,70 @@ import {
   FormControlLabel,
   Checkbox,
 } from '@mui/material'
-import { removeRoles } from '@/common/admin'
 import { UserInfo } from '@/types/types'
+import Roles from '@/roles'
 import theme from '@/theme'
+import { updateRoles } from '@/common/admin'
 
-// Currently unused modal
-
-type RemoveRolesProps = {
+type EditRolesProps = {
   show: boolean
-  onHide: () => void
   userObject: UserInfo | null
+  refreshTable: () => void
+  onHide: () => void
 }
 
-const RemoveRoles = ({ show, onHide, userObject }: RemoveRolesProps) => {
+const EditRoles = ({
+  show,
+  userObject,
+  refreshTable,
+  onHide,
+}: EditRolesProps) => {
   const [loading, setLoading] = useState<boolean>(false)
   const [showError, setShowError] = useState<boolean>(false)
   const [error, setError] = useState<string>('')
-  const [rolesToRemove, setRolesToRemove] = useState<string[]>([])
+  const [updatedRoles, setUpdatedRoles] = useState<string[]>([])
 
-  const removeRolesHandler = async () => {
+  const updateRolesHandler = async () => {
     if (userObject) {
       setShowError(false)
       setLoading(true)
       try {
-        await removeRoles(userObject?.idirUsername, rolesToRemove)
+        console.log(userObject.idirUsername)
+        await updateRoles(
+          userObject.idirUsername,
+          userObject.role,
+          updatedRoles,
+        )
+        refreshTable()
       } catch (err) {
-        setError('Failed to remove role from user.')
+        setError('Failed to add role to user.')
         setShowError(true)
       } finally {
         setLoading(false)
+        onHide()
       }
     }
   }
 
+  useEffect(() => {
+    setUpdatedRoles(userObject ? userObject.role : [])
+  }, [userObject])
+
   const handleRoleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = event.target
     if (checked) {
-      setRolesToRemove([...rolesToRemove, name])
+      setUpdatedRoles([...updatedRoles, name])
     } else {
-      setRolesToRemove(rolesToRemove.filter((role) => role !== name))
+      setUpdatedRoles(updatedRoles.filter((role) => role !== name))
     }
-  }
-
-  const handleOnHide = () => {
-    setRolesToRemove([])
-    onHide()
   }
 
   return (
     <Modal
       open={show}
-      onClose={handleOnHide}
-      aria-labelledby="remove-roles-modal"
-      aria-describedby="remove-roles-modal-description"
+      onClose={onHide}
+      aria-labelledby="add-roles-modal"
+      aria-describedby="add-roles-modal-description"
     >
       <div
         style={{
@@ -79,7 +90,7 @@ const RemoveRoles = ({ show, onHide, userObject }: RemoveRolesProps) => {
           transform: 'translate(-50%, -50%)',
         }}
       >
-        <h2 id="simple-modal-title">Remove Roles</h2>
+        <h2 id="simple-modal-title">Edit Roles</h2>
         <TextField
           id="searchFirstName"
           label="First Name"
@@ -113,7 +124,7 @@ const RemoveRoles = ({ show, onHide, userObject }: RemoveRolesProps) => {
         <TextField
           id="searchUsername"
           label="Username"
-          value={userObject?.username ?? ''}
+          value={userObject?.username || ''}
           fullWidth
           margin="normal"
           sx={{
@@ -125,27 +136,35 @@ const RemoveRoles = ({ show, onHide, userObject }: RemoveRolesProps) => {
           variant="filled"
           color="info"
         />
-        <p>Please select the roles to be removed.</p>
         <FormControl fullWidth>
           <FormLabel component="legend" color="primary" sx={{ marginTop: 1 }}>
-            Current Roles
+            Roles
           </FormLabel>
           <FormGroup>
-            {userObject?.role?.map((role) => (
-              <FormControlLabel
-                key={role}
-                control={
-                  <Checkbox
-                    checked={rolesToRemove.includes(role)}
-                    onChange={handleRoleChange}
-                    name={role}
-                    disabled={loading || !userObject}
-                    color="primary"
-                  />
-                }
-                label={role}
-              />
-            ))}
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={updatedRoles.includes(Roles.ENMODS_USER)}
+                  onChange={handleRoleChange}
+                  name={Roles.ENMODS_USER}
+                  disabled={loading || !userObject}
+                  color="primary"
+                />
+              }
+              label={Roles.ENMODS_USER}
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={updatedRoles.includes(Roles.ENMODS_ADMIN)}
+                  onChange={handleRoleChange}
+                  name={Roles.ENMODS_ADMIN}
+                  disabled={loading || !userObject}
+                  color="primary"
+                />
+              }
+              label={Roles.ENMODS_ADMIN}
+            />
           </FormGroup>
         </FormControl>
 
@@ -157,20 +176,17 @@ const RemoveRoles = ({ show, onHide, userObject }: RemoveRolesProps) => {
             marginTop: 'auto',
           }}
         >
-          <Button
-            onClick={handleOnHide}
-            color="secondary"
-            sx={{ marginRight: 1 }}
-          >
+          <Button onClick={onHide} color="secondary" sx={{ marginRight: 1 }}>
             Cancel
           </Button>
           <Button
             variant="contained"
             color="primary"
-            onClick={removeRolesHandler}
+            onClick={updateRolesHandler}
             disabled={loading || !userObject}
+            style={{ marginLeft: '8px' }}
           >
-            {loading ? <CircularProgress size={24} /> : 'Remove Roles'}
+            {loading ? <CircularProgress size={24} /> : 'Update Roles'}
           </Button>
         </div>
       </div>
@@ -178,4 +194,4 @@ const RemoveRoles = ({ show, onHide, userObject }: RemoveRolesProps) => {
   )
 }
 
-export default RemoveRoles
+export default EditRoles

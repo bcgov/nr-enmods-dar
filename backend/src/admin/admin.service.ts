@@ -193,21 +193,153 @@ export class AdminService {
     };
     for (const role of userRolesDto.roles) {
       if (role === Role.ENMODS_USER) {
-        const url = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/users/${userRolesDto.idirUsername}/roles/${Role.ENMODS_USER}`;
-        console.log(url);
-        await firstValueFrom(this.httpService.get(url, config))
+        const url = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/user-role-mappings`;
+        await firstValueFrom(
+          this.httpService.post(
+            url,
+            {
+              roleName: Role.ENMODS_USER,
+              username: userRolesDto.idirUsername,
+              operation: "del",
+            },
+            config
+          )
+        )
           .then((res) => {
-            return res.data.data;
+            return res.data;
           })
-          .catch((err) => console.log(err.response.data));
+          .catch((err) => {
+            console.log(err);
+            throw new Error(`Failed to remove ${Role.ENMODS_USER} role`);
+          });
       }
       if (role === Role.ENMODS_ADMIN) {
-        const url = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/users/${userRolesDto.idirUsername}/roles/${Role.ENMODS_ADMIN}`;
-        await firstValueFrom(this.httpService.get(url, config))
+        const url = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/user-role-mappings`;
+        await firstValueFrom(
+          this.httpService.post(
+            url,
+            {
+              roleName: Role.ENMODS_ADMIN,
+              username: userRolesDto.idirUsername,
+              operation: "del",
+            },
+            config
+          )
+        )
           .then((res) => {
-            return res.data.data;
+            return res.data;
           })
-          .catch((err) => console.log(err.response.data));
+          .catch((err) => {
+            console.log(err);
+            throw new Error(`Failed to remove ${Role.ENMODS_ADMIN} role`);
+          });
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Updates a user's roles
+   *
+   * @param userRolesDto
+   * @returns
+   */
+  async updateRoles(
+    idirUsername: string,
+    existingRoles: string[],
+    roles: string[]
+  ): Promise<any> {
+    const url = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/user-role-mappings`;
+    const bearerToken = await this.getToken();
+
+    const config = {
+      headers: { Authorization: "Bearer " + bearerToken },
+    };
+
+    const rolesToRemove = existingRoles.filter((role) => !roles.includes(role));
+    const rolesToAdd = roles.filter((role) => !existingRoles.includes(role));
+
+    for (let role of rolesToRemove) {
+      if (role === Role.ENMODS_USER) {
+        await firstValueFrom(
+          this.httpService.post(
+            url,
+            {
+              roleName: Role.ENMODS_USER,
+              username: idirUsername,
+              operation: "del",
+            },
+            config
+          )
+        )
+          .then((res) => {
+            return res.data;
+          })
+          .catch((err) => {
+            console.log(err);
+            throw new Error(`Failed to remove ${Role.ENMODS_USER} role`);
+          });
+      } else if (role === Role.ENMODS_ADMIN) {
+        await firstValueFrom(
+          this.httpService.post(
+            url,
+            {
+              roleName: Role.ENMODS_ADMIN,
+              username: idirUsername,
+              operation: "del",
+            },
+            config
+          )
+        )
+          .then((res) => {
+            return res.data;
+          })
+          .catch((err) => {
+            console.log(err);
+            throw new Error(`Failed to remove ${Role.ENMODS_ADMIN} role`);
+          });
+      }
+    }
+
+    for (let role of rolesToAdd) {
+      if (role === Role.ENMODS_USER) {
+        await firstValueFrom(
+          this.httpService.post(
+            url,
+            {
+              roleName: Role.ENMODS_USER,
+              username: idirUsername,
+              operation: "add",
+            },
+            config
+          )
+        )
+          .then((res) => {
+            return res.data;
+          })
+          .catch((err) => {
+            console.log(err);
+            throw new Error(`Failed to remove ${Role.ENMODS_USER} role`);
+          });
+      } else if (role === Role.ENMODS_ADMIN) {
+        await firstValueFrom(
+          this.httpService.post(
+            url,
+            {
+              roleName: Role.ENMODS_ADMIN,
+              username: idirUsername,
+              operation: "add",
+            },
+            config
+          )
+        )
+          .then((res) => {
+            return res.data;
+          })
+          .catch((err) => {
+            console.log(err);
+            throw new Error(`Failed to remove ${Role.ENMODS_ADMIN} role`);
+          });
       }
     }
     return null;
