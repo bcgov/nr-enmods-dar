@@ -59,7 +59,7 @@ export class FileSubmissionsController {
   @Get(":id")
   findOne(@Param("id") id: string): Promise<FileResultsWithCount<file_submission>> {
     const sanitizedParam = this.sanitizeService.sanitizeInput(id);
-    return this.fileSubmissionsService.findOne(id);
+    return this.fileSubmissionsService.findOne(sanitizedParam);
   }
 
   @Patch(":id")

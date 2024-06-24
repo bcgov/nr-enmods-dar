@@ -99,7 +99,7 @@ function FileUpload() {
         formData.append('userID', JWT.idir_username) // TODO: This will need to be updated based on BCeID
         formData.append('orgGUID', JWT.idir_user_guid) // TODO: This will need to be updated based on BCeID and company GUID
 
-        await insertFile(formData).then((response) => {
+        await insertFile(formData).then(async (response) => {
           console.log(response)
           console.log(fileStatusCodes.items)
           const newStatusCodes = fileStatusCodes.items
@@ -107,7 +107,8 @@ function FileUpload() {
           setFileStatusCodes({
             items: newStatusCodes,
           })
-          getFiles("fiorhfioru3hfouih");
+          const results = await getFiles("1");
+          console.log(results)
         })
       })
     }
