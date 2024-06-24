@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS enmods.file_submissions (
+CREATE TABLE IF NOT EXISTS enmods.file_submission (
   submission_id UUID PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
   file_name varchar(200) NOT NULL,
   submission_date timestamp NOT NULL,
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS enmods.file_submissions (
   update_utc_timestamp timestamp NOT NULL,
   CONSTRAINT submission_status_code_fk FOREIGN KEY(submission_status_code) REFERENCES enmods.submission_status_code(submission_status_code)
 );
-INSERT INTO enmods.file_submissions (
+INSERT INTO enmods.file_submission (
     file_name,
     submission_date,
     submitter_user_id,

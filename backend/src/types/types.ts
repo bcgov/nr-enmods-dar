@@ -23,3 +23,8 @@ export type UserInfo = {
   company: string;
   role: string[];
 };
+
+export type ResultsWithCount = {
+  results: [],
+  count: number,
+}
