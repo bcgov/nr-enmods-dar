@@ -2,9 +2,17 @@ DO $$
     DECLARE i integer := 0;
     v_fileName varchar(200);
     v_submissionDate date;
+    v_submissionStatusCode text;
 BEGIN 
     WHILE i < 50 LOOP 
         v_submissionDate := date '2022-01-01' + (floor(random() * (date '2024-12-31' - date '2022-01-01'))::int);
+        v_submissionStatusCode := CASE floor(random() * 4)::int
+            WHEN 0 THEN 'SUBMITTED'
+            WHEN 1 THEN 'INPROGRESS'
+            WHEN 2 THEN 'VALIDATED'
+            WHEN 3 THEN 'REJECTED'
+            ELSE 'SUBMITTED'
+            END;
         BEGIN 
             v_fileName := CONCAT('file_', substring(md5(random()::text), 0, 10));
             IF NOT EXISTS (SELECT 1 FROM enmods.file_submission WHERE file_name = v_fileName) THEN
@@ -28,7 +36,7 @@ BEGIN
                     v_fileName,
                     v_submissionDate,
                     'VMANAWAT',
-                    'SUBMITTED',
+                    v_submissionStatusCode,
                     'MANAWAT CORP',
                     12,
                     50,
