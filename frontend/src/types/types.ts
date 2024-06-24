@@ -10,6 +10,7 @@ export type UserInfo = {
 }
 
 export type FileStatusCode = {
+  items: FileStatusCode[]
   submissionStatusCode: string
   description: string
   displayOrder: number

@@ -7,6 +7,7 @@ import { Roles } from "src/auth/decorators/roles.decorators";
 import { Role } from "src/enum/role.enum";
 import { JwtRoleGuard } from "src/auth/jwtrole.guard";
 import { JwtAuthGuard } from "src/auth/jwtauth.guard";
+import { FileStatusCode } from './dto/file_status_codes.dto';
 
 @ApiTags('file_status_codes')
 @Controller({ path: "file_status_codes", version: "1" })
@@ -22,7 +23,7 @@ export class FileStatusCodesController {
   }
 
   @Get()
-  findAll() {
+  findAll(): Promise<FileStatusCode[]> {
     return this.fileStatusCodesService.findAll();
   }
 

@@ -10,11 +10,8 @@ import TableCell from '@mui/material/TableCell'
 import TableRow from '@mui/material/TableRow'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import { useEffect, useState } from 'react'
-import type { AxiosResponse } from '~/axios'
 import { DeleteRounded, Description } from '@mui/icons-material'
-// import config from '../config'
 import _kc from '@/keycloak'
-import UserService from '@/service/user-service'
 import {
   Box,
   FormControl,
@@ -26,8 +23,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { Label } from '@mui/icons-material'
-import { FileStatusCode } from '@/types/types'
+import { FileStatusCode } from '@/types/types';
 import { getFileStatusCodes } from '@/common/manage-dropdowns'
 
 const columns = [
@@ -218,11 +214,28 @@ export default function Dashboard() {
     },
   ])
 
+  const [submissionStatusCodes, setSubmissionStatusCodes] = useState({
+    items: []
+  })
+
+  const [selectedStatusCode, setSelectedStatusCode] = useState('ALL')
+
+  const handleStatusChange = (event) => {
+    console.log(event.target.value)
+    setSelectedStatusCode(event.target.value)
+  }
+
   useEffect(() => {
     async function fetchFileStatusCodes() {
-      console.log('getFileStatusCodes')
-      const response = await getFileStatusCodes()
-      console.log(response)
+      await getFileStatusCodes().then((response) => {
+        const newSubmissionCodes = submissionStatusCodes.items
+        Object.keys(response).map(key => {
+          newSubmissionCodes[key] = response[key]
+        })
+        setSubmissionStatusCodes({
+          items: newSubmissionCodes
+        })
+      })
     }
     // console.log('getAllUsers')
     // console.log('getAllAgencies')
@@ -315,7 +328,7 @@ export default function Dashboard() {
                     size="small"
                     sx={{ width: '515px' }}
                   >
-                    <MenuItem>All</MenuItem>
+                    <MenuItem>ALL</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -331,7 +344,7 @@ export default function Dashboard() {
                     size="small"
                     sx={{ width: '515px' }}
                   >
-                    <MenuItem>All</MenuItem>
+                    <MenuItem>ALL</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>
@@ -344,8 +357,17 @@ export default function Dashboard() {
                     variant="outlined"
                     size="small"
                     sx={{ width: '515px' }}
+                    onChange={handleStatusChange}
+                    value={selectedStatusCode}
                   >
-                    <MenuItem>All</MenuItem>
+                    <MenuItem key="ALL" value="ALL">ALL</MenuItem>
+                    {submissionStatusCodes ? (
+                      submissionStatusCodes.items.map(option => (
+                        <MenuItem key={option.submission_status_code} value={option.submission_status_code}>
+                          {option.submission_status_code}
+                        </MenuItem>
+                      ))
+                    ) : ''}
                   </Select>
                 </FormControl>
               </Grid>
