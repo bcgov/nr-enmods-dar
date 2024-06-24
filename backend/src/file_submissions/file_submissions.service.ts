@@ -5,6 +5,7 @@ import { PrismaService } from "nestjs-prisma";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { FileResultsWithCount } from "src/interface/fileResultsWithCount";
 import { file_submission } from '@prisma/client'
+import { FileInfo } from "src/types/types";
 
 @Injectable()
 export class FileSubmissionsService {
@@ -61,6 +62,42 @@ export class FileSubmissionsService {
 
   findAll() {
     return `This action returns all fileSubmissions`;
+  }
+
+  async findBySearch(body: any): Promise<FileResultsWithCount<FileInfo>>{
+    let records: FileResultsWithCount<FileInfo> = { count: 0, results: [] };
+
+    const statusFilter = body.fileStatus !== 'ALL' ? { submission_status_code: body.fileStatus } : {}
+    const selectColumns = {
+      submission_id: true,
+      file_name: true,
+      submission_date: true,
+      submitter_user_id: true,
+      submitter_agency_name: true,
+      submission_status_code: true,
+      sample_count: true,
+      results_count: true
+    }
+
+    const query = {
+      file_name: {
+        startsWith: body.fileName
+      },
+      ...statusFilter
+    }
+
+    const [results, count] = await this.prisma.$transaction([
+      this.prisma.file_submission.findMany( {where: query, select: selectColumns} ),
+
+      this.prisma.file_submission.count({
+        where:
+          query
+      }),
+    ])
+
+    console.log(results)
+    records = { ...records, count, results };
+    return records;
   }
 
   async findOne(id: string): Promise<FileResultsWithCount<file_submission>> {
