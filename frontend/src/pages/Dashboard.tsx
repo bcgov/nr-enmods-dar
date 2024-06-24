@@ -27,6 +27,8 @@ import {
   Typography,
 } from '@mui/material'
 import { Label } from '@mui/icons-material'
+import { FileStatusCode } from '@/types/types'
+import { getFileStatusCodes } from '@/common/manage-dropdowns'
 
 const columns = [
   {
@@ -217,6 +219,15 @@ export default function Dashboard() {
   ])
 
   useEffect(() => {
+    async function fetchFileStatusCodes() {
+      console.log('getFileStatusCodes')
+      const response = await getFileStatusCodes()
+      console.log(response)
+    }
+    // console.log('getAllUsers')
+    // console.log('getAllAgencies')
+
+    fetchFileStatusCodes()
     // apiService
     //   .getAxiosInstance()
     //   .get('/v1/users')
