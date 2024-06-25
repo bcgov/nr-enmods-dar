@@ -129,6 +129,7 @@ export default function Dashboard() {
   })
 
   const handleFormInputChange = (key, event) => {
+    console.log(key)
     setFormData({
       ...formData,
       [key]: event.target.value,
@@ -145,6 +146,8 @@ export default function Dashboard() {
     for (var key in formData) {
       requestData.append(key, formData[key])
     }
+
+    console.log(formData)
 
     await searchFiles(requestData).then((response) => {
       const dataValues = Object.values(response.results)
@@ -251,7 +254,7 @@ export default function Dashboard() {
                     variant="outlined"
                     size="small"
                     type="date"
-                    onChange={(event) => handleFormInputChange('submisstionDateTo', event)}
+                    onChange={(event) => handleFormInputChange('submissionDateFrom', event)}
                   />
                 </Grid>
 
@@ -262,7 +265,7 @@ export default function Dashboard() {
                     variant="outlined"
                     size="small"
                     type="date"
-                    onChange={(event) => handleFormInputChange('submissionDateFrom', event)}
+                    onChange={(event) => handleFormInputChange('submissionDateTo', event)}
                   />
                 </Grid>
 

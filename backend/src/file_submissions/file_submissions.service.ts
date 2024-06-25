@@ -67,7 +67,48 @@ export class FileSubmissionsService {
   async findBySearch(body: any): Promise<FileResultsWithCount<FileInfo>>{
     let records: FileResultsWithCount<FileInfo> = { count: 0, results: [] };
 
-    const statusFilter = body.fileStatus !== 'ALL' ? { submission_status_code: body.fileStatus } : {}
+    const whereClause = {file_name: {}, submission_date: {}, submitter_user_id: {}, submitter_agency_name: {}, submission_status_code: {}}
+
+    if (body.fileName){
+      whereClause.file_name = {
+        contains: body.fileName
+      }
+    }
+
+    if (body.submissionDateFrom){
+      whereClause.submission_date = {
+        gte: new Date(body.submissionDateFrom)
+      }
+    }
+
+    if (body.submissionDateTo){
+      whereClause.submission_date = {
+        ...whereClause.submission_date,
+        lte: new Date(body.submissionDateTo)
+      }
+    }
+
+    if (body.submitterUsername && body.submitterUsername != 'ALL'){
+      whereClause.submitter_user_id = {
+        contains: body.submitterUsername
+      }
+    }
+
+    if (body.submitterAgency && body.submitterAgency != 'ALL'){
+      whereClause.submitter_agency_name = {
+        contains: body.submitterAgency
+      }
+    }
+
+    if (body.fileStatus && body.fileStatus != 'ALL'){
+      whereClause.submission_status_code = {
+        equals: body.fileStatus
+      }
+    }
+
+    console.log(body)
+    console.log(whereClause)
+
     const selectColumns = {
       submission_id: true,
       file_name: true,
@@ -79,23 +120,16 @@ export class FileSubmissionsService {
       results_count: true
     }
 
-    const query = {
-      file_name: {
-        startsWith: body.fileName
-      },
-      ...statusFilter
-    }
-
     const [results, count] = await this.prisma.$transaction([
-      this.prisma.file_submission.findMany( {where: query, select: selectColumns} ),
+      this.prisma.file_submission.findMany( {where: whereClause, select: selectColumns} ),
 
       this.prisma.file_submission.count({
         where:
-          query
+          whereClause
       }),
     ])
 
-    console.log(results)
+    // console.log(results)
     records = { ...records, count, results };
     return records;
   }
