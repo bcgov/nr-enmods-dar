@@ -41,7 +41,7 @@ const columns = [
           textDecoration: 'underline',
           color: 'blue',
         }}
-        onClick={() => handleDownload(params.row.fileName)}
+        onClick={() => handleDownload(params.row.file_name, params.row.submission_id)}
       >
         {params.value}
       </FormControl>
@@ -96,7 +96,7 @@ const columns = [
     renderCell: (params) => (
       <IconButton
         color="primary"
-        onClick={() => handleDelete(params.row.fileName)}
+        onClick={() => handleDelete(params.row.file_name, params.row.submission_id)}
       >
         <DeleteRounded />
       </IconButton>
@@ -109,7 +109,7 @@ const columns = [
     renderCell: (params) => (
       <IconButton
         color="primary"
-        onClick={() => handleMessages(params.row.fileName)}
+        onClick={() => handleMessages(params.row.file_name, params.row.submission_id)}
       >
         <Description />
       </IconButton>
@@ -418,14 +418,18 @@ export default function Dashboard() {
   )
 }
 
-function handleDownload(fileName: any): void {
+function handleDownload(fileName: string, submission_id: string): void {
   console.log(fileName)
+  console.log(submission_id)
+
 }
 
-function handleDelete(fileName: any): void {
+function handleDelete(fileName: string, submission_id: string): void {
   console.log(fileName)
+  console.log(submission_id)
 }
 
-function handleMessages(fileName: any): void {
+function handleMessages(fileName: string, submission_id: string): void {
   console.log(fileName)
+  console.log(submission_id)
 }

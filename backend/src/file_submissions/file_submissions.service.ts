@@ -112,9 +112,6 @@ export class FileSubmissionsService {
       };
     }
 
-    console.log(body);
-    console.log(whereClause);
-
     const selectColumns = {
       submission_id: true,
       file_name: true,
@@ -137,7 +134,6 @@ export class FileSubmissionsService {
       }),
     ]);
 
-    // console.log(results)
     records = { ...records, count, results };
     return records;
   }
