@@ -118,7 +118,6 @@ const columns = [
 ]
 
 export default function Dashboard() {
-
   const [formData, setFormData] = useState({
     fileName: '',
     submissionDateTo: '',
@@ -129,35 +128,29 @@ export default function Dashboard() {
   })
 
   const handleFormInputChange = (key, event) => {
-    console.log(key)
     setFormData({
       ...formData,
       [key]: event.target.value,
-    });
+    })
   }
 
   const [data, setData] = useState<any>({
-    items: []
+    items: [],
   })
 
   const handleSearch = async (event) => {
-    event.preventDefault();
-    const requestData = new FormData();
+    event.preventDefault()
+    const requestData = new FormData()
     for (var key in formData) {
       requestData.append(key, formData[key])
     }
 
-    console.log(formData)
-
     await searchFiles(requestData).then((response) => {
       const dataValues = Object.values(response.results)
-      console.log(dataValues)
       setData({
         items: dataValues,
       })
     })
-
-    console.log(data.items)
   }
 
   const [submissionStatusCodes, setSubmissionStatusCodes] = useState({
@@ -165,10 +158,24 @@ export default function Dashboard() {
   })
 
   const [selectedStatusCode, setSelectedStatusCode] = useState('ALL')
+  const [selectedSubmitterUserName, setSelectedSubmitterUserName] =
+    useState('ALL')
+  const [selectedSubmitterAgencyName, setSelectedSubmitterAgencyName] =
+    useState('ALL')
 
   const handleStatusChange = (event) => {
     setSelectedStatusCode(event.target.value)
     handleFormInputChange('fileStatus', event)
+  }
+
+  const handleUsernameChange = (event) => {
+    setSelectedSubmitterUserName(event.target.value)
+    handleFormInputChange('submitterUsername', event)
+  }
+
+  const handleAgencyChange = (event) => {
+    setSelectedSubmitterAgencyName(event.target.value)
+    handleFormInputChange('submitterAgency', event)
   }
 
   useEffect(() => {
@@ -239,7 +246,9 @@ export default function Dashboard() {
                     variant="outlined"
                     size="small"
                     sx={{ width: '520px' }}
-                    onChange={(event) => handleFormInputChange('fileName', event)}
+                    onChange={(event) =>
+                      handleFormInputChange('fileName', event)
+                    }
                   />
                 </Grid>
 
@@ -254,7 +263,9 @@ export default function Dashboard() {
                     variant="outlined"
                     size="small"
                     type="date"
-                    onChange={(event) => handleFormInputChange('submissionDateFrom', event)}
+                    onChange={(event) =>
+                      handleFormInputChange('submissionDateFrom', event)
+                    }
                   />
                 </Grid>
 
@@ -265,7 +276,9 @@ export default function Dashboard() {
                     variant="outlined"
                     size="small"
                     type="date"
-                    onChange={(event) => handleFormInputChange('submissionDateTo', event)}
+                    onChange={(event) =>
+                      handleFormInputChange('submissionDateTo', event)
+                    }
                   />
                 </Grid>
 
@@ -279,9 +292,15 @@ export default function Dashboard() {
                       variant="outlined"
                       size="small"
                       sx={{ width: '515px' }}
-                      onChange={(event) => handleFormInputChange('submitterAgency', event)}
+                      onChange={handleAgencyChange}
+                      value={selectedSubmitterAgencyName}
                     >
-                      <MenuItem>ALL</MenuItem>
+                      <MenuItem key="ALL" value="ALL">
+                        ALL
+                      </MenuItem>
+                      {/* TODO
+                        On page load query to find all the agencies and loop through them to render in dropdown                      
+                      */}
                     </Select>
                   </FormControl>
                 </Grid>
@@ -296,9 +315,15 @@ export default function Dashboard() {
                       variant="outlined"
                       size="small"
                       sx={{ width: '515px' }}
-                      onChange={(event) => handleFormInputChange('submitterUsername', event)}
+                      onChange={handleUsernameChange}
+                      value={selectedSubmitterUserName}
                     >
-                      <MenuItem>ALL</MenuItem>
+                      <MenuItem key="ALL" value="ALL">
+                        ALL
+                      </MenuItem>
+                      {/* TODO
+                        On page load query to find all the users and loop through them to render in dropdown                      
+                      */}
                     </Select>
                   </FormControl>
                 </Grid>
@@ -334,7 +359,7 @@ export default function Dashboard() {
             </FormControl>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button
-                type='submit'
+                type="submit"
                 color="primary"
                 variant="contained"
                 onClick={handleSearch}
