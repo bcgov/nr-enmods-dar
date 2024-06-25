@@ -4,7 +4,7 @@ import { UpdateFileSubmissionDto } from "./dto/update-file_submission.dto";
 import { PrismaService } from "nestjs-prisma";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { FileResultsWithCount } from "src/interface/fileResultsWithCount";
-import { file_submission } from '@prisma/client'
+import { file_submission } from "@prisma/client";
 import { FileInfo } from "src/types/types";
 
 @Injectable()
@@ -64,50 +64,56 @@ export class FileSubmissionsService {
     return `This action returns all fileSubmissions`;
   }
 
-  async findBySearch(body: any): Promise<FileResultsWithCount<FileInfo>>{
+  async findBySearch(body: any): Promise<FileResultsWithCount<FileInfo>> {
     let records: FileResultsWithCount<FileInfo> = { count: 0, results: [] };
 
-    const whereClause = {file_name: {}, submission_date: {}, submitter_user_id: {}, submitter_agency_name: {}, submission_status_code: {}}
+    const whereClause = {
+      file_name: {},
+      submission_date: {},
+      submitter_user_id: {},
+      submitter_agency_name: {},
+      submission_status_code: {},
+    };
 
-    if (body.fileName){
+    if (body.fileName) {
       whereClause.file_name = {
-        contains: body.fileName
-      }
+        contains: body.fileName,
+      };
     }
 
-    if (body.submissionDateFrom){
+    if (body.submissionDateFrom) {
       whereClause.submission_date = {
-        gte: new Date(body.submissionDateFrom)
-      }
+        gte: new Date(body.submissionDateFrom),
+      };
     }
 
-    if (body.submissionDateTo){
+    if (body.submissionDateTo) {
       whereClause.submission_date = {
         ...whereClause.submission_date,
-        lte: new Date(body.submissionDateTo)
-      }
+        lte: new Date(body.submissionDateTo),
+      };
     }
 
-    if (body.submitterUsername && body.submitterUsername != 'ALL'){
+    if (body.submitterUsername && body.submitterUsername != "ALL") {
       whereClause.submitter_user_id = {
-        contains: body.submitterUsername
-      }
+        contains: body.submitterUsername,
+      };
     }
 
-    if (body.submitterAgency && body.submitterAgency != 'ALL'){
+    if (body.submitterAgency && body.submitterAgency != "ALL") {
       whereClause.submitter_agency_name = {
-        contains: body.submitterAgency
-      }
+        contains: body.submitterAgency,
+      };
     }
 
-    if (body.fileStatus && body.fileStatus != 'ALL'){
+    if (body.fileStatus && body.fileStatus != "ALL") {
       whereClause.submission_status_code = {
-        equals: body.fileStatus
-      }
+        equals: body.fileStatus,
+      };
     }
 
-    console.log(body)
-    console.log(whereClause)
+    console.log(body);
+    console.log(whereClause);
 
     const selectColumns = {
       submission_id: true,
@@ -117,17 +123,19 @@ export class FileSubmissionsService {
       submitter_agency_name: true,
       submission_status_code: true,
       sample_count: true,
-      results_count: true
-    }
+      results_count: true,
+    };
 
     const [results, count] = await this.prisma.$transaction([
-      this.prisma.file_submission.findMany( {where: whereClause, select: selectColumns} ),
+      this.prisma.file_submission.findMany({
+        where: whereClause,
+        select: selectColumns,
+      }),
 
       this.prisma.file_submission.count({
-        where:
-          whereClause
+        where: whereClause,
       }),
-    ])
+    ]);
 
     // console.log(results)
     records = { ...records, count, results };
@@ -135,7 +143,10 @@ export class FileSubmissionsService {
   }
 
   async findOne(id: string): Promise<FileResultsWithCount<file_submission>> {
-    let records: FileResultsWithCount<file_submission> = { count: 0, results: [] };
+    let records: FileResultsWithCount<file_submission> = {
+      count: 0,
+      results: [],
+    };
     /*
       TODO: 
       - Find the file_submission record with the submission_id = id
@@ -154,14 +165,13 @@ export class FileSubmissionsService {
     };
 
     const [results, count] = await this.prisma.$transaction([
-      this.prisma.file_submission.findMany( query ),
+      this.prisma.file_submission.findMany(query),
 
       this.prisma.file_submission.count({
-        where:
-          query.where
+        where: query.where,
       }),
-    ])
-    
+    ]);
+
     records = { ...records, count, results };
     return records;
   }

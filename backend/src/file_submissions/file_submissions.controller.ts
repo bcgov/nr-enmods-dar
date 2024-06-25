@@ -34,7 +34,7 @@ import { FileInfo } from "src/types/types";
 @Roles(Role.ENMODS_ADMIN)
 export class FileSubmissionsController {
   constructor(
-    private readonly fileSubmissionsService: FileSubmissionsService, 
+    private readonly fileSubmissionsService: FileSubmissionsService,
     private readonly sanitizeService: SanitizeService
   ) {}
 
@@ -49,7 +49,7 @@ export class FileSubmissionsController {
     file: Express.Multer.File,
     @Body() body: any
   ) {
-    return this.fileSubmissionsService.create(body, file)
+    return this.fileSubmissionsService.create(body, file);
   }
 
   @Get()
@@ -59,12 +59,16 @@ export class FileSubmissionsController {
 
   @Post("search")
   @UseInterceptors(FileInterceptor("file"))
-  async findByQuery(@Body() body: any): Promise<FileResultsWithCount<FileInfo>>{
+  async findByQuery(
+    @Body() body: any
+  ): Promise<FileResultsWithCount<FileInfo>> {
     return this.fileSubmissionsService.findBySearch(body);
   }
 
   @Get(":id")
-  findOne(@Param("id") id: string): Promise<FileResultsWithCount<file_submission>> {
+  findOne(
+    @Param("id") id: string
+  ): Promise<FileResultsWithCount<file_submission>> {
     const sanitizedParam = this.sanitizeService.sanitizeInput(id);
     return this.fileSubmissionsService.findOne(sanitizedParam);
   }
