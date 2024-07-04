@@ -7,8 +7,8 @@ BEGIN
         v_submissionDate := date '2022-01-01' + (floor(random() * (date '2024-12-31' - date '2022-01-01'))::int);
         BEGIN 
             v_fileName := CONCAT('file_', substring(md5(random()::text), 0, 10));
-            IF NOT EXISTS (SELECT 1 FROM enmods.file_submissions WHERE file_name = v_fileName) THEN
-                INSERT INTO enmods.file_submissions (
+            IF NOT EXISTS (SELECT 1 FROM enmods.file_submission WHERE file_name = v_fileName) THEN
+                INSERT INTO enmods.file_submission (
                     file_name,
                     submission_date,
                     submitter_user_id,
