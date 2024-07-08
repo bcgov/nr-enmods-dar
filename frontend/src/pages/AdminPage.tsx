@@ -15,7 +15,7 @@ import {
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import { useEffect, useState } from 'react'
 import { Box } from '@mui/system'
-import { getUsers } from '@/common/admin'
+import { getUsers, testEmail } from '@/common/admin'
 import type { UserInfo } from '@/types/types'
 import Roles from '@/roles'
 
@@ -198,6 +198,10 @@ export default function AdminPage() {
     setSelectedTab(newValue)
   }
 
+  const testEmailHandler = async () => {
+    await testEmail()
+  }
+
   return (
     <div
       style={{
@@ -207,6 +211,9 @@ export default function AdminPage() {
         marginLeft: '4em',
       }}
     >
+      <Button onClick={testEmailHandler} variant="contained" color="primary">
+        Test Email
+      </Button>
       <Tabs
         value={selectedTab}
         onChange={handleTabChange}
