@@ -4,7 +4,7 @@ import { UpdateFileSubmissionDto } from "./dto/update-file_submission.dto";
 import { PrismaService } from "nestjs-prisma";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { FileResultsWithCount } from "src/interface/fileResultsWithCount";
-import { file_submission } from '@prisma/client'
+import { file_submission } from "@prisma/client";
 
 @Injectable()
 export class FileSubmissionsService {
@@ -14,10 +14,14 @@ export class FileSubmissionsService {
     const createFileSubmissionDto = new CreateFileSubmissionDto();
     /*
       TODO:
-      - Create a new record in the file_submissions table with the submission_status_code set to INPROGRESS
-      - Crrate a record in the S3 bucket for this file, use the newly created file submission_id when uploading to S3 for future reference
+      - Create a record in the S3 bucket for this file, use the newly created file GUID when inserting the file to the db and for future reference
+      - Create a new record in the file_submissions table with the submission_status_code set to INPROGRESS and the file_submission_id as the GUID from the S3 bucket
     */
 
+    // Call to function that makes API call to save file in the S3 bucket via COMS
+    saveToS3(body.token, file);
+
+    // Creating file DTO and inserting it in the database with the file GUID from the S3 bucket
     createFileSubmissionDto.filename = file.originalname;
     createFileSubmissionDto.submission_date = new Date();
     createFileSubmissionDto.submitter_user_id = body.userID;
@@ -53,10 +57,11 @@ export class FileSubmissionsService {
     };
 
     const newFile = await this.prisma.$transaction([
-      this.prisma.file_submission.create({ data: newFilePostData }),
+      // this.prisma.file_submission.create({ data: newFilePostData }),
     ]);
 
-    return newFile[0];
+    // return newFile[0];
+    return null;
   }
 
   findAll() {
@@ -64,7 +69,10 @@ export class FileSubmissionsService {
   }
 
   async findOne(id: string): Promise<FileResultsWithCount<file_submission>> {
-    let records: FileResultsWithCount<file_submission> = { count: 0, results: [] };
+    let records: FileResultsWithCount<file_submission> = {
+      count: 0,
+      results: [],
+    };
     /*
       TODO: 
       - Find the file_submission record with the submission_id = id
@@ -83,14 +91,13 @@ export class FileSubmissionsService {
     };
 
     const [results, count] = await this.prisma.$transaction([
-      this.prisma.file_submission.findMany( query ),
+      this.prisma.file_submission.findMany(query),
 
       this.prisma.file_submission.count({
-        where:
-          query.where
+        where: query.where,
       }),
-    ])
-    
+    ]);
+
     records = { ...records, count, results };
     return records;
   }
@@ -102,4 +109,29 @@ export class FileSubmissionsService {
   remove(id: number) {
     return `This action removes a #${id} fileSubmission`;
   }
+}
+
+async function saveToS3(token: any, file: Express.Multer.File) {
+  //TODO : Add COMS URLS and params to .env file
+  let fileGUID = null
+  const axios = require("axios");
+
+  let config = {
+    method: 'put',
+    maxBodyLength: Infinity,
+    url: 'https://coms-dev.api.gov.bc.ca/api/v1/object?bucketId=e58dbcc9-7314-4bbd-bcc2-0e5ddc5baefe',
+    headers: { 
+      'Content-Disposition': 'attachment; filename="' + file.originalname + '"', 
+      'x-amz-meta-complaint-id': '23-000076', 
+      'Content-Type': file.mimetype, 
+      'Authorization': 'Bearer ' + token
+    },
+    data : file
+  };
+
+  await axios.request(config).then((response) => {
+    fileGUID = response.data.fileGUID;    
+  });
+  console.log('File uploaded to S3 with GUID:', fileGUID);
+
 }
