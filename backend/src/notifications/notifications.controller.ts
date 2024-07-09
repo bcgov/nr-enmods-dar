@@ -1,9 +1,9 @@
 import { Controller, Get } from "@nestjs/common";
-import { NotificationService } from "./notification.service";
+import { NotificationsService } from "./notifications.service";
 
 @Controller("email")
-export class NotificationController {
-  constructor(private readonly emailService: NotificationService) {}
+export class NotificationsController {
+  constructor(private readonly emailService: NotificationsService) {}
 
   // test route
   @Get("send-email")

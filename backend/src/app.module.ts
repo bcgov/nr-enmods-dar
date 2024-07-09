@@ -16,7 +16,7 @@ import { HealthController } from "./health.controller";
 import { JWTAuthModule } from "./auth/jwtauth.module";
 import { AdminModule } from "./admin/admin.module";
 import { FileSubmissionsModule } from "./file_submissions/file_submissions.module";
-import { NotificationModule } from "./notification/notification.module";
+import { NotificationsModule } from "./notifications/notifications.module";
 
 const DB_HOST = process.env.POSTGRES_HOST || "localhost";
 const DB_USER = process.env.POSTGRES_USER || "postgres";
@@ -57,7 +57,7 @@ function getMiddlewares() {
     JWTAuthModule,
     AdminModule,
     FileSubmissionsModule,
-    NotificationModule,
+    NotificationsModule,
   ],
   controllers: [AppController, MetricsController, HealthController],
   providers: [AppService],

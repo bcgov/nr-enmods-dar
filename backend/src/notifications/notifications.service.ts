@@ -3,7 +3,7 @@ import { Injectable } from "@nestjs/common";
 import { lastValueFrom } from "rxjs";
 
 @Injectable()
-export class NotificationService {
+export class NotificationsService {
   constructor(private readonly httpService: HttpService) {}
 
   // sends an email formatted with html that has all the report data
