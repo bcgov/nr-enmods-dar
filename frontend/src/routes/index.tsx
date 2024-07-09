@@ -13,7 +13,7 @@ export default function AppRoutes() {
         <Route element={<ProtectedRoutes roles={[Roles.ENMODS_ADMIN]} />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/admin" element={<AdminPage />} />
-          <Route path="/submit" element={<FileUpload />} />
+          <Route path="/" element={<FileUpload />} />
         </Route>
 
         <Route element={<ProtectedRoutes roles={[Roles.ENMODS_USER]} />}>
