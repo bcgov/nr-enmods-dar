@@ -15,7 +15,12 @@ import {
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import { useEffect, useState } from 'react'
 import { Box } from '@mui/system'
-import { getUsers, testEmail } from '@/common/admin'
+import {
+  addNotification,
+  getUsers,
+  testEmail,
+  updateNotification,
+} from '@/common/admin'
 import type { UserInfo } from '@/types/types'
 import Roles from '@/roles'
 
@@ -200,6 +205,16 @@ export default function AdminPage() {
 
   const testEmailHandler = async () => {
     await testEmail()
+  }
+
+  // test function TODO: delete
+  const addNotificationHandler = async () => {
+    await addNotification()
+  }
+
+  // test function TODO: delete
+  const updateNotificationHandler = async () => {
+    await updateNotification()
   }
 
   return (

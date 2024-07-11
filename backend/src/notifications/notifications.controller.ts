@@ -1,27 +1,41 @@
 import { Controller, Get } from "@nestjs/common";
 import { NotificationsService } from "./notifications.service";
 
-@Controller("email")
+// TODO: this controller is unnecessary, notifications service should be used by other modules directly (file_submissions)
+@Controller("notifications")
 export class NotificationsController {
-  constructor(private readonly emailService: NotificationsService) {}
+  constructor(private readonly notificationsService: NotificationsService) {}
 
-  // test route
+  // test route TODO: delete this
   @Get("send-email")
   sendEmail() {
     console.log("sendEmail");
-    const email = "mtennant@salussystems.com";
-    const subject = "Test Email Subject";
-    const body = "Test Email Body - {{ testVar }}";
-    const bodyVariables = { testVar: "Test Variable" };
+    const emails = ["mtennant@salussystems.com", "mike.smash21@gmail.com"]; // list of emails should come from the file
     const file = null;
     const fileName = null;
-    return this.emailService.sendEmail(
-      email,
-      subject,
-      body,
-      bodyVariables,
+    return this.notificationsService.sendFileNotification(
+      emails,
       file,
       fileName
+    );
+  }
+
+  // test route TODO: delete this
+  @Get("add-notification")
+  addNotification() {
+    return this.notificationsService.createNotificationEntry(
+      "1234567890@testemail.com",
+      "MTENNANT"
+    );
+  }
+
+  // test route TODO: delete this
+  @Get("update-notification")
+  updateNotification() {
+    return this.notificationsService.updateNotificationEntry(
+      "mtennant@salussystems.com",
+      false,
+      "MTENNANT"
     );
   }
 }

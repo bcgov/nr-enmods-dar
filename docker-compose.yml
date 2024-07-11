@@ -2,16 +2,11 @@
 version: "3.9"
 
 x-var:
-  - &POSTGRES_USER
-    postgres
-  - &POSTGRES_PASSWORD
-    default
-  - &POSTGRES_DATABASE
-    postgres
-  - &POSTGRES_HOST
-    localhost:5432
-  - &POSTGRES_SCHEMA
-    ENMODS
+  - &POSTGRES_USER postgres
+  - &POSTGRES_PASSWORD default
+  - &POSTGRES_DATABASE postgres
+  - &POSTGRES_HOST localhost:5433
+  - &POSTGRES_SCHEMA ENMODS
 
 x-postgres-vars: &postgres-vars
   POSTGRES_HOST: *POSTGRES_HOST
@@ -28,7 +23,7 @@ services:
       <<: *postgres-vars
     healthcheck:
       test: ["CMD", "pg_isready", "-U", *POSTGRES_USER]
-    ports: ["5432:5432"]
+    ports: ["5433:5432"]
 
   migrations:
     image: flyway/flyway:9-alpine
@@ -36,7 +31,7 @@ services:
     command: info migrate info
     volumes: ["./migrations/sql:/flyway/sql:ro"]
     environment:
-      FLYWAY_URL: jdbc:postgresql://database:5432/postgres
+      FLYWAY_URL: jdbc:postgresql://database:5433/postgres
       FLYWAY_USER: *POSTGRES_USER
       FLYWAY_PASSWORD: *POSTGRES_PASSWORD
       FLYWAY_BASELINE_ON_MIGRATE: true

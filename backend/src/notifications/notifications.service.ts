@@ -1,14 +1,105 @@
 import { HttpService } from "@nestjs/axios";
 import { Injectable } from "@nestjs/common";
 import { lastValueFrom } from "rxjs";
+import { CreateNotificationEntryDto } from "./dto/create-notification_entry.dto";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "nestjs-prisma";
+import { UpdateNotificationEntryDto } from "./dto/update-notification_entry.dto";
 
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    private prisma: PrismaService
+  ) {}
 
-  // sends an email formatted with html that has all the report data
-  async sendEmail(
+  /**
+   * Receives email and username. Creates a notification entry with specified email and enabled status as true.
+   * @param email
+   * @param username
+   * @returns
+   */
+  async createNotificationEntry(
     email: string,
+    username: string
+  ): Promise<string> {
+    const createNotificationDto = new CreateNotificationEntryDto();
+    createNotificationDto.email = email;
+    createNotificationDto.enabled = true;
+    createNotificationDto.create_user_id = username;
+    createNotificationDto.create_utc_timestamp = new Date();
+    createNotificationDto.update_user_id = username;
+    createNotificationDto.update_utc_timestamp = new Date();
+
+    const newNotificationEntryPostData: Prisma.notificationsCreateInput =
+      createNotificationDto;
+
+    await this.prisma.$transaction([
+      this.prisma.notifications.create({ data: newNotificationEntryPostData }),
+    ]);
+
+    return "Notification Entry Created";
+  }
+
+  /**
+   * Receives email, enabled, and username. Updates the notification entry with specified email
+   * to be either enabled or disabled.
+   * @param email
+   * @param enabled
+   * @param username
+   * @returns
+   */
+  async updateNotificationEntry(
+    email: string,
+    enabled: boolean,
+    username: string
+  ): Promise<string> {
+    const updateNotificationDto = new UpdateNotificationEntryDto();
+    updateNotificationDto.enabled = enabled;
+    updateNotificationDto.update_user_id = username;
+    updateNotificationDto.update_utc_timestamp = new Date();
+
+    const updateNotificationEntryPostData: Prisma.notificationsUpdateInput =
+      updateNotificationDto;
+
+    await this.prisma.notifications.update({
+      where: { email: email },
+      data: updateNotificationEntryPostData,
+    });
+    return "Notification Entry Updated";
+  }
+
+  /**
+   * Defines subject & body and then calls sendEmail function
+   * @param emails
+   * @param file
+   * @param fileName
+   * @returns
+   */
+  async sendFileNotification(
+    emails: string[],
+    file: string,
+    fileName: string
+  ): Promise<string> {
+    const subject = "File Notification Subject";
+    const body = "File Notification Body - {{ todaysDate }}";
+    const bodyVariables = { todaysDate: `${new Date()}` };
+    emails = await this.checkNotificationsFilter(emails);
+    return this.sendEmail(emails, subject, body, bodyVariables, file, fileName);
+  }
+
+  /**
+   * Sends an email to 1 or more recipients with specified subject and body and optional file attachment
+   * @param email
+   * @param subject
+   * @param body
+   * @param bodyVariables
+   * @param file
+   * @param fileName
+   * @returns
+   */
+  async sendEmail(
+    emails: string[],
     subject: string,
     body: string,
     bodyVariables: object,
@@ -39,7 +130,7 @@ export class NotificationsService {
           },
           delayTS: 0,
           tag: "tag",
-          to: [`${email}`],
+          to: emails,
         },
       ],
       encoding: "utf-8",
@@ -59,9 +150,7 @@ export class NotificationsService {
     };
 
     try {
-      console.log("333 attempting emailmerge");
-      const response = await lastValueFrom(this.httpService.request(config));
-      console.log(response);
+      await lastValueFrom(this.httpService.request(config));
       return "Email Sent";
     } catch (error) {
       if (error.response) {
@@ -87,12 +176,40 @@ export class NotificationsService {
     }
   }
 
-  async createNotificationEntry(): Promise<string> {}
+  /**
+   * Takes an array of email addresses, filters out the ones
+   * with notifications disabled, and returns the remaining ones
+   * @param emails
+   * @returns
+   */
+  async checkNotificationsFilter(emails: string[]): Promise<string[]> {
+    const existingEmails = await this.prisma.notifications.findMany({
+      where: {
+        email: {
+          in: emails,
+        },
+      },
+      select: {
+        email: true,
+        enabled: true,
+      },
+    });
+    const newEmails = emails.filter(
+      (email) => !existingEmails.some((entry) => entry.email === email)
+    );
+    for (const email of newEmails) {
+      await this.createNotificationEntry(email, "system");
+    }
+    const enabledEmails = existingEmails
+      .filter((entry) => entry.enabled)
+      .map((entry) => entry.email);
+    return [...enabledEmails, ...newEmails];
+  }
 
-  async disableNotifications(): Promise<string> {}
-
-  async enableNotifications(): Promise<string> {}
-
+  /**
+   * Gets token for CHES email api
+   * @returns
+   */
   async getChesToken(): Promise<string> {
     const url = process.env.ches_token_url;
     const encodedToken = Buffer.from(
@@ -111,12 +228,6 @@ export class NotificationsService {
       const response = await lastValueFrom(
         this.httpService.post(url, grantTypeParam.toString(), { headers })
       );
-      console.log("~~~~~~~~~~~~");
-      console.log("~~~~~~~~~~~~");
-      console.log("response.data.access_token");
-      console.log(response.data.access_token);
-      console.log("~~~~~~~~~~~~");
-      console.log("~~~~~~~~~~~~");
       return response.data.access_token;
     } catch (error) {
       if (error.response) {
