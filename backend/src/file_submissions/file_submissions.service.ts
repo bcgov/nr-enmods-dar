@@ -4,7 +4,8 @@ import { UpdateFileSubmissionDto } from "./dto/update-file_submission.dto";
 import { PrismaService } from "nestjs-prisma";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { FileResultsWithCount } from "src/interface/fileResultsWithCount";
-import { file_submission } from '@prisma/client'
+import { file_submission } from "@prisma/client";
+import { randomUUID } from "crypto";
 
 @Injectable()
 export class FileSubmissionsService {
@@ -14,10 +15,18 @@ export class FileSubmissionsService {
     const createFileSubmissionDto = new CreateFileSubmissionDto();
     /*
       TODO:
-      - Create a new record in the file_submissions table with the submission_status_code set to INPROGRESS
-      - Crrate a record in the S3 bucket for this file, use the newly created file submission_id when uploading to S3 for future reference
+      - Create a record in the S3 bucket for this file, use the newly created file GUID when inserting the file to the db and for future reference
+      - Create a new record in the file_submissions table with the submission_status_code set to INPROGRESS and the file_submission_id as the GUID from the S3 bucket
+      - Begin the validation process
+        - Do the location validation: if pass continue to AQI API validation, if fail then update file_submissions_status_code to REJECTED and return
+        - Do the AQI API validation: if pass continue to set file_submission_status_code to VALIDATED and return, if fail then update file_submissions_status_code to REJECTED and return
     */
 
+    // Call to function that makes API call to save file in the S3 bucket via COMS
+    let comsSubmissionID = await saveToS3(body.token, file);
+
+    // Creating file DTO and inserting it in the database with the file GUID from the S3 bucket
+    createFileSubmissionDto.submission_id = comsSubmissionID;
     createFileSubmissionDto.filename = file.originalname;
     createFileSubmissionDto.submission_date = new Date();
     createFileSubmissionDto.submitter_user_id = body.userID;
@@ -36,6 +45,7 @@ export class FileSubmissionsService {
     createFileSubmissionDto.update_utc_timestamp = new Date();
 
     const newFilePostData: Prisma.file_submissionCreateInput = {
+      submission_id: createFileSubmissionDto.submission_id,
       file_name: createFileSubmissionDto.filename,
       submission_date: createFileSubmissionDto.submission_date,
       submitter_user_id: createFileSubmissionDto.submitter_user_id,
@@ -56,6 +66,8 @@ export class FileSubmissionsService {
       this.prisma.file_submission.create({ data: newFilePostData }),
     ]);
 
+    // TODO: validation starts here
+
     return newFile[0];
   }
 
@@ -64,7 +76,10 @@ export class FileSubmissionsService {
   }
 
   async findOne(id: string): Promise<FileResultsWithCount<file_submission>> {
-    let records: FileResultsWithCount<file_submission> = { count: 0, results: [] };
+    let records: FileResultsWithCount<file_submission> = {
+      count: 0,
+      results: [],
+    };
     /*
       TODO: 
       - Find the file_submission record with the submission_id = id
@@ -83,14 +98,13 @@ export class FileSubmissionsService {
     };
 
     const [results, count] = await this.prisma.$transaction([
-      this.prisma.file_submission.findMany( query ),
+      this.prisma.file_submission.findMany(query),
 
       this.prisma.file_submission.count({
-        where:
-          query.where
+        where: query.where,
       }),
-    ])
-    
+    ]);
+
     records = { ...records, count, results };
     return records;
   }
@@ -102,4 +116,37 @@ export class FileSubmissionsService {
   remove(id: number) {
     return `This action removes a #${id} fileSubmission`;
   }
+}
+
+async function saveToS3(token: any, file: Express.Multer.File) {
+  //TODO : Add COMS URLS and params to .env file
+
+  const path = require('path');
+  let fileGUID = null
+  const originalFileName = file.originalname
+  const guid = randomUUID()
+  const extention = path.extname(originalFileName)
+  const baseName = path.basename(originalFileName, extention)
+  const newFileName = `${baseName}-${guid}${extention}`
+
+  const axios = require("axios");
+
+  let config = {
+    method: 'put',
+    maxBodyLength: Infinity,
+    url: `${process.env.COMS_URI}/v1/object?bucketId=${process.env.COMS_BUCKET_ID}`,
+    headers: { 
+      'Content-Disposition': 'attachment; filename="' + newFileName + '"', 
+      'x-amz-meta-complaint-id': '23-000076', 
+      'Content-Type': file.mimetype, 
+      'Authorization': 'Bearer ' + token
+    },
+    data : file.buffer
+  };
+
+  await axios.request(config).then((response) => {
+    fileGUID = response.data.id;   
+  });
+
+  return fileGUID
 }
