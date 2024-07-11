@@ -45,7 +45,12 @@ const AddRoles = ({
         setError('User already exists.')
         setShowError(true)
       } else {
-        setUserObject(data)
+        if (data && data.username) {
+          setUserObject(data)
+        } else {
+          setError('User not found.')
+          setShowError(true)
+        }
       }
     } catch (error) {
       setError('An error occurred during removal.')
