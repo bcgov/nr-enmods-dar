@@ -1,38 +1,28 @@
 import type { GridRenderCellParams } from '@mui/x-data-grid'
-import {
-  Link,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Button,
-  Typography,
-  Tabs,
-  Tab,
-  Select,
-  MenuItem,
-} from '@mui/material'
+import { Link, Button, Tabs, Tab, Select, MenuItem } from '@mui/material'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import { useEffect, useState } from 'react'
 import { Box } from '@mui/system'
 import { getUsers } from '@/common/admin'
 import type { UserInfo } from '@/types/types'
-import Roles from '@/roles'
+import AddRoles from '@/components/modal/admin/AddRoles'
+import EditRoles from '@/components/modal/admin/EditRoles'
 
 export default function AdminPage() {
-  const [open, setOpen] = useState(false)
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
+  const [selectedUserInfo, setSelectedUserInfo] = useState<UserInfo | null>(
+    null,
+  )
   const [selectedTab, setSelectedTab] = useState(0)
   const [userData, setUserData] = useState<UserInfo[]>([])
+  const [showAddRoles, setShowAddRoles] = useState(false)
+  const [showRemoveRoles, setShowRemoveRoles] = useState(false)
+
+  const getUserData = async () => {
+    const users: UserInfo[] = await getUsers()
+    setUserData(users)
+  }
 
   useEffect(() => {
-    console.log('getting users')
-    const getUserData = async () => {
-      // setUserData(await getUsers())
-      const users: UserInfo[] = await getUsers()
-      console.log(users[0])
-      setUserData(users)
-    }
     getUserData()
   }, [])
 
@@ -49,23 +39,17 @@ export default function AdminPage() {
     },
   ])
 
-  const handleRevoke = (id: number) => {
-    setSelectedUserId(id)
-    setOpen(true)
+  const handleOpenEdit = (username: string) => {
+    const foundUser = userData.find((user) => user.username === username)
+    setSelectedUserInfo(foundUser || null)
+    setShowRemoveRoles(true)
   }
 
-  const handleConfirmRevoke = () => {
-    console.log('Revoke user with id:', selectedUserId)
-    setOpen(false)
+  const handleCloseAddRoles = () => setShowAddRoles(false)
+  const handleCloseRemoveRoles = () => {
+    setShowRemoveRoles(false)
+    setSelectedUserInfo(null)
   }
-
-  const handleClose = () => {
-    setOpen(false)
-    setSelectedUserId(null)
-  }
-
-  const allRoles = [Roles.ENMODS_ADMIN, Roles.ENMODS_USER]
-  console.log(allRoles)
 
   const userColumns = [
     {
@@ -106,14 +90,12 @@ export default function AdminPage() {
       sortable: true,
       filterable: true,
       flex: 1,
-      minWidth: 170,
+      minWidth: 180,
       renderCell: (params: GridRenderCellParams) => {
         const roles = params.value as string[]
-        console.log(roles)
-
         return (
-          <Select value={roles[0]}>
-            {allRoles.map((role) => (
+          <Select value={roles[0]} sx={{ width: '100%' }}>
+            {roles.map((role) => (
               <MenuItem key={role} value={role}>
                 {role}
               </MenuItem>
@@ -134,11 +116,11 @@ export default function AdminPage() {
           href="#"
           onClick={(event) => {
             event.preventDefault()
-            handleRevoke(params.row.id)
+            handleOpenEdit(params.row.username)
           }}
           style={{ color: 'blue', cursor: 'pointer' }}
         >
-          Revoke
+          Edit
         </Link>
       ),
     },
@@ -170,7 +152,7 @@ export default function AdminPage() {
       minWidth: 240,
     },
     {
-      field: 'revoke',
+      field: 'edit',
       headerName: '',
       sortable: false,
       filterable: false,
@@ -181,11 +163,11 @@ export default function AdminPage() {
           href="#"
           onClick={(event) => {
             event.preventDefault()
-            handleRevoke(params.row.id)
+            handleOpenEdit(params.row.id)
           }}
           style={{ color: 'blue', cursor: 'pointer' }}
         >
-          Revoke
+          Edit
         </Link>
       ),
     },
@@ -231,7 +213,6 @@ export default function AdminPage() {
         id={`tabpanel-0`}
         aria-labelledby={`tab-0`}
         style={{
-          minHeight: '45em',
           maxHeight: '45em',
           width: '100%',
         }}
@@ -259,7 +240,7 @@ export default function AdminPage() {
         hidden={selectedTab !== 1}
         id={`tabpanel-1`}
         aria-labelledby={`tab-1`}
-        style={{ minHeight: '45em', maxHeight: '45em', width: '100%' }}
+        style={{ maxHeight: '45em', width: '100%' }}
       >
         {selectedTab === 1 && (
           <DataGrid
@@ -279,38 +260,34 @@ export default function AdminPage() {
           />
         )}
       </Box>
-      <Dialog open={open} onClose={handleClose}>
-        <DialogTitle>Revoke User Privileges</DialogTitle>
-        <DialogContent sx={{ paddingTop: '24px' }}>
-          <Typography>
-            Are you sure you want to revoke access for this user?
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ paddingBottom: '24px' }}>
-          <Button
-            onClick={handleClose}
-            variant="contained"
-            color="primary"
-            sx={{
-              backgroundColor: 'gray',
-              color: 'white',
-              '&:hover': {
-                backgroundColor: 'darkgray',
-              },
-            }}
-          >
-            Cancel
-          </Button>
-          <Button
-            color="secondary"
-            onClick={handleConfirmRevoke}
-            variant="contained"
-            autoFocus
-          >
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'flex-end',
+          marginTop: '1em',
+          width: '100%',
+        }}
+      >
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => setShowAddRoles(true)}
+        >
+          Add User
+        </Button>
+      </Box>
+      <AddRoles
+        show={showAddRoles}
+        existingUsers={userData}
+        refreshTable={getUserData}
+        onHide={handleCloseAddRoles}
+      />
+      <EditRoles
+        show={showRemoveRoles}
+        userObject={selectedUserInfo}
+        refreshTable={getUserData}
+        onHide={handleCloseRemoveRoles}
+      />
     </div>
   )
 }
