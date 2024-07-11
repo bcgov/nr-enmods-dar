@@ -1,11 +1,12 @@
 /// <reference types="cypress" />
 describe('Home page visit', () => {
-  it('should visit landing page', () => {
-    cy.visit('http://localhost:5173')
-    cy.url().then((url) => {
-      console.log(url.toString())
-    })
-    // cy.get('a').contains('IDIR')
+  beforeEach(function () {
+    cy.kcLogin();
+  })
+
+  it ('should visit IDIR loging page', () => {
+    // cy.kcLogin();
+    // cy.visit("http://localhost:5173/")
   })
 });
 
