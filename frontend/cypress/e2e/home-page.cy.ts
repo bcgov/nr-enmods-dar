@@ -1,6 +1,7 @@
 /// <reference types="cypress" />
 describe('Home page visit', () => {
   beforeEach(function () {
+    cy.viewport("macbook-16");
     cy.kcLogin();
   })
 
