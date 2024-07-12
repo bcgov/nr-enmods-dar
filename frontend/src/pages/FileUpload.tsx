@@ -158,10 +158,10 @@ function FileUpload() {
   return (
     <div style={{ marginLeft: '4em', width: '100%' }}>
       <Box sx={{ width: '1200px' }}>
-        <Typography variant="h3" component="h1" gutterBottom>
+        <Typography id="pageTitle" variant="h3" component="h1" gutterBottom>
           Electronic Data Transfer - Upload
         </Typography>
-        <Typography variant="h6" component="h2" gutterBottom>
+        <Typography id="pageSubTitle" variant="h6" component="h2" gutterBottom>
           This screen allows an authorized user to upload EMS samples and
           results.
         </Typography>
@@ -179,7 +179,7 @@ function FileUpload() {
           maxSize={10}
           onSizeError={fileSizeError}
           children={
-            <label className="upload-container">
+            <label id="file-upload" className="upload-container">
               <div className="upload-children">
                 <span>
                   <UploadFile width="32" height="32" fontSize="large" />
@@ -199,7 +199,7 @@ function FileUpload() {
       <div className="file-drop-list">
         <Grid container>
           <Grid item xs={6}>
-            <Button sx={{ color: 'black' }} onClick={handleExpandList}>
+            <Button id="file-list-dropdown" sx={{ color: 'black' }} onClick={handleExpandList}>
               {expandList ? <ExpandMore /> : <ChevronRight />}
               {selectedFiles.length > 0 && selectedFiles.length <= 10 ? (
                 <label>{selectedFiles.length + ' files selected'}</label>
@@ -219,11 +219,11 @@ function FileUpload() {
           selectedFiles.length > 0 &&
           selectedFiles.length <= 10 ? (
             <Grid item xs={6}>
-              <FormControlLabel
+              <FormControlLabel id='select-all-text'
                 sx={{ float: 'right' }}
                 value="end"
                 control={
-                  <Checkbox
+                  <Checkbox id='select-all-checkbox'
                     checked={checkedItems.master}
                     onChange={handleMasterCheckboxChange}
                     color="secondary"
@@ -247,7 +247,7 @@ function FileUpload() {
                     <ListItem key={index}>
                       <Grid container>
                         <Grid item xs={5}>
-                          <ListItemText
+                          <ListItemText id={'selected-file-' + index}
                             key="test1"
                             primary={file.name}
                             secondary={
@@ -286,10 +286,10 @@ function FileUpload() {
                           </ButtonGroup>
                         </Grid>
                         <Grid item xs={4}>
-                          <FormControlLabel
+                          <FormControlLabel id={'selected-file-' + index + '-text'}
                             sx={{ float: 'right', paddingTop: '10px' }}
                             control={
-                              <Checkbox
+                              <Checkbox id={'selected-file-' + index + '-checkbox'}
                                 color="secondary"
                                 checked={checkedItems.items[index]}
                                 onChange={handleCheckboxChange(index)}
@@ -324,7 +324,7 @@ function FileUpload() {
                               paddingBottom: '10px',
                             }}
                           >
-                            <Button
+                            <Button id={'selected-file-' + index + '-validate'}
                               variant="contained"
                               color="secondary"
                               onClick={() => {
@@ -333,7 +333,7 @@ function FileUpload() {
                             >
                               Validate
                             </Button>
-                            <Button
+                            <Button id={'selected-file-' + index + '-submit'}
                               variant="contained"
                               color="secondary"
                               onClick={() => {
