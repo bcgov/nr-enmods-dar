@@ -275,7 +275,7 @@ function FileUpload() {
                               ''
                             )}
 
-                            <Button
+                            <Button id={'delete-file-' + index}
                               style={{ color: 'black' }}
                               onClick={() => {
                                 handleOpen(index)
@@ -392,7 +392,7 @@ function FileUpload() {
               <Box sx={{ paddingTop: '20px' }}>
                 {files && selectedFiles.length > 0 ? (
                   <ButtonGroup variant="text" style={{ color: 'black' }}>
-                    <Button
+                    <Button id={'all-files-validate'}
                       variant="contained"
                       color="secondary"
                       onClick={() => {
@@ -401,7 +401,7 @@ function FileUpload() {
                     >
                       Validate All
                     </Button>
-                    <Button
+                    <Button id={'all-files-submit'}
                       variant="contained"
                       color="secondary"
                       onClick={() => {

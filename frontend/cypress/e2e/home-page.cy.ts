@@ -73,6 +73,7 @@ describe('File Upload page functionality', () => {
           .children()
           .first()
           .should('have.text', data.filename[i])
+        cy.get('#delete-file-' + i).should('exist')
         cy.get('#selected-file-' + i + '-checkbox').should('be.checked')
         cy.get('#selected-file-' + i + '-text').should(
           'have.text',
@@ -83,6 +84,9 @@ describe('File Upload page functionality', () => {
           'Validate',
         )
         cy.get('#selected-file-' + i + '-submit').should('have.text', 'Submit')
+
+        cy.get('#all-files-validate').should('have.text', 'Validate All')
+        cy.get('#all-files-submit').should('have.text', 'Submit All')
       }
     })
   })
