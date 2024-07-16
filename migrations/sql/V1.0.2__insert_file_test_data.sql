@@ -24,6 +24,7 @@ BEGIN
             
         BEGIN 
             v_fileName := CONCAT('file_', substring(md5(random()::text), 0, 10), v_fileExtension);
+
             IF NOT EXISTS (SELECT 1 FROM enmods.file_submission WHERE file_name = v_fileName) THEN
                 INSERT INTO enmods.file_submission (
                     file_name,

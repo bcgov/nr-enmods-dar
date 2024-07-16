@@ -1,7 +1,19 @@
 /// <reference types="cypress" />
 describe('Home page visit', () => {
-  it('visit landing page', () => {
-    cy.visit('/')
-    cy.contains('Quickstart OpenShift')
+  beforeEach(function () {
+    cy.viewport("macbook-16");
+    cy.kcLogin();
   })
-})
+
+  it ('should visit IDIR loging page', () => {
+    // cy.kcLogin();
+    // cy.visit("http://localhost:5173/")
+  })
+});
+
+// describe('Login as user', () => {
+//   it ('should visit IDIR loging page', () => {
+//     var url = cy.url()
+//     cy.visit(url)
+//   })
+// });
