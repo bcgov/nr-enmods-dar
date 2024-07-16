@@ -225,10 +225,6 @@ export default function Dashboard() {
     handleSearch(null)
   }, [paginationModel])
 
-  useEffect(() => {
-    console.log(data.items)
-  }, [data])
-
   const [selectedRow, setSelectedRow] = useState<null | any[]>(null)
 
   const handleClose = () => {

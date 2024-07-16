@@ -70,8 +70,6 @@ export class FileSubmissionsService {
     let limit:number = +body.pageSize
     let offset:number = (body.page) * limit;
 
-    console.log(`----- taking: ${limit} ---- skipping: ${offset} ----`)
-
     const whereClause = {
       file_name: {},
       submission_date: {},
@@ -143,9 +141,6 @@ export class FileSubmissionsService {
         where: whereClause,
       }),
     ]);
-
-    console.log(results)
-    console.log(`-------------------------------------- NEXT ---------------------------------`)
 
     records = { ...records, count, results };
     return records;
