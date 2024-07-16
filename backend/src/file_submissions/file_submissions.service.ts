@@ -66,6 +66,11 @@ export class FileSubmissionsService {
 
   async findBySearch(body: any): Promise<FileResultsWithCount<FileInfo>> {
     let records: FileResultsWithCount<FileInfo> = { count: 0, results: [] };
+    
+    let limit:number = +body.pageSize
+    let offset:number = (body.page) * limit;
+
+    console.log(`----- taking: ${limit} ---- skipping: ${offset} ----`)
 
     const whereClause = {
       file_name: {},
@@ -125,14 +130,22 @@ export class FileSubmissionsService {
 
     const [results, count] = await this.prisma.$transaction([
       this.prisma.file_submission.findMany({
-        where: whereClause,
+        take: limit,
+        skip: offset,
         select: selectColumns,
+        where: whereClause,
+        orderBy: {
+          create_utc_timestamp: "desc",
+        },
       }),
 
       this.prisma.file_submission.count({
         where: whereClause,
       }),
     ]);
+
+    console.log(results)
+    console.log(`-------------------------------------- NEXT ---------------------------------`)
 
     records = { ...records, count, results };
     return records;

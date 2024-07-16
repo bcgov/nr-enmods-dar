@@ -26,6 +26,7 @@ import {
 import { FileStatusCode } from '@/types/types'
 import { getFileStatusCodes } from '@/common/manage-dropdowns'
 import { searchFiles } from '@/common/manage-files'
+import userEvent from '@testing-library/user-event'
 
 const columns = [
   {
@@ -41,7 +42,9 @@ const columns = [
           textDecoration: 'underline',
           color: 'blue',
         }}
-        onClick={() => handleDownload(params.row.file_name, params.row.submission_id)}
+        onClick={() =>
+          handleDownload(params.row.file_name, params.row.submission_id)
+        }
       >
         {params.value}
       </FormControl>
@@ -96,7 +99,9 @@ const columns = [
     renderCell: (params) => (
       <IconButton
         color="primary"
-        onClick={() => handleDelete(params.row.file_name, params.row.submission_id)}
+        onClick={() =>
+          handleDelete(params.row.file_name, params.row.submission_id)
+        }
       >
         <DeleteRounded />
       </IconButton>
@@ -109,7 +114,9 @@ const columns = [
     renderCell: (params) => (
       <IconButton
         color="primary"
-        onClick={() => handleMessages(params.row.file_name, params.row.submission_id)}
+        onClick={() =>
+          handleMessages(params.row.file_name, params.row.submission_id)
+        }
       >
         <Description />
       </IconButton>
@@ -136,19 +143,39 @@ export default function Dashboard() {
 
   const [data, setData] = useState<any>({
     items: [],
+    totalRows: 0,
   })
 
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 10,
+  })
+
+  const handlePaginationChange = (params) => {
+    setTimeout(() => {
+      setPaginationModel({ page: params.page, pageSize: params.pageSize })
+    }, 10)
+  }
+
   const handleSearch = async (event) => {
-    event.preventDefault()
+    if (event != null){
+      event.preventDefault()
+    }
+
     const requestData = new FormData()
     for (var key in formData) {
       requestData.append(key, formData[key])
     }
 
+    requestData.append('page', paginationModel.page)
+    requestData.append('pageSize', paginationModel.pageSize)
+
     await searchFiles(requestData).then((response) => {
       const dataValues = Object.values(response.results)
+      const totalRecFound = response.count
       setData({
         items: dataValues,
+        totalRows: totalRecFound,
       })
     })
   }
@@ -190,29 +217,18 @@ export default function Dashboard() {
         })
       })
     }
-    // console.log('getAllUsers')
-    // console.log('getAllAgencies')
 
     fetchFileStatusCodes()
-    // apiService
-    //   .getAxiosInstance()
-    //   .get('/v1/users')
-    //   .then((response: AxiosResponse) => {
-    //     const users = []
-    //     for (const user of response.data) {
-    //       const userDto = {
-    //         id: user.id,
-    //         name: user.name,
-    //         email: user.email,
-    //       }
-    //       users.push(userDto)
-    //     }
-    //     setData(users)
-    //   })
-    //   .catch((error) => {
-    //     console.error(error)
-    //   })
   }, [])
+
+  useEffect(() => {
+    handleSearch(null)
+  }, [paginationModel])
+
+  useEffect(() => {
+    console.log(data.items)
+  }, [data])
+
   const [selectedRow, setSelectedRow] = useState<null | any[]>(null)
 
   const handleClose = () => {
@@ -383,14 +399,18 @@ export default function Dashboard() {
               showQuickFilter: true,
             },
           }}
-          experimentalFeatures={{ ariaV7: true }}
-          checkboxSelection={false}
           rows={data.items ? data.items : []}
+          rowCount={data.totalRows ? data.totalRows : 0}
           columns={columns}
-          pageSizeOptions={[5, 10, 20, 50, 100]}
           getRowId={(row) => row['submission_id']}
+          pagination
+          paginationMode="server"
+          pageSizeOptions={[5, 10, 20, 50, 100]}
+          paginationModel={paginationModel}
+          onPaginationModelChange={handlePaginationChange}
+          autoHeight={true}
           // onRowClick={(params) => setSelectedRow(params.row)}
-          sx={{ width: '1200px' }}
+          sx={{ width: '1200px', height: `${paginationModel.pageSize * 100}` }}
         />
         <Dialog open={!!selectedRow} onClose={handleClose}>
           <DialogTitle>Row Details</DialogTitle>
@@ -421,7 +441,6 @@ export default function Dashboard() {
 function handleDownload(fileName: string, submission_id: string): void {
   console.log(fileName)
   console.log(submission_id)
-
 }
 
 function handleDelete(fileName: string, submission_id: string): void {
