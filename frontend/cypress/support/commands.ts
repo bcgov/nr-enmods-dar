@@ -105,3 +105,20 @@ function extractTopLevelDomain(url: string): string {
 
   return tld
 }
+
+Cypress.Commands.add("kcLogout", () => {
+  Cypress.log({ name: "Logout" });
+  const authBaseUrl = Cypress.env("auth_base_url");
+  const realm = Cypress.env("auth_realm");
+  cy.request({
+    url: `${authBaseUrl}/realms/${realm}/protocol/openid-connect/logout`,
+  });
+  cy.visit(Cypress.config().baseUrl);
+  cy.on("uncaught:exception", (e) => {
+    if (e.message.includes("Unexpected")) {
+      // we expected this error, so let's ignore it
+      // and let the test continue
+      return false;
+    }
+  });
+});
