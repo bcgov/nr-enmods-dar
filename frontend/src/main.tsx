@@ -8,12 +8,10 @@ import UserService from './service/user-service'
 
 const onAuthenticatedCallback = () => {
   ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
-    <StrictMode>
       <ThemeProvider theme={theme}>
         <CssBaseline />
         <App />
       </ThemeProvider>
-    </StrictMode>,
   )
 }
 

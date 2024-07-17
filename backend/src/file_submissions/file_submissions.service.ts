@@ -5,6 +5,7 @@ import { PrismaService } from "nestjs-prisma";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { FileResultsWithCount } from "src/interface/fileResultsWithCount";
 import { file_submission } from "@prisma/client";
+import { FileInfo } from "src/types/types";
 import { randomUUID } from "crypto";
 
 @Injectable()
@@ -73,6 +74,88 @@ export class FileSubmissionsService {
 
   findAll() {
     return `This action returns all fileSubmissions`;
+  }
+
+  async findBySearch(body: any): Promise<FileResultsWithCount<FileInfo>> {
+    let records: FileResultsWithCount<FileInfo> = { count: 0, results: [] };
+    
+    let limit:number = +body.pageSize
+    let offset:number = (body.page) * limit;
+
+    const whereClause = {
+      file_name: {},
+      submission_date: {},
+      submitter_user_id: {},
+      submitter_agency_name: {},
+      submission_status_code: {},
+    };
+
+    if (body.fileName) {
+      whereClause.file_name = {
+        contains: body.fileName,
+      };
+    }
+
+    if (body.submissionDateFrom) {
+      whereClause.submission_date = {
+        gte: new Date(body.submissionDateFrom),
+      };
+    }
+
+    if (body.submissionDateTo) {
+      whereClause.submission_date = {
+        ...whereClause.submission_date,
+        lte: new Date(body.submissionDateTo),
+      };
+    }
+
+    if (body.submitterUsername && body.submitterUsername != "ALL") {
+      whereClause.submitter_user_id = {
+        contains: body.submitterUsername,
+      };
+    }
+
+    if (body.submitterAgency && body.submitterAgency != "ALL") {
+      whereClause.submitter_agency_name = {
+        contains: body.submitterAgency,
+      };
+    }
+
+    if (body.fileStatus && body.fileStatus != "ALL") {
+      whereClause.submission_status_code = {
+        equals: body.fileStatus,
+      };
+    }
+
+    const selectColumns = {
+      submission_id: true,
+      file_name: true,
+      submission_date: true,
+      submitter_user_id: true,
+      submitter_agency_name: true,
+      submission_status_code: true,
+      sample_count: true,
+      results_count: true,
+    };
+
+    const [results, count] = await this.prisma.$transaction([
+      this.prisma.file_submission.findMany({
+        take: limit,
+        skip: offset,
+        select: selectColumns,
+        where: whereClause,
+        orderBy: {
+          create_utc_timestamp: "desc",
+        },
+      }),
+
+      this.prisma.file_submission.count({
+        where: whereClause,
+      }),
+    ]);
+
+    records = { ...records, count, results };
+    return records;
   }
 
   async findOne(id: string): Promise<FileResultsWithCount<file_submission>> {

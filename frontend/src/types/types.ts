@@ -27,6 +27,17 @@ export type UserInfo = {
   role: string[]
 }
 
+export type FileStatusCode = {
+  items: FileStatusCode[]
+  submissionStatusCode: string
+  description: string
+  displayOrder: number
+  activeInd: boolean
+  createUserId: string
+  createTimestamp: Date
+  updateUserId: string
+  updateTimestamp: Date
+}
 
 export type FileInfo = {
   submissionID: string

@@ -10,11 +10,8 @@ import TableCell from '@mui/material/TableCell'
 import TableRow from '@mui/material/TableRow'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import { useEffect, useState } from 'react'
-import type { AxiosResponse } from '~/axios'
 import { DeleteRounded, Description } from '@mui/icons-material'
-// import config from '../config'
 import _kc from '@/keycloak'
-import UserService from '@/service/user-service'
 import {
   Box,
   FormControl,
@@ -26,12 +23,15 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
-import { Label } from '@mui/icons-material'
+import { FileStatusCode } from '@/types/types'
+import { getFileStatusCodes } from '@/common/manage-dropdowns'
+import { searchFiles } from '@/common/manage-files'
+import userEvent from '@testing-library/user-event'
 
 const columns = [
   {
-    field: 'fileName',
-    headerName: 'Filen Name',
+    field: 'file_name',
+    headerName: 'File Name',
     sortable: true,
     filterable: true,
     flex: 1.5,
@@ -42,49 +42,51 @@ const columns = [
           textDecoration: 'underline',
           color: 'blue',
         }}
-        onClick={() => handleDownload(params.row.fileName)}
+        onClick={() =>
+          handleDownload(params.row.file_name, params.row.submission_id)
+        }
       >
         {params.value}
       </FormControl>
     ),
   },
   {
-    field: 'submissionDate',
+    field: 'submission_date',
     headerName: 'Submission Date',
     sortable: true,
     filterable: true,
     flex: 2,
   },
   {
-    field: 'submitterUsername',
+    field: 'submitter_user_id',
     headerName: 'Submitter Username',
     sortable: true,
     filterable: true,
     flex: 2,
   },
   {
-    field: 'submitterAgency',
+    field: 'submitter_agency_name',
     headerName: 'Submitter Agency',
     sortable: true,
     filterable: true,
     flex: 2,
   },
   {
-    field: 'fileStatus',
+    field: 'submission_status_code',
     headerName: 'Status',
     sortable: true,
     filterable: true,
     flex: 1.5,
   },
   {
-    field: 'samples',
+    field: 'sample_count',
     headerName: '# Samples',
     sortable: true,
     filterable: true,
     flex: 1,
   },
   {
-    field: 'results',
+    field: 'results_count',
     headerName: '# Results',
     sortable: true,
     filterable: true,
@@ -97,7 +99,9 @@ const columns = [
     renderCell: (params) => (
       <IconButton
         color="primary"
-        onClick={() => handleDelete(params.row.fileName)}
+        onClick={() =>
+          handleDelete(params.row.file_name, params.row.submission_id)
+        }
       >
         <DeleteRounded />
       </IconButton>
@@ -110,7 +114,9 @@ const columns = [
     renderCell: (params) => (
       <IconButton
         color="primary"
-        onClick={() => handleMessages(params.row.fileName)}
+        onClick={() =>
+          handleMessages(params.row.file_name, params.row.submission_id)
+        }
       >
         <Description />
       </IconButton>
@@ -119,123 +125,106 @@ const columns = [
 ]
 
 export default function Dashboard() {
-  const handleSearch = () => {
-    console.log('SEARCH HERE')
+  const [formData, setFormData] = useState({
+    fileName: '',
+    submissionDateTo: '',
+    submissionDateFrom: '',
+    submitterUsername: '',
+    submitterAgency: '',
+    fileStatus: '',
+  })
+
+  const handleFormInputChange = (key, event) => {
+    setFormData({
+      ...formData,
+      [key]: event.target.value,
+    })
   }
 
-  const [data, setData] = useState<any>([
-    {
-      fileName: 'testFileGUI.txt',
-      submissionDate: '2024-06-19',
-      submitterUsername: 'VMANAWAT',
-      submitterAgency: 'SALUSSYSTEMS',
-      fileStatus: 'VALIDATED',
-      samples: 12,
-      results: 12,
-    },
-    {
-      fileName: 'test2.csv',
-      submissionDate: '2024-06-19',
-      submitterUsername: 'VMANAWAT',
-      submitterAgency: 'SALUSSYSTEMS',
-      fileStatus: 'IN PROGRESS',
-      samples: 12,
-      results: 12,
-    },
-    {
-      fileName: 'test3.xlsx',
-      submissionDate: '2024-06-19',
-      submitterUsername: 'VMANAWAT',
-      submitterAgency: 'SALUSSYSTEMS',
-      fileStatus: 'ACCEPTED',
-      samples: 12,
-      results: 12,
-    },
-    {
-      fileName: 'test4.txt',
-      submissionDate: '2024-06-19',
-      submitterUsername: 'VMANAWAT',
-      submitterAgency: 'SALUSSYSTEMS',
-      fileStatus: 'REJECTED',
-      samples: 12,
-      results: 12,
-    },
-    {
-      fileName: 'test5.xlsx',
-      submissionDate: '2024-06-19',
-      submitterUsername: 'VMANAWAT',
-      submitterAgency: 'SALUSSYSTEMS',
-      fileStatus: 'VALIDATED',
-      samples: 12,
-      results: 12,
-    },
-    {
-      fileName: 'test6.xlsx',
-      submissionDate: '2024-06-19',
-      submitterUsername: 'VMANAWAT',
-      submitterAgency: 'SALUSSYSTEMS',
-      fileStatus: 'VALIDATED',
-      samples: 12,
-      results: 12,
-    },
-    {
-      fileName: 'test7.xlsx',
-      submissionDate: '2024-06-19',
-      submitterUsername: 'VMANAWAT',
-      submitterAgency: 'SALUSSYSTEMS',
-      fileStatus: 'VALIDATED',
-      samples: 12,
-      results: 12,
-    },
-    {
-      fileName: 'test8.xlsx',
-      submissionDate: '2024-06-19',
-      submitterUsername: 'VMANAWAT',
-      submitterAgency: 'SALUSSYSTEMS',
-      fileStatus: 'VALIDATED',
-      samples: 12,
-      results: 12,
-    },
-    {
-      fileName: 'test9.xlsx',
-      submissionDate: '2024-06-19',
-      submitterUsername: 'VMANAWAT',
-      submitterAgency: 'SALUSSYSTEMS',
-      fileStatus: 'VALIDATED',
-      samples: 12,
-      results: 12,
-    },
-    {
-      fileName: 'test10.xlsx',
-      submissionDate: '2024-06-19',
-      submitterUsername: 'VMANAWAT',
-      submitterAgency: 'SALUSSYSTEMS',
-      fileStatus: 'VALIDATED',
-      samples: 12,
-      results: 12,
-    },
-  ])
+  const [data, setData] = useState<any>({
+    items: [],
+    totalRows: 0,
+  })
+
+  const [paginationModel, setPaginationModel] = useState({
+    page: 0,
+    pageSize: 10,
+  })
+
+  const handlePaginationChange = (params) => {
+    setTimeout(() => {
+      setPaginationModel({ page: params.page, pageSize: params.pageSize })
+    }, 10)
+  }
+
+  const handleSearch = async (event) => {
+    if (event != null){
+      event.preventDefault()
+    }
+
+    const requestData = new FormData()
+    for (var key in formData) {
+      requestData.append(key, formData[key])
+    }
+
+    requestData.append('page', paginationModel.page)
+    requestData.append('pageSize', paginationModel.pageSize)
+
+    await searchFiles(requestData).then((response) => {
+      const dataValues = Object.values(response.results)
+      const totalRecFound = response.count
+      setData({
+        items: dataValues,
+        totalRows: totalRecFound,
+      })
+    })
+  }
+
+  const [submissionStatusCodes, setSubmissionStatusCodes] = useState({
+    items: [],
+  })
+
+  const [selectedStatusCode, setSelectedStatusCode] = useState('ALL')
+  const [selectedSubmitterUserName, setSelectedSubmitterUserName] =
+    useState('ALL')
+  const [selectedSubmitterAgencyName, setSelectedSubmitterAgencyName] =
+    useState('ALL')
+
+  const handleStatusChange = (event) => {
+    setSelectedStatusCode(event.target.value)
+    handleFormInputChange('fileStatus', event)
+  }
+
+  const handleUsernameChange = (event) => {
+    setSelectedSubmitterUserName(event.target.value)
+    handleFormInputChange('submitterUsername', event)
+  }
+
+  const handleAgencyChange = (event) => {
+    setSelectedSubmitterAgencyName(event.target.value)
+    handleFormInputChange('submitterAgency', event)
+  }
 
   useEffect(() => {
-    // apiService
-    //   .getAxiosInstance()
-    //   .get('/v1/users')
-    //   .then((response: AxiosResponse) => {
-    //     const users = []
-    //     for (const user of response.data) {
-    //       const userDto = {
-    //         id: user.id,
-    //         name: user.name,
-    //         email: user.email,
-    //       }
-    //       users.push(userDto)
-    //     }
-    //     setData(users)
-    //   })
-    //   .catch((error) => {
-    //     console.error(error)
-    //   })
+    async function fetchFileStatusCodes() {
+      await getFileStatusCodes().then((response) => {
+        const newSubmissionCodes = submissionStatusCodes.items
+        Object.keys(response).map((key) => {
+          newSubmissionCodes[key] = response[key]
+        })
+        setSubmissionStatusCodes({
+          items: newSubmissionCodes,
+        })
+      })
+    }
+
+    fetchFileStatusCodes()
   }, [])
+
+  useEffect(() => {
+    handleSearch(null)
+  }, [paginationModel])
+
   const [selectedRow, setSelectedRow] = useState<null | any[]>(null)
 
   const handleClose = () => {
@@ -257,94 +246,140 @@ export default function Dashboard() {
         </Box>
 
         <Box sx={{ paddingTop: '50px' }}>
-          <FormControl>
-            <Grid container>
-              <Grid item xs={12} sx={{ paddingBottom: '20px' }}>
-                <FormLabel sx={{ paddingRight: '100px' }}>File Name</FormLabel>
-                <TextField
-                  id="outlined-basic"
-                  variant="outlined"
-                  size="small"
-                  sx={{ width: '520px' }}
-                />
-              </Grid>
-
-              <Grid item xs={3} sx={{ paddingBottom: '20px' }}>
-                <FormLabel>Submission Date</FormLabel>
-              </Grid>
-
-              <Grid item xs={5} sx={{ paddingBottom: '20px' }}>
-                <FormLabel sx={{ paddingRight: '5px' }}>From:</FormLabel>
-                <TextField
-                  id="outlined-basic"
-                  variant="outlined"
-                  size="small"
-                  type="date"
-                />
-              </Grid>
-
-              <Grid item xs={4} sx={{ paddingBottom: '20px' }}>
-                <FormLabel sx={{ paddingRight: '5px' }}>To:</FormLabel>
-                <TextField
-                  id="outlined-basic"
-                  variant="outlined"
-                  size="small"
-                  type="date"
-                />
-              </Grid>
-
-              <Grid item xs={12} sx={{ paddingBottom: '20px' }}>
-                <FormLabel sx={{ paddingRight: '45px' }}>
-                  Submitting Agency
-                </FormLabel>
-                <FormControl>
-                  <Select
+          <form onSubmit={handleSearch}>
+            <FormControl>
+              <Grid container>
+                <Grid item xs={12} sx={{ paddingBottom: '20px' }}>
+                  <FormLabel sx={{ paddingRight: '100px' }}>
+                    File Name
+                  </FormLabel>
+                  <TextField
                     id="outlined-basic"
                     variant="outlined"
                     size="small"
-                    sx={{ width: '515px' }}
-                  >
-                    <MenuItem>All</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
+                    sx={{ width: '520px' }}
+                    onChange={(event) =>
+                      handleFormInputChange('fileName', event)
+                    }
+                  />
+                </Grid>
 
-              <Grid item xs={12} sx={{ paddingBottom: '20px' }}>
-                <FormLabel sx={{ paddingRight: '32px' }}>
-                  Submitter Username
-                </FormLabel>
-                <FormControl>
-                  <Select
+                <Grid item xs={3} sx={{ paddingBottom: '20px' }}>
+                  <FormLabel>Submission Date</FormLabel>
+                </Grid>
+
+                <Grid item xs={5} sx={{ paddingBottom: '20px' }}>
+                  <FormLabel sx={{ paddingRight: '5px' }}>From:</FormLabel>
+                  <TextField
                     id="outlined-basic"
                     variant="outlined"
                     size="small"
-                    sx={{ width: '515px' }}
-                  >
-                    <MenuItem>All</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
+                    type="date"
+                    onChange={(event) =>
+                      handleFormInputChange('submissionDateFrom', event)
+                    }
+                  />
+                </Grid>
 
-              <Grid item xs={12} sx={{ paddingBottom: '20px' }}>
-                <FormLabel sx={{ paddingRight: '135px' }}>Status</FormLabel>
-                <FormControl>
-                  <Select
+                <Grid item xs={4} sx={{ paddingBottom: '20px' }}>
+                  <FormLabel sx={{ paddingRight: '5px' }}>To:</FormLabel>
+                  <TextField
                     id="outlined-basic"
                     variant="outlined"
                     size="small"
-                    sx={{ width: '515px' }}
-                  >
-                    <MenuItem>All</MenuItem>
-                  </Select>
-                </FormControl>
+                    type="date"
+                    onChange={(event) =>
+                      handleFormInputChange('submissionDateTo', event)
+                    }
+                  />
+                </Grid>
+
+                <Grid item xs={12} sx={{ paddingBottom: '20px' }}>
+                  <FormLabel sx={{ paddingRight: '45px' }}>
+                    Submitting Agency
+                  </FormLabel>
+                  <FormControl>
+                    <Select
+                      id="outlined-basic"
+                      variant="outlined"
+                      size="small"
+                      sx={{ width: '515px' }}
+                      onChange={handleAgencyChange}
+                      value={selectedSubmitterAgencyName}
+                    >
+                      <MenuItem key="ALL" value="ALL">
+                        ALL
+                      </MenuItem>
+                      {/* TODO
+                        On page load query to find all the agencies and loop through them to render in dropdown                      
+                      */}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} sx={{ paddingBottom: '20px' }}>
+                  <FormLabel sx={{ paddingRight: '32px' }}>
+                    Submitter Username
+                  </FormLabel>
+                  <FormControl>
+                    <Select
+                      id="outlined-basic"
+                      variant="outlined"
+                      size="small"
+                      sx={{ width: '515px' }}
+                      onChange={handleUsernameChange}
+                      value={selectedSubmitterUserName}
+                    >
+                      <MenuItem key="ALL" value="ALL">
+                        ALL
+                      </MenuItem>
+                      {/* TODO
+                        On page load query to find all the users and loop through them to render in dropdown                      
+                      */}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} sx={{ paddingBottom: '20px' }}>
+                  <FormLabel sx={{ paddingRight: '135px' }}>Status</FormLabel>
+                  <FormControl>
+                    <Select
+                      id="outlined-basic"
+                      variant="outlined"
+                      size="small"
+                      sx={{ width: '515px' }}
+                      onChange={handleStatusChange}
+                      value={selectedStatusCode}
+                    >
+                      <MenuItem key="ALL" value="ALL">
+                        ALL
+                      </MenuItem>
+                      {submissionStatusCodes
+                        ? submissionStatusCodes.items.map((option) => (
+                            <MenuItem
+                              key={option.submission_status_code}
+                              value={option.submission_status_code}
+                            >
+                              {option.submission_status_code}
+                            </MenuItem>
+                          ))
+                        : ''}
+                    </Select>
+                  </FormControl>
+                </Grid>
               </Grid>
-            </Grid>
-          </FormControl>
-        </Box>
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Button color="primary" variant="contained" onClick={handleSearch}>
-            Search
-          </Button>
+            </FormControl>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                type="submit"
+                color="primary"
+                variant="contained"
+                onClick={handleSearch}
+              >
+                Search
+              </Button>
+            </Box>
+          </form>
         </Box>
       </div>
       <div
@@ -360,14 +395,18 @@ export default function Dashboard() {
               showQuickFilter: true,
             },
           }}
-          experimentalFeatures={{ ariaV7: true }}
-          checkboxSelection={false}
-          rows={data}
+          rows={data.items ? data.items : []}
+          rowCount={data.totalRows ? data.totalRows : 0}
           columns={columns}
+          getRowId={(row) => row['submission_id']}
+          pagination
+          paginationMode="server"
           pageSizeOptions={[5, 10, 20, 50, 100]}
-          getRowId={(row) => row['fileName']}
+          paginationModel={paginationModel}
+          onPaginationModelChange={handlePaginationChange}
+          autoHeight={true}
           // onRowClick={(params) => setSelectedRow(params.row)}
-          sx={{ width: '1200px' }}
+          sx={{ width: '1200px', height: `${paginationModel.pageSize * 100}` }}
         />
         <Dialog open={!!selectedRow} onClose={handleClose}>
           <DialogTitle>Row Details</DialogTitle>
@@ -395,14 +434,17 @@ export default function Dashboard() {
   )
 }
 
-function handleDownload(fileName: any): void {
+function handleDownload(fileName: string, submission_id: string): void {
   console.log(fileName)
+  console.log(submission_id)
 }
 
-function handleDelete(fileName: any): void {
+function handleDelete(fileName: string, submission_id: string): void {
   console.log(fileName)
+  console.log(submission_id)
 }
 
-function handleMessages(fileName: any): void {
+function handleMessages(fileName: string, submission_id: string): void {
   console.log(fileName)
+  console.log(submission_id)
 }
