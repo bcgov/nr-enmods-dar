@@ -153,7 +153,11 @@ export default function Dashboard() {
 
   const handlePaginationChange = (params) => {
     setTimeout(() => {
-      setPaginationModel({ page: params.page, pageSize: params.pageSize })
+      if (params.pageSize != paginationModel.pageSize) {
+        setPaginationModel({ page: 0, pageSize: params.pageSize })
+      }else{
+        setPaginationModel({...paginationModel, page: params.page })
+      }
     }, 10)
   }
 
