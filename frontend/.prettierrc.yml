@@ -19,4 +19,4 @@ semi: false
 proseWrap: 'always'
 
 # Format files with windows line endings
-endOfLine: 'lf'
+endOfLine: 'auto'

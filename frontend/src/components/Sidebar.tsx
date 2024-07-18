@@ -10,6 +10,7 @@ const topics = [
   { name: 'Web User - FTP User Links', link: '/' },
   { name: 'EMS', link: '/' },
   { name: 'Admin', link: '/admin' },
+  { name: 'Options', link: '/options' },
 ]
 
 const Sidebar = () => {

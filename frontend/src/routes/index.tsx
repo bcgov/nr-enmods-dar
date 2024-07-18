@@ -5,6 +5,7 @@ import NotFound from '@/pages/NotFound'
 import Dashboard from '@/pages/Dashboard'
 import AdminPage from '@/pages/AdminPage'
 import FileUpload from '@/pages/FileUpload'
+import OptionsPage from '@/pages/OptionsPage'
 
 export default function AppRoutes() {
   return (
@@ -19,6 +20,7 @@ export default function AppRoutes() {
         <Route element={<ProtectedRoutes roles={[Roles.ENMODS_USER]} />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/submit" element={<FileUpload />} />
+          <Route path="/options" element={<OptionsPage />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

@@ -19,10 +19,7 @@ export class NotificationsService {
    * @param username
    * @returns
    */
-  async createNotificationEntry(
-    email: string,
-    username: string
-  ): Promise<string> {
+  async createNotificationEntry(email: string, username: string): Promise<string> {
     const createNotificationDto = new CreateNotificationEntryDto();
     createNotificationDto.email = email;
     createNotificationDto.enabled = true;
@@ -31,12 +28,9 @@ export class NotificationsService {
     createNotificationDto.update_user_id = username;
     createNotificationDto.update_utc_timestamp = new Date();
 
-    const newNotificationEntryPostData: Prisma.notificationsCreateInput =
-      createNotificationDto;
+    const newNotificationEntryPostData: Prisma.notificationsCreateInput = createNotificationDto;
 
-    await this.prisma.$transaction([
-      this.prisma.notifications.create({ data: newNotificationEntryPostData }),
-    ]);
+    await this.prisma.$transaction([this.prisma.notifications.create({ data: newNotificationEntryPostData })]);
 
     return "Notification Entry Created";
   }
@@ -45,28 +39,47 @@ export class NotificationsService {
    * Receives email, enabled, and username. Updates the notification entry with specified email
    * to be either enabled or disabled.
    * @param email
-   * @param enabled
    * @param username
+   * @param enabled
    * @returns
    */
-  async updateNotificationEntry(
-    email: string,
-    enabled: boolean,
-    username: string
-  ): Promise<string> {
+  async updateNotificationEntry(email: string, username: string, enabled: boolean): Promise<string> {
     const updateNotificationDto = new UpdateNotificationEntryDto();
     updateNotificationDto.enabled = enabled;
     updateNotificationDto.update_user_id = username;
     updateNotificationDto.update_utc_timestamp = new Date();
 
-    const updateNotificationEntryPostData: Prisma.notificationsUpdateInput =
-      updateNotificationDto;
+    const updateNotificationEntryPostData: Prisma.notificationsUpdateInput = updateNotificationDto;
 
     await this.prisma.notifications.update({
       where: { email: email },
       data: updateNotificationEntryPostData,
     });
+    console.log("notification status set to " + enabled);
     return "Notification Entry Updated";
+  }
+
+  /**
+   * Gets user notifications status given their email and username, if there is no entry in the
+   * notifications database, this function creates one and sets notifications enabled to true.
+   * @param email
+   * @param username
+   * @returns
+   */
+  async getNotificationStatus(email: string, username: string): Promise<boolean> {
+    let notificationEntry = await this.prisma.notifications.findUnique({
+      where: { email: email },
+    });
+
+    if (!notificationEntry) {
+      await this.createNotificationEntry(email, username);
+      notificationEntry = await this.prisma.notifications.findUnique({
+        where: { email: email },
+      });
+    }
+
+    console.log("Notification Entry:", notificationEntry);
+    return notificationEntry.enabled;
   }
 
   /**
@@ -76,11 +89,7 @@ export class NotificationsService {
    * @param fileName
    * @returns
    */
-  async sendFileNotification(
-    emails: string[],
-    file: string,
-    fileName: string
-  ): Promise<string> {
+  async sendFileNotification(emails: string[], file: string, fileName: string): Promise<string> {
     const subject = "File Notification Subject";
     const body = "File Notification Body - {{ todaysDate }}";
     const bodyVariables = { todaysDate: `${new Date()}` };
@@ -194,15 +203,11 @@ export class NotificationsService {
         enabled: true,
       },
     });
-    const newEmails = emails.filter(
-      (email) => !existingEmails.some((entry) => entry.email === email)
-    );
+    const newEmails = emails.filter((email) => !existingEmails.some((entry) => entry.email === email));
     for (const email of newEmails) {
       await this.createNotificationEntry(email, "system");
     }
-    const enabledEmails = existingEmails
-      .filter((entry) => entry.enabled)
-      .map((entry) => entry.email);
+    const enabledEmails = existingEmails.filter((entry) => entry.enabled).map((entry) => entry.email);
     return [...enabledEmails, ...newEmails];
   }
 
@@ -212,9 +217,9 @@ export class NotificationsService {
    */
   async getChesToken(): Promise<string> {
     const url = process.env.ches_token_url;
-    const encodedToken = Buffer.from(
-      `${process.env.ches_client_id}:${process.env.ches_client_secret}`
-    ).toString("base64");
+    const encodedToken = Buffer.from(`${process.env.ches_client_id}:${process.env.ches_client_secret}`).toString(
+      "base64"
+    );
 
     const headers = {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -225,18 +230,11 @@ export class NotificationsService {
     grantTypeParam.append("grant_type", "client_credentials");
 
     try {
-      const response = await lastValueFrom(
-        this.httpService.post(url, grantTypeParam.toString(), { headers })
-      );
+      const response = await lastValueFrom(this.httpService.post(url, grantTypeParam.toString(), { headers }));
       return response.data.access_token;
     } catch (error) {
       if (error.response) {
-        console.log(
-          "Response:",
-          error.response.data,
-          error.response.status,
-          error.response.headers
-        );
+        console.log("Response:", error.response.data, error.response.status, error.response.headers);
       } else if (error.request) {
         console.log("Request:", error.request);
       } else {

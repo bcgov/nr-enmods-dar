@@ -4,7 +4,6 @@ import Footer from '@/components/Footer'
 import AppRoutes from '@/routes'
 import { BrowserRouter } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
-import { maxHeight } from '@mui/system'
 
 const styles = {
   container: {
@@ -35,7 +34,7 @@ const styles = {
   separator: {
     width: '1px',
     bgcolor: 'rgb(217, 217, 217)',
-    minHeight: '100vh'
+    minHeight: '100vh',
   },
 }
 

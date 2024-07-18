@@ -21,6 +21,7 @@ const paths = [
   { name: 'Admin', url: '/admin' },
   { name: 'Dashboard', url: '/dashboard' },
   { name: 'Submit', url: '/submit' },
+  { name: 'Options', url: '/options' },
 ]
 
 const Navbar: FC = () => {

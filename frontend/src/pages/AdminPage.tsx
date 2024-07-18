@@ -15,12 +15,7 @@ import {
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import { useEffect, useState } from 'react'
 import { Box } from '@mui/system'
-import {
-  addNotification,
-  getUsers,
-  testEmail,
-  updateNotification,
-} from '@/common/admin'
+import { getUsers } from '@/common/admin'
 import type { UserInfo } from '@/types/types'
 import Roles from '@/roles'
 
@@ -203,20 +198,6 @@ export default function AdminPage() {
     setSelectedTab(newValue)
   }
 
-  const testEmailHandler = async () => {
-    await testEmail()
-  }
-
-  // test function TODO: delete
-  const addNotificationHandler = async () => {
-    await addNotification()
-  }
-
-  // test function TODO: delete
-  const updateNotificationHandler = async () => {
-    await updateNotification()
-  }
-
   return (
     <div
       style={{
@@ -226,9 +207,6 @@ export default function AdminPage() {
         marginLeft: '4em',
       }}
     >
-      <Button onClick={testEmailHandler} variant="contained" color="primary">
-        Test Email
-      </Button>
       <Tabs
         value={selectedTab}
         onChange={handleTabChange}
