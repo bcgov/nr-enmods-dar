@@ -176,7 +176,7 @@ const EditRoles = ({
             marginTop: 'auto',
           }}
         >
-          <Button onClick={onHide} color="secondary" sx={{ marginRight: 1 }}>
+          <Button id='cancelButton' onClick={onHide} color="secondary" sx={{ marginRight: 1 }}>
             Cancel
           </Button>
           <Button
