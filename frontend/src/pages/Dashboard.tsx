@@ -153,13 +153,18 @@ export default function Dashboard() {
 
   const handlePaginationChange = (params) => {
     setTimeout(() => {
-      setPaginationModel({ page: params.page, pageSize: params.pageSize })
+      if (params.pageSize != paginationModel.pageSize) {
+        setPaginationModel({ page: 0, pageSize: params.pageSize })
+      }else{
+        setPaginationModel({...paginationModel, page: params.page })
+      }
     }, 10)
   }
 
   const handleSearch = async (event) => {
-    if (event != null){
+    if (event != null) {
       event.preventDefault()
+      setPaginationModel({ page: 0, pageSize: 10 })
     }
 
     const requestData = new FormData()
@@ -222,7 +227,9 @@ export default function Dashboard() {
   }, [])
 
   useEffect(() => {
-    handleSearch(null)
+    if (data.items.length > 0) {
+      handleSearch(null)
+    }
   }, [paginationModel])
 
   const [selectedRow, setSelectedRow] = useState<null | any[]>(null)
@@ -240,7 +247,7 @@ export default function Dashboard() {
         }}
       >
         <Box>
-          <Typography variant="h4">
+          <Typography id="pageTitle" variant="h4">
             Electronic Data Transfer - Dashboard
           </Typography>
         </Box>
@@ -250,11 +257,14 @@ export default function Dashboard() {
             <FormControl>
               <Grid container>
                 <Grid item xs={12} sx={{ paddingBottom: '20px' }}>
-                  <FormLabel sx={{ paddingRight: '100px' }}>
+                  <FormLabel
+                    id="file-name-label"
+                    sx={{ paddingRight: '100px' }}
+                  >
                     File Name
                   </FormLabel>
                   <TextField
-                    id="outlined-basic"
+                    id="file-name-input"
                     variant="outlined"
                     size="small"
                     sx={{ width: '520px' }}
@@ -265,13 +275,20 @@ export default function Dashboard() {
                 </Grid>
 
                 <Grid item xs={3} sx={{ paddingBottom: '20px' }}>
-                  <FormLabel>Submission Date</FormLabel>
+                  <FormLabel id="submission-date-label">
+                    Submission Date
+                  </FormLabel>
                 </Grid>
 
                 <Grid item xs={5} sx={{ paddingBottom: '20px' }}>
-                  <FormLabel sx={{ paddingRight: '5px' }}>From:</FormLabel>
+                  <FormLabel
+                    id="submission-date-from-label"
+                    sx={{ paddingRight: '5px' }}
+                  >
+                    From:
+                  </FormLabel>
                   <TextField
-                    id="outlined-basic"
+                    id="submission-date-from-input"
                     variant="outlined"
                     size="small"
                     type="date"
@@ -282,10 +299,14 @@ export default function Dashboard() {
                 </Grid>
 
                 <Grid item xs={4} sx={{ paddingBottom: '20px' }}>
-                  <FormLabel sx={{ paddingRight: '5px' }}>To:</FormLabel>
+                  <FormLabel
+                    id="submission-date-to-label"
+                    sx={{ paddingRight: '5px' }}
+                  >
+                    To:
+                  </FormLabel>
                   <TextField
-                    id="outlined-basic"
-                    variant="outlined"
+                    id="submission-date-to-input"
                     size="small"
                     type="date"
                     onChange={(event) =>
@@ -295,12 +316,15 @@ export default function Dashboard() {
                 </Grid>
 
                 <Grid item xs={12} sx={{ paddingBottom: '20px' }}>
-                  <FormLabel sx={{ paddingRight: '45px' }}>
+                  <FormLabel
+                    id="submitting-agency-label"
+                    sx={{ paddingRight: '45px' }}
+                  >
                     Submitting Agency
                   </FormLabel>
-                  <FormControl>
+                  <FormControl id="submitting-agency-input">
                     <Select
-                      id="outlined-basic"
+                      name="dropdown-agency"
                       variant="outlined"
                       size="small"
                       sx={{ width: '515px' }}
@@ -318,12 +342,15 @@ export default function Dashboard() {
                 </Grid>
 
                 <Grid item xs={12} sx={{ paddingBottom: '20px' }}>
-                  <FormLabel sx={{ paddingRight: '32px' }}>
+                  <FormLabel
+                    id="submitting-user-label"
+                    sx={{ paddingRight: '32px' }}
+                  >
                     Submitter Username
                   </FormLabel>
-                  <FormControl>
+                  <FormControl id="submitting-user-input">
                     <Select
-                      id="outlined-basic"
+                      name="dropdown-user"
                       variant="outlined"
                       size="small"
                       sx={{ width: '515px' }}
@@ -341,10 +368,15 @@ export default function Dashboard() {
                 </Grid>
 
                 <Grid item xs={12} sx={{ paddingBottom: '20px' }}>
-                  <FormLabel sx={{ paddingRight: '135px' }}>Status</FormLabel>
-                  <FormControl>
+                  <FormLabel
+                    id="file-status-code-label"
+                    sx={{ paddingRight: '135px' }}
+                  >
+                    Status
+                  </FormLabel>
+                  <FormControl id="file-status-code-input">
                     <Select
-                      id="outlined-basic"
+                      name="dropdown-status"
                       variant="outlined"
                       size="small"
                       sx={{ width: '515px' }}
@@ -371,6 +403,7 @@ export default function Dashboard() {
             </FormControl>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Button
+                id="search-button"
                 type="submit"
                 color="primary"
                 variant="contained"
@@ -383,6 +416,7 @@ export default function Dashboard() {
         </Box>
       </div>
       <div
+        id="search-result-table"
         style={{
           margin: '4em',
           paddingBottom: '30px',
