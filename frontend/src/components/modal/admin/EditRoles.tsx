@@ -142,6 +142,7 @@ const EditRoles = ({
           </FormLabel>
           <FormGroup>
             <FormControlLabel
+              id="ENMODS_USER"
               control={
                 <Checkbox
                   checked={updatedRoles.includes(Roles.ENMODS_USER)}
@@ -154,6 +155,7 @@ const EditRoles = ({
               label={Roles.ENMODS_USER}
             />
             <FormControlLabel
+              id="ENMODS_ADMIN"
               control={
                 <Checkbox
                   checked={updatedRoles.includes(Roles.ENMODS_ADMIN)}
@@ -176,7 +178,12 @@ const EditRoles = ({
             marginTop: 'auto',
           }}
         >
-          <Button id='cancelButton' onClick={onHide} color="secondary" sx={{ marginRight: 1 }}>
+          <Button
+            id="cancelButton"
+            onClick={onHide}
+            color="secondary"
+            sx={{ marginRight: 1 }}
+          >
             Cancel
           </Button>
           <Button
