@@ -39,3 +39,13 @@ model file_submission {
   update_utc_timestamp   DateTime               @db.Timestamp(6)
   submission_status      submission_status_code @relation(fields: [submission_status_code], references: [submission_status_code], onDelete: NoAction, onUpdate: NoAction, map: "submission_status_code_fk")
 }
+
+model aqi_projects {
+  id                   String   @id @db.Uuid
+  customid             String   @db.VarChar(200)
+  description          String?  @db.VarChar(200)
+  create_user_id       String   @db.VarChar(200)
+  create_utc_timestamp DateTime @db.Timestamp(6)
+  update_user_id       String   @db.VarChar(200)
+  update_utc_timestamp DateTime @db.Timestamp(6)
+}
