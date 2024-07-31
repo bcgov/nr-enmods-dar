@@ -10,18 +10,32 @@ export class NotificationsController {
   sendEmail() {
     console.log("sendEmail");
     const emails = ["mtennant@salussystems.com", "mike.smash21@gmail.com"]; // list of emails should come from the file
-    const file = null;
-    const fileName = null;
-    return this.notificationsService.sendFileNotification(emails, file, fileName);
+    const variables = {
+      file_name: "test_file.csv",
+      user_account_name: "MTENNANT",
+      file_status: "Failed",
+      errors: "Something went wrong.",
+      warnings: "",
+    };
+    return this.notificationsService.sendContactNotification(emails, variables);
   }
 
   @Post("update-notification")
-  updateNotification(@Body() userData: { email: string; username: string; enabled: boolean }) {
-    return this.notificationsService.updateNotificationEntry(userData.email, userData.username, userData.enabled);
+  updateNotification(
+    @Body() userData: { email: string; username: string; enabled: boolean }
+  ) {
+    return this.notificationsService.updateNotificationEntry(
+      userData.email,
+      userData.username,
+      userData.enabled
+    );
   }
 
   @Post("get-notification-status")
   getNotificationStatus(@Body() userData: { email: string; username: string }) {
-    return this.notificationsService.getNotificationStatus(userData.email, userData.username);
+    return this.notificationsService.getNotificationStatus(
+      userData.email,
+      userData.username
+    );
   }
 }

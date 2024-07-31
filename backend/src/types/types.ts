@@ -39,6 +39,12 @@ export type FileInfo = {
 }
 
 export type ResultsWithCount = {
-  results: [],
-  count: number,
-}
+  results: [];
+  count: number;
+};
+
+export type EmailTemplate = {
+  from: string;
+  subject: string;
+  body: string;
+};
