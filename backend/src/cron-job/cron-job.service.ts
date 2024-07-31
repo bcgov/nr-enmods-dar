@@ -32,27 +32,31 @@ export class CronJobService implements OnModuleInit, OnModuleDestroy {
   ];
 
   private async updateDatabase(dbTable: string, data: any) {
-    try{
-        const sql: string = `
-        INSERT INTO ${dbTable} (id, customId, description, create_user_id, create_utc_timestamp, update_user_id, update_utc_timestamp) 
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
-        ON CONFLICT (id)
-        DO UPDATE SET 
-        custom_id = EXCLUDED.custom_id,
-        description = EXCLUDED.description,
-        create_user_id = EXCLUDED.create_user_id,
-        create_utc_timestamp = EXCLUDED.create_utc_timestamp,
-        update_user_id = EXCLUDED.update_user_id,
-        update_utc_timestamp = EXCLUDED.update_utc_timestamp;`;
+    try {
+    
+      for (const record of data) {
+        const values = [
+          `'${record.id}'`,
+          `'${record.customId}'`,
+          `'${record.description}'`,
+          `'${record.creationUserProfileId}'`,
+          `'${record.creationTime}'`,
+          `'${record.modificationUserProfileId}'`,
+          `'${record.modificationTime}'`,
+        ];
 
-        for (const record of data){
-            const values = [record.id, record.customId, record.description, record.creationUserProfileId, record.creationTime, record.modificationUserProfileId, record.modificationTime]
-            await this.client.query(sql, values); 
-        }
+        const sql = `INSERT INTO ${dbTable} (id, customId, description, create_user_id, create_utc_timestamp, update_user_id, update_utc_timestamp) 
+          VALUES (${values}) ON CONFLICT (id) DO UPDATE SET customId = EXCLUDED.customId, description = EXCLUDED.description, 
+          create_user_id = EXCLUDED.create_user_id, create_utc_timestamp = EXCLUDED.create_utc_timestamp, 
+          update_user_id = EXCLUDED.update_user_id, update_utc_timestamp = EXCLUDED.update_utc_timestamp;`
 
-        console.log("Operation completed successfully!")
-    }catch (err){
-        console.error(`Error updating ${dbTable} table`, error);
+        // console.log(sql)
+        await this.client.query(sql);
+      }
+
+      console.log("Operation completed successfully!");
+    } catch (err) {
+      console.error(`Error updating ${dbTable} table`, error);
     }
   }
 
@@ -72,19 +76,20 @@ export class CronJobService implements OnModuleInit, OnModuleDestroy {
         axios.request(config).then(async (response) => {
           const filterAttributes = (obj: any): any => {
             const { id, customId, description, auditAttributes } = obj;
-            const creationUserProfileId = auditAttributes.creationUserProfileId
-            const creationTime = auditAttributes.creationTime
-            const modificationUserProfileId = auditAttributes.modificationUserProfileId
-            const modificationTime = auditAttributes.modificationTime
+            const creationUserProfileId = auditAttributes.creationUserProfileId;
+            const creationTime = auditAttributes.creationTime;
+            const modificationUserProfileId =
+              auditAttributes.modificationUserProfileId;
+            const modificationTime = auditAttributes.modificationTime;
 
             return {
               id,
               customId,
               description,
-              creationUserProfileId, 
-              creationTime, 
-              modificationUserProfileId, 
-              modificationTime
+              creationUserProfileId,
+              creationTime,
+              modificationUserProfileId,
+              modificationTime,
             };
           };
 
