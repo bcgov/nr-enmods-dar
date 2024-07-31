@@ -27,8 +27,9 @@ export class CronJobService implements OnModuleInit, OnModuleDestroy {
     this.client.end();
   }
 
+
   private apisToCall = [
-    { endpoint: "/v1/projects", method: "GET", dbTable: "enmods.aqi_projects" },
+    { endpoint: "/v1/projects", method: "GET", dbTable: "aqi_projects" },
   ];
 
   private async updateDatabase(dbTable: string, data: any) {
@@ -45,12 +46,11 @@ export class CronJobService implements OnModuleInit, OnModuleDestroy {
           `'${record.modificationTime}'`,
         ];
 
-        const sql = `INSERT INTO ${dbTable} (id, customId, description, create_user_id, create_utc_timestamp, update_user_id, update_utc_timestamp) 
-          VALUES (${values}) ON CONFLICT (id) DO UPDATE SET customId = EXCLUDED.customId, description = EXCLUDED.description, 
+        const sql = `INSERT INTO enmods.${dbTable} (${dbTable}_id, custom_id, description, create_user_id, create_utc_timestamp, update_user_id, update_utc_timestamp) 
+          VALUES (${values}) ON CONFLICT (${dbTable}_id) DO UPDATE SET custom_id = EXCLUDED.custom_id, description = EXCLUDED.description, 
           create_user_id = EXCLUDED.create_user_id, create_utc_timestamp = EXCLUDED.create_utc_timestamp, 
           update_user_id = EXCLUDED.update_user_id, update_utc_timestamp = EXCLUDED.update_utc_timestamp;`
 
-        // console.log(sql)
         await this.client.query(sql);
       }
 
@@ -61,16 +61,15 @@ export class CronJobService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async fetchDataFromAQI() {
+    axios.defaults.method = "GET";
+    axios.defaults.headers.common["Authorization"] = "token " + process.env.AQI_ACCESS_TOKEN
+    axios.defaults.headers.common["x-api-key"] = process.env.AQI_ACCESS_TOKEN
+    axios.defaults.baseURL = process.env.AQI_BASE_URL
+
     this.apisToCall.forEach((api) => {
       try {
         let config = {
-          method: api.method,
-          maxBodyLength: Infinity,
-          url: process.env.AQI_BASE_URL + api.endpoint,
-          headers: {
-            Authorization: "token " + process.env.AQI_ACCESS_TOKEN,
-            "x-api-key": process.env.AQI_ACCESS_TOKEN,
-          },
+          url: api.endpoint,
         };
 
         axios.request(config).then(async (response) => {

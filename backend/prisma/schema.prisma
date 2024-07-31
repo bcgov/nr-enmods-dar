@@ -41,8 +41,8 @@ model file_submission {
 }
 
 model aqi_projects {
-  id                   String   @id @db.Uuid
-  customid             String   @db.VarChar(200)
+  aqi_projects_id      String   @id @db.Uuid
+  custom_id            String   @db.VarChar(200)
   description          String?  @db.VarChar(200)
   create_user_id       String   @db.VarChar(200)
   create_utc_timestamp DateTime @db.Timestamp(6)
