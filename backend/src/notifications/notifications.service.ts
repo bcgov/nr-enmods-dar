@@ -94,10 +94,11 @@ export class NotificationsService {
 
     const notificationEntryPostData: Prisma.notificationsUpdateInput = notificationDto;
 
-    await this.prisma.notifications.update({
+    const res = await this.prisma.notifications.update({
       where: { id: guid },
       data: notificationEntryPostData,
     });
+    console.log(res);
     return "Successfully Unsubscribed";
   }
 

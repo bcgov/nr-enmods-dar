@@ -38,3 +38,13 @@ export async function getNotificationStatus(
   console.log(response)
   return response
 }
+
+export async function unsubscribeNotifications(guid: string) {
+  const unsubscribeUrl: string = `${config.API_BASE_URL}/notifications/unsubscribe`
+  const postParameters = api.generateApiParameters(unsubscribeUrl, {
+    guid: guid,
+  })
+  const response: any = await api.post(postParameters)
+  console.log(response)
+  return response
+}
