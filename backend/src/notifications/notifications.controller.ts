@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Post } from "@nestjs/common";
 import { NotificationsService } from "./notifications.service";
+import { Public } from "src/auth/decorators/public.decorator";
 
 @Controller("notifications")
 export class NotificationsController {
@@ -35,6 +36,7 @@ export class NotificationsController {
     return this.notificationsService.subscribe(data.guid);
   }
 
+  @Public()
   @Post("unsubscribe")
   unsubscribe(@Body() data: { guid: string }) {
     return this.notificationsService.unsubscribe(data.guid);

@@ -23,7 +23,7 @@ export default function Unsubscribe() {
 
   return (
     <Box sx={{ padding: '20px' }}>
-      <h1>Unsubscribe</h1>
+      <h1>ENMODS Notifications</h1>
       <p>{status}</p>
     </Box>
   )
