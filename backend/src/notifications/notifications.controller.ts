@@ -38,4 +38,24 @@ export class NotificationsController {
       userData.username
     );
   }
+
+  @Post("subscribe")
+  subscribe(
+    @Body() userData: { email: string; username: string; enabled: boolean }
+  ) {
+    return this.notificationsService.subscribe(
+      userData.email,
+      userData.username,
+    );
+  }
+
+  @Post("unsubscribe")
+  unsubscribe(
+    @Body() userData: { email: string; username: string; enabled: boolean }
+  ) {
+    return this.notificationsService.unsubscribe(
+      userData.email,
+      userData.username,
+    );
+  }
 }

@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "nestjs-prisma";
 import { UpdateNotificationEntryDto } from "./dto/update-notification_entry.dto";
 import { EmailTemplate } from "src/types/types";
+import { not } from "rxjs/internal/util/not";
 
 @Injectable()
 export class NotificationsService {
@@ -68,6 +69,37 @@ export class NotificationsService {
       data: updateNotificationEntryPostData,
     });
     console.log("notification status set to " + enabled);
+    return "Notification Entry Updated";
+  }
+
+  async subscribe(email: string, username: string): Promise<string> {
+    const notificationDto = new UpdateNotificationEntryDto();
+    notificationDto.enabled = true;
+    notificationDto.update_user_id = username;
+    notificationDto.update_utc_timestamp = new Date();
+
+    const notificationEntryPostData: Prisma.notificationsUpdateInput = notificationDto;
+
+    await this.prisma.notifications.update({
+      where: { email: email },
+      data: notificationEntryPostData,
+    });
+    return "Notification Entry Updated";
+  }
+
+  async unsubscribe(guid: string): Promise<string> {
+    const notificationEntry = await this.prisma.notifications.findUnique({id: guid}
+    const notificationDto = new UpdateNotificationEntryDto();
+    notificationDto.enabled = false;
+    notificationDto.update_user_id = username;
+    notificationDto.update_utc_timestamp = new Date();
+
+    const notificationEntryPostData: Prisma.notificationsUpdateInput = notificationDto;
+
+    await this.prisma.notifications.update({
+      where: { email: email },
+      data: notificationEntryPostData,
+    });
     return "Notification Entry Updated";
   }
 

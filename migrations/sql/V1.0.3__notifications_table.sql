@@ -1,7 +1,5 @@
-CREATE SEQUENCE enmods.notifications_id_seq;
-
 CREATE TABLE IF NOT EXISTS enmods.notifications (
-  id INTEGER NOT NULL DEFAULT nextval('enmods.notifications_id_seq'),
+  id UUID PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
   email varchar(200) NOT NULL UNIQUE,
   enabled boolean NOT NULL DEFAULT TRUE,
   create_user_id varchar(200) NOT NULL,
