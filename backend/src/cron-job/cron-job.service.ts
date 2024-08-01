@@ -27,46 +27,73 @@ export class CronJobService implements OnModuleInit, OnModuleDestroy {
     this.client.end();
   }
 
-
   private apisToCall = [
     { endpoint: "/v1/projects", method: "GET", dbTable: "aqi_projects" },
+    { endpoint: "/v1/mediums", method: "GET", dbTable: "aqi_mediums" },
+    { endpoint: "/v1/units", method: "GET", dbTable: "aqi_units" },
+    {
+      endpoint: "/v1/collectionmethods",
+      method: "GET",
+      dbTable: "aqi_collection_methods",
+    },
+    {
+      endpoint: "/v1/extendedattributes",
+      method: "GET",
+      dbTable: "aqi_extended_attributes",
+    },
+    {
+      endpoint: "/v1/samplinglocations",
+      method: "GET",
+      dbTable: "aqi_locations",
+    },
   ];
 
   private async updateDatabase(dbTable: string, data: any) {
     try {
-    
       for (const record of data) {
         const values = [
           `'${record.id}'`,
           `'${record.customId}'`,
-          `'${record.description}'`,
-          `'${record.creationUserProfileId}'`,
-          `'${record.creationTime}'`,
-          `'${record.modificationUserProfileId}'`,
-          `'${record.modificationTime}'`,
+          record.description == null
+            ? `NULL`
+            : `'${record.description.replace(/[\r\n]+$/, "")}'`,
+          record.creationUserProfileId == null
+            ? `NULL`
+            : `'${record.creationUserProfileId}'`,
+          record.creationTime == null ? `NULL` : `'${record.creationTime}'`,
+          record.modificationUserProfileId == null
+            ? `NULL`
+            : `'${record.modificationUserProfileId}'`,
+          record.modificationTime == null
+            ? `NULL`
+            : `'${record.modificationTime}'`,
         ];
 
         const sql = `INSERT INTO enmods.${dbTable} (${dbTable}_id, custom_id, description, create_user_id, create_utc_timestamp, update_user_id, update_utc_timestamp) 
           VALUES (${values}) ON CONFLICT (${dbTable}_id) DO UPDATE SET custom_id = EXCLUDED.custom_id, description = EXCLUDED.description, 
           create_user_id = EXCLUDED.create_user_id, create_utc_timestamp = EXCLUDED.create_utc_timestamp, 
-          update_user_id = EXCLUDED.update_user_id, update_utc_timestamp = EXCLUDED.update_utc_timestamp;`
+          update_user_id = EXCLUDED.update_user_id, update_utc_timestamp = EXCLUDED.update_utc_timestamp;`;
 
         await this.client.query(sql);
       }
 
-      console.log("Operation completed successfully!");
+      console.log(
+        `${dbTable} -- Operation completed successfully! \n #########################################################`
+      );
+      return;
     } catch (err) {
-      console.error(`Error updating ${dbTable} table`, error);
+      console.error(`Error updating #### ${dbTable} #### table`, error);
     }
   }
 
   private async fetchDataFromAQI() {
     axios.defaults.method = "GET";
-    axios.defaults.headers.common["Authorization"] = "token " + process.env.AQI_ACCESS_TOKEN
-    axios.defaults.headers.common["x-api-key"] = process.env.AQI_ACCESS_TOKEN
-    axios.defaults.baseURL = process.env.AQI_BASE_URL
+    axios.defaults.headers.common["Authorization"] =
+      "token " + process.env.AQI_ACCESS_TOKEN;
+    axios.defaults.headers.common["x-api-key"] = process.env.AQI_ACCESS_TOKEN;
+    axios.defaults.baseURL = process.env.AQI_BASE_URL;
 
-    this.apisToCall.forEach((api) => {
+    for (const api of this.apisToCall) {
       try {
         let config = {
           url: api.endpoint,
@@ -101,11 +128,11 @@ export class CronJobService implements OnModuleInit, OnModuleDestroy {
       } catch (error) {
         console.error(error);
       }
-    });
+    }
   }
 
   private scheduleCronJob() {
-    cron.schedule("*/10 * * * * * ", () => {
+    cron.schedule("* */2 * * * * ", () => {
       this.fetchDataFromAQI();
     });
   }
