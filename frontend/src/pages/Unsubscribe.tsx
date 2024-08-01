@@ -1,11 +1,23 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { unsubscribeNotifications } from '@/common/options'
+import { unsubscribeNotifications } from '@/common/notifications'
 import { Box } from '@mui/system'
+import { Toolbar, Typography } from '@mui/material'
+import BCGovLogo from '@/assets/BCID_H_rgb_pos.png'
 
 export default function Unsubscribe() {
   const { uuid } = useParams<{ uuid: string }>()
   const [status, setStatus] = useState('Processing...')
+
+  const styles = {
+    innerContent: {
+      maxWidth: '1200px',
+      width: '100%',
+      margin: '0 auto',
+      display: 'flex',
+      flexDirection: 'column',
+    },
+  }
 
   useEffect(() => {
     const unsubscribe = async () => {
@@ -22,9 +34,22 @@ export default function Unsubscribe() {
   }, [uuid])
 
   return (
-    <Box sx={{ padding: '20px' }}>
-      <h1>ENMODS Notifications</h1>
-      <p>{status}</p>
-    </Box>
+    <>
+      <Box sx={styles.innerContent}>
+        <Toolbar sx={{ justifyContent: 'space-between' }}>
+          <img style={{ maxHeight: '60px' }} alt="Logo" src={BCGovLogo} />
+          <Typography
+            variant="h6"
+            component="div"
+            sx={{ flexGrow: 1, paddingLeft: '20px' }}
+          >
+            ENMODS Unsubscribe
+          </Typography>{' '}
+        </Toolbar>
+      </Box>
+      <Box sx={{ padding: '20px', marginLeft: '50px' }}>
+        <p>{status}</p>
+      </Box>
+    </>
   )
 }

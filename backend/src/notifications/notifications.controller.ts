@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Post } from "@nestjs/common";
+import { validate as uuidValidate } from "uuid";
+import { BadRequestException, Body, Controller, Get, Post } from "@nestjs/common";
 import { NotificationsService } from "./notifications.service";
 import { Public } from "src/auth/decorators/public.decorator";
 
@@ -6,11 +7,16 @@ import { Public } from "src/auth/decorators/public.decorator";
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
+  @Get()
+  getNotificationData() {
+    return this.notificationsService.getNotificationData();
+  }
+
   // test route TODO: delete this
   @Get("send-email")
   sendEmail() {
     console.log("sendEmail");
-    const emails = ["mtennant@salussystems.com", "mike.smash21@gmail.com"]; // list of emails should come from the file
+    const email = "mtennant@salussystems.com";
     const variables = {
       file_name: "test_file.csv",
       user_account_name: "MTENNANT",
@@ -18,7 +24,7 @@ export class NotificationsController {
       errors: "Something went wrong.",
       warnings: "",
     };
-    return this.notificationsService.sendContactNotification(emails, variables);
+    return this.notificationsService.sendContactNotification(email, variables);
   }
 
   @Post("update-notification")
@@ -39,6 +45,9 @@ export class NotificationsController {
   @Public()
   @Post("unsubscribe")
   unsubscribe(@Body() data: { guid: string }) {
+    if (!uuidValidate(data.guid)) {
+      throw new BadRequestException("Invalid UUID");
+    }
     return this.notificationsService.unsubscribe(data.guid);
   }
 }

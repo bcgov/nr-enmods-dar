@@ -20,7 +20,7 @@ const initKeycloak = (
     .then((authenticated) => {
       if (!authenticated) {
         console.log('User is not authenticated.')
-        if (route.startsWith('/notifications/unsubscribe/')) {
+        if (route.startsWith('/unsubscribe/')) {
           onAuthenticatedCallback(true)
         } else {
           window.location.href = _kc.createLoginUrl()

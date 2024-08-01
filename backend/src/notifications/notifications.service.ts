@@ -6,7 +6,6 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "nestjs-prisma";
 import { UpdateNotificationEntryDto } from "./dto/update-notification_entry.dto";
 import { EmailTemplate } from "src/types/types";
-import { not } from "rxjs/internal/util/not";
 
 @Injectable()
 export class NotificationsService {
@@ -14,6 +13,14 @@ export class NotificationsService {
     private readonly httpService: HttpService,
     private prisma: PrismaService
   ) {}
+
+  /**
+   *
+   * @returns Notification table
+   */
+  async getNotificationData(): Promise<any> {
+    return this.prisma.notifications.findMany({});
+  }
 
   /**
    * Receives email and username. Creates a notification entry with specified email and enabled status as true.
@@ -126,25 +133,6 @@ export class NotificationsService {
   }
 
   /**
-   * Defines subject & body and then calls sendEmail function
-   * @param emails
-   * @param file
-   * @param fileName
-   * @returns
-   */
-  // async sendFileNotification(
-  //   emails: string[],
-  //   file: string,
-  //   fileName: string
-  // ): Promise<string> {
-  //   const subject = "File Notification Subject";
-  //   const body = "File Notification Body - {{ todaysDate }}";
-  //   const bodyVariables = { todaysDate: `${new Date()}` };
-  //   emails = await this.checkNotificationsFilter(emails);
-  //   return this.sendEmail(emails, subject, body, bodyVariables, file, fileName);
-  // }
-
-  /**
    * Sends an email to the data submitter.
    *
    * @param email
@@ -209,7 +197,7 @@ export class NotificationsService {
    * @returns
    */
   async sendContactNotification(
-    emails: string[],
+    email: string,
     variables: {
       file_name: string;
       user_account_name: string;
@@ -218,6 +206,8 @@ export class NotificationsService {
       errors: string;
     }
   ): Promise<String> {
+    const notificationInfo = await this.prisma.notifications.findUnique({ where: { email: email } });
+    const unsubscribeLink = process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
     let body =
       "Status: {{file_status}}\n\nFiles Original Name: {{file_name}}\n\nDate and Time of Upload: {{sys_time}}\n\nLocations ID(s): E123445. E464353, E232524";
     if (variables.warnings !== "") {
@@ -226,6 +216,7 @@ export class NotificationsService {
     if (variables.errors !== "") {
       body += "\n\nErrors: {{errors}}";
     }
+    body += `\n\n<a href="${unsubscribeLink}">Unsubscribe</a>`;
     // store this somewhere else instead of hardcoding it here (?)
     const emailTemplate = {
       from: "enmodshelp@gov.bc.ca",
@@ -249,7 +240,7 @@ export class NotificationsService {
     } else if (variables.warnings !== "") {
       status_string = "Imported with Warnings";
     }
-    return this.sendEmail(emails, emailTemplate, {
+    return this.sendEmail([email], emailTemplate, {
       ...variables,
       sys_time,
       status_string,

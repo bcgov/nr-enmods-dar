@@ -1,6 +1,6 @@
 import Box from '@mui/material/Box'
 import Header from '@/components/Header'
-import Footer from '@/components/Footer'
+// import Footer from '@/components/Footer'
 import AppRoutes from '@/routes'
 import { BrowserRouter } from 'react-router-dom'
 import Sidebar from './components/Sidebar'
@@ -15,17 +15,20 @@ const styles = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'flex-start',
-
+    // bgcolor: '#efefff',
     width: '100%',
   },
   content: {
     display: 'flex',
     width: '1200px',
+    bgcolor: '#ffffff',
   },
   sidebar: {
-    marginTop: '8em',
+    paddingTop: '8em',
+    paddingLeft: '2em',
     // width: '28%',
     width: '20%',
+    // bgcolor: '#efefff',
   },
   mainContent: {
     marginTop: '8em',
@@ -54,7 +57,7 @@ export default function App() {
             </Box>
           </Box>
         </Box>
-        <Footer />
+        {/* <Footer /> */}
       </Box>
     </BrowserRouter>
   )
