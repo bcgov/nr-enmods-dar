@@ -21,41 +21,22 @@ export class NotificationsController {
   }
 
   @Post("update-notification")
-  updateNotification(
-    @Body() userData: { email: string; username: string; enabled: boolean }
-  ) {
-    return this.notificationsService.updateNotificationEntry(
-      userData.email,
-      userData.username,
-      userData.enabled
-    );
+  updateNotification(@Body() userData: { email: string; username: string; enabled: boolean }) {
+    return this.notificationsService.updateNotificationEntry(userData.email, userData.username, userData.enabled);
   }
 
   @Post("get-notification-status")
   getNotificationStatus(@Body() userData: { email: string; username: string }) {
-    return this.notificationsService.getNotificationStatus(
-      userData.email,
-      userData.username
-    );
+    return this.notificationsService.getNotificationStatus(userData.email, userData.username);
   }
 
   @Post("subscribe")
-  subscribe(
-    @Body() userData: { email: string; username: string; enabled: boolean }
-  ) {
-    return this.notificationsService.subscribe(
-      userData.email,
-      userData.username,
-    );
+  subscribe(@Body() data: { guid: string }) {
+    return this.notificationsService.subscribe(data.guid);
   }
 
   @Post("unsubscribe")
-  unsubscribe(
-    @Body() userData: { email: string; username: string; enabled: boolean }
-  ) {
-    return this.notificationsService.unsubscribe(
-      userData.email,
-      userData.username,
-    );
+  unsubscribe(@Body() data: { guid: string }) {
+    return this.notificationsService.unsubscribe(data.guid);
   }
 }
