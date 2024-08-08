@@ -71,31 +71,31 @@ model aqi_units {
 }
 
 model aqi_collection_methods {
-  aqi_collection_methods_id       String   @id @db.Uuid
-  custom_id                       String   @db.VarChar(200)
-  description                     String?  @db.VarChar(200)
-  create_user_id                  String   @db.VarChar(200)
-  create_utc_timestamp            DateTime @db.Timestamp(6)
-  update_user_id                  String   @db.VarChar(200)
-  update_utc_timestamp            DateTime @db.Timestamp(6)
+  aqi_collection_methods_id String   @id @db.Uuid
+  custom_id                 String   @db.VarChar(200)
+  description               String?  @db.VarChar(200)
+  create_user_id            String   @db.VarChar(200)
+  create_utc_timestamp      DateTime @db.Timestamp(6)
+  update_user_id            String   @db.VarChar(200)
+  update_utc_timestamp      DateTime @db.Timestamp(6)
 }
 
 model aqi_extended_attributes {
-  aqi_extended_attributes_id      String   @id @db.Uuid
-  custom_id                       String   @db.VarChar(200)
-  description                     String?  @db.VarChar(200)
-  create_user_id                  String   @db.VarChar(200)
-  create_utc_timestamp            DateTime @db.Timestamp(6)
-  update_user_id                  String   @db.VarChar(200)
-  update_utc_timestamp            DateTime @db.Timestamp(6)
+  aqi_extended_attributes_id String   @id @db.Uuid
+  custom_id                  String   @db.VarChar(200)
+  description                String?  @db.VarChar(200)
+  create_user_id             String   @db.VarChar(200)
+  create_utc_timestamp       DateTime @db.Timestamp(6)
+  update_user_id             String   @db.VarChar(200)
+  update_utc_timestamp       DateTime @db.Timestamp(6)
 }
 
 model aqi_locations {
-  aqi_locations_id                String    @id @db.Uuid
-  custom_id                       String    @db.VarChar(200)
-  description                     String?   @db.VarChar(500)
-  create_user_id                  String?   @db.VarChar(200)
-  create_utc_timestamp            DateTime? @db.Timestamp(6)
-  update_user_id                  String?   @db.VarChar(200)
-  update_utc_timestamp            DateTime? @db.Timestamp(6)
+  aqi_locations_id     String    @id @db.Uuid
+  custom_id            String    @db.VarChar(200)
+  description          String?   @db.VarChar(2000)
+  create_user_id       String?   @db.VarChar(200)
+  create_utc_timestamp DateTime? @db.Timestamp(6)
+  update_user_id       String?   @db.VarChar(200)
+  update_utc_timestamp DateTime? @db.Timestamp(6)
 }
