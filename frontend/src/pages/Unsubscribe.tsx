@@ -46,9 +46,7 @@ export default function Unsubscribe() {
             ENMODS Unsubscribe
           </Typography>{' '}
         </Toolbar>
-      </Box>
-      <Box sx={{ padding: '20px', marginLeft: '50px' }}>
-        <p>{status}</p>
+        <Box sx={{ marginLeft: '50px', marginTop: '20px' }}>{status}</Box>
       </Box>
     </>
   )

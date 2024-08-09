@@ -1,5 +1,5 @@
 import { HttpService } from "@nestjs/axios";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { lastValueFrom } from "rxjs";
 import { CreateNotificationEntryDto } from "./dto/create-notification_entry.dto";
 import { Prisma } from "@prisma/client";
@@ -9,6 +9,8 @@ import { EmailTemplate } from "src/types/types";
 
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(
     private readonly httpService: HttpService,
     private prisma: PrismaService
@@ -28,7 +30,10 @@ export class NotificationsService {
    * @param username
    * @returns
    */
-  async createNotificationEntry(email: string, username: string): Promise<string> {
+  async createNotificationEntry(
+    email: string,
+    username: string
+  ): Promise<string> {
     const createNotificationDto = new CreateNotificationEntryDto();
     createNotificationDto.email = email;
     createNotificationDto.enabled = true;
@@ -37,9 +42,12 @@ export class NotificationsService {
     createNotificationDto.update_user_id = username;
     createNotificationDto.update_utc_timestamp = new Date();
 
-    const newNotificationEntryPostData: Prisma.notificationsCreateInput = createNotificationDto;
+    const newNotificationEntryPostData: Prisma.notificationsCreateInput =
+      createNotificationDto;
 
-    await this.prisma.$transaction([this.prisma.notifications.create({ data: newNotificationEntryPostData })]);
+    await this.prisma.$transaction([
+      this.prisma.notifications.create({ data: newNotificationEntryPostData }),
+    ]);
 
     return "Notification Entry Created";
   }
@@ -52,19 +60,23 @@ export class NotificationsService {
    * @param enabled
    * @returns
    */
-  async updateNotificationEntry(email: string, username: string, enabled: boolean): Promise<string> {
+  async updateNotificationEntry(
+    email: string,
+    username: string,
+    enabled: boolean
+  ): Promise<string> {
     const updateNotificationDto = new UpdateNotificationEntryDto();
     updateNotificationDto.enabled = enabled;
     updateNotificationDto.update_user_id = username;
     updateNotificationDto.update_utc_timestamp = new Date();
 
-    const updateNotificationEntryPostData: Prisma.notificationsUpdateInput = updateNotificationDto;
+    const updateNotificationEntryPostData: Prisma.notificationsUpdateInput =
+      updateNotificationDto;
 
     await this.prisma.notifications.update({
       where: { email: email },
       data: updateNotificationEntryPostData,
     });
-    console.log("notification status set to " + enabled);
     return "Notification Entry Updated";
   }
 
@@ -79,7 +91,8 @@ export class NotificationsService {
     notificationDto.update_user_id = "email_subscribe";
     notificationDto.update_utc_timestamp = new Date();
 
-    const notificationEntryPostData: Prisma.notificationsUpdateInput = notificationDto;
+    const notificationEntryPostData: Prisma.notificationsUpdateInput =
+      notificationDto;
 
     await this.prisma.notifications.update({
       where: { id: guid },
@@ -99,13 +112,14 @@ export class NotificationsService {
     notificationDto.update_user_id = "email_unsubscribe";
     notificationDto.update_utc_timestamp = new Date();
 
-    const notificationEntryPostData: Prisma.notificationsUpdateInput = notificationDto;
+    const notificationEntryPostData: Prisma.notificationsUpdateInput =
+      notificationDto;
 
     const res = await this.prisma.notifications.update({
       where: { id: guid },
       data: notificationEntryPostData,
     });
-    console.log(res);
+    this.logger.log(res);
     return "Successfully Unsubscribed";
   }
 
@@ -116,7 +130,7 @@ export class NotificationsService {
    * @param username
    * @returns
    */
-  async getNotificationStatus(email: string, username: string): Promise<boolean> {
+  async getNotificationStatus(email: string, username: string): Promise<any> {
     let notificationEntry = await this.prisma.notifications.findUnique({
       where: { email: email },
     });
@@ -128,12 +142,11 @@ export class NotificationsService {
       });
     }
 
-    console.log("Notification Entry:", notificationEntry);
-    return notificationEntry.enabled;
+    return notificationEntry;
   }
 
   /**
-   * Sends an email to the data submitter.
+   * Sends an email to the data submitter. Does not check if notifications are filtered.
    *
    * @param email
    * @param emailTemplate
@@ -142,24 +155,29 @@ export class NotificationsService {
    */
   async sendDataSubmitterNotification(
     email: string,
-    emailTemplate: EmailTemplate,
     variables: {
       file_name: string;
       user_account_name: string;
+      location_ids: string[];
       file_status: string;
       errors: string;
       warnings: string;
     }
   ): Promise<String> {
-    let body = "Status: {{file_status}}\n\nFiles Original Name: {{file_name}}\n\nDate and Time of Upload: {{sys_time}}";
+    let body = `
+    <p>Status: {{file_status}}</p>
+    <p>Files Original Name: {{file_name}}</p>
+    <p>Date and Time of Upload: {{sys_time}}</p>
+    <p>Locations ID(s): ${variables.location_ids.join(", ")}</p>
+    `;
     if (variables.warnings !== "") {
-      body += "\n\nWarnings: {{warnings}}";
+      body += `<p>Warnings: {{warnings}}</p>`;
     }
     if (variables.errors !== "") {
-      body += "\n\nErrors: {{errors}}";
+      body += `<p>Errors: {{errors}}</p>`;
     }
-    // store this somewhere else instead of hardcoding it here (?)
-    emailTemplate = {
+
+    const emailTemplate = {
       from: "enmodshelp@gov.bc.ca",
       subject: "EnMoDS Data {{status_string}} from {{user_account_name}}",
       body: body,
@@ -206,18 +224,31 @@ export class NotificationsService {
       errors: string;
     }
   ): Promise<String> {
-    const notificationInfo = await this.prisma.notifications.findUnique({ where: { email: email } });
-    const unsubscribeLink = process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
-    let body =
-      "Status: {{file_status}}\n\nFiles Original Name: {{file_name}}\n\nDate and Time of Upload: {{sys_time}}\n\nLocations ID(s): E123445. E464353, E232524";
+    const notificationInfo = await this.getNotificationStatus(
+      email,
+      variables.user_account_name
+    );
+    // check that notifications are enabled before continuing
+    if (notificationInfo.enabled === false) {
+      return;
+    }
+    const unsubscribeLink =
+      process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
+    let body = `
+    <p>Status: {{file_status}}</p>
+    <p>Files Original Name: {{file_name}}</p>
+    <p>Date and Time of Upload: {{sys_time}}</p>
+    <p>Locations ID(s): E123445, E464353, E232524</p>
+    `;
     if (variables.warnings !== "") {
-      body += "\n\nWarnings: {{warnings}}";
+      body += `<p>Warnings: {{warnings}}</p>`;
     }
     if (variables.errors !== "") {
-      body += "\n\nErrors: {{errors}}";
+      body += `<p>Errors: {{errors}}</p>`;
     }
-    body += `\n\n<a href="${unsubscribeLink}">Unsubscribe</a>`;
-    // store this somewhere else instead of hardcoding it here (?)
+
+    body += `<p><a href="${unsubscribeLink}">Unsubscribe</a></p>`;
+
     const emailTemplate = {
       from: "enmodshelp@gov.bc.ca",
       subject: "EnMoDS Data {{status_string}} from {{user_account_name}}",
@@ -309,23 +340,23 @@ export class NotificationsService {
       if (error.response) {
         // The request was made and the server responded with a status code
         // that falls out of the range of 2xx
-        console.log("Response:");
-        console.log(error.response.data);
-        console.log(error.response.status);
-        console.log(error.response.headers);
+        this.logger.log("Response:");
+        this.logger.log(error.response.data);
+        this.logger.log(error.response.status);
+        this.logger.log(error.response.headers);
       } else if (error.request) {
         // The request was made but no response was received
         // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
         // http.ClientRequest in node.js
-        console.log("Request:");
-        console.log(error.request);
+        this.logger.log("Request:");
+        this.logger.log(error.request);
       } else {
         // Something happened in setting up the request that triggered an Error
-        console.log("Error", error.message);
+        this.logger.log("Error", error.message);
       }
-      console.log("Error config:");
-      console.log(error.config);
-      console.log(error);
+      this.logger.log("Error config:");
+      this.logger.log(error.config);
+      this.logger.log(error);
     }
   }
 
@@ -335,25 +366,29 @@ export class NotificationsService {
    * @param emails
    * @returns
    */
-  async checkNotificationsFilter(emails: string[]): Promise<string[]> {
-    const existingEmails = await this.prisma.notifications.findMany({
-      where: {
-        email: {
-          in: emails,
-        },
-      },
-      select: {
-        email: true,
-        enabled: true,
-      },
-    });
-    const newEmails = emails.filter((email) => !existingEmails.some((entry) => entry.email === email));
-    for (const email of newEmails) {
-      await this.createNotificationEntry(email, "system");
-    }
-    const enabledEmails = existingEmails.filter((entry) => entry.enabled).map((entry) => entry.email);
-    return [...enabledEmails, ...newEmails];
-  }
+  // async checkNotificationsFilter(emails: string[]): Promise<string[]> {
+  //   const existingEmails = await this.prisma.notifications.findMany({
+  //     where: {
+  //       email: {
+  //         in: emails,
+  //       },
+  //     },
+  //     select: {
+  //       email: true,
+  //       enabled: true,
+  //     },
+  //   });
+  //   const newEmails = emails.filter(
+  //     (email) => !existingEmails.some((entry) => entry.email === email)
+  //   );
+  //   for (const email of newEmails) {
+  //     await this.createNotificationEntry(email, "system");
+  //   }
+  //   const enabledEmails = existingEmails
+  //     .filter((entry) => entry.enabled)
+  //     .map((entry) => entry.email);
+  //   return [...enabledEmails, ...newEmails];
+  // }
 
   /**
    * Gets token for CHES email api
@@ -361,9 +396,9 @@ export class NotificationsService {
    */
   async getChesToken(): Promise<string> {
     const url = process.env.ches_token_url;
-    const encodedToken = Buffer.from(`${process.env.ches_client_id}:${process.env.ches_client_secret}`).toString(
-      "base64"
-    );
+    const encodedToken = Buffer.from(
+      `${process.env.ches_client_id}:${process.env.ches_client_secret}`
+    ).toString("base64");
 
     const headers = {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -374,18 +409,25 @@ export class NotificationsService {
     grantTypeParam.append("grant_type", "client_credentials");
 
     try {
-      const response = await lastValueFrom(this.httpService.post(url, grantTypeParam.toString(), { headers }));
+      const response = await lastValueFrom(
+        this.httpService.post(url, grantTypeParam.toString(), { headers })
+      );
       return response.data.access_token;
     } catch (error) {
       if (error.response) {
-        console.log("Response:", error.response.data, error.response.status, error.response.headers);
+        this.logger.log(
+          "Response:",
+          error.response.data,
+          error.response.status,
+          error.response.headers
+        );
       } else if (error.request) {
-        console.log("Request:", error.request);
+        this.logger.log("Request:", error.request);
       } else {
-        console.log("Error", error.message);
+        this.logger.log("Error", error.message);
       }
-      console.log("Error config:", error.config);
-      console.log(error);
+      this.logger.log("Error config:", error.config);
+      this.logger.log(error);
     }
   }
 }

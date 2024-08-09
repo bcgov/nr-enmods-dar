@@ -50,8 +50,8 @@ export async function updateNotification(
 }
 
 // Test route TODO: delete this
-export async function testEmail(): Promise<void> {
-  const testEmailUrl: string = `${config.API_BASE_URL}/notifications/send-email`
+export async function testEmail(email: string): Promise<void> {
+  const testEmailUrl: string = `${config.API_BASE_URL}/notifications/send-email/${email}`
   const getParameters = api.generateApiParameters(testEmailUrl)
   const response: any = await api.get(getParameters)
   console.log(response)

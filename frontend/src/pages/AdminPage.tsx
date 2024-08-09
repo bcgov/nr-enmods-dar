@@ -1,6 +1,6 @@
-import { Button, Tabs, Tab } from '@mui/material'
+import { Button, Tabs, Tab, TextField } from '@mui/material'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
-import { useEffect, useState } from 'react'
+import { ChangeEvent, useEffect, useState } from 'react'
 import { Box } from '@mui/system'
 import { getUsers } from '@/common/admin'
 import type { NotificationInfo, UserInfo } from '@/types/types'
@@ -29,6 +29,15 @@ export default function AdminPage() {
     [],
   )
   const [username, setUsername] = useState('')
+
+  // debug code, delete this later
+  const [testEmailValue, setTestEmailValue] = useState(
+    'mtennant@salussystems.com',
+  )
+  const handleTestEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setTestEmailValue(event.target.value)
+  }
+  //
 
   useEffect(() => {
     const token = UserService.getToken()
@@ -107,7 +116,7 @@ export default function AdminPage() {
   }
 
   const testEmailHandler = async () => {
-    await testEmail()
+    await testEmail(testEmailValue)
   }
 
   return (
@@ -159,7 +168,6 @@ export default function AdminPage() {
                 showQuickFilter: true,
               },
             }}
-            experimentalFeatures={{ ariaV7: true }}
             checkboxSelection={false}
             rows={userData}
             columns={userColumns(handleOpenEdit)}
@@ -184,7 +192,6 @@ export default function AdminPage() {
                 showQuickFilter: true,
               },
             }}
-            experimentalFeatures={{ ariaV7: true }}
             checkboxSelection={false}
             rows={companyData}
             columns={companyColumns(handleOpenEdit)}
@@ -209,7 +216,6 @@ export default function AdminPage() {
                 showQuickFilter: true,
               },
             }}
-            // experimentalFeatures={{ ariaV7: true }}
             checkboxSelection={false}
             rows={notificationData}
             columns={notificationColumns(handleNotificationChange)}
@@ -235,11 +241,20 @@ export default function AdminPage() {
           Add User
         </Button>
       </Box>
-      <Box sx={{ border: 1, borderColor: 'grey.300', p: 2, mb: 2 }}>
+      {/**debug code, delete later */}
+      <Box sx={{ border: 1, borderColor: 'grey.300', p: 2, mb: 2, mt: 2 }}>
+        <TextField
+          label="Contact Email"
+          variant="outlined"
+          value={testEmailValue}
+          onChange={handleTestEmailChange}
+          sx={{ mb: 2, mr: 2, width: '350px' }}
+        />
         <Button onClick={testEmailHandler} variant="contained" color="primary">
           Test Email
         </Button>
       </Box>
+      {/** */}
       <AddRoles
         show={showAddRoles}
         existingUsers={userData}
