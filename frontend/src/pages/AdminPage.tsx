@@ -244,7 +244,7 @@ export default function AdminPage() {
       {/**debug code, delete later */}
       <Box sx={{ border: 1, borderColor: 'grey.300', p: 2, mb: 2, mt: 2 }}>
         <TextField
-          label="Contact Email"
+          label="Contact Email Test"
           variant="outlined"
           value={testEmailValue}
           onChange={handleTestEmailChange}
