@@ -25,10 +25,14 @@ export class FileSubmissionsService {
 
     // Call to function that makes API call to save file in the S3 bucket via COMS
     let comsSubmissionID = await saveToS3(body.token, file);
+    const path = require('path');
+    const extention = path.extname(file.originalname)
+    const baseName = path.basename(file.originalname, extention)
+    const newFileName = `${baseName}-${comsSubmissionID}${extention}`
 
     // Creating file DTO and inserting it in the database with the file GUID from the S3 bucket
     createFileSubmissionDto.submission_id = comsSubmissionID;
-    createFileSubmissionDto.filename = file.originalname;
+    createFileSubmissionDto.filename = newFileName;;
     createFileSubmissionDto.submission_date = new Date();
     createFileSubmissionDto.submitter_user_id = body.userID;
     createFileSubmissionDto.submission_status_code = (
@@ -66,8 +70,6 @@ export class FileSubmissionsService {
     const newFile = await this.prisma.$transaction([
       this.prisma.file_submission.create({ data: newFilePostData }),
     ]);
-
-    // TODO: validation starts here
 
     return newFile[0];
   }
@@ -158,7 +160,7 @@ export class FileSubmissionsService {
     return records;
   }
 
-  async findOne(id: string): Promise<FileResultsWithCount<file_submission>> {
+  async findOne(fileName: string): Promise<FileResultsWithCount<file_submission>> {
     let records: FileResultsWithCount<file_submission> = {
       count: 0,
       results: [],
@@ -175,7 +177,7 @@ export class FileSubmissionsService {
     const query = {
       where: {
         file_name: {
-          contains: id,
+          contains: fileName,
         },
       },
     };
@@ -188,7 +190,9 @@ export class FileSubmissionsService {
       }),
     ]);
 
-    records = { ...records, count, results };
+    console.log(results)
+
+    records = { ...results, count, results };
     return records;
   }
 
@@ -202,8 +206,6 @@ export class FileSubmissionsService {
 }
 
 async function saveToS3(token: any, file: Express.Multer.File) {
-  //TODO : Add COMS URLS and params to .env file
-
   const path = require('path');
   let fileGUID = null
   const originalFileName = file.originalname
