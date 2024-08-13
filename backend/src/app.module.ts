@@ -15,9 +15,9 @@ import { TerminusModule } from "@nestjs/terminus";
 import { HealthController } from "./health.controller";
 import { JWTAuthModule } from "./auth/jwtauth.module";
 import { AdminModule } from "./admin/admin.module";
-import { FileSubmissionsModule } from './file_submissions/file_submissions.module';
-import { FileStatusCodesModule } from './file_status_codes/file_status_codes.module';
-import { FtpModule } from './ftp/ftp.module';
+import { FileSubmissionsModule } from "./file_submissions/file_submissions.module";
+import { FileStatusCodesModule } from "./file_status_codes/file_status_codes.module";
+import { FtpModule } from "./ftp/ftp.module";
 
 const DB_HOST = process.env.POSTGRES_HOST || "localhost";
 const DB_USER = process.env.POSTGRES_USER || "postgres";
@@ -71,7 +71,7 @@ export class AppModule {
       .apply(HTTPLoggerMiddleware)
       .exclude(
         { path: "metrics", method: RequestMethod.ALL },
-        { path: "health", method: RequestMethod.ALL }
+        { path: "health", method: RequestMethod.ALL },
       )
       .forRoutes("*");
   }
