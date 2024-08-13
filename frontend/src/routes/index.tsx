@@ -5,6 +5,7 @@ import NotFound from '@/pages/NotFound'
 import Dashboard from '@/pages/Dashboard'
 import AdminPage from '@/pages/AdminPage'
 import FileUpload from '@/pages/FileUpload'
+import Unsubscribe from '@/pages/Unsubscribe'
 
 export default function AppRoutes() {
   return (
@@ -20,6 +21,8 @@ export default function AppRoutes() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/submit" element={<FileUpload />} />
         </Route>
+
+        <Route path="/unsubscribe/:uuid" element={<Unsubscribe />} />
 
         <Route path="*" element={<NotFound />} />
       </Routes>
