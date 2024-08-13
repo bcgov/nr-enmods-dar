@@ -4,6 +4,9 @@ import { error } from "winston";
 import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "nestjs-prisma";
 
+/**
+ * Cron Job service for filling code tables with data from AQI API
+ */
 @Injectable()
 export class CronJobService {
   private readonly logger = new Logger(CronJobService.name);
@@ -95,12 +98,12 @@ export class CronJobService {
                 ? new Date(record.modificationTime)
                 : null,
             },
-          })
-        )
+          }),
+        ),
       );
 
       this.logger.log(
-        `Upserted ${data.length} entries into ${dbTable} - ${(new Date().getTime() - startTime) / 1000} seconds`
+        `Upserted ${data.length} entries into ${dbTable} - ${(new Date().getTime() - startTime) / 1000} seconds`,
       );
       this.logger.log(`-`);
       return;
@@ -136,7 +139,7 @@ export class CronJobService {
         if (total <= entries.length + response.data.domainObjects.length) {
           // At this point, cursor has fully looped. Check for duplicate entries and remove them
           const newEntries = response.data.domainObjects.filter(
-            (entry) => !entries.some((e) => e.id === entry.id)
+            (entry) => !entries.some((e) => e.id === entry.id),
           );
           entries = entries.concat(newEntries);
         } else {
@@ -153,7 +156,7 @@ export class CronJobService {
     }
 
     this.logger.log(
-      `Cron Job Time Taken: ${(new Date().getTime() - startTime) / 1000} seconds`
+      `Cron Job Time Taken: ${(new Date().getTime() - startTime) / 1000} seconds`,
     );
     this.logger.log(`#######################################################`);
   }
