@@ -1,5 +1,13 @@
 import type { GridRenderCellParams } from '@mui/x-data-grid'
-import { Link, Button, Tabs, Tab, Select, MenuItem } from '@mui/material'
+import {
+  Link,
+  Button,
+  Tabs,
+  Tab,
+  Select,
+  MenuItem,
+  Typography,
+} from '@mui/material'
 import { DataGrid, GridToolbar } from '@mui/x-data-grid'
 import { useEffect, useState } from 'react'
 import { Box } from '@mui/system'
@@ -189,18 +197,26 @@ export default function AdminPage() {
         marginLeft: '4em',
       }}
     >
+      <Box sx={{ paddingBottom: '30px' }}>
+        <Typography id="pageTitle" variant="h4">
+          Electronic Data Transfer - Admin
+        </Typography>
+      </Box>
       <Tabs
+        id="tableTabs"
         value={selectedTab}
         onChange={handleTabChange}
         aria-label="admin tabs"
       >
         <Tab
+          id="usersTab"
           label="Users"
           style={{
             color: selectedTab === 0 ? 'black' : 'lightgray',
           }}
         />
         <Tab
+          id="companyTab"
           label="Company"
           style={{
             color: selectedTab === 1 ? 'black' : 'lightgray',
@@ -269,6 +285,7 @@ export default function AdminPage() {
         }}
       >
         <Button
+          id="addUserButton"
           variant="contained"
           color="primary"
           onClick={() => setShowAddRoles(true)}
