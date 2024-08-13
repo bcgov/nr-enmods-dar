@@ -187,7 +187,7 @@ const AddRoles = ({
             Roles
           </FormLabel>
           <FormGroup>
-            <FormControlLabel
+            <FormControlLabel id='ENMODS_USER'
               control={
                 <Checkbox
                   checked={rolesToAdd.includes(Roles.ENMODS_USER)}
@@ -199,7 +199,7 @@ const AddRoles = ({
               }
               label={Roles.ENMODS_USER}
             />
-            <FormControlLabel
+            <FormControlLabel id='ENMODS_ADMIN'
               control={
                 <Checkbox
                   checked={rolesToAdd.includes(Roles.ENMODS_ADMIN)}
