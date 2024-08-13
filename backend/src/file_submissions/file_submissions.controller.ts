@@ -65,11 +65,11 @@ export class FileSubmissionsController {
     return this.fileSubmissionsService.findBySearch(body);
   }
 
-  @Get(":id")
+  @Get(":fileName")
   findOne(
-    @Param("id") id: string
+    @Param("fileName") fileName: string
   ): Promise<FileResultsWithCount<file_submission>> {
-    const sanitizedParam = this.sanitizeService.sanitizeInput(id);
+    const sanitizedParam = this.sanitizeService.sanitizeInput(fileName);
     return this.fileSubmissionsService.findOne(sanitizedParam);
   }
 

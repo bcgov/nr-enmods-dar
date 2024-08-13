@@ -1,17 +1,24 @@
 import "dotenv/config";
-import { Logger, MiddlewareConsumer, Module, RequestMethod } from "@nestjs/common";
+import {
+  Logger,
+  MiddlewareConsumer,
+  Module,
+  RequestMethod,
+} from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
+import { ScheduleModule } from "@nestjs/schedule";
+import { TerminusModule } from "@nestjs/terminus";
 import { HTTPLoggerMiddleware } from "./middleware/req.res.logger";
 import { loggingMiddleware, PrismaModule } from "nestjs-prisma";
-import { ConfigModule } from "@nestjs/config";
 import { AppService } from "./app.service";
 import { AppController } from "./app.controller";
 import { MetricsController } from "./metrics.controller";
-import { TerminusModule } from "@nestjs/terminus";
 import { HealthController } from "./health.controller";
 import { JWTAuthModule } from "./auth/jwtauth.module";
 import { AdminModule } from "./admin/admin.module";
 import { FileSubmissionsModule } from "./file_submissions/file_submissions.module";
 import { FileStatusCodesModule } from "./file_status_codes/file_status_codes.module";
+import { CronJobService } from "./cron-job/cron-job.service";
 import { NotificationsModule } from "./notifications/notifications.module";
 
 const DB_HOST = process.env.POSTGRES_HOST || "localhost";
@@ -39,6 +46,7 @@ function getMiddlewares() {
   imports: [
     ConfigModule.forRoot(),
     TerminusModule,
+    ScheduleModule.forRoot(),
     PrismaModule.forRoot({
       isGlobal: true,
       prismaServiceOptions: {
@@ -57,7 +65,7 @@ function getMiddlewares() {
     FileStatusCodesModule,
   ],
   controllers: [AppController, MetricsController, HealthController],
-  providers: [AppService],
+  providers: [AppService, CronJobService],
 })
 export class AppModule {
   // let's add a middleware on all routes

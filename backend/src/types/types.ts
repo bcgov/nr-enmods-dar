@@ -36,12 +36,32 @@ export type FileInfo = {
   submission_status_code: string,
   sample_count: number,
   results_count: number,
-}
+};
 
 export type ResultsWithCount = {
-  results: [];
-  count: number;
+  results: [],
+  count: number,
 };
+
+export type FieldVisits = {
+  MinistryContact: string;
+  SamplingAgency: string;
+  Project: string;
+  LocationID: string;
+  FieldVisitStartTime: string;
+  FieldVisitEndTime: string;
+  FieldVisitParticipants: string;
+  FieldVisitComments: string;
+  PlanningStatus: 'DONE';
+};
+
+export type FieldActivities = {
+  CollectionMethod: string;
+  Medium: string;
+  DepthUpper: string;
+  DepthLower: string;
+  DepthUnit: string;
+}
 
 export type EmailTemplate = {
   from: string;

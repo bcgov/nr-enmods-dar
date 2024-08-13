@@ -85,7 +85,7 @@ function FileUpload() {
           items: newStatusCodes,
         })
 
-        // validationRequest(response.submission_id)
+        validationRequest(response.file_name)
       })
     }
   }
