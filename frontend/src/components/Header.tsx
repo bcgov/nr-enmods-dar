@@ -1,6 +1,6 @@
 import BCGovLogo from '@/assets/BCID_H_rgb_pos.png'
 import { AppBar, IconButton, Toolbar, Box } from '@mui/material'
-import Typography from '@mui/material/Typography'
+// import Typography from '@mui/material/Typography'
 import { HomeRounded } from '@mui/icons-material'
 import Navbar from './Navbar'
 
@@ -8,6 +8,7 @@ const styles = {
   appBar: {
     color: '#ffffff',
     backgroundColor: '#ffffff',
+    // backgroundColor: '#eeeeff',
     borderBottom: '1px solid rgb(217, 217, 217)',
     display: 'flex',
     zIndex: (theme: any) => theme.zIndex.drawer + 1,
@@ -43,11 +44,16 @@ const styles = {
 }
 export default function Header() {
   return (
-    <AppBar position="fixed" sx={styles.appBar} elevation={0}>
+    <AppBar
+      position="fixed"
+      sx={styles.appBar}
+      elevation={0}
+      className="nav-header"
+    >
       <Box sx={styles.innerContent}>
         <Toolbar sx={{ justifyContent: 'space-between' }}>
           <img style={{ maxHeight: '60px' }} alt="Logo" src={BCGovLogo} />
-          <Typography>EMSEDT</Typography>
+          {/* <Typography>EMSEDT</Typography> */}
           <a href={'/'} target={'_self'}>
             <IconButton color="secondary">
               <HomeRounded color="secondary"></HomeRounded>

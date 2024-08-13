@@ -7,20 +7,28 @@ export const AUTH_TOKEN = '__auth_token'
  *
  * @param onAuthenticatedCallback
  */
-const initKeycloak = (onAuthenticatedCallback: () => void) => {
+const initKeycloak = (
+  route: string,
+  onAuthenticatedCallback: (authenticated: boolean) => void,
+) => {
   _kc
     .init({
-      onLoad: 'login-required',
+      onLoad: 'check-sso',
       pkceMethod: 'S256',
       checkLoginIframe: false,
     })
     .then((authenticated) => {
       if (!authenticated) {
         console.log('User is not authenticated.')
+        if (route.startsWith('/unsubscribe/')) {
+          onAuthenticatedCallback(true)
+        } else {
+          window.location.href = _kc.createLoginUrl()
+        }
       } else {
         localStorage.setItem(AUTH_TOKEN, `${_kc.token}`)
       }
-      onAuthenticatedCallback()
+      onAuthenticatedCallback(authenticated)
     })
     .catch(console.error)
 

@@ -2,16 +2,11 @@
 version: "3.9"
 
 x-var:
-  - &POSTGRES_USER
-    postgres
-  - &POSTGRES_PASSWORD
-    default
-  - &POSTGRES_DATABASE
-    postgres
-  - &POSTGRES_HOST
-    localhost:5432
-  - &POSTGRES_SCHEMA
-    ENMODS
+  - &POSTGRES_USER postgres
+  - &POSTGRES_PASSWORD default
+  - &POSTGRES_DATABASE postgres
+  - &POSTGRES_HOST localhost:5432
+  - &POSTGRES_SCHEMA ENMODS
 
 x-postgres-vars: &postgres-vars
   POSTGRES_HOST: *POSTGRES_HOST

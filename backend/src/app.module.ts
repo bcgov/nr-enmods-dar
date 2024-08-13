@@ -17,6 +17,7 @@ import { JWTAuthModule } from "./auth/jwtauth.module";
 import { AdminModule } from "./admin/admin.module";
 import { FileSubmissionsModule } from "./file_submissions/file_submissions.module";
 import { FileStatusCodesModule } from "./file_status_codes/file_status_codes.module";
+import { NotificationsModule } from "./notifications/notifications.module";
 import { FtpModule } from "./ftp/ftp.module";
 
 const DB_HOST = process.env.POSTGRES_HOST || "localhost";
@@ -58,6 +59,7 @@ function getMiddlewares() {
     JWTAuthModule,
     AdminModule,
     FileSubmissionsModule,
+    NotificationsModule,
     FileStatusCodesModule,
     FtpModule,
   ],
