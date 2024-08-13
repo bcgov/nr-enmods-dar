@@ -41,10 +41,14 @@ describe('File Upload page functionality', () => {
   })
 
   it('should be on the submit page', () => {
-    cy.get('.MuiTypography-h3').should(
+    cy.get('#pageTitle').should(
       'have.text',
       'Electronic Data Transfer - Upload',
     )
+  })
+
+  it('should have the file upload drop zone', () => {
+    cy.get('#file-upload').should('exist')
   })
 
   testData.forEach((data) => {

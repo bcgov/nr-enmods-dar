@@ -1,153 +1,161 @@
-import { Button, Tabs, Tab, TextField } from '@mui/material'
-import { DataGrid, GridToolbar } from '@mui/x-data-grid'
-import { ChangeEvent, useEffect, useState } from 'react'
-import { Box } from '@mui/system'
-import { getUsers } from '@/common/admin'
-import type { NotificationInfo, UserInfo } from '@/types/types'
-import AddRoles from '@/components/modal/admin/AddRoles'
-import EditRoles from '@/components/modal/admin/EditRoles'
-import { userColumns } from '@/components/table/admin/userColumns'
-import { companyColumns } from '@/components/table/admin/companyColumns'
-import { notificationColumns } from '@/components/table/admin/notificationColumns'
-import UserService from '@/service/user-service'
-import { jwtDecode } from 'jwt-decode'
+import { Button, Tabs, Tab, TextField, Typography } from "@mui/material";
+import { DataGrid, GridToolbar } from "@mui/x-data-grid";
+import { ChangeEvent, useEffect, useState } from "react";
+import { Box } from "@mui/system";
+import { getUsers } from "@/common/admin";
+import type { NotificationInfo, UserInfo } from "@/types/types";
+import AddRoles from "@/components/modal/admin/AddRoles";
+import EditRoles from "@/components/modal/admin/EditRoles";
+import { userColumns } from "@/components/table/admin/userColumns";
+import { companyColumns } from "@/components/table/admin/companyColumns";
+import { notificationColumns } from "@/components/table/admin/notificationColumns";
+import UserService from "@/service/user-service";
+import { jwtDecode } from "jwt-decode";
 import {
   getNotificationData,
   testEmail,
   updateNotification,
-} from '@/common/notifications'
+} from "@/common/notifications";
 
 export default function AdminPage() {
   const [selectedUserInfo, setSelectedUserInfo] = useState<UserInfo | null>(
     null,
-  )
-  const [selectedTab, setSelectedTab] = useState(0)
-  const [userData, setUserData] = useState<UserInfo[]>([])
-  const [showAddRoles, setShowAddRoles] = useState(false)
-  const [showRemoveRoles, setShowRemoveRoles] = useState(false)
+  );
+  const [selectedTab, setSelectedTab] = useState(0);
+  const [userData, setUserData] = useState<UserInfo[]>([]);
+  const [showAddRoles, setShowAddRoles] = useState(false);
+  const [showRemoveRoles, setShowRemoveRoles] = useState(false);
   const [notificationData, setNotificationData] = useState<NotificationInfo[]>(
     [],
-  )
-  const [username, setUsername] = useState('')
+  );
+  const [username, setUsername] = useState("");
 
   // debug code, delete this later
   const [testEmailValue, setTestEmailValue] = useState(
-    'mtennant@salussystems.com',
-  )
+    "mtennant@salussystems.com",
+  );
   const handleTestEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setTestEmailValue(event.target.value)
-  }
+    setTestEmailValue(event.target.value);
+  };
   //
 
   useEffect(() => {
-    const token = UserService.getToken()
+    const token = UserService.getToken();
     if (token) {
-      const JWT: any = jwtDecode(token)
-      setUsername(JWT.idir_username)
+      const JWT: any = jwtDecode(token);
+      setUsername(JWT.idir_username);
     } else {
-      console.log('User token is undefined')
+      console.log("User token is undefined");
     }
-  }, [])
+  }, []);
 
   const getUserData = async () => {
-    const users: UserInfo[] = await getUsers()
-    setUserData(users)
-  }
+    const users: UserInfo[] = await getUsers();
+    setUserData(users);
+  };
 
   const getNotificationInfo = async () => {
-    const nd: NotificationInfo[] = await getNotificationData()
-    setNotificationData(nd)
-  }
+    const nd: NotificationInfo[] = await getNotificationData();
+    setNotificationData(nd);
+  };
 
   useEffect(() => {
-    getUserData()
-    getNotificationInfo()
-  }, [])
+    getUserData();
+    getNotificationInfo();
+  }, []);
 
   // mock data for company
   const [companyData] = useState([
     {
-      id: 'pqr123',
-      name: 'Salus Systems',
-      email: 'salus@email.com',
+      id: "pqr123",
+      name: "Salus Systems",
+      email: "salus@email.com",
     },
     {
-      id: 'asd321',
-      name: 'Test Company',
-      email: 'testtester@email.com',
+      id: "asd321",
+      name: "Test Company",
+      email: "testtester@email.com",
     },
-  ])
+  ]);
 
   const handleOpenEdit = (username: string) => {
-    const foundUser = userData.find((user) => user.username === username)
-    setSelectedUserInfo(foundUser || null)
-    setShowRemoveRoles(true)
-  }
+    const foundUser = userData.find((user) => user.username === username);
+    setSelectedUserInfo(foundUser || null);
+    setShowRemoveRoles(true);
+  };
 
-  const handleCloseAddRoles = () => setShowAddRoles(false)
+  const handleCloseAddRoles = () => setShowAddRoles(false);
 
   const handleCloseRemoveRoles = () => {
-    setShowRemoveRoles(false)
-    setSelectedUserInfo(null)
-  }
+    setShowRemoveRoles(false);
+    setSelectedUserInfo(null);
+  };
 
   const handleNotificationChange = async (email: string, enabled: boolean) => {
     try {
-      await updateNotification(email, username, enabled)
+      await updateNotification(email, username, enabled);
       // Update the local state to reflect the change
       setNotificationData((prevData) => {
         return prevData.map((notification) => {
           if (notification.email === email) {
-            return { ...notification, enabled }
+            return { ...notification, enabled };
           }
-          return notification
-        })
-      })
+          return notification;
+        });
+      });
     } catch (error) {
-      console.error('Error updating notification:', error)
+      console.error("Error updating notification:", error);
     }
-  }
+  };
 
   const handleTabChange = (
     event: React.SyntheticEvent,
     newValue: number,
   ): void => {
-    setSelectedTab(newValue)
-  }
+    setSelectedTab(newValue);
+  };
 
   const testEmailHandler = async () => {
-    await testEmail(testEmailValue)
-  }
+    await testEmail(testEmailValue);
+  };
 
   return (
     <div
       style={{
-        minHeight: '45em',
-        maxHeight: '45em',
-        width: '100%',
-        marginLeft: '4em',
+        minHeight: "45em",
+        maxHeight: "45em",
+        width: "100%",
+        marginLeft: "4em",
       }}
     >
+      <Box sx={{ paddingBottom: "30px" }}>
+        <Typography id="pageTitle" variant="h4">
+          Electronic Data Transfer - Admin
+        </Typography>
+      </Box>
       <Tabs
+        id="tableTabs"
         value={selectedTab}
         onChange={handleTabChange}
         aria-label="admin tabs"
       >
         <Tab
+          id="usersTab"
           label="Users"
           style={{
-            color: selectedTab === 0 ? 'black' : 'lightgray',
+            color: selectedTab === 0 ? "black" : "lightgray",
           }}
         />
         <Tab
+          id="companyTab"
           label="Company"
           style={{
-            color: selectedTab === 1 ? 'black' : 'lightgray',
+            color: selectedTab === 1 ? "black" : "lightgray",
           }}
         />
         <Tab
           label="Notifications"
-          style={{ color: selectedTab === 2 ? 'black' : 'lightgray' }}
+          style={{ color: selectedTab === 2 ? "black" : "lightgray" }}
         />
       </Tabs>
       <Box
@@ -156,8 +164,8 @@ export default function AdminPage() {
         id={`tabpanel-0`}
         aria-labelledby={`tab-0`}
         style={{
-          maxHeight: '45em',
-          width: '100%',
+          maxHeight: "45em",
+          width: "100%",
         }}
       >
         {selectedTab === 0 && (
@@ -172,7 +180,7 @@ export default function AdminPage() {
             rows={userData}
             columns={userColumns(handleOpenEdit)}
             pageSizeOptions={[5, 10, 20, 50, 100]}
-            getRowId={(row) => row['username']}
+            getRowId={(row) => row["username"]}
             style={{ minWidth: 1000 }}
           />
         )}
@@ -182,7 +190,7 @@ export default function AdminPage() {
         hidden={selectedTab !== 1}
         id={`tabpanel-1`}
         aria-labelledby={`tab-1`}
-        style={{ maxHeight: '45em', width: '100%' }}
+        style={{ maxHeight: "45em", width: "100%" }}
       >
         {selectedTab === 1 && (
           <DataGrid
@@ -196,7 +204,7 @@ export default function AdminPage() {
             rows={companyData}
             columns={companyColumns(handleOpenEdit)}
             pageSizeOptions={[5, 10, 20, 50, 100]}
-            getRowId={(row) => row['id']}
+            getRowId={(row) => row["id"]}
             style={{ minWidth: 920 }}
           />
         )}
@@ -206,7 +214,7 @@ export default function AdminPage() {
         hidden={selectedTab !== 2}
         id={`tabpanel-2`}
         aria-labelledby={`tab-2`}
-        style={{ maxHeight: '45em', width: '100%' }}
+        style={{ maxHeight: "45em", width: "100%" }}
       >
         {selectedTab === 2 && (
           <DataGrid
@@ -220,20 +228,21 @@ export default function AdminPage() {
             rows={notificationData}
             columns={notificationColumns(handleNotificationChange)}
             pageSizeOptions={[5, 10, 20, 50, 100]}
-            getRowId={(row) => row['id']}
+            getRowId={(row) => row["id"]}
             style={{ maxWidth: 920 }}
           />
         )}
       </Box>
       <Box
         sx={{
-          display: 'flex',
-          justifyContent: 'flex-end',
-          marginTop: '1em',
-          width: '100%',
+          display: "flex",
+          justifyContent: "flex-end",
+          marginTop: "1em",
+          width: "100%",
         }}
       >
         <Button
+          id="addUserButton"
           variant="contained"
           color="primary"
           onClick={() => setShowAddRoles(true)}
@@ -242,13 +251,13 @@ export default function AdminPage() {
         </Button>
       </Box>
       {/**debug code, delete later */}
-      <Box sx={{ border: 1, borderColor: 'grey.300', p: 2, mb: 2, mt: 2 }}>
+      <Box sx={{ border: 1, borderColor: "grey.300", p: 2, mb: 2, mt: 2 }}>
         <TextField
           label="Contact Email Test"
           variant="outlined"
           value={testEmailValue}
           onChange={handleTestEmailChange}
-          sx={{ mb: 2, mr: 2, width: '350px' }}
+          sx={{ mb: 2, mr: 2, width: "350px" }}
         />
         <Button onClick={testEmailHandler} variant="contained" color="primary">
           Test Email
@@ -268,5 +277,5 @@ export default function AdminPage() {
         onHide={handleCloseRemoveRoles}
       />
     </div>
-  )
+  );
 }
