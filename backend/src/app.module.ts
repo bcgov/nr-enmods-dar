@@ -1,10 +1,5 @@
 import "dotenv/config";
-import {
-  Logger,
-  MiddlewareConsumer,
-  Module,
-  RequestMethod,
-} from "@nestjs/common";
+import { Logger, MiddlewareConsumer, Module, RequestMethod } from "@nestjs/common";
 import { HTTPLoggerMiddleware } from "./middleware/req.res.logger";
 import { loggingMiddleware, PrismaModule } from "nestjs-prisma";
 import { ConfigModule } from "@nestjs/config";
@@ -15,8 +10,9 @@ import { TerminusModule } from "@nestjs/terminus";
 import { HealthController } from "./health.controller";
 import { JWTAuthModule } from "./auth/jwtauth.module";
 import { AdminModule } from "./admin/admin.module";
-import { FileSubmissionsModule } from './file_submissions/file_submissions.module';
-import { FileStatusCodesModule } from './file_status_codes/file_status_codes.module';
+import { FileSubmissionsModule } from "./file_submissions/file_submissions.module";
+import { FileStatusCodesModule } from "./file_status_codes/file_status_codes.module";
+import { NotificationsModule } from "./notifications/notifications.module";
 
 const DB_HOST = process.env.POSTGRES_HOST || "localhost";
 const DB_USER = process.env.POSTGRES_USER || "postgres";
@@ -57,6 +53,7 @@ function getMiddlewares() {
     JWTAuthModule,
     AdminModule,
     FileSubmissionsModule,
+    NotificationsModule,
     FileStatusCodesModule,
   ],
   controllers: [AppController, MetricsController, HealthController],
@@ -67,10 +64,7 @@ export class AppModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(HTTPLoggerMiddleware)
-      .exclude(
-        { path: "metrics", method: RequestMethod.ALL },
-        { path: "health", method: RequestMethod.ALL }
-      )
+      .exclude({ path: "metrics", method: RequestMethod.ALL }, { path: "health", method: RequestMethod.ALL })
       .forRoutes("*");
   }
 }

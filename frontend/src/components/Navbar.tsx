@@ -4,7 +4,7 @@ import { useLocation } from 'react-router'
 
 const styles = {
   navbar: {
-    backgroundColor: '#f4f4f4',
+    backgroundColor: '#b4b4ff',
     padding: '0.5rem 1rem',
   },
   link: {

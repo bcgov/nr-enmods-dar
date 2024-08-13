@@ -27,6 +27,18 @@ export type UserInfo = {
   role: string[]
 }
 
+/**
+ * Used for displaying user notification status on Admin page
+ */
+export type NotificationInfo = {
+  id: string
+  email: string
+  create_user_id: string
+  create_utc_timestamp: string
+  update_user_id: string
+  update_utc_timestamp: string
+}
+
 export type FileStatusCode = {
   items: FileStatusCode[]
   submissionStatusCode: string
