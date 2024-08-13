@@ -54,7 +54,7 @@ export class FtpService {
   async scanAndProcessFolders() {
     try {
       const folders: ftp.FileInfo[] = await this.client.list(
-        this.remoteBasePath,
+        this.remoteBasePath
       );
 
       this.logger.log(`~~~~~`);
@@ -62,7 +62,7 @@ export class FtpService {
         if (folder.isDirectory) {
           const folderPath: string = path.join(
             this.remoteBasePath,
-            folder.name,
+            folder.name
           );
           const files: ftp.FileInfo[] = await this.client.list(folderPath);
 
@@ -91,7 +91,7 @@ export class FtpService {
                 const errors: string[] =
                   await this.ftpFileValidationService.processFile(
                     fileBuffer,
-                    fileExtension,
+                    fileExtension
                   );
                 if (errors.length > 0) {
                   this.logger.log(`Validation failure for: ${filePath}`);
@@ -110,7 +110,7 @@ export class FtpService {
               } catch (error) {
                 this.logger.error(
                   "Error during file download or processing",
-                  error,
+                  error
                 );
               }
             }
@@ -124,7 +124,8 @@ export class FtpService {
     }
   }
 
-  @Cron("0,30 * * * * *")
+  // Running every 5 minutes
+  @Cron("* */5 * * * *")
   async handleCron() {
     this.logger.log("START ################");
     this.logger.log("######################");
