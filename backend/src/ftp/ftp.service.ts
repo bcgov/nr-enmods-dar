@@ -5,6 +5,8 @@ import * as path from "path";
 import * as dotenv from "dotenv";
 import { Writable } from "stream";
 import { FtpFileValidationService } from "./ftp_file_validation.service";
+import { NotificationsService } from "src/notifications/notifications.service";
+import { PrismaService } from "nestjs-prisma";
 
 dotenv.config();
 
@@ -14,7 +16,11 @@ export class FtpService {
   private client: ftp.Client;
   private remoteBasePath: string;
 
-  constructor(private ftpFileValidationService: FtpFileValidationService) {
+  constructor(
+    private ftpFileValidationService: FtpFileValidationService,
+    private notificationService: NotificationsService,
+    private prisma: PrismaService,
+  ) {
     this.client = new ftp.Client();
     this.client.ftp.verbose = true;
     this.remoteBasePath = process.env.FTP_PATH;
@@ -71,39 +77,47 @@ export class FtpService {
               const filePath: string = path.join(folderPath, file.name);
               this.logger.log(`Processing file: ${filePath}`);
 
-              const fileExtension = path
-                .extname(filePath)
-                .toLowerCase()
-                .replace(".", "");
-
-              const dataBuffer = [];
-
-              const writableStream = new Writable({
-                write(chunk, encoding, callback) {
-                  dataBuffer.push(chunk);
-                  callback();
-                },
-              });
               try {
-                await this.client.downloadTo(writableStream, filePath);
-                const fileBuffer = Buffer.concat(dataBuffer);
-                // pass file buffer to validation
-                const errors: string[] =
-                  await this.ftpFileValidationService.processFile(
+                let errors: string[] = [];
+                // if the file is > 10MB, don't download it
+                if (file.size > 10 * 1024 * 1024) {
+                  errors = ["File size exceeds the limit of 10MB."];
+                } else {
+                  const dataBuffer = [];
+                  // download file to a stream that puts chunks into an array
+                  const writableStream = new Writable({
+                    write(chunk, encoding, callback) {
+                      dataBuffer.push(chunk);
+                      callback();
+                    },
+                  });
+                  // download file to the writable stream
+                  await this.client.downloadTo(writableStream, filePath);
+                  // convert chunk array to buffer
+                  const fileBuffer = Buffer.concat(dataBuffer);
+                  // pass file buffer to validation
+                  errors = await this.ftpFileValidationService.processFile(
                     fileBuffer,
-                    fileExtension,
+                    filePath,
                   );
+                }
                 if (errors.length > 0) {
                   this.logger.log(`Validation failure for: ${filePath}`);
                   errors.forEach((error) => this.logger.log(error));
                   this.logger.log(``);
                   // send out a notification to the file submitter & ministry contact outlining the errors
-                  const username = folder.name;
-                  this.logger.log(`Notifying ${username} of error`);
+                  const ministryContact = ""; // should be obtained from file somehow
+                  await this.notifyUserOfError(
+                    folder.name,
+                    file.name,
+                    errors,
+                    ministryContact,
+                  );
                 } else {
                   this.logger.log(`Validation success for: ${filePath}`);
                   this.logger.log(``);
                   // pass to file validation service
+                  // await this.validationService.handleFile(file); // made up function call
                 }
                 // this.logger.log(`Cleaning up file: ${filePath}`);
                 // await this.client.remove(filePath);
@@ -124,7 +138,53 @@ export class FtpService {
     }
   }
 
-  // @Cron("* */5 * * * *") // every 5 minutes
+  /**
+   * Notifies the Data Submitter & Ministry Contact of the file validation errors.
+   * @param username
+   * @param fileName
+   * @param errors
+   * @param ministryContact
+   */
+  async notifyUserOfError(
+    username: string,
+    fileName: string,
+    errors: string[],
+    ministryContact: string,
+  ) {
+    const ftpUser = await this.prisma.ftp_users.findUnique({
+      where: { username: username },
+    });
+    const notificationVars = {
+      file_name: fileName,
+      user_account_name: username,
+      location_ids: [],
+      file_status: "FAILED",
+      errors: errors.join(","),
+      warnings: "",
+    };
+
+    // Notify the Data Submitter
+    if (this.isValidEmail(ftpUser.email)) {
+      await this.notificationService.sendDataSubmitterNotification(
+        ftpUser.email,
+        notificationVars,
+      );
+    }
+    // Notify the Ministry Contact (if they have not disabled notifications)
+    if (this.isValidEmail(ministryContact)) {
+      await this.notificationService.sendContactNotification(
+        ministryContact,
+        notificationVars,
+      );
+    }
+  }
+
+  isValidEmail(email: string): boolean {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
+  }
+
+  // @Cron("0 */5 * * * *") // every 5 minutes
   // @Cron("0,30 * * * * *") // every 30s
   async handleCron() {
     this.logger.log("START ################");

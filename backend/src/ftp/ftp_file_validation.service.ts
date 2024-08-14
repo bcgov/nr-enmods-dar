@@ -1,24 +1,23 @@
 import { Injectable, Logger } from "@nestjs/common";
+import path from "path";
 import * as XLSX from "xlsx";
 @Injectable()
 export class FtpFileValidationService {
   private readonly logger = new Logger(FtpFileValidationService.name);
 
-  async processFile(
-    fileBuffer: Buffer,
-    fileExtension: string,
-  ): Promise<string[]> {
+  async processFile(fileBuffer: Buffer, filePath: string): Promise<string[]> {
     const errors = [];
     // Required column headers
     const requiredHeaders = ["test1", "test2", "test3"];
 
     // Check file size is under 10 MB
     if (fileBuffer.length > 10 * 1024 * 1024) {
-      errors.push("File size exceeds 10 MB.");
+      errors.push("File size exceeds the limit of 10 MB.");
     }
     // Determine file type using headers
     let fileType = await this.getFileType(fileBuffer);
     // csv and txt are not detected using file headers, use file extension as fallback
+    const fileExtension = path.extname(filePath).toLowerCase().replace(".", "");
     if (!fileType) fileType = fileExtension;
     // Check row count and headers
     let headerError: string | null = null;

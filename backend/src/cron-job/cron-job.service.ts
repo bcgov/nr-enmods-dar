@@ -112,7 +112,7 @@ export class CronJobService {
     }
   }
 
-  @Cron("0 0 */2 * * *")
+  @Cron("0 0 */2 * * *") // every 2 hours
   private async fetchLocations() {
     this.logger.log(`#######################################################`);
     this.logger.log(`Starting Code Table Cron Job`);

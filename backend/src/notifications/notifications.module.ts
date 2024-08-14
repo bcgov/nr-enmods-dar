@@ -7,5 +7,6 @@ import { HttpModule } from "@nestjs/axios";
   imports: [HttpModule],
   controllers: [NotificationsController],
   providers: [NotificationsService],
+  exports: [NotificationsService],
 })
 export class NotificationsModule {}
