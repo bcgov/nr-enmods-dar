@@ -5,9 +5,9 @@ import { PrismaService } from "nestjs-prisma";
 import { FileResultsWithCount } from "src/interface/fileResultsWithCount";
 import { file_submission } from "@prisma/client";
 import { FileInfo, FieldVisits, FieldActivities } from "src/types/types";
+import { AqiApiService } from "src/aqi_api/aqi_api.service";
 import { randomUUID } from "crypto";
 import * as XLSX from "xlsx";
-import { equals } from "class-validator";
 
 // Create a new object with only the subset keys
 const visits: FieldVisits = {
@@ -28,6 +28,7 @@ const activities: FieldActivities = {
   DepthUpper: "",
   DepthLower: "",
   DepthUnit: "",
+  LocationID: ""
 };
 
 function filterData<T>(data: any[], keys, customAttributes): Partial<T>[] {
@@ -49,12 +50,14 @@ function filterData<T>(data: any[], keys, customAttributes): Partial<T>[] {
 
 @Injectable()
 export class FileSubmissionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService, 
+    private readonly aqiService: AqiApiService) {}
 
-  async queryCodeTables(tableName: string, param: string) {
+  async queryCodeTables(tableName: string, param: any) {
     switch (tableName) {
       case "LOCATIONS":
-        return await this.prisma.aqi_locations.findMany({
+        let locID = await this.prisma.aqi_locations.findMany({
           where: {
             custom_id: {
               equals: param,
@@ -64,8 +67,14 @@ export class FileSubmissionsService {
             aqi_locations_id: true,
           },
         });
+        return {
+          'samplingLocation': {
+            'id': locID[0].aqi_locations_id,
+            'custom_id': param,
+          },
+        };
       case "PROJECT":
-        return await this.prisma.aqi_projects.findMany({
+        let projectID = await this.prisma.aqi_projects.findMany({
           where: {
             custom_id: {
               equals: param,
@@ -75,21 +84,26 @@ export class FileSubmissionsService {
             aqi_projects_id: true,
           },
         });
+        return {"project": {"id": projectID[0].aqi_projects_id, "customId": param}}
       case "EXTENDED_ATTRIB":
-        return await this.prisma.aqi_extended_attributes.findMany({
+        let eaID = await this.prisma.aqi_extended_attributes.findMany({
           where: {
             custom_id: {
-              equals: param,
+              equals: param[0],
             },
           },
           select: {
             aqi_extended_attributes_id: true,
           },
         });
+        return {"attributeId": eaID[0].aqi_extended_attributes_id, "customId": param[0], 'text': param[1]}
     }
   }
 
   async postFieldVisits(visitData: any) {
+    let postData = {'samplingLocation': {'id': '', 'customId': ''}};
+    const visitAndLocId = []
+    const extendedAttribs = {'extendedAttributes': []}
     for (const row of visitData) {
       let locationCustomID = row.LocationID;
       let projectCustomID = row.Project;
@@ -97,32 +111,44 @@ export class FileSubmissionsService {
       let EASamplingAgency = "Sampling Agency";
 
       // get the location custom id from object and find location GUID
-      const locationGUID = await this.queryCodeTables(
-        "LOCATIONS",
-        locationCustomID,
+      Object.assign(
+        postData,
+        await this.queryCodeTables("LOCATIONS", locationCustomID),
       );
       // get the project custom id from object and find project GUID
-      const projectGUID = await this.queryCodeTables(
-        "PROJECT",
-        projectCustomID,
+      Object.assign(
+        postData, 
+        await this.queryCodeTables("PROJECT", projectCustomID)
       );
       // get the EA custom id (Ministry Contact and Sampling Agency) and find the GUID
-      const ministryContactGUID = await this.queryCodeTables(
-        "EXTENDED_ATTRIB",
-        EAMinistryContact,
-      );
-      const samplingAgencyGUID = await this.queryCodeTables(
-        "EXTENDED_ATTRIB",
-        EASamplingAgency,
-      );
+      extendedAttribs['extendedAttributes'].push(await this.queryCodeTables("EXTENDED_ATTRIB", [EAMinistryContact, row.MinistryContact]))
+      extendedAttribs['extendedAttributes'].push(await this.queryCodeTables("EXTENDED_ATTRIB", [EASamplingAgency, row.SamplingAgency]))
+      
+      Object.assign(postData, extendedAttribs)
+      Object.assign(postData, {'startTime': row.FieldVisitStartTime})
+      Object.assign(postData, {'endTime': row.FieldVisitEndTime})
+      Object.assign(postData, {'participants': row.FieldVisitParticipants})
+      Object.assign(postData, {'notes': row.FieldVisitComments})
+      Object.assign(postData, {'planningStatus': row.PlanningStatus})
 
+      const visitLocInfo = {'fieldVisit': {'id': ''}, 'samplingLocation': {'id': '', 'customId': ''}};
+      // visitLocInfo.fieldVisit.id = await this.aqiService.fieldVisits(postData)
+      console.log(postData.samplingLocation)
+      // visitAndLocId.push(await this.aqiService.fieldVisits(postData))
+      break
+    }
 
-      console.log(row)
+    // return newVisitIDs;
+  }
+
+  async postFieldActivities(visitIDs: any, activityData: any) {
+    for (const activity of activityData){
+      console.log(activity)
       break
     }
   }
 
-  parseFile(file: Express.Multer.File) {
+  async parseFile(file: Express.Multer.File) {
     const path = require("path");
     const extention = path.extname(file.originalname);
     if (extention == ".xlsx") {
@@ -163,7 +189,8 @@ export class FileSubmissionsService {
         {},
       );
 
-      this.postFieldVisits(allFieldVisits);
+      let visitIDs = await this.postFieldVisits(allFieldVisits);
+      let activityIDs = await this.postFieldActivities(visitIDs, allFieldActivities);
     }
   }
 

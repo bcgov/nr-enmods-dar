@@ -61,6 +61,7 @@ export type FieldActivities = {
   DepthUpper: string;
   DepthLower: string;
   DepthUnit: string;
+  LocationID: string;
 }
 
 export type EmailTemplate = {
