@@ -20,10 +20,20 @@ export class AqiApiService {
   async fieldVisits(body: any){
     try{
         const response = await this.axiosInstance.post("/v1/fieldvisits", body);
-        this.logger.log(`API call to fieldVisits succeeded: ${response.status}`);
+        this.logger.log(`API call to Field Visits succeeded: ${response.status}`);
         return response.data.id;
     }catch(err){
-        console.error("API CALL TO fieldVisits failed: ", err.message);
+        console.error("API CALL TO Field Visits failed: ", err);
+    }
+  }
+
+  async fieldActivities(body: any){
+    try{
+        const response = await this.axiosInstance.post("/v1/activities", body);
+        this.logger.log(`API call to Activities succeeded: ${response.status}`);
+        return response.data.id;
+    }catch(err){
+        console.error("API CALL TO Activities failed: ", err);
     }
   }
 }

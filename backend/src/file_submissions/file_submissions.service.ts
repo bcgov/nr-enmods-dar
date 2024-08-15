@@ -28,7 +28,10 @@ const activities: FieldActivities = {
   DepthUpper: "",
   DepthLower: "",
   DepthUnit: "",
-  LocationID: ""
+  LocationID: "",
+  FieldVisitStartTime: "",
+  FieldVisitEndTime: "",
+  ActivityType: "SAMPLE_ROUTINE"
 };
 
 function filterData<T>(data: any[], keys, customAttributes): Partial<T>[] {
@@ -85,6 +88,42 @@ export class FileSubmissionsService {
           },
         });
         return {"project": {"id": projectID[0].aqi_projects_id, "customId": param}}
+      case "COLLECTION_METHODS": 
+        let cmID = await this.prisma.aqi_collection_methods.findMany({
+          where: {
+            custom_id: {
+              equals: param,
+            },
+          },
+          select: {
+            aqi_collection_methods_id: true,
+          },
+        });
+        return {"collectionMethod": {"id": cmID[0].aqi_collection_methods_id, "customId": param}}
+      case "MEDIUM":
+        let mediumID = await this.prisma.aqi_mediums.findMany({
+          where: {
+            custom_id: {
+              equals: param,
+            },
+          },
+          select: {
+            aqi_mediums_id: true,
+          },
+        });
+        return {"medium": {"id": mediumID[0].aqi_mediums_id, "customId": param}}
+      case "DEPTH_UNIT":
+        let duID = await this.prisma.aqi_units.findMany({
+          where: {
+            custom_id: {
+              equals: param[0],
+            },
+          },
+          select: {
+            aqi_units_id: true,
+          },
+        });
+        return {"depth": {"value": param[1], "unit": {"id": duID[0].aqi_units_id, "customId": param[0]}}}
       case "EXTENDED_ATTRIB":
         let eaID = await this.prisma.aqi_extended_attributes.findMany({
           where: {
@@ -101,7 +140,7 @@ export class FileSubmissionsService {
   }
 
   async postFieldVisits(visitData: any) {
-    let postData = {'samplingLocation': {'id': '', 'customId': ''}};
+    let postData: any = {}
     const visitAndLocId = []
     const extendedAttribs = {'extendedAttributes': []}
     for (const row of visitData) {
@@ -131,19 +170,44 @@ export class FileSubmissionsService {
       Object.assign(postData, {'notes': row.FieldVisitComments})
       Object.assign(postData, {'planningStatus': row.PlanningStatus})
 
-      const visitLocInfo = {'fieldVisit': {'id': ''}, 'samplingLocation': {'id': '', 'customId': ''}};
-      // visitLocInfo.fieldVisit.id = await this.aqiService.fieldVisits(postData)
-      console.log(postData.samplingLocation)
-      // visitAndLocId.push(await this.aqiService.fieldVisits(postData))
+      let currentVisitAndLoc: any = {}
+
+      Object.assign(currentVisitAndLoc, {'samplingLocation': postData.samplingLocation})
+      Object.assign(currentVisitAndLoc, {'fieldVisit': await this.aqiService.fieldVisits(postData)})
+      visitAndLocId.push(currentVisitAndLoc)
       break
     }
 
-    // return newVisitIDs;
+    return visitAndLocId;
   }
 
-  async postFieldActivities(visitIDs: any, activityData: any) {
-    for (const activity of activityData){
-      console.log(activity)
+  async postFieldActivities(visitInfo: any, activityData: any) {
+    let postData = {}
+    const extendedAttribs = {'extendedAttributes': []}
+    for (const [index,activity] of activityData.entries()){
+      let collectionMethodCustomID = activity.CollectionMethod
+      let mediumCustomID = activity.Medium
+      let depthUnitCustomID = activity.DepthUnit
+      let depthUnitValue = activity.DepthUpper
+
+      // get the collection method custom id from object and find collection method GUID
+      Object.assign(postData, await this.queryCodeTables("COLLECTION_METHODS", collectionMethodCustomID))
+      // get the medium custom id from object and find medium GUID
+      Object.assign(postData, await this.queryCodeTables("MEDIUM", mediumCustomID))
+      // get the depth unit custom id from object and find depth unit GUID
+      Object.assign(postData, await this.queryCodeTables("DEPTH_UNIT", [depthUnitCustomID, depthUnitValue]))
+
+      // get the EA custom id (Depth Lower and Depth Upper) and find the GUID
+      extendedAttribs['extendedAttributes'].push(await this.queryCodeTables("EXTENDED_ATTRIB", ["Depth Lower", activity.DepthLower]))
+      
+      Object.assign(postData, {'type': activity.ActivityType})
+      Object.assign(postData, extendedAttribs)
+      Object.assign(postData, {'startTime': activity.FieldVisitStartTime})
+      Object.assign(postData, {'endTime': activity.FieldVisitEndTime})
+      Object.assign(postData, {'samplingLocation': visitInfo[index].samplingLocation})
+      Object.assign(postData, {'fieldVisit': {'id': visitInfo[index].fieldVisit}})
+
+      await this.aqiService.fieldActivities(postData)
       break
     }
   }
@@ -177,6 +241,10 @@ export class FileSubmissionsService {
       const fieldVisitCustomAttributes: Partial<FieldVisits> = {
         PlanningStatus: "DONE",
       };
+      
+      const fieldActivityCustomAttrib: Partial<FieldActivities> = {
+        ActivityType: 'SAMPLE_ROUTINE',
+      };
 
       const allFieldVisits = filterData<FieldVisits>(
         allRecords,
@@ -186,11 +254,11 @@ export class FileSubmissionsService {
       const allFieldActivities = filterData<FieldActivities>(
         allRecords,
         Object.keys(activities),
-        {},
+        fieldActivityCustomAttrib,
       );
 
-      let visitIDs = await this.postFieldVisits(allFieldVisits);
-      let activityIDs = await this.postFieldActivities(visitIDs, allFieldActivities);
+      let visitInfo = await this.postFieldVisits(allFieldVisits);
+      let activityIDs = await this.postFieldActivities(visitInfo, allFieldActivities);
     }
   }
 

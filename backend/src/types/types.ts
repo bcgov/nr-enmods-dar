@@ -62,6 +62,9 @@ export type FieldActivities = {
   DepthLower: string;
   DepthUnit: string;
   LocationID: string;
+  FieldVisitStartTime: string;
+  FieldVisitEndTime: string;
+  ActivityType: 'SAMPLE_ROUTINE'
 }
 
 export type EmailTemplate = {
