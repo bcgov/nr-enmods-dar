@@ -3,13 +3,20 @@ import axios from "axios";
 import { error } from "winston";
 import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "nestjs-prisma";
+import { FileParseValidateService } from "src/file_parse_and_validation/file_parse_and_validation.service";
+import * as fs from "fs";
+
 
 @Injectable()
 export class CronJobService {
   private readonly logger = new Logger(CronJobService.name);
+
   private tableModels;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private readonly fileParser: FileParseValidateService,
+  ) {
     this.tableModels = new Map<string, any>([
       ["aqi_projects", this.prisma.aqi_projects],
       ["aqi_mediums", this.prisma.aqi_mediums],
@@ -95,12 +102,12 @@ export class CronJobService {
                 ? new Date(record.modificationTime)
                 : null,
             },
-          })
-        )
+          }),
+        ),
       );
 
       this.logger.log(
-        `Upserted ${data.length} entries into ${dbTable} - ${(new Date().getTime() - startTime) / 1000} seconds`
+        `Upserted ${data.length} entries into ${dbTable} - ${(new Date().getTime() - startTime) / 1000} seconds`,
       );
       this.logger.log(`-`);
       return;
@@ -136,7 +143,7 @@ export class CronJobService {
         if (total <= entries.length + response.data.domainObjects.length) {
           // At this point, cursor has fully looped. Check for duplicate entries and remove them
           const newEntries = response.data.domainObjects.filter(
-            (entry) => !entries.some((e) => e.id === entry.id)
+            (entry) => !entries.some((e) => e.id === entry.id),
           );
           entries = entries.concat(newEntries);
         } else {
@@ -153,7 +160,7 @@ export class CronJobService {
     }
 
     this.logger.log(
-      `Cron Job Time Taken: ${(new Date().getTime() - startTime) / 1000} seconds`
+      `Cron Job Time Taken: ${(new Date().getTime() - startTime) / 1000} seconds`,
     );
     this.logger.log(`#######################################################`);
   }
@@ -182,5 +189,20 @@ export class CronJobService {
       return array.map(filterAttributes);
     };
     return filterArray(entries);
+  }
+
+  @Cron("0 */1 * * * *")
+  private async beginFileValidation() {
+    /*
+    TODO:
+      grab all the files from the DB and S3 bucket that have a status of QUEUED
+      for each file returned, change the status to INPROGRESS and go to the parser
+    */
+    let filesToValidate = await this.fileParser.getQueuedFiles();
+    for (const file of filesToValidate) {
+      // const fileData = await this.fileParser.getFileData(file.submission_id)
+      const fileData = fs.readFileSync(`C:/Users/vmanawat/Downloads/TEST_MASTER_FILE.xlsx`, 'binary')
+      this.fileParser.parseFile(fileData, file.file_name)
+    }
   }
 }

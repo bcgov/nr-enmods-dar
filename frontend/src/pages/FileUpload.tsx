@@ -77,15 +77,14 @@ function FileUpload() {
       formData.append('token', UserService.getToken()?.toString()) 
 
       await insertFile(formData).then((response) => {
-        console.log(response)
         const newStatusCodes = fileStatusCodes.items
         newStatusCodes[index] = response.submission_status_code
-        console.log(newStatusCodes)
         setFileStatusCodes({
           items: newStatusCodes,
         })
 
-        validationRequest(response.file_name)
+        console.log(response)
+        // validationRequest(response.file_name)
       })
     }
   }
@@ -101,15 +100,12 @@ function FileUpload() {
         formData.append('token', UserService.getToken()?.toString()) 
 
         await insertFile(formData).then(async (response) => {
-          console.log(response)
-          console.log(fileStatusCodes.items)
           const newStatusCodes = fileStatusCodes.items
           newStatusCodes[index] = response.submission_status_code
           setFileStatusCodes({
             items: newStatusCodes,
           })
           // const results = await getFiles("1");
-          // console.log(results)
         })
       })
     }

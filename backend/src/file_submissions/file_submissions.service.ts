@@ -3,264 +3,14 @@ import { CreateFileSubmissionDto } from "./dto/create-file_submission.dto";
 import { UpdateFileSubmissionDto } from "./dto/update-file_submission.dto";
 import { PrismaService } from "nestjs-prisma";
 import { FileResultsWithCount } from "src/interface/fileResultsWithCount";
-import { file_submission } from "@prisma/client";
-import { FileInfo, FieldVisits, FieldActivities } from "src/types/types";
-import { AqiApiService } from "src/aqi_api/aqi_api.service";
+import { file_submission, Prisma } from "@prisma/client";
+import { FileInfo } from "src/types/types";
 import { randomUUID } from "crypto";
-import * as XLSX from "xlsx";
-
-// Create a new object with only the subset keys
-const visits: FieldVisits = {
-  MinistryContact: "",
-  SamplingAgency: "",
-  Project: "",
-  LocationID: "",
-  FieldVisitStartTime: "",
-  FieldVisitEndTime: "",
-  FieldVisitParticipants: "",
-  FieldVisitComments: "",
-  PlanningStatus: "DONE",
-};
-
-const activities: FieldActivities = {
-  CollectionMethod: "",
-  Medium: "",
-  DepthUpper: "",
-  DepthLower: "",
-  DepthUnit: "",
-  LocationID: "",
-  FieldVisitStartTime: "",
-  FieldVisitEndTime: "",
-  ActivityType: "SAMPLE_ROUTINE"
-};
-
-function filterData<T>(data: any[], keys, customAttributes): Partial<T>[] {
-  return data.map((row) => {
-    const filteredObj: Partial<T> = {};
-    keys.forEach((key) => {
-      if (row.hasOwnProperty(key)) {
-        filteredObj[key] = `${row[key]}`;
-      }
-    });
-
-    if (customAttributes) {
-      Object.assign(filteredObj, customAttributes);
-    }
-
-    return filteredObj;
-  });
-}
 
 @Injectable()
 export class FileSubmissionsService {
   constructor(
-    private prisma: PrismaService, 
-    private readonly aqiService: AqiApiService) {}
-
-  async queryCodeTables(tableName: string, param: any) {
-    switch (tableName) {
-      case "LOCATIONS":
-        let locID = await this.prisma.aqi_locations.findMany({
-          where: {
-            custom_id: {
-              equals: param,
-            },
-          },
-          select: {
-            aqi_locations_id: true,
-          },
-        });
-        return {
-          'samplingLocation': {
-            'id': locID[0].aqi_locations_id,
-            'custom_id': param,
-          },
-        };
-      case "PROJECT":
-        let projectID = await this.prisma.aqi_projects.findMany({
-          where: {
-            custom_id: {
-              equals: param,
-            },
-          },
-          select: {
-            aqi_projects_id: true,
-          },
-        });
-        return {"project": {"id": projectID[0].aqi_projects_id, "customId": param}}
-      case "COLLECTION_METHODS": 
-        let cmID = await this.prisma.aqi_collection_methods.findMany({
-          where: {
-            custom_id: {
-              equals: param,
-            },
-          },
-          select: {
-            aqi_collection_methods_id: true,
-          },
-        });
-        return {"collectionMethod": {"id": cmID[0].aqi_collection_methods_id, "customId": param}}
-      case "MEDIUM":
-        let mediumID = await this.prisma.aqi_mediums.findMany({
-          where: {
-            custom_id: {
-              equals: param,
-            },
-          },
-          select: {
-            aqi_mediums_id: true,
-          },
-        });
-        return {"medium": {"id": mediumID[0].aqi_mediums_id, "customId": param}}
-      case "DEPTH_UNIT":
-        let duID = await this.prisma.aqi_units.findMany({
-          where: {
-            custom_id: {
-              equals: param[0],
-            },
-          },
-          select: {
-            aqi_units_id: true,
-          },
-        });
-        return {"depth": {"value": param[1], "unit": {"id": duID[0].aqi_units_id, "customId": param[0]}}}
-      case "EXTENDED_ATTRIB":
-        let eaID = await this.prisma.aqi_extended_attributes.findMany({
-          where: {
-            custom_id: {
-              equals: param[0],
-            },
-          },
-          select: {
-            aqi_extended_attributes_id: true,
-          },
-        });
-        return {"attributeId": eaID[0].aqi_extended_attributes_id, "customId": param[0], 'text': param[1]}
-    }
-  }
-
-  async postFieldVisits(visitData: any) {
-    let postData: any = {}
-    const visitAndLocId = []
-    const extendedAttribs = {'extendedAttributes': []}
-    for (const row of visitData) {
-      let locationCustomID = row.LocationID;
-      let projectCustomID = row.Project;
-      let EAMinistryContact = "Ministry Contact";
-      let EASamplingAgency = "Sampling Agency";
-
-      // get the location custom id from object and find location GUID
-      Object.assign(
-        postData,
-        await this.queryCodeTables("LOCATIONS", locationCustomID),
-      );
-      // get the project custom id from object and find project GUID
-      Object.assign(
-        postData, 
-        await this.queryCodeTables("PROJECT", projectCustomID)
-      );
-      // get the EA custom id (Ministry Contact and Sampling Agency) and find the GUID
-      extendedAttribs['extendedAttributes'].push(await this.queryCodeTables("EXTENDED_ATTRIB", [EAMinistryContact, row.MinistryContact]))
-      extendedAttribs['extendedAttributes'].push(await this.queryCodeTables("EXTENDED_ATTRIB", [EASamplingAgency, row.SamplingAgency]))
-      
-      Object.assign(postData, extendedAttribs)
-      Object.assign(postData, {'startTime': row.FieldVisitStartTime})
-      Object.assign(postData, {'endTime': row.FieldVisitEndTime})
-      Object.assign(postData, {'participants': row.FieldVisitParticipants})
-      Object.assign(postData, {'notes': row.FieldVisitComments})
-      Object.assign(postData, {'planningStatus': row.PlanningStatus})
-
-      let currentVisitAndLoc: any = {}
-
-      Object.assign(currentVisitAndLoc, {'samplingLocation': postData.samplingLocation})
-      Object.assign(currentVisitAndLoc, {'fieldVisit': await this.aqiService.fieldVisits(postData)})
-      visitAndLocId.push(currentVisitAndLoc)
-      break
-    }
-
-    return visitAndLocId;
-  }
-
-  async postFieldActivities(visitInfo: any, activityData: any) {
-    let postData = {}
-    const extendedAttribs = {'extendedAttributes': []}
-    for (const [index,activity] of activityData.entries()){
-      let collectionMethodCustomID = activity.CollectionMethod
-      let mediumCustomID = activity.Medium
-      let depthUnitCustomID = activity.DepthUnit
-      let depthUnitValue = activity.DepthUpper
-
-      // get the collection method custom id from object and find collection method GUID
-      Object.assign(postData, await this.queryCodeTables("COLLECTION_METHODS", collectionMethodCustomID))
-      // get the medium custom id from object and find medium GUID
-      Object.assign(postData, await this.queryCodeTables("MEDIUM", mediumCustomID))
-      // get the depth unit custom id from object and find depth unit GUID
-      Object.assign(postData, await this.queryCodeTables("DEPTH_UNIT", [depthUnitCustomID, depthUnitValue]))
-
-      // get the EA custom id (Depth Lower and Depth Upper) and find the GUID
-      extendedAttribs['extendedAttributes'].push(await this.queryCodeTables("EXTENDED_ATTRIB", ["Depth Lower", activity.DepthLower]))
-      
-      Object.assign(postData, {'type': activity.ActivityType})
-      Object.assign(postData, extendedAttribs)
-      Object.assign(postData, {'startTime': activity.FieldVisitStartTime})
-      Object.assign(postData, {'endTime': activity.FieldVisitEndTime})
-      Object.assign(postData, {'samplingLocation': visitInfo[index].samplingLocation})
-      Object.assign(postData, {'fieldVisit': {'id': visitInfo[index].fieldVisit}})
-
-      await this.aqiService.fieldActivities(postData)
-      break
-    }
-  }
-
-  async parseFile(file: Express.Multer.File) {
-    const path = require("path");
-    const extention = path.extname(file.originalname);
-    if (extention == ".xlsx") {
-      const workbook = XLSX.read(file.buffer, { type: "buffer" });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, {
-        header: 1,
-        defval: "",
-        raw: false,
-      });
-
-      const headers = (jsonData[0] as string[]).map((key) =>
-        key.replace(/\s+/g, ""),
-      );
-
-      const allRecords = jsonData.slice(1).map((row) => {
-        return headers.reduce(
-          (obj, key, index) => {
-            obj[key] = String(row[index]);
-            return obj;
-          },
-          {} as Record<string, any>,
-        );
-      });
-
-      const fieldVisitCustomAttributes: Partial<FieldVisits> = {
-        PlanningStatus: "DONE",
-      };
-      
-      const fieldActivityCustomAttrib: Partial<FieldActivities> = {
-        ActivityType: 'SAMPLE_ROUTINE',
-      };
-
-      const allFieldVisits = filterData<FieldVisits>(
-        allRecords,
-        Object.keys(visits),
-        fieldVisitCustomAttributes,
-      );
-      const allFieldActivities = filterData<FieldActivities>(
-        allRecords,
-        Object.keys(activities),
-        fieldActivityCustomAttrib,
-      );
-
-      let visitInfo = await this.postFieldVisits(allFieldVisits);
-      let activityIDs = await this.postFieldActivities(visitInfo, allFieldActivities);
-    }
-  }
+    private prisma: PrismaService) {}
 
   async create(body: any, file: Express.Multer.File) {
     const createFileSubmissionDto = new CreateFileSubmissionDto();
@@ -274,61 +24,74 @@ export class FileSubmissionsService {
     */
 
     // Call to function that makes API call to save file in the S3 bucket via COMS
-    // let comsSubmissionID = await saveToS3(body.token, file);
-    // const path = require('path');
-    // const extention = path.extname(file.originalname)
-    // const baseName = path.basename(file.originalname, extention)
-    // const newFileName = `${baseName}-${comsSubmissionID}${extention}`
+    let comsSubmissionID = await saveToS3(body.token, file);
+    const path = require('path');
+    const extention = path.extname(file.originalname)
+    const baseName = path.basename(file.originalname, extention)
+    const newFileName = `${baseName}-${comsSubmissionID}${extention}`
 
-    // // Creating file DTO and inserting it in the database with the file GUID from the S3 bucket
-    // createFileSubmissionDto.submission_id = comsSubmissionID;
-    // createFileSubmissionDto.filename = newFileName;;
-    // createFileSubmissionDto.submission_date = new Date();
-    // createFileSubmissionDto.submitter_user_id = body.userID;
-    // createFileSubmissionDto.submission_status_code = (
-    //   await this.prisma.submission_status_code.findUnique({
-    //     where: { submission_status_code: "INPROGRESS" },
-    //   })
-    // ).submission_status_code;
-    // createFileSubmissionDto.submitter_agency_name = "SALUSSYSTEMS"; // TODO: change this once BCeID is set up
-    // createFileSubmissionDto.sample_count = 0;
-    // createFileSubmissionDto.result_count = 0;
-    // createFileSubmissionDto.organization_guid = body.orgGUID; // TODO: change this once BCeID is set up
-    // createFileSubmissionDto.create_user_id = body.userID;
-    // createFileSubmissionDto.create_utc_timestamp = new Date();
-    // createFileSubmissionDto.update_user_id = body.userID;
-    // createFileSubmissionDto.update_utc_timestamp = new Date();
+    // Creating file DTO and inserting it in the database with the file GUID from the S3 bucket
+    createFileSubmissionDto.submission_id = comsSubmissionID;
+    createFileSubmissionDto.filename = newFileName;;
+    createFileSubmissionDto.submission_date = new Date();
+    createFileSubmissionDto.submitter_user_id = body.userID;
+    createFileSubmissionDto.submission_status_code = (
+      await this.prisma.submission_status_code.findUnique({
+        where: { submission_status_code: "QUEUED" },
+      })
+    ).submission_status_code;
+    createFileSubmissionDto.submitter_agency_name = "SALUSSYSTEMS"; // TODO: change this once BCeID is set up
+    createFileSubmissionDto.sample_count = 0;
+    createFileSubmissionDto.result_count = 0;
+    createFileSubmissionDto.organization_guid = body.orgGUID; // TODO: change this once BCeID is set up
+    createFileSubmissionDto.create_user_id = body.userID;
+    createFileSubmissionDto.create_utc_timestamp = new Date();
+    createFileSubmissionDto.update_user_id = body.userID;
+    createFileSubmissionDto.update_utc_timestamp = new Date();
 
-    // const newFilePostData: Prisma.file_submissionCreateInput = {
-    //   submission_id: createFileSubmissionDto.submission_id,
-    //   file_name: createFileSubmissionDto.filename,
-    //   submission_date: createFileSubmissionDto.submission_date,
-    //   submitter_user_id: createFileSubmissionDto.submitter_user_id,
-    //   submission_status: { connect: { submission_status_code: "INPROGRESS" } },
-    //   submitter_agency_name: createFileSubmissionDto.submitter_agency_name,
-    //   sample_count: createFileSubmissionDto.sample_count,
-    //   results_count: createFileSubmissionDto.result_count,
-    //   active_ind: createFileSubmissionDto.active_ind,
-    //   error_log: createFileSubmissionDto.error_log,
-    //   organization_guid: createFileSubmissionDto.organization_guid,
-    //   create_user_id: createFileSubmissionDto.create_user_id,
-    //   create_utc_timestamp: createFileSubmissionDto.create_utc_timestamp,
-    //   update_user_id: createFileSubmissionDto.update_user_id,
-    //   update_utc_timestamp: createFileSubmissionDto.update_utc_timestamp,
-    // };
+    const newFilePostData: Prisma.file_submissionCreateInput = {
+      submission_id: createFileSubmissionDto.submission_id,
+      file_name: createFileSubmissionDto.filename,
+      submission_date: createFileSubmissionDto.submission_date,
+      submitter_user_id: createFileSubmissionDto.submitter_user_id,
+      submission_status: { connect: { submission_status_code: "QUEUED" } },
+      submitter_agency_name: createFileSubmissionDto.submitter_agency_name,
+      sample_count: createFileSubmissionDto.sample_count,
+      results_count: createFileSubmissionDto.result_count,
+      active_ind: createFileSubmissionDto.active_ind,
+      error_log: createFileSubmissionDto.error_log,
+      organization_guid: createFileSubmissionDto.organization_guid,
+      create_user_id: createFileSubmissionDto.create_user_id,
+      create_utc_timestamp: createFileSubmissionDto.create_utc_timestamp,
+      update_user_id: createFileSubmissionDto.update_user_id,
+      update_utc_timestamp: createFileSubmissionDto.update_utc_timestamp,
+    };
 
-    // const newFile = await this.prisma.$transaction([
-    //   this.prisma.file_submission.create({ data: newFilePostData }),
-    // ]);
+    const newFile = await this.prisma.$transaction([
+      this.prisma.file_submission.create({ data: newFilePostData }),
+    ]);
 
-    this.parseFile(file);
-
-    // return newFile[0];
-    return null;
+    return newFile[0];
   }
 
-  findAll() {
-    return `This action returns all fileSubmissions`;
+  async findByCode(submissionCode: string) {
+    const query = {
+      where: {
+        submission_status_code: {
+          equals: submissionCode,
+        },
+      },
+    };
+
+    const [results, count] = await this.prisma.$transaction([
+      this.prisma.file_submission.findMany(query),
+
+      this.prisma.file_submission.count({
+        where: query.where,
+      }),
+    ]);
+
+    return results;
   }
 
   async findBySearch(body: any): Promise<FileResultsWithCount<FileInfo>> {
@@ -487,4 +250,23 @@ async function saveToS3(token: any, file: Express.Multer.File) {
   });
 
   return fileGUID;
+}
+
+async function getFromS3(submission_id: string){
+  const axios = require("axios");
+
+  let config = {
+    method: "get",
+    maxBodyLength: Infinity,
+    url: `${process.env.COMS_URI}/v1/object/${submission_id}`,
+    headers: {
+      "Accept": "application/json",
+    },
+  };
+
+  await axios.request(config).then((response) => {
+    console.log(response)
+  });
+
+  return null;
 }
