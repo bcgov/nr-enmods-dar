@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
-import { FieldActivities, FieldVisits } from "src/types/types";
+import { FieldActivities, FieldSpecimens, FieldVisits } from "src/types/types";
 import { AqiApiService } from "src/aqi_api/aqi_api.service";
 import * as XLSX from "xlsx";
 import { PrismaService } from "nestjs-prisma";
@@ -25,11 +25,25 @@ const activities: FieldActivities = {
   DepthLower: "",
   DepthUnit: "",
   LocationID: "",
-  FieldVisitStartTime: "",
-  FieldVisitEndTime: "",
+  ObservedDateTime: "",
+  ObservedDateTimeEnd: "",
   ActivityType: "SAMPLE_ROUTINE",
   ActivityName: ""
 };
+
+const specimens: FieldSpecimens = {
+  WorkOrderNumber: "",
+  FieldFiltered: "",
+  FieldFilterComment: "",
+  FieldPreservative: "",
+  ObservedDateTime: "",
+  ObservedDateTimeEnd: "",
+  Medium: "",
+  EALabReportID: "",
+  SpecimenName: "",
+  TissueType: "",
+  LabArrivalTemp: ""
+}
 
 @Injectable()
 export class FileParseValidateService {
@@ -189,6 +203,7 @@ export class FileParseValidateService {
 
   async postFieldActivities(visitInfo: any, activityData: any) {
     let postData = {}
+    let activityId = []
     const extendedAttribs = {'extendedAttributes': []}
     for (const [index,activity] of activityData.entries()){
       let collectionMethodCustomID = activity.CollectionMethod
@@ -208,14 +223,49 @@ export class FileParseValidateService {
       
       Object.assign(postData, {'type': activity.ActivityType})
       Object.assign(postData, extendedAttribs)
-      Object.assign(postData, {'startTime': activity.FieldVisitStartTime})
-      Object.assign(postData, {'endTime': activity.FieldVisitEndTime})
+      Object.assign(postData, {'startTime': activity.ObservedDateTime})
+      Object.assign(postData, {'endTime': activity.ObservedDateTimeEnd})
       Object.assign(postData, {'samplingLocation': visitInfo[index].samplingLocation})
       Object.assign(postData, {'fieldVisit': {'id': visitInfo[index].fieldVisit}})
       Object.assign(postData, {'customId': activity.ActivityName})
 
-      await this.aqiService.fieldActivities(postData)
+      let currentActivity = {}
+      Object.assign(currentActivity, {'activity': {'id': await this.aqiService.fieldActivities(postData), 'customId': activity.ActivityName, 'startTime': activity.ObservedDateTime}})
+      activityId.push(currentActivity)
       break
+    }
+    return activityId;
+  }
+
+  async postFieldSpecimens(activityInfo: any, specimenData: any) {
+    let postData = {}
+    const extendedAttribs = {'extendedAttributes': []}
+    for (const [index,specimen] of specimenData.entries()){
+      let EAWorkOrderNumberCustomID = 'Work Order Number'
+      let EATissueType = 'Specimen Tissue Type'
+      let EALabArrivalTemp = 'Specimen Lab Arrival Temperature (°C)'
+      let mediumCustomID = specimen.Medium
+      let FieldFiltered = specimen.FieldFiltered
+      let FieldFilterComment = specimen.FieldFilterComment
+
+      Object.assign(postData, await this.queryCodeTables("MEDIUM", mediumCustomID))
+      // get the EA custom id (EA Work Order Number, FieldFiltered, FieldFilterComment, FieldPreservative, EALabReportID, SpecimenName) and find the GUID
+      extendedAttribs['extendedAttributes'].push(await this.queryCodeTables("EXTENDED_ATTRIB", [EAWorkOrderNumberCustomID, specimen.WorkOrderNumber]))
+      extendedAttribs['extendedAttributes'].push(await this.queryCodeTables("EXTENDED_ATTRIB", [EATissueType, specimen.TissueType]))
+      extendedAttribs['extendedAttributes'].push(await this.queryCodeTables("EXTENDED_ATTRIB", [EALabArrivalTemp, specimen.LabArrivalTemp]))
+
+      if (FieldFiltered == 'TRUE'){
+        Object.assign(postData, {'filtered': 'true'})
+        Object.assign(postData, {'filtrationComment': FieldFilterComment})
+      }else{
+        Object.assign(postData, {'filtered': 'false'})
+      }
+      Object.assign(postData, {'preservative': specimen.FieldPreservative})
+      Object.assign(postData, {'name' : specimen.SpecimenName})
+      Object.assign(postData, {'activity' : activityInfo[index].activity})
+      Object.assign(postData, extendedAttribs)
+
+      await this.aqiService.fieldSpecimens(postData)
     }
   }
 
@@ -281,9 +331,15 @@ export class FileParseValidateService {
         Object.keys(activities),
         fieldActivityCustomAttrib,
       );
+      const allSpecimens = this.filterFile<FieldSpecimens>(
+        allRecords,
+        Object.keys(specimens),
+        null,
+      );
 
       let visitInfo = await this.postFieldVisits(allFieldVisits);
-      let activityIDs = await this.postFieldActivities(visitInfo, allFieldActivities);
+      let activityInfo = await this.postFieldActivities(visitInfo, allFieldActivities);
+      await this.postFieldSpecimens(activityInfo, allSpecimens);
     }
   }
 }
