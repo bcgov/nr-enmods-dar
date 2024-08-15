@@ -64,7 +64,8 @@ export type FieldActivities = {
   LocationID: string;
   FieldVisitStartTime: string;
   FieldVisitEndTime: string;
-  ActivityType: 'SAMPLE_ROUTINE'
+  ActivityType: 'SAMPLE_ROUTINE';
+  ActivityName: '';
 }
 
 export type EmailTemplate = {

@@ -27,7 +27,8 @@ const activities: FieldActivities = {
   LocationID: "",
   FieldVisitStartTime: "",
   FieldVisitEndTime: "",
-  ActivityType: "SAMPLE_ROUTINE"
+  ActivityType: "SAMPLE_ROUTINE",
+  ActivityName: ""
 };
 
 @Injectable()
@@ -211,6 +212,7 @@ export class FileParseValidateService {
       Object.assign(postData, {'endTime': activity.FieldVisitEndTime})
       Object.assign(postData, {'samplingLocation': visitInfo[index].samplingLocation})
       Object.assign(postData, {'fieldVisit': {'id': visitInfo[index].fieldVisit}})
+      Object.assign(postData, {'customId': activity.ActivityName})
 
       await this.aqiService.fieldActivities(postData)
       break

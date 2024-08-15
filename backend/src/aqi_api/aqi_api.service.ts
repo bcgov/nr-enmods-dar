@@ -23,7 +23,7 @@ export class AqiApiService {
         this.logger.log(`API call to Field Visits succeeded: ${response.status}`);
         return response.data.id;
     }catch(err){
-        console.error("API CALL TO Field Visits failed: ", err);
+        console.error("API CALL TO Field Visits failed: ", err.response.data.message);
     }
   }
 
@@ -33,7 +33,7 @@ export class AqiApiService {
         this.logger.log(`API call to Activities succeeded: ${response.status}`);
         return response.data.id;
     }catch(err){
-        console.error("API CALL TO Activities failed: ", err);
+        console.error("API CALL TO Activities failed: ", err.response.data.message);
     }
   }
 }
