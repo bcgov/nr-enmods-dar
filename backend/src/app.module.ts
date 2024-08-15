@@ -21,6 +21,7 @@ import { FileStatusCodesModule } from "./file_status_codes/file_status_codes.mod
 import { CronJobService } from "./cron-job/cron-job.service";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { FtpModule } from "./ftp/ftp.module";
+import { FileValidationModule } from './file_validation/file_validation.module';
 
 const DB_HOST = process.env.POSTGRES_HOST || "localhost";
 const DB_USER = process.env.POSTGRES_USER || "postgres";
@@ -65,6 +66,7 @@ function getMiddlewares() {
     NotificationsModule,
     FileStatusCodesModule,
     FtpModule,
+    FileValidationModule,
   ],
   controllers: [AppController, MetricsController, HealthController],
   providers: [AppService, CronJobService],

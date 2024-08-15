@@ -6,7 +6,7 @@ import { FileResultsWithCount } from "src/interface/fileResultsWithCount";
 import { file_submission } from "@prisma/client";
 import { FileInfo, FieldVisits, FieldActivities } from "src/types/types";
 import { randomUUID } from "crypto";
-import * as XLSX from 'xlsx';
+import * as XLSX from "xlsx";
 
 // Create a new object with only the subset keys
 const visits: FieldVisits = {
@@ -18,7 +18,7 @@ const visits: FieldVisits = {
   FieldVisitEndTime: "",
   FieldVisitParticipants: "",
   FieldVisitComments: "",
-  PlanningStatus: "DONE"
+  PlanningStatus: "DONE",
 };
 
 const activities: FieldActivities = {
@@ -26,19 +26,19 @@ const activities: FieldActivities = {
   Medium: "",
   DepthUpper: "",
   DepthLower: "",
-  DepthUnit: ""
+  DepthUnit: "",
 };
 
 function filterData<T>(data: any[], keys, customAttributes): Partial<T>[] {
-  return data.map(row => {
+  return data.map((row) => {
     const filteredObj: Partial<T> = {};
-    keys.forEach(key => {
+    keys.forEach((key) => {
       if (row.hasOwnProperty(key)) {
         filteredObj[key] = row[key];
       }
     });
 
-    if (customAttributes){
+    if (customAttributes) {
       Object.assign(filteredObj, customAttributes);
     }
 
@@ -51,30 +51,57 @@ export class FileSubmissionsService {
   constructor(private prisma: PrismaService) {}
 
   parseFile(file: Express.Multer.File) {
-    const path = require('path');
-    const extention = path.extname(file.originalname)
-    if (extention == ".xlsx"){
-      const workbook = XLSX.read(file.buffer, {type: 'buffer'})
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]]
-      const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, {header: 1, defval: ''})
-      
-      const headers = (jsonData[0] as string[]).map(key => key.replace(/\s+/g, ''))
-
-      const allRecords = jsonData.slice(1).map(row => {
-        return headers.reduce((obj, key, index) => {
-          obj[key] = (row as string[])[index];
-          return obj;
-        }, {} as Record<string, any>);
+    const path = require("path");
+    const extention = path.extname(file.originalname);
+    if (extention == ".xlsx") {
+      const workbook = XLSX.read(file.buffer, { type: "buffer" });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, {
+        header: 1,
+        defval: "",
       });
 
-      const fieldVisitCustomAttributes: Partial<FieldVisits> = { PlanningStatus: 'DONE'}
+      const headers = (jsonData[0] as string[]).map((key) =>
+        key.replace(/\s+/g, ""),
+      );
 
-      const allFieldVisits = filterData<FieldVisits>(allRecords, Object.keys(visits), fieldVisitCustomAttributes)
-      const allFieldActivities = filterData<FieldActivities>(allRecords, Object.keys(activities), {})
+      const allRecords = jsonData.slice(1).map((row) => {
+        return headers.reduce(
+          (obj, key, index) => {
+            obj[key] = (row as string[])[index];
+            return obj;
+          },
+          {} as Record<string, any>,
+        );
+      });
+
+      const fieldVisitCustomAttributes: Partial<FieldVisits> = {
+        PlanningStatus: "DONE",
+      };
+
+      const allFieldVisits = filterData<FieldVisits>(
+        allRecords,
+        Object.keys(visits),
+        fieldVisitCustomAttributes,
+      );
+      const allFieldActivities = filterData<FieldActivities>(
+        allRecords,
+        Object.keys(activities),
+        {},
+      );
 
       console.log(allFieldVisits);
       console.log(allFieldActivities);
     }
+  }
+
+  parseFileFromFtp(
+    file: Buffer,
+    username: string,
+    fileName: string,
+    filePath: string,
+  ) {
+    console.log("TODO: Parsing file from FTP...");
   }
 
   async create(body: any, file: Express.Multer.File) {
@@ -136,10 +163,10 @@ export class FileSubmissionsService {
     //   this.prisma.file_submission.create({ data: newFilePostData }),
     // ]);
 
-    this.parseFile(file)
+    this.parseFile(file);
 
     // return newFile[0];
-    return null
+    return null;
   }
 
   findAll() {
@@ -148,9 +175,9 @@ export class FileSubmissionsService {
 
   async findBySearch(body: any): Promise<FileResultsWithCount<FileInfo>> {
     let records: FileResultsWithCount<FileInfo> = { count: 0, results: [] };
-    
-    let limit:number = +body.pageSize
-    let offset:number = (body.page) * limit;
+
+    let limit: number = +body.pageSize;
+    let offset: number = body.page * limit;
 
     const whereClause = {
       file_name: {},
@@ -228,7 +255,9 @@ export class FileSubmissionsService {
     return records;
   }
 
-  async findOne(fileName: string): Promise<FileResultsWithCount<file_submission>> {
+  async findOne(
+    fileName: string,
+  ): Promise<FileResultsWithCount<file_submission>> {
     let records: FileResultsWithCount<file_submission> = {
       count: 0,
       results: [],
@@ -258,7 +287,7 @@ export class FileSubmissionsService {
       }),
     ]);
 
-    console.log(results)
+    console.log(results);
 
     records = { ...results, count, results };
     return records;
@@ -274,32 +303,32 @@ export class FileSubmissionsService {
 }
 
 async function saveToS3(token: any, file: Express.Multer.File) {
-  const path = require('path');
-  let fileGUID = null
-  const originalFileName = file.originalname
-  const guid = randomUUID()
-  const extention = path.extname(originalFileName)
-  const baseName = path.basename(originalFileName, extention)
-  const newFileName = `${baseName}-${guid}${extention}`
+  const path = require("path");
+  let fileGUID = null;
+  const originalFileName = file.originalname;
+  const guid = randomUUID();
+  const extention = path.extname(originalFileName);
+  const baseName = path.basename(originalFileName, extention);
+  const newFileName = `${baseName}-${guid}${extention}`;
 
   const axios = require("axios");
 
   let config = {
-    method: 'put',
+    method: "put",
     maxBodyLength: Infinity,
     url: `${process.env.COMS_URI}/v1/object?bucketId=${process.env.COMS_BUCKET_ID}`,
-    headers: { 
-      'Content-Disposition': 'attachment; filename="' + newFileName + '"', 
-      'x-amz-meta-complaint-id': '23-000076', 
-      'Content-Type': file.mimetype, 
-      'Authorization': 'Bearer ' + token
+    headers: {
+      "Content-Disposition": 'attachment; filename="' + newFileName + '"',
+      "x-amz-meta-complaint-id": "23-000076",
+      "Content-Type": file.mimetype,
+      Authorization: "Bearer " + token,
     },
-    data : file.buffer
+    data: file.buffer,
   };
 
   await axios.request(config).then((response) => {
-    fileGUID = response.data.id;   
+    fileGUID = response.data.id;
   });
 
-  return fileGUID
+  return fileGUID;
 }

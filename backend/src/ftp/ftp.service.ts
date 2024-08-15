@@ -4,9 +4,10 @@ import * as ftp from "basic-ftp";
 import * as path from "path";
 import * as dotenv from "dotenv";
 import { Writable } from "stream";
-import { FtpFileValidationService } from "./ftp_file_validation.service";
 import { NotificationsService } from "src/notifications/notifications.service";
 import { PrismaService } from "nestjs-prisma";
+import { FileValidationService } from "src/file_validation/file_validation.service";
+import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
 
 dotenv.config();
 
@@ -17,9 +18,9 @@ export class FtpService {
   private remoteBasePath: string;
 
   constructor(
-    private ftpFileValidationService: FtpFileValidationService,
-    private notificationService: NotificationsService,
-    private prisma: PrismaService,
+    private fileValidationService: FileValidationService,
+    private notificationsService: NotificationsService,
+    private fileSubmissionsService: FileSubmissionsService,
   ) {
     this.client = new ftp.Client();
     this.client.ftp.verbose = true;
@@ -82,6 +83,14 @@ export class FtpService {
                 // if the file is > 10MB, don't download it
                 if (file.size > 10 * 1024 * 1024) {
                   errors = ["File size exceeds the limit of 10MB."];
+                  // don't download the file, just send out a notification of the error
+                  const ministryContact = ""; // should be obtained from file somehow
+                  await this.notificationsService.notifyFtpUserOfError(
+                    folder.name,
+                    file.name,
+                    errors,
+                    ministryContact,
+                  );
                 } else {
                   const dataBuffer = [];
                   // download file to a stream that puts chunks into an array
@@ -96,29 +105,38 @@ export class FtpService {
                   // convert chunk array to buffer
                   const fileBuffer = Buffer.concat(dataBuffer);
                   // pass file buffer to validation
-                  errors = await this.ftpFileValidationService.processFile(
+                  await this.fileSubmissionsService.parseFileFromFtp(
                     fileBuffer,
-                    filePath,
-                  );
-                }
-                if (errors.length > 0) {
-                  this.logger.log(`Validation failure for: ${filePath}`);
-                  errors.forEach((error) => this.logger.log(error));
-                  this.logger.log(``);
-                  // send out a notification to the file submitter & ministry contact outlining the errors
-                  const ministryContact = ""; // should be obtained from file somehow
-                  await this.notifyUserOfError(
                     folder.name,
                     file.name,
-                    errors,
-                    ministryContact,
+                    filePath,
                   );
-                } else {
-                  this.logger.log(`Validation success for: ${filePath}`);
-                  this.logger.log(``);
-                  // pass to file validation service
-                  // await this.validationService.handleFile(file); // made up function call
+                  // debug
+                  await this.fileValidationService.processFile(
+                    fileBuffer,
+                    filePath,
+                    folder.name, // username
+                    file.name,
+                  );
                 }
+                // if (errors.length > 0) {
+                //   this.logger.log(`Validation failure for: ${filePath}`);
+                //   errors.forEach((error) => this.logger.log(error));
+                //   this.logger.log(``);
+                //   // send out a notification to the file submitter & ministry contact outlining the errors
+                //   const ministryContact = ""; // should be obtained from file somehow
+                //   await this.notifyUserOfError(
+                //     folder.name,
+                //     file.name,
+                //     errors,
+                //     ministryContact,
+                //   );
+                // } else {
+                //   this.logger.log(`Validation success for: ${filePath}`);
+                //   this.logger.log(``);
+                //   // pass to file validation service
+                //   // await this.validationService.handleFile(file); // made up function call
+                // }
                 // this.logger.log(`Cleaning up file: ${filePath}`);
                 // await this.client.remove(filePath);
               } catch (error) {
@@ -138,54 +156,8 @@ export class FtpService {
     }
   }
 
-  /**
-   * Notifies the Data Submitter & Ministry Contact of the file validation errors.
-   * @param username
-   * @param fileName
-   * @param errors
-   * @param ministryContact
-   */
-  async notifyUserOfError(
-    username: string,
-    fileName: string,
-    errors: string[],
-    ministryContact: string,
-  ) {
-    const ftpUser = await this.prisma.ftp_users.findUnique({
-      where: { username: username },
-    });
-    const notificationVars = {
-      file_name: fileName,
-      user_account_name: username,
-      location_ids: [],
-      file_status: "FAILED",
-      errors: errors.join(","),
-      warnings: "",
-    };
-
-    // Notify the Data Submitter
-    if (this.isValidEmail(ftpUser.email)) {
-      await this.notificationService.sendDataSubmitterNotification(
-        ftpUser.email,
-        notificationVars,
-      );
-    }
-    // Notify the Ministry Contact (if they have not disabled notifications)
-    if (this.isValidEmail(ministryContact)) {
-      await this.notificationService.sendContactNotification(
-        ministryContact,
-        notificationVars,
-      );
-    }
-  }
-
-  isValidEmail(email: string): boolean {
-    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-    return emailRegex.test(email);
-  }
-
   // @Cron("0 */5 * * * *") // every 5 minutes
-  // @Cron("0,30 * * * * *") // every 30s
+  @Cron("0,15,30,45 * * * * *") // every 15s
   async handleCron() {
     this.logger.log("START ################");
     this.logger.log("######################");
