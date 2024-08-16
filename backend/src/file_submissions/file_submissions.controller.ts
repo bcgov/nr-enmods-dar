@@ -53,8 +53,10 @@ export class FileSubmissionsController {
   }
 
   @Get()
-  findAll() {
-    return this.fileSubmissionsService.findAll();
+  findByCode(
+    @Param("submissionCode") submissionCode: string
+  ) {
+    return this.fileSubmissionsService.findByCode(submissionCode);
   }
 
   @Post("search")

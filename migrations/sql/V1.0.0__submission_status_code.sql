@@ -59,4 +59,14 @@ values (
         (now() at time zone 'utc'),
         'VMANAWAT',
         (now() at time zone 'utc')
+    ),
+    (
+        'QUEUED',
+        'Queued',
+        20,
+        true,
+        'VMANAWAT',
+        (now() at time zone 'utc'),
+        'VMANAWAT',
+        (now() at time zone 'utc')
     );

@@ -6,5 +6,6 @@ import { SanitizeService } from 'src/sanitize/sanitize.service';
 @Module({
   controllers: [FileSubmissionsController],
   providers: [FileSubmissionsService, SanitizeService],
+  imports: []
 })
 export class FileSubmissionsModule {}

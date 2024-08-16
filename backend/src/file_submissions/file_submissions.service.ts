@@ -3,79 +3,14 @@ import { CreateFileSubmissionDto } from "./dto/create-file_submission.dto";
 import { UpdateFileSubmissionDto } from "./dto/update-file_submission.dto";
 import { PrismaService } from "nestjs-prisma";
 import { FileResultsWithCount } from "src/interface/fileResultsWithCount";
-import { file_submission } from "@prisma/client";
-import { FileInfo, FieldVisits, FieldActivities } from "src/types/types";
+import { file_submission, Prisma } from "@prisma/client";
+import { FileInfo } from "src/types/types";
 import { randomUUID } from "crypto";
-import * as XLSX from 'xlsx';
-
-// Create a new object with only the subset keys
-const visits: FieldVisits = {
-  MinistryContact: "",
-  SamplingAgency: "",
-  Project: "",
-  LocationID: "",
-  FieldVisitStartTime: "",
-  FieldVisitEndTime: "",
-  FieldVisitParticipants: "",
-  FieldVisitComments: "",
-  PlanningStatus: "DONE"
-};
-
-const activities: FieldActivities = {
-  CollectionMethod: "",
-  Medium: "",
-  DepthUpper: "",
-  DepthLower: "",
-  DepthUnit: ""
-};
-
-function filterData<T>(data: any[], keys, customAttributes): Partial<T>[] {
-  return data.map(row => {
-    const filteredObj: Partial<T> = {};
-    keys.forEach(key => {
-      if (row.hasOwnProperty(key)) {
-        filteredObj[key] = row[key];
-      }
-    });
-
-    if (customAttributes){
-      Object.assign(filteredObj, customAttributes);
-    }
-
-    return filteredObj;
-  });
-}
 
 @Injectable()
 export class FileSubmissionsService {
-  constructor(private prisma: PrismaService) {}
-
-  parseFile(file: Express.Multer.File) {
-    const path = require('path');
-    const extention = path.extname(file.originalname)
-    if (extention == ".xlsx"){
-      const workbook = XLSX.read(file.buffer, {type: 'buffer'})
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]]
-      const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, {header: 1, defval: ''})
-      
-      const headers = (jsonData[0] as string[]).map(key => key.replace(/\s+/g, ''))
-
-      const allRecords = jsonData.slice(1).map(row => {
-        return headers.reduce((obj, key, index) => {
-          obj[key] = (row as string[])[index];
-          return obj;
-        }, {} as Record<string, any>);
-      });
-
-      const fieldVisitCustomAttributes: Partial<FieldVisits> = { PlanningStatus: 'DONE'}
-
-      const allFieldVisits = filterData<FieldVisits>(allRecords, Object.keys(visits), fieldVisitCustomAttributes)
-      const allFieldActivities = filterData<FieldActivities>(allRecords, Object.keys(activities), {})
-
-      console.log(allFieldVisits);
-      console.log(allFieldActivities);
-    }
-  }
+  constructor(
+    private prisma: PrismaService) {}
 
   async create(body: any, file: Express.Multer.File) {
     const createFileSubmissionDto = new CreateFileSubmissionDto();
@@ -89,68 +24,81 @@ export class FileSubmissionsService {
     */
 
     // Call to function that makes API call to save file in the S3 bucket via COMS
-    // let comsSubmissionID = await saveToS3(body.token, file);
-    // const path = require('path');
-    // const extention = path.extname(file.originalname)
-    // const baseName = path.basename(file.originalname, extention)
-    // const newFileName = `${baseName}-${comsSubmissionID}${extention}`
+    let comsSubmissionID = await saveToS3(body.token, file);
+    const path = require('path');
+    const extention = path.extname(file.originalname)
+    const baseName = path.basename(file.originalname, extention)
+    const newFileName = `${baseName}-${comsSubmissionID}${extention}`
 
-    // // Creating file DTO and inserting it in the database with the file GUID from the S3 bucket
-    // createFileSubmissionDto.submission_id = comsSubmissionID;
-    // createFileSubmissionDto.filename = newFileName;;
-    // createFileSubmissionDto.submission_date = new Date();
-    // createFileSubmissionDto.submitter_user_id = body.userID;
-    // createFileSubmissionDto.submission_status_code = (
-    //   await this.prisma.submission_status_code.findUnique({
-    //     where: { submission_status_code: "INPROGRESS" },
-    //   })
-    // ).submission_status_code;
-    // createFileSubmissionDto.submitter_agency_name = "SALUSSYSTEMS"; // TODO: change this once BCeID is set up
-    // createFileSubmissionDto.sample_count = 0;
-    // createFileSubmissionDto.result_count = 0;
-    // createFileSubmissionDto.organization_guid = body.orgGUID; // TODO: change this once BCeID is set up
-    // createFileSubmissionDto.create_user_id = body.userID;
-    // createFileSubmissionDto.create_utc_timestamp = new Date();
-    // createFileSubmissionDto.update_user_id = body.userID;
-    // createFileSubmissionDto.update_utc_timestamp = new Date();
+    // Creating file DTO and inserting it in the database with the file GUID from the S3 bucket
+    createFileSubmissionDto.submission_id = comsSubmissionID;
+    createFileSubmissionDto.filename = newFileName;;
+    createFileSubmissionDto.submission_date = new Date();
+    createFileSubmissionDto.submitter_user_id = body.userID;
+    createFileSubmissionDto.submission_status_code = (
+      await this.prisma.submission_status_code.findUnique({
+        where: { submission_status_code: "QUEUED" },
+      })
+    ).submission_status_code;
+    createFileSubmissionDto.submitter_agency_name = "SALUSSYSTEMS"; // TODO: change this once BCeID is set up
+    createFileSubmissionDto.sample_count = 0;
+    createFileSubmissionDto.result_count = 0;
+    createFileSubmissionDto.organization_guid = body.orgGUID; // TODO: change this once BCeID is set up
+    createFileSubmissionDto.create_user_id = body.userID;
+    createFileSubmissionDto.create_utc_timestamp = new Date();
+    createFileSubmissionDto.update_user_id = body.userID;
+    createFileSubmissionDto.update_utc_timestamp = new Date();
 
-    // const newFilePostData: Prisma.file_submissionCreateInput = {
-    //   submission_id: createFileSubmissionDto.submission_id,
-    //   file_name: createFileSubmissionDto.filename,
-    //   submission_date: createFileSubmissionDto.submission_date,
-    //   submitter_user_id: createFileSubmissionDto.submitter_user_id,
-    //   submission_status: { connect: { submission_status_code: "INPROGRESS" } },
-    //   submitter_agency_name: createFileSubmissionDto.submitter_agency_name,
-    //   sample_count: createFileSubmissionDto.sample_count,
-    //   results_count: createFileSubmissionDto.result_count,
-    //   active_ind: createFileSubmissionDto.active_ind,
-    //   error_log: createFileSubmissionDto.error_log,
-    //   organization_guid: createFileSubmissionDto.organization_guid,
-    //   create_user_id: createFileSubmissionDto.create_user_id,
-    //   create_utc_timestamp: createFileSubmissionDto.create_utc_timestamp,
-    //   update_user_id: createFileSubmissionDto.update_user_id,
-    //   update_utc_timestamp: createFileSubmissionDto.update_utc_timestamp,
-    // };
+    const newFilePostData: Prisma.file_submissionCreateInput = {
+      submission_id: createFileSubmissionDto.submission_id,
+      file_name: createFileSubmissionDto.filename,
+      submission_date: createFileSubmissionDto.submission_date,
+      submitter_user_id: createFileSubmissionDto.submitter_user_id,
+      submission_status: { connect: { submission_status_code: "QUEUED" } },
+      submitter_agency_name: createFileSubmissionDto.submitter_agency_name,
+      sample_count: createFileSubmissionDto.sample_count,
+      results_count: createFileSubmissionDto.result_count,
+      active_ind: createFileSubmissionDto.active_ind,
+      error_log: createFileSubmissionDto.error_log,
+      organization_guid: createFileSubmissionDto.organization_guid,
+      create_user_id: createFileSubmissionDto.create_user_id,
+      create_utc_timestamp: createFileSubmissionDto.create_utc_timestamp,
+      update_user_id: createFileSubmissionDto.update_user_id,
+      update_utc_timestamp: createFileSubmissionDto.update_utc_timestamp,
+    };
 
-    // const newFile = await this.prisma.$transaction([
-    //   this.prisma.file_submission.create({ data: newFilePostData }),
-    // ]);
+    const newFile = await this.prisma.$transaction([
+      this.prisma.file_submission.create({ data: newFilePostData }),
+    ]);
 
-    this.parseFile(file)
-
-    // return newFile[0];
-    return null
+    return newFile[0];
   }
 
-  findAll() {
-    return `This action returns all fileSubmissions`;
+  async findByCode(submissionCode: string) {
+    const query = {
+      where: {
+        submission_status_code: {
+          equals: submissionCode,
+        },
+      },
+    };
+
+    const [results, count] = await this.prisma.$transaction([
+      this.prisma.file_submission.findMany(query),
+
+      this.prisma.file_submission.count({
+        where: query.where,
+      }),
+    ]);
+
+    return results;
   }
 
   async findBySearch(body: any): Promise<FileResultsWithCount<FileInfo>> {
     let records: FileResultsWithCount<FileInfo> = { count: 0, results: [] };
-    
-    let limit:number = +body.pageSize
-    let offset:number = (body.page) * limit;
+
+    let limit: number = +body.pageSize;
+    let offset: number = body.page * limit;
 
     const whereClause = {
       file_name: {},
@@ -228,7 +176,9 @@ export class FileSubmissionsService {
     return records;
   }
 
-  async findOne(fileName: string): Promise<FileResultsWithCount<file_submission>> {
+  async findOne(
+    fileName: string,
+  ): Promise<FileResultsWithCount<file_submission>> {
     let records: FileResultsWithCount<file_submission> = {
       count: 0,
       results: [],
@@ -258,8 +208,6 @@ export class FileSubmissionsService {
       }),
     ]);
 
-    console.log(results)
-
     records = { ...results, count, results };
     return records;
   }
@@ -274,32 +222,51 @@ export class FileSubmissionsService {
 }
 
 async function saveToS3(token: any, file: Express.Multer.File) {
-  const path = require('path');
-  let fileGUID = null
-  const originalFileName = file.originalname
-  const guid = randomUUID()
-  const extention = path.extname(originalFileName)
-  const baseName = path.basename(originalFileName, extention)
-  const newFileName = `${baseName}-${guid}${extention}`
+  const path = require("path");
+  let fileGUID = null;
+  const originalFileName = file.originalname;
+  const guid = randomUUID();
+  const extention = path.extname(originalFileName);
+  const baseName = path.basename(originalFileName, extention);
+  const newFileName = `${baseName}-${guid}${extention}`;
 
   const axios = require("axios");
 
   let config = {
-    method: 'put',
+    method: "put",
     maxBodyLength: Infinity,
     url: `${process.env.COMS_URI}/v1/object?bucketId=${process.env.COMS_BUCKET_ID}`,
-    headers: { 
-      'Content-Disposition': 'attachment; filename="' + newFileName + '"', 
-      'x-amz-meta-complaint-id': '23-000076', 
-      'Content-Type': file.mimetype, 
-      'Authorization': 'Bearer ' + token
+    headers: {
+      "Content-Disposition": 'attachment; filename="' + newFileName + '"',
+      "x-amz-meta-complaint-id": "23-000076",
+      "Content-Type": file.mimetype,
+      Authorization: "Bearer " + token,
     },
-    data : file.buffer
+    data: file.buffer,
   };
 
   await axios.request(config).then((response) => {
-    fileGUID = response.data.id;   
+    fileGUID = response.data.id;
   });
 
-  return fileGUID
+  return fileGUID;
+}
+
+async function getFromS3(submission_id: string){
+  const axios = require("axios");
+
+  let config = {
+    method: "get",
+    maxBodyLength: Infinity,
+    url: `${process.env.COMS_URI}/v1/object/${submission_id}`,
+    headers: {
+      "Accept": "application/json",
+    },
+  };
+
+  await axios.request(config).then((response) => {
+    console.log(response)
+  });
+
+  return null;
 }

@@ -20,6 +20,8 @@ import { FileSubmissionsModule } from "./file_submissions/file_submissions.modul
 import { FileStatusCodesModule } from "./file_status_codes/file_status_codes.module";
 import { CronJobService } from "./cron-job/cron-job.service";
 import { NotificationsModule } from "./notifications/notifications.module";
+import { AqiApiModule } from "./aqi_api/aqi_api.module";
+import { FileParseValidateModule } from "./file_parse_and_validation/file_parse_and_validation.module";
 import { FtpModule } from "./ftp/ftp.module";
 
 const DB_HOST = process.env.POSTGRES_HOST || "localhost";
@@ -64,6 +66,8 @@ function getMiddlewares() {
     FileSubmissionsModule,
     NotificationsModule,
     FileStatusCodesModule,
+    FileParseValidateModule,
+    AqiApiModule,
     FtpModule,
   ],
   controllers: [AppController, MetricsController, HealthController],
