@@ -7,6 +7,9 @@ import { FileParseValidateService } from "src/file_parse_and_validation/file_par
 import * as fs from "fs";
 
 
+/**
+ * Cron Job service for filling code tables with data from AQI API
+ */
 @Injectable()
 export class CronJobService {
   private readonly logger = new Logger(CronJobService.name);
@@ -116,7 +119,7 @@ export class CronJobService {
     }
   }
 
-  @Cron("0 0 */2 * * *")
+  @Cron("0 0 */2 * * *") // every 2 hours
   private async fetchLocations() {
     this.logger.log(`#######################################################`);
     this.logger.log(`Starting Code Table Cron Job`);

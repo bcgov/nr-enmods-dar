@@ -109,3 +109,13 @@ model notifications {
   update_user_id       String   @db.VarChar(200)
   update_utc_timestamp DateTime @db.Timestamp(6)
 }
+
+model ftp_users {
+  id                   Int      @id @default(autoincrement())
+  username             String   @unique @db.VarChar(200)
+  email                String   @db.VarChar(200)
+  create_user_id       String   @db.VarChar(200)
+  create_utc_timestamp DateTime @db.Timestamp(6)
+  update_user_id       String   @db.VarChar(200)
+  update_utc_timestamp DateTime @db.Timestamp(6)
+}

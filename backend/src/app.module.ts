@@ -22,6 +22,7 @@ import { CronJobService } from "./cron-job/cron-job.service";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { AqiApiModule } from "./aqi_api/aqi_api.module";
 import { FileParseValidateModule } from "./file_parse_and_validation/file_parse_and_validation.module";
+import { FtpModule } from "./ftp/ftp.module";
 
 const DB_HOST = process.env.POSTGRES_HOST || "localhost";
 const DB_USER = process.env.POSTGRES_USER || "postgres";
@@ -66,7 +67,8 @@ function getMiddlewares() {
     NotificationsModule,
     FileStatusCodesModule,
     FileParseValidateModule,
-    AqiApiModule
+    AqiApiModule,
+    FtpModule,
   ],
   controllers: [AppController, MetricsController, HealthController],
   providers: [AppService, CronJobService],
@@ -76,7 +78,10 @@ export class AppModule {
   configure(consumer: MiddlewareConsumer) {
     consumer
       .apply(HTTPLoggerMiddleware)
-      .exclude({ path: "metrics", method: RequestMethod.ALL }, { path: "health", method: RequestMethod.ALL })
+      .exclude(
+        { path: "metrics", method: RequestMethod.ALL },
+        { path: "health", method: RequestMethod.ALL },
+      )
       .forRoutes("*");
   }
 }
