@@ -10,8 +10,8 @@ export class AdminService {
   constructor(private readonly httpService: HttpService) {}
 
   async getToken() {
-    const url = process.env.users_api_token_url;
-    const token = `${process.env.users_api_client_id}:${process.env.users_api_client_secret}`;
+    const url = process.env.USERS_API_TOKEN_URL;
+    const token = `${process.env.USERS_API_CLIENT_ID}:${process.env.USERS_API_CLIENT_SECRET}`;
     const encodedToken = Buffer.from(token).toString("base64");
     const config = {
       headers: {
@@ -23,7 +23,7 @@ export class AdminService {
     grantTypeParam.append("grant_type", "client_credentials");
     try {
       const response = await firstValueFrom(
-        this.httpService.post(url, grantTypeParam.toString(), config)
+        this.httpService.post(url, grantTypeParam.toString(), config),
       );
       return response.data.access_token;
     } catch (error) {
@@ -39,14 +39,14 @@ export class AdminService {
    */
   async findAll(): Promise<any[]> {
     const bearerToken = await this.getToken();
-    const adminUrl = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/roles/${Role.ENMODS_ADMIN}/users`;
-    const userUrl = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/roles/${Role.ENMODS_USER}/users`;
+    const adminUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/roles/${Role.ENMODS_ADMIN}/users`;
+    const userUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/roles/${Role.ENMODS_USER}/users`;
     const config = {
       headers: { Authorization: "Bearer " + bearerToken },
     };
     try {
       const adminResponse = await firstValueFrom(
-        this.httpService.get(adminUrl, config)
+        this.httpService.get(adminUrl, config),
       );
 
       const returnData: UserInfo[] = [];
@@ -64,12 +64,12 @@ export class AdminService {
         });
       });
       const userResponse = await firstValueFrom(
-        this.httpService.get(userUrl, config)
+        this.httpService.get(userUrl, config),
       );
       const userData = userResponse.data.data;
       userData.map((user: IdirUserInfo) => {
         const existingUser = returnData.find(
-          (u) => u.username === user.attributes.idir_username[0]
+          (u) => u.username === user.attributes.idir_username[0],
         );
         if (existingUser) {
           existingUser.role.push(Role.ENMODS_USER);
@@ -101,7 +101,7 @@ export class AdminService {
    * @returns
    */
   async userEmailSearch(email: string): Promise<any> {
-    const url = `${process.env.users_api_base_url}/${process.env.css_environment}/idir/users?&email=${email}`;
+    const url = `${process.env.USERS_API_BASE_URL}/${process.env.CSS_ENVIRONMENT}/idir/users?&email=${email}`;
     const bearerToken = await this.getToken();
 
     const config = {
@@ -109,7 +109,7 @@ export class AdminService {
     };
 
     const searchData: IdirUserInfo[] = await firstValueFrom(
-      this.httpService.get(url, config)
+      this.httpService.get(url, config),
     )
       .then((res) => {
         return res.data.data;
@@ -128,7 +128,7 @@ export class AdminService {
    * @returns
    */
   async addRoles(userRolesDto: UserRolesDto): Promise<any> {
-    const addRolesUrl = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/user-role-mappings`;
+    const addRolesUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/user-role-mappings`;
     const bearerToken = await this.getToken();
 
     const config = {
@@ -145,8 +145,8 @@ export class AdminService {
             username: userRolesDto.idirUsername,
             operation: "add",
           },
-          config
-        )
+          config,
+        ),
       )
         .then((res) => {
           return res.data;
@@ -166,8 +166,8 @@ export class AdminService {
             username: userRolesDto.idirUsername,
             operation: "add",
           },
-          config
-        )
+          config,
+        ),
       )
         .then((res) => {
           return res.data;
@@ -193,7 +193,7 @@ export class AdminService {
     };
     for (const role of userRolesDto.roles) {
       if (role === Role.ENMODS_USER) {
-        const url = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/user-role-mappings`;
+        const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/user-role-mappings`;
         await firstValueFrom(
           this.httpService.post(
             url,
@@ -202,8 +202,8 @@ export class AdminService {
               username: userRolesDto.idirUsername,
               operation: "del",
             },
-            config
-          )
+            config,
+          ),
         )
           .then((res) => {
             return res.data;
@@ -214,7 +214,7 @@ export class AdminService {
           });
       }
       if (role === Role.ENMODS_ADMIN) {
-        const url = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/user-role-mappings`;
+        const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/user-role-mappings`;
         await firstValueFrom(
           this.httpService.post(
             url,
@@ -223,8 +223,8 @@ export class AdminService {
               username: userRolesDto.idirUsername,
               operation: "del",
             },
-            config
-          )
+            config,
+          ),
         )
           .then((res) => {
             return res.data;
@@ -247,9 +247,9 @@ export class AdminService {
   async updateRoles(
     idirUsername: string,
     existingRoles: string[],
-    roles: string[]
+    roles: string[],
   ): Promise<any> {
-    const url = `${process.env.users_api_base_url}/integrations/${process.env.integration_id}/${process.env.css_environment}/user-role-mappings`;
+    const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/user-role-mappings`;
     const bearerToken = await this.getToken();
 
     const config = {
@@ -269,8 +269,8 @@ export class AdminService {
               username: idirUsername,
               operation: "del",
             },
-            config
-          )
+            config,
+          ),
         )
           .then((res) => {
             return res.data;
@@ -288,8 +288,8 @@ export class AdminService {
               username: idirUsername,
               operation: "del",
             },
-            config
-          )
+            config,
+          ),
         )
           .then((res) => {
             return res.data;
@@ -311,8 +311,8 @@ export class AdminService {
               username: idirUsername,
               operation: "add",
             },
-            config
-          )
+            config,
+          ),
         )
           .then((res) => {
             return res.data;
@@ -330,8 +330,8 @@ export class AdminService {
               username: idirUsername,
               operation: "add",
             },
-            config
-          )
+            config,
+          ),
         )
           .then((res) => {
             return res.data;
