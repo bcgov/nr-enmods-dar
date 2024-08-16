@@ -104,13 +104,13 @@ export class FtpService {
                   await this.client.downloadTo(writableStream, filePath);
                   // convert chunk array to buffer
                   const fileBuffer = Buffer.concat(dataBuffer);
-                  // pass file buffer to validation
-                  await this.fileSubmissionsService.parseFileFromFtp(
-                    fileBuffer,
-                    folder.name,
-                    file.name,
-                    filePath,
-                  );
+                  // pass file buffer to file submission service to be uploaded to comms & have submission entry created
+                  // await this.fileSubmissionsService.parseFileFromFtp(
+                  //   fileBuffer,
+                  //   folder.name,
+                  //   file.name,
+                  //   filePath,
+                  // );
                   // debug
                   await this.fileValidationService.processFile(
                     fileBuffer,
