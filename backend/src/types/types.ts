@@ -61,6 +61,25 @@ export type FieldActivities = {
   DepthUpper: string;
   DepthLower: string;
   DepthUnit: string;
+  LocationID: string;
+  ObservedDateTime: string;
+  ObservedDateTimeEnd: string;
+  ActivityType: 'SAMPLE_ROUTINE';
+  ActivityName: string;
+}
+
+export type FieldSpecimens = {
+  WorkOrderNumber: string;
+  FieldFiltered: string;
+  FieldFilterComment: string;
+  FieldPreservative: string;
+  ObservedDateTime: string;
+  ObservedDateTimeEnd: string;
+  Medium:string;
+  EALabReportID: string;
+  TissueType: string;
+  LabArrivalTemp:string;
+  SpecimenName: string;
 }
 
 export type EmailTemplate = {

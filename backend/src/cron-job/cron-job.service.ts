@@ -3,6 +3,9 @@ import axios from "axios";
 import { error } from "winston";
 import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "nestjs-prisma";
+import { FileParseValidateService } from "src/file_parse_and_validation/file_parse_and_validation.service";
+import * as fs from "fs";
+
 
 /**
  * Cron Job service for filling code tables with data from AQI API
@@ -10,9 +13,13 @@ import { PrismaService } from "nestjs-prisma";
 @Injectable()
 export class CronJobService {
   private readonly logger = new Logger(CronJobService.name);
+
   private tableModels;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private readonly fileParser: FileParseValidateService,
+  ) {
     this.tableModels = new Map<string, any>([
       ["aqi_projects", this.prisma.aqi_projects],
       ["aqi_mediums", this.prisma.aqi_mediums],
@@ -185,5 +192,20 @@ export class CronJobService {
       return array.map(filterAttributes);
     };
     return filterArray(entries);
+  }
+
+  @Cron("0 */1 * * * *")
+  private async beginFileValidation() {
+    /*
+    TODO:
+      grab all the files from the DB and S3 bucket that have a status of QUEUED
+      for each file returned, change the status to INPROGRESS and go to the parser
+    */
+    let filesToValidate = await this.fileParser.getQueuedFiles();
+    for (const file of filesToValidate) {
+      // const fileData = await this.fileParser.getFileData(file.submission_id)
+      const fileData = fs.readFileSync(`C:/Users/vmanawat/Downloads/TEST_MASTER_FILE.xlsx`, 'binary')
+      this.fileParser.parseFile(fileData, file.file_name)
+    }
   }
 }

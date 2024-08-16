@@ -40,10 +40,30 @@ model file_submission {
   submission_status      submission_status_code @relation(fields: [submission_status_code], references: [submission_status_code], onDelete: NoAction, onUpdate: NoAction, map: "submission_status_code_fk")
 }
 
-model notifications {
-  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email                String   @unique @db.VarChar(200)
-  enabled              Boolean  @default(true)
+model aqi_projects {
+  aqi_projects_id      String   @id @db.Uuid
+  custom_id            String   @db.VarChar(200)
+  description          String?  @db.VarChar(200)
+  create_user_id       String   @db.VarChar(200)
+  create_utc_timestamp DateTime @db.Timestamp(6)
+  update_user_id       String   @db.VarChar(200)
+  update_utc_timestamp DateTime @db.Timestamp(6)
+}
+
+model aqi_mediums {
+  aqi_mediums_id       String   @id @db.Uuid
+  custom_id            String   @db.VarChar(200)
+  description          String?  @db.VarChar(200)
+  create_user_id       String   @db.VarChar(200)
+  create_utc_timestamp DateTime @db.Timestamp(6)
+  update_user_id       String   @db.VarChar(200)
+  update_utc_timestamp DateTime @db.Timestamp(6)
+}
+
+model aqi_units {
+  aqi_units_id         String   @id @db.Uuid
+  custom_id            String   @db.VarChar(200)
+  description          String?  @db.VarChar(200)
   create_user_id       String   @db.VarChar(200)
   create_utc_timestamp DateTime @db.Timestamp(6)
   update_user_id       String   @db.VarChar(200)
@@ -80,30 +100,10 @@ model aqi_locations {
   update_utc_timestamp DateTime? @db.Timestamp(6)
 }
 
-model aqi_mediums {
-  aqi_mediums_id       String   @id @db.Uuid
-  custom_id            String   @db.VarChar(200)
-  description          String?  @db.VarChar(200)
-  create_user_id       String   @db.VarChar(200)
-  create_utc_timestamp DateTime @db.Timestamp(6)
-  update_user_id       String   @db.VarChar(200)
-  update_utc_timestamp DateTime @db.Timestamp(6)
-}
-
-model aqi_projects {
-  aqi_projects_id      String   @id @db.Uuid
-  custom_id            String   @db.VarChar(200)
-  description          String?  @db.VarChar(200)
-  create_user_id       String   @db.VarChar(200)
-  create_utc_timestamp DateTime @db.Timestamp(6)
-  update_user_id       String   @db.VarChar(200)
-  update_utc_timestamp DateTime @db.Timestamp(6)
-}
-
-model aqi_units {
-  aqi_units_id         String   @id @db.Uuid
-  custom_id            String   @db.VarChar(200)
-  description          String?  @db.VarChar(200)
+model notifications {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email                String   @unique @db.VarChar(200)
+  enabled              Boolean  @default(true)
   create_user_id       String   @db.VarChar(200)
   create_utc_timestamp DateTime @db.Timestamp(6)
   update_user_id       String   @db.VarChar(200)
