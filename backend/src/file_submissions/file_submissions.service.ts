@@ -9,8 +9,7 @@ import { randomUUID } from "crypto";
 
 @Injectable()
 export class FileSubmissionsService {
-  constructor(
-    private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {}
 
   async create(body: any, file: Express.Multer.File) {
     const createFileSubmissionDto = new CreateFileSubmissionDto();
@@ -25,14 +24,14 @@ export class FileSubmissionsService {
 
     // Call to function that makes API call to save file in the S3 bucket via COMS
     let comsSubmissionID = await saveToS3(body.token, file);
-    const path = require('path');
-    const extention = path.extname(file.originalname)
-    const baseName = path.basename(file.originalname, extention)
-    const newFileName = `${baseName}-${comsSubmissionID}${extention}`
+    const path = require("path");
+    const extention = path.extname(file.originalname);
+    const baseName = path.basename(file.originalname, extention);
+    const newFileName = `${baseName}-${comsSubmissionID}${extention}`;
 
     // Creating file DTO and inserting it in the database with the file GUID from the S3 bucket
     createFileSubmissionDto.submission_id = comsSubmissionID;
-    createFileSubmissionDto.filename = newFileName;;
+    createFileSubmissionDto.filename = newFileName;
     createFileSubmissionDto.submission_date = new Date();
     createFileSubmissionDto.submitter_user_id = body.userID;
     createFileSubmissionDto.submission_status_code = (
@@ -252,7 +251,7 @@ async function saveToS3(token: any, file: Express.Multer.File) {
   return fileGUID;
 }
 
-async function getFromS3(submission_id: string){
+async function getFromS3(submission_id: string) {
   const axios = require("axios");
 
   let config = {
@@ -260,12 +259,12 @@ async function getFromS3(submission_id: string){
     maxBodyLength: Infinity,
     url: `${process.env.COMS_URI}/v1/object/${submission_id}`,
     headers: {
-      "Accept": "application/json",
+      Accept: "application/json",
     },
   };
 
   await axios.request(config).then((response) => {
-    console.log(response)
+    console.log(response);
   });
 
   return null;

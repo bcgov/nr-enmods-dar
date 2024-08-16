@@ -13,7 +13,7 @@ export class NotificationsService {
 
   constructor(
     private readonly httpService: HttpService,
-    private prisma: PrismaService
+    private prisma: PrismaService,
   ) {}
 
   /**
@@ -32,7 +32,7 @@ export class NotificationsService {
    */
   async createNotificationEntry(
     email: string,
-    username: string
+    username: string,
   ): Promise<string> {
     const createNotificationDto = new CreateNotificationEntryDto();
     createNotificationDto.email = email;
@@ -63,7 +63,7 @@ export class NotificationsService {
   async updateNotificationEntry(
     email: string,
     username: string,
-    enabled: boolean
+    enabled: boolean,
   ): Promise<string> {
     const updateNotificationDto = new UpdateNotificationEntryDto();
     updateNotificationDto.enabled = enabled;
@@ -162,7 +162,7 @@ export class NotificationsService {
       file_status: string;
       errors: string;
       warnings: string;
-    }
+    },
   ): Promise<String> {
     let body = `
     <p>Status: {{file_status}}</p>
@@ -222,11 +222,11 @@ export class NotificationsService {
       file_status: string;
       warnings: string;
       errors: string;
-    }
+    },
   ): Promise<String> {
     const notificationInfo = await this.getNotificationStatus(
       email,
-      variables.user_account_name
+      variables.user_account_name,
     );
     // check that notifications are enabled before continuing
     if (notificationInfo.enabled === false) {
@@ -299,7 +299,7 @@ export class NotificationsService {
       warnings: string;
       sys_time: string;
       status_string: string;
-    }
+    },
   ): Promise<string> {
     const chesToken = await this.getChesToken();
 
@@ -361,6 +361,70 @@ export class NotificationsService {
   }
 
   /**
+   * Notifies the FTP Data Submitter & Ministry Contact of the file validation errors.
+   * @param email
+   * @param username
+   * @param fileName
+   * @param errors
+   * @param ministryContact
+   */
+  async notifyUserOfError(
+    email: string,
+    username: string,
+    fileName: string,
+    errors: string[],
+    ministryContact: string,
+  ) {
+    const notificationVars = {
+      file_name: fileName,
+      user_account_name: username,
+      location_ids: [],
+      file_status: "FAILED",
+      errors: errors.join(","),
+      warnings: "",
+    };
+
+    // Notify the Data Submitter
+    if (this.isValidEmail(email)) {
+      await this.sendDataSubmitterNotification(email, notificationVars);
+    }
+    // Notify the Ministry Contact (if they have not disabled notifications)
+    if (this.isValidEmail(ministryContact)) {
+      await this.sendContactNotification(ministryContact, notificationVars);
+    }
+  }
+
+  /**
+   * Notifies the FTP Data Submitter & Ministry Contact of the file validation errors.
+   * @param username
+   * @param fileName
+   * @param errors
+   * @param ministryContact
+   */
+  async notifyFtpUserOfError(
+    username: string,
+    fileName: string,
+    errors: string[],
+    ministryContact: string,
+  ) {
+    const ftpUser = await this.prisma.ftp_users.findUnique({
+      where: { username: username },
+    });
+    await this.notifyUserOfError(
+      ftpUser.email,
+      username,
+      fileName,
+      errors,
+      ministryContact,
+    );
+  }
+
+  isValidEmail(email: string): boolean {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
+  }
+
+  /**
    * Takes an array of email addresses, filters out the ones
    * with notifications disabled, and returns the remaining ones
    * @param emails
@@ -397,7 +461,7 @@ export class NotificationsService {
   async getChesToken(): Promise<string> {
     const url = process.env.ches_token_url;
     const encodedToken = Buffer.from(
-      `${process.env.ches_client_id}:${process.env.ches_client_secret}`
+      `${process.env.ches_client_id}:${process.env.ches_client_secret}`,
     ).toString("base64");
 
     const headers = {
@@ -410,7 +474,7 @@ export class NotificationsService {
 
     try {
       const response = await lastValueFrom(
-        this.httpService.post(url, grantTypeParam.toString(), { headers })
+        this.httpService.post(url, grantTypeParam.toString(), { headers }),
       );
       return response.data.access_token;
     } catch (error) {
@@ -419,7 +483,7 @@ export class NotificationsService {
           "Response:",
           error.response.data,
           error.response.status,
-          error.response.headers
+          error.response.headers,
         );
       } else if (error.request) {
         this.logger.log("Request:", error.request);

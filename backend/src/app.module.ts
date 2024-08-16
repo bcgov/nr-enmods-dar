@@ -23,6 +23,7 @@ import { NotificationsModule } from "./notifications/notifications.module";
 import { AqiApiModule } from "./aqi_api/aqi_api.module";
 import { FileParseValidateModule } from "./file_parse_and_validation/file_parse_and_validation.module";
 import { FtpModule } from "./ftp/ftp.module";
+import { FileValidationModule } from './file_validation/file_validation.module';
 
 const DB_HOST = process.env.POSTGRES_HOST || "localhost";
 const DB_USER = process.env.POSTGRES_USER || "postgres";
@@ -69,6 +70,7 @@ function getMiddlewares() {
     FileParseValidateModule,
     AqiApiModule,
     FtpModule,
+    FileValidationModule,
   ],
   controllers: [AppController, MetricsController, HealthController],
   providers: [AppService, CronJobService],
