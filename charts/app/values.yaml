@@ -18,46 +18,52 @@ global:
     databaseName: ~
     persist: true
     #-- backend
-    POSTGRES_PASSWORD: ~
-    POSTGRES_USER: ~
-    POSTGRES_DATABASE: ~
-    POSTGRES_HOST: ~
-    POSTGRES_PORT: ~
-    POSTGRES_SCHEMA: ~
-    POSTGRESQL_URL: ~
-    PRISMA_LOGGING: ~
-    KEYCLOCK_CLIENT_ID: ~
-    JWKS_URI: ~
-    JWT_ISSUER: ~
-    USERS_API_BASE_URL: ~
-    CSS_ENVIRONMENT: ~
-    INTEGRATION_ID: ~
-    USERS_API_TOKEN_URL: ~
-    USERS_API_CLIENT_ID: ~
-    USERS_API_CLIENT_SECRET: ~
-    AQI_BASE_URL: ~
-    AQI_ACCESS_TOKEN: ~
-    CHES_TOKEN_URL: ~
-    CHES_EMAIL_URL: ~
-    CHES_CLIENT_ID: ~
-    CHES_CLIENT_SECRET: ~
-    WEBAPP_URL: ~
-    FTP_PATH: ~
-    FTP_HOST: ~
-    FTP_PORT: ~
-    FTP_USER: ~
-    FTP_PASSWORD: ~
+    prismaLogging: ~
+    keycloakClientId: ~
+    jwksUri: ~
+    jwtIssuer: ~
+    usersApiBaseUrl: ~
+    cssEnvironment: ~
+    integrationId: ~
+    usersApiTokenUrl: ~
+    usersApiClientId: ~
+    usersApiClientSecret: ~
+    aqiBaseUrl: ~
+    aqiAccessToken: ~
+    chesTokenUrl: ~
+    chesEmailUrl: ~
+    chesClientId: ~
+    chesClientSecret: ~
+    webappUrl: ~
+    ftpPath: ~
+    ftpHost: ~
+    ftpPort: ~
+    ftpUser: ~
+    ftpPassword: ~
     #-- frontend
-    PORT: ~
-    API_NAME: ~
-    BASE_URL: ~
-    VITE_APP_API_URL: ~
-    VITE_APP_KEYCLOAK_URL: ~
-    VITE_APP_KEYCLOAK_URL_2: ~
-    VITE_APP_KEYCLOAK_REALM: ~
-    VITE_APP_KEYCLOAK_CLIENT_ID: ~
-    VITE_APP_KEYCLOAK_USER: ~
-    VITE_APP_KEYCLOAK_PASSWORD: ~
+    port: ~
+    apiName: ~
+    baseUrl: ~
+    viteAppApiUrl: ~
+    viteAppKeycloakUrl: ~
+    viteAppKeycloakUrl2: ~
+    viteAppKeycloakRealm: ~
+    viteAppKeycloakClientId: ~
+    viteAppKeycloakUser: ~
+    viteAppKeycloakPassword: ~
+    #-- backup
+    backupDir: ~
+    backupStrategy: ~
+    numBackups: ~
+    dailyBackups: ~
+    weeklyBackups: ~
+    monthlyBackups: ~
+    #-- flyway
+    flywayLocations:
+      dev: "filesystem:/flyway/sql, filesystem:/flyway/sql-test"
+      test: "filesystem:/flyway/sql, filesystem:/flyway/sql-test"
+      prod: "filesystem:/flyway/sql"
+
   #-- domain of the application, it is required, apps.silver.devops.gov.bc.ca for silver cluster and apps.devops.gov.bc.ca for gold cluster
   domain: "apps.silver.devops.gov.bc.ca" # it is apps.gold.devops.gov.bc.ca for gold cluster
   #-- the database Alias gives a nice way to switch to different databases, crunchy, patroni ... etc.
