@@ -204,7 +204,7 @@ export class CronJobService {
     let filesToValidate = await this.fileParser.getQueuedFiles();
     for (const file of filesToValidate) {
       // const fileData = await this.fileParser.getFileData(file.submission_id)
-      const fileData = fs.readFileSync(`C:/Users/vmanawat/Downloads/TEST_MASTER_FILE.xlsx`, 'binary')
+      const fileData = fs.readFileSync(`C:/Users/vedan/Downloads/TEST_MASTER_FILE.xlsx`, 'binary')
       this.fileParser.parseFile(fileData, file.file_name)
     }
   }

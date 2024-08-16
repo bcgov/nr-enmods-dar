@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
+import axios, { AxiosInstance, AxiosRequestConfig, post } from "axios";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
 import { FieldActivities, FieldSpecimens, FieldVisits } from "src/types/types";
 import { AqiApiService } from "src/aqi_api/aqi_api.service";
@@ -28,7 +28,7 @@ const activities: FieldActivities = {
   ObservedDateTime: "",
   ObservedDateTimeEnd: "",
   ActivityType: "SAMPLE_ROUTINE",
-  ActivityName: ""
+  ActivityName: "",
 };
 
 const specimens: FieldSpecimens = {
@@ -42,8 +42,8 @@ const specimens: FieldSpecimens = {
   EALabReportID: "",
   SpecimenName: "",
   TissueType: "",
-  LabArrivalTemp: ""
-}
+  LabArrivalTemperature: "",
+};
 
 @Injectable()
 export class FileParseValidateService {
@@ -53,7 +53,7 @@ export class FileParseValidateService {
   constructor(
     private prisma: PrismaService,
     private readonly fileSubmissionsService: FileSubmissionsService,
-    private readonly aqiService: AqiApiService
+    private readonly aqiService: AqiApiService,
   ) {}
 
   async getQueuedFiles() {
@@ -107,8 +107,10 @@ export class FileParseValidateService {
             aqi_projects_id: true,
           },
         });
-        return {"project": {"id": projectID[0].aqi_projects_id, "customId": param}}
-      case "COLLECTION_METHODS": 
+        return {
+          'project': { 'id': projectID[0].aqi_projects_id, 'customId': param },
+        };
+      case "COLLECTION_METHODS":
         let cmID = await this.prisma.aqi_collection_methods.findMany({
           where: {
             custom_id: {
@@ -119,7 +121,12 @@ export class FileParseValidateService {
             aqi_collection_methods_id: true,
           },
         });
-        return {"collectionMethod": {"id": cmID[0].aqi_collection_methods_id, "customId": param}}
+        return {
+          'collectionMethod': {
+            'id': cmID[0].aqi_collection_methods_id,
+            'customId': param,
+          },
+        };
       case "MEDIUM":
         let mediumID = await this.prisma.aqi_mediums.findMany({
           where: {
@@ -131,7 +138,7 @@ export class FileParseValidateService {
             aqi_mediums_id: true,
           },
         });
-        return {"medium": {"id": mediumID[0].aqi_mediums_id, "customId": param}}
+        return { 'medium': { 'id': mediumID[0].aqi_mediums_id, 'customId': param } };
       case "DEPTH_UNIT":
         let duID = await this.prisma.aqi_units.findMany({
           where: {
@@ -143,7 +150,12 @@ export class FileParseValidateService {
             aqi_units_id: true,
           },
         });
-        return {"depth": {"value": param[1], "unit": {"id": duID[0].aqi_units_id, "customId": param[0]}}}
+        return {
+          'depth': {
+            'value': param[1],
+            'unit': { 'id': duID[0].aqi_units_id, 'customId': param[0] },
+          },
+        };
       case "EXTENDED_ATTRIB":
         let eaID = await this.prisma.aqi_extended_attributes.findMany({
           where: {
@@ -155,14 +167,33 @@ export class FileParseValidateService {
             aqi_extended_attributes_id: true,
           },
         });
-        return {"attributeId": eaID[0].aqi_extended_attributes_id, "customId": param[0], 'text': param[1]}
+
+        if (param[0] == "Specimen Lab Arrival Temperature (°C)") {
+          return {
+            'attributeId': eaID[0].aqi_extended_attributes_id,
+            'customId': param[0],
+            'number': +param[1],
+          };
+        } else if (param[0] == "Specimen Tissue Type") {
+          return {
+            'attributeId': eaID[0].aqi_extended_attributes_id,
+            'customId': param[0],
+            'dropDownListItem': { 'customId': param[1] },
+          };
+        } else {
+          return {
+            'attributeId': eaID[0].aqi_extended_attributes_id,
+            'customId': param[0],
+            'text': param[1],
+          };
+        }
     }
   }
 
   async postFieldVisits(visitData: any) {
-    let postData: any = {}
-    const visitAndLocId = []
-    const extendedAttribs = {'extendedAttributes': []}
+    let postData: any = {};
+    const visitAndLocId = [];
+    const extendedAttribs = { extendedAttributes: [] };
     for (const row of visitData) {
       let locationCustomID = row.LocationID;
       let projectCustomID = row.Project;
@@ -176,96 +207,160 @@ export class FileParseValidateService {
       );
       // get the project custom id from object and find project GUID
       Object.assign(
-        postData, 
-        await this.queryCodeTables("PROJECT", projectCustomID)
+        postData,
+        await this.queryCodeTables("PROJECT", projectCustomID),
       );
       // get the EA custom id (Ministry Contact and Sampling Agency) and find the GUID
-      extendedAttribs['extendedAttributes'].push(await this.queryCodeTables("EXTENDED_ATTRIB", [EAMinistryContact, row.MinistryContact]))
-      extendedAttribs['extendedAttributes'].push(await this.queryCodeTables("EXTENDED_ATTRIB", [EASamplingAgency, row.SamplingAgency]))
-      
-      Object.assign(postData, extendedAttribs)
-      Object.assign(postData, {'startTime': row.FieldVisitStartTime})
-      Object.assign(postData, {'endTime': row.FieldVisitEndTime})
-      Object.assign(postData, {'participants': row.FieldVisitParticipants})
-      Object.assign(postData, {'notes': row.FieldVisitComments})
-      Object.assign(postData, {'planningStatus': row.PlanningStatus})
+      extendedAttribs["extendedAttributes"].push(
+        await this.queryCodeTables("EXTENDED_ATTRIB", [
+          EAMinistryContact,
+          row.MinistryContact,
+        ]),
+      );
+      extendedAttribs["extendedAttributes"].push(
+        await this.queryCodeTables("EXTENDED_ATTRIB", [
+          EASamplingAgency,
+          row.SamplingAgency,
+        ]),
+      );
 
-      let currentVisitAndLoc: any = {}
+      Object.assign(postData, extendedAttribs);
+      Object.assign(postData, { startTime: row.FieldVisitStartTime });
+      Object.assign(postData, { endTime: row.FieldVisitEndTime });
+      Object.assign(postData, { participants: row.FieldVisitParticipants });
+      Object.assign(postData, { notes: row.FieldVisitComments });
+      Object.assign(postData, { planningStatus: row.PlanningStatus });
 
-      Object.assign(currentVisitAndLoc, {'samplingLocation': postData.samplingLocation})
-      Object.assign(currentVisitAndLoc, {'fieldVisit': await this.aqiService.fieldVisits(postData)})
-      visitAndLocId.push(currentVisitAndLoc)
-      break
+      let currentVisitAndLoc: any = {};
+
+      Object.assign(currentVisitAndLoc, {
+        samplingLocation: postData.samplingLocation,
+      });
+      Object.assign(currentVisitAndLoc, {
+        fieldVisit: await this.aqiService.fieldVisits(postData),
+      });
+      visitAndLocId.push(currentVisitAndLoc);
+      break;
     }
 
     return visitAndLocId;
   }
 
   async postFieldActivities(visitInfo: any, activityData: any) {
-    let postData = {}
-    let activityId = []
-    const extendedAttribs = {'extendedAttributes': []}
-    for (const [index,activity] of activityData.entries()){
-      let collectionMethodCustomID = activity.CollectionMethod
-      let mediumCustomID = activity.Medium
-      let depthUnitCustomID = activity.DepthUnit
-      let depthUnitValue = activity.DepthUpper
+    let postData = {};
+    let activityId = [];
+    const extendedAttribs = { extendedAttributes: [] };
+    for (const [index, activity] of activityData.entries()) {
+      let collectionMethodCustomID = activity.CollectionMethod;
+      let mediumCustomID = activity.Medium;
+      let depthUnitCustomID = activity.DepthUnit;
+      let depthUnitValue = activity.DepthUpper;
 
       // get the collection method custom id from object and find collection method GUID
-      Object.assign(postData, await this.queryCodeTables("COLLECTION_METHODS", collectionMethodCustomID))
+      Object.assign(
+        postData,
+        await this.queryCodeTables(
+          "COLLECTION_METHODS",
+          collectionMethodCustomID,
+        ),
+      );
       // get the medium custom id from object and find medium GUID
-      Object.assign(postData, await this.queryCodeTables("MEDIUM", mediumCustomID))
+      Object.assign(
+        postData,
+        await this.queryCodeTables("MEDIUM", mediumCustomID),
+      );
       // get the depth unit custom id from object and find depth unit GUID
-      Object.assign(postData, await this.queryCodeTables("DEPTH_UNIT", [depthUnitCustomID, depthUnitValue]))
+      Object.assign(
+        postData,
+        await this.queryCodeTables("DEPTH_UNIT", [
+          depthUnitCustomID,
+          depthUnitValue,
+        ]),
+      );
 
       // get the EA custom id (Depth Lower and Depth Upper) and find the GUID
-      extendedAttribs['extendedAttributes'].push(await this.queryCodeTables("EXTENDED_ATTRIB", ["Depth Lower", activity.DepthLower]))
-      
-      Object.assign(postData, {'type': activity.ActivityType})
-      Object.assign(postData, extendedAttribs)
-      Object.assign(postData, {'startTime': activity.ObservedDateTime})
-      Object.assign(postData, {'endTime': activity.ObservedDateTimeEnd})
-      Object.assign(postData, {'samplingLocation': visitInfo[index].samplingLocation})
-      Object.assign(postData, {'fieldVisit': {'id': visitInfo[index].fieldVisit}})
-      Object.assign(postData, {'customId': activity.ActivityName})
+      extendedAttribs["extendedAttributes"].push(
+        await this.queryCodeTables("EXTENDED_ATTRIB", [
+          "Depth Lower",
+          activity.DepthLower,
+        ]),
+      );
 
-      let currentActivity = {}
-      Object.assign(currentActivity, {'activity': {'id': await this.aqiService.fieldActivities(postData), 'customId': activity.ActivityName, 'startTime': activity.ObservedDateTime}})
-      activityId.push(currentActivity)
-      break
+      Object.assign(postData, { type: activity.ActivityType });
+      Object.assign(postData, extendedAttribs);
+      Object.assign(postData, { startTime: activity.ObservedDateTime });
+      Object.assign(postData, { endTime: activity.ObservedDateTimeEnd });
+      Object.assign(postData, {
+        samplingLocation: visitInfo[index].samplingLocation,
+      });
+      Object.assign(postData, {
+        fieldVisit: { id: visitInfo[index].fieldVisit },
+      });
+      Object.assign(postData, { customId: activity.ActivityName });
+
+      let currentActivity = {};
+      Object.assign(currentActivity, {
+        activity: {
+          id: await this.aqiService.fieldActivities(postData),
+          customId: activity.ActivityName,
+          startTime: activity.ObservedDateTime,
+        },
+      });
+      activityId.push(currentActivity);
+      break;
     }
     return activityId;
   }
 
   async postFieldSpecimens(activityInfo: any, specimenData: any) {
-    let postData = {}
-    const extendedAttribs = {'extendedAttributes': []}
-    for (const [index,specimen] of specimenData.entries()){
-      let EAWorkOrderNumberCustomID = 'Work Order Number'
-      let EATissueType = 'Specimen Tissue Type'
-      let EALabArrivalTemp = 'Specimen Lab Arrival Temperature (°C)'
-      let mediumCustomID = specimen.Medium
-      let FieldFiltered = specimen.FieldFiltered
-      let FieldFilterComment = specimen.FieldFilterComment
+    let postData = {};
+    const extendedAttribs = { extendedAttributes: [] };
+    for (const [index, specimen] of specimenData.entries()) {
+      let EAWorkOrderNumberCustomID = "Work Order Number";
+      let EATissueType = "Specimen Tissue Type";
+      let EALabArrivalTemp = "Specimen Lab Arrival Temperature (°C)";
+      let mediumCustomID = specimen.Medium;
+      let FieldFiltered = specimen.FieldFiltered;
+      let FieldFilterComment = specimen.FieldFilterComment;
 
-      Object.assign(postData, await this.queryCodeTables("MEDIUM", mediumCustomID))
+      Object.assign(
+        postData,
+        await this.queryCodeTables("MEDIUM", mediumCustomID),
+      );
       // get the EA custom id (EA Work Order Number, FieldFiltered, FieldFilterComment, FieldPreservative, EALabReportID, SpecimenName) and find the GUID
-      extendedAttribs['extendedAttributes'].push(await this.queryCodeTables("EXTENDED_ATTRIB", [EAWorkOrderNumberCustomID, specimen.WorkOrderNumber]))
-      extendedAttribs['extendedAttributes'].push(await this.queryCodeTables("EXTENDED_ATTRIB", [EATissueType, specimen.TissueType]))
-      extendedAttribs['extendedAttributes'].push(await this.queryCodeTables("EXTENDED_ATTRIB", [EALabArrivalTemp, specimen.LabArrivalTemp]))
+      extendedAttribs["extendedAttributes"].push(
+        await this.queryCodeTables("EXTENDED_ATTRIB", [
+          EAWorkOrderNumberCustomID,
+          specimen.WorkOrderNumber,
+        ]),
+      );
+      extendedAttribs["extendedAttributes"].push(
+        await this.queryCodeTables("EXTENDED_ATTRIB", [
+          EATissueType,
+          specimen.TissueType,
+        ]),
+      );
+      extendedAttribs["extendedAttributes"].push(
+        await this.queryCodeTables("EXTENDED_ATTRIB", [
+          EALabArrivalTemp,
+          specimen.LabArrivalTemperature,
+        ]),
+      );
 
-      if (FieldFiltered == 'TRUE'){
-        Object.assign(postData, {'filtered': 'true'})
-        Object.assign(postData, {'filtrationComment': FieldFilterComment})
-      }else{
-        Object.assign(postData, {'filtered': 'false'})
+      if (FieldFiltered == "TRUE") {
+        Object.assign(postData, { filtered: "true" });
+        Object.assign(postData, { filtrationComment: FieldFilterComment });
+      } else {
+        Object.assign(postData, { filtered: "false" });
       }
-      Object.assign(postData, {'preservative': specimen.FieldPreservative})
-      Object.assign(postData, {'name' : specimen.SpecimenName})
-      Object.assign(postData, {'activity' : activityInfo[index].activity})
-      Object.assign(postData, extendedAttribs)
+      Object.assign(postData, { preservative: specimen.FieldPreservative });
+      Object.assign(postData, { name: specimen.SpecimenName });
+      Object.assign(postData, { activity: activityInfo[index].activity });
+      Object.assign(postData, extendedAttribs);
 
+      console.log(postData);
       await this.aqiService.fieldSpecimens(postData)
+      break;
     }
   }
 
@@ -277,17 +372,16 @@ export class FileParseValidateService {
           filteredObj[key] = `${row[key]}`;
         }
       });
-  
+
       if (customAttributes) {
         Object.assign(filteredObj, customAttributes);
       }
-  
+
       return filteredObj;
     });
   }
-  
 
-  async parseFile(file: string, fileName: string){
+  async parseFile(file: string, fileName: string) {
     const path = require("path");
     const extention = path.extname(fileName);
     if (extention == ".xlsx") {
@@ -316,9 +410,9 @@ export class FileParseValidateService {
       const fieldVisitCustomAttributes: Partial<FieldVisits> = {
         PlanningStatus: "DONE",
       };
-      
+
       const fieldActivityCustomAttrib: Partial<FieldActivities> = {
-        ActivityType: 'SAMPLE_ROUTINE',
+        ActivityType: "SAMPLE_ROUTINE",
       };
 
       const allFieldVisits = this.filterFile<FieldVisits>(
@@ -338,7 +432,10 @@ export class FileParseValidateService {
       );
 
       let visitInfo = await this.postFieldVisits(allFieldVisits);
-      let activityInfo = await this.postFieldActivities(visitInfo, allFieldActivities);
+      let activityInfo = await this.postFieldActivities(
+        visitInfo,
+        allFieldActivities,
+      );
       await this.postFieldSpecimens(activityInfo, allSpecimens);
     }
   }
