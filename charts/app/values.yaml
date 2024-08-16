@@ -3,7 +3,7 @@
 #-- global variables, can be accessed by sub-charts.
 global:
   #-- the registry where the images are stored. override during runtime for other registry at global level or individual level.
-  repository: ~ # provide the repo name from where images will be sourced for example bcgo
+  repository: bcgov/nr-endmods-dar ~ # provide the repo name from where images will be sourced for example bcgo
   #-- the registry where the images are stored. override during runtime for other registry at global level or individual level. default is ghcr.io
   registry: ghcr.io # ghcr.io for directly streaming from github container registry or "artifacts.developer.gov.bc.ca/github-docker-remote" for artifactory, or any other registry.
   #-- the tag of the image, it can be latest, 1.0.0 etc..., or the sha256 hash
@@ -17,6 +17,47 @@ global:
     databaseUser: ~
     databaseName: ~
     persist: true
+    #-- backend
+    POSTGRES_PASSWORD: ~
+    POSTGRES_USER: ~
+    POSTGRES_DATABASE: ~
+    POSTGRES_HOST: ~
+    POSTGRES_PORT: ~
+    POSTGRES_SCHEMA: ~
+    POSTGRESQL_URL: ~
+    PRISMA_LOGGING: ~
+    KEYCLOCK_CLIENT_ID: ~
+    JWKS_URI: ~
+    JWT_ISSUER: ~
+    USERS_API_BASE_URL: ~
+    CSS_ENVIRONMENT: ~
+    INTEGRATION_ID: ~
+    USERS_API_TOKEN_URL: ~
+    USERS_API_CLIENT_ID: ~
+    USERS_API_CLIENT_SECRET: ~
+    AQI_BASE_URL: ~
+    AQI_ACCESS_TOKEN: ~
+    CHES_TOKEN_URL: ~
+    CHES_EMAIL_URL: ~
+    CHES_CLIENT_ID: ~
+    CHES_CLIENT_SECRET: ~
+    WEBAPP_URL: ~
+    FTP_PATH: ~
+    FTP_HOST: ~
+    FTP_PORT: ~
+    FTP_USER: ~
+    FTP_PASSWORD: ~
+    #-- frontend
+    PORT: ~
+    API_NAME: ~
+    BASE_URL: ~
+    VITE_APP_API_URL: ~
+    VITE_APP_KEYCLOAK_URL: ~
+    VITE_APP_KEYCLOAK_URL_2: ~
+    VITE_APP_KEYCLOAK_REALM: ~
+    VITE_APP_KEYCLOAK_CLIENT_ID: ~
+    VITE_APP_KEYCLOAK_USER: ~
+    VITE_APP_KEYCLOAK_PASSWORD: ~
   #-- domain of the application, it is required, apps.silver.devops.gov.bc.ca for silver cluster and apps.devops.gov.bc.ca for gold cluster
   domain: "apps.silver.devops.gov.bc.ca" # it is apps.gold.devops.gov.bc.ca for gold cluster
   #-- the database Alias gives a nice way to switch to different databases, crunchy, patroni ... etc.
@@ -117,15 +158,15 @@ crunchy: # enable it for TEST and PROD, for PR based pipelines simply use single
   crunchyImage: artifacts.developer.gov.bc.ca/bcgov-docker-local/crunchy-postgres-gis:ubi8-15.2-3.3-0
 
   postgresVersion: 15
-  postGISVersion: '3.3'
+  postGISVersion: "3.3"
   imagePullPolicy: Always
   instances:
     name: ha # high availability
     replicas: 1 # 2 or 3 for high availability in TEST and PROD.
     metadata:
       annotations:
-        prometheus.io/scrape: 'true'
-        prometheus.io/port: '9187'
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9187"
     dataVolumeClaimSpec:
       storage: 120Mi
       storageClassName: netapp-block-standard
@@ -213,15 +254,15 @@ bitnami-pg:
     repository: bcgov/nr-containers/bitnami/postgresql
     tag: 15.6.0
   auth:
-    existingSecret: '{{ .Release.Name }}'
-    username: 'quickstart'
+    existingSecret: "{{ .Release.Name }}"
+    username: "quickstart"
     database: quickstart
   shmVolume:
     enabled: false
   backup:
     enabled: false
     cronjob:
-      containerSecurityContext: { }
+      containerSecurityContext: {}
       podSecurityContext:
         enabled: false
       storage:
@@ -271,8 +312,8 @@ backup:
     startingDeadlineSeconds: 3600
   containers:
     - name: backup
-      registry: 'docker.io'
-      repository: 'bcgovimages' # example, it includes registry and repository
+      registry: "docker.io"
+      repository: "bcgovimages" # example, it includes registry and repository
       image: backup-container # the exact component name, be it backend, api-1 etc...
       tag: latest # the tag of the image, it can be latest, 1.0.0 etc..., or the sha256 hash
       command:
@@ -289,15 +330,15 @@ backup:
           - name: BACKUP_STRATEGY
             value: "rolling"
           - name: NUM_BACKUPS
-            value: '5'
+            value: "5"
           - name: DAILY_BACKUPS
-            value: '7'
+            value: "7"
           - name: WEEKLY_BACKUPS
-            value: '4'
+            value: "4"
           - name: MONTHLY_BACKUPS
-            value: '1'
+            value: "1"
           - name: DATABASE_SERVICE_NAME # depends on which chart being used, adjust accordingly.
-            value: '{{.Release.Name}}-{{.Values.global.databaseAlias}}'
+            value: "{{.Release.Name}}-{{.Values.global.databaseAlias}}"
           - name: DEFAULT_PORT
             value: "5432"
         fromGlobalSecret:
