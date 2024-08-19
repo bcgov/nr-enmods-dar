@@ -5,6 +5,7 @@ import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "nestjs-prisma";
 import { FileParseValidateService } from "src/file_parse_and_validation/file_parse_and_validation.service";
 import * as fs from "fs";
+import { ObjectStoreService } from "src/objectStore/objectStore.service";
 
 
 /**
@@ -19,6 +20,7 @@ export class CronJobService {
   constructor(
     private prisma: PrismaService,
     private readonly fileParser: FileParseValidateService,
+    private readonly objectStore: ObjectStoreService
   ) {
     this.tableModels = new Map<string, any>([
       ["aqi_projects", this.prisma.aqi_projects],
@@ -203,7 +205,7 @@ export class CronJobService {
     */
     let filesToValidate = await this.fileParser.getQueuedFiles();
     for (const file of filesToValidate) {
-      // const fileData = await this.fileParser.getFileData(file.submission_id)
+      // const fileData = await this.objectStore.getFileData(file.submission_id)
       const fileData = fs.readFileSync(`C:/Users/vedan/Downloads/TEST_MASTER_FILE.xlsx`, 'binary')
       this.fileParser.parseFile(fileData, file.file_name)
     }

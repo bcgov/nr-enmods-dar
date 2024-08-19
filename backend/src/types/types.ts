@@ -76,7 +76,6 @@ export type FieldSpecimens = {
   ObservedDateTime: string;
   ObservedDateTimeEnd: string;
   Medium:string;
-  EALabReportID: string;
   TissueType: string;
   LabArrivalTemperature:string;
   SpecimenName: string;

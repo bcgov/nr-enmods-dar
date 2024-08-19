@@ -39,7 +39,6 @@ const specimens: FieldSpecimens = {
   ObservedDateTime: "",
   ObservedDateTimeEnd: "",
   Medium: "",
-  EALabReportID: "",
   SpecimenName: "",
   TissueType: "",
   LabArrivalTemperature: "",
@@ -58,23 +57,6 @@ export class FileParseValidateService {
 
   async getQueuedFiles() {
     return this.fileSubmissionsService.findByCode("QUEUED");
-  }
-
-  async getFileData(submission_id: string) {
-    const axios = require("axios");
-
-    let config = {
-      method: "get",
-      maxBodyLength: Infinity,
-      url: `${process.env.COMS_URI}/v1/object/${submission_id}`,
-      headers: {
-        Accept: "application/json",
-      },
-    };
-
-    await axios.request(config).then((response) => {
-      console.log(response);
-    });
   }
 
   async queryCodeTables(tableName: string, param: any) {
@@ -358,7 +340,6 @@ export class FileParseValidateService {
       Object.assign(postData, { activity: activityInfo[index].activity });
       Object.assign(postData, extendedAttribs);
 
-      console.log(postData);
       await this.aqiService.fieldSpecimens(postData)
       break;
     }
