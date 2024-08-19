@@ -29,6 +29,7 @@ const activities: FieldActivities = {
   ObservedDateTimeEnd: "",
   ActivityType: "SAMPLE_ROUTINE",
   ActivityName: "",
+  SamplingContextTag: ""
 };
 
 const specimens: FieldSpecimens = {
@@ -138,6 +139,22 @@ export class FileParseValidateService {
             'unit': { 'id': duID[0].aqi_units_id, 'customId': param[0] },
           },
         };
+      case "TAGS":
+        let returnTags: any = []
+        for (const tag of param){
+          let tagID = await this.prisma.aqi_context_tags.findMany({
+            where: {
+              custom_id: {
+                equals: tag,
+              },
+            },
+            select: {
+              aqi_context_tags_id: true,
+            },
+          });
+          returnTags.push({'id': tagID[0].aqi_context_tags_id, 'name': tag});
+        }
+        return returnTags;
       case "EXTENDED_ATTRIB":
         let eaID = await this.prisma.aqi_extended_attributes.findMany({
           where: {
@@ -232,11 +249,14 @@ export class FileParseValidateService {
     let postData = {};
     let activityId = [];
     const extendedAttribs = { extendedAttributes: [] };
+    const sampleContextTags = {'samplingContextTags': []}
+
     for (const [index, activity] of activityData.entries()) {
       let collectionMethodCustomID = activity.CollectionMethod;
       let mediumCustomID = activity.Medium;
       let depthUnitCustomID = activity.DepthUnit;
       let depthUnitValue = activity.DepthUpper;
+      let sampleContextTagCustomIds = activity.SamplingContextTag
 
       // get the collection method custom id from object and find collection method GUID
       Object.assign(
@@ -260,6 +280,13 @@ export class FileParseValidateService {
         ]),
       );
 
+      if (sampleContextTagCustomIds != null) {
+        let tagsToLookup = sampleContextTagCustomIds.split(', ');
+        sampleContextTags['samplingContextTags'] = await this.queryCodeTables("TAGS", tagsToLookup)
+      }
+
+      console.log(sampleContextTags);
+
       // get the EA custom id (Depth Lower and Depth Upper) and find the GUID
       extendedAttribs["extendedAttributes"].push(
         await this.queryCodeTables("EXTENDED_ATTRIB", [
@@ -270,6 +297,7 @@ export class FileParseValidateService {
 
       Object.assign(postData, { type: activity.ActivityType });
       Object.assign(postData, extendedAttribs);
+      Object.assign(postData, sampleContextTags)
       Object.assign(postData, { startTime: activity.ObservedDateTime });
       Object.assign(postData, { endTime: activity.ObservedDateTimeEnd });
       Object.assign(postData, {

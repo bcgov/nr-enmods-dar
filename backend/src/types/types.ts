@@ -66,6 +66,7 @@ export type FieldActivities = {
   ObservedDateTimeEnd: string;
   ActivityType: 'SAMPLE_ROUTINE';
   ActivityName: string;
+  SamplingContextTag: string;
 }
 
 export type FieldSpecimens = {
