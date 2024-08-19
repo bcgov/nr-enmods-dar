@@ -284,9 +284,7 @@ export class FileParseValidateService {
         let tagsToLookup = sampleContextTagCustomIds.split(', ');
         sampleContextTags['samplingContextTags'] = await this.queryCodeTables("TAGS", tagsToLookup)
       }
-
-      console.log(sampleContextTags);
-
+      
       // get the EA custom id (Depth Lower and Depth Upper) and find the GUID
       extendedAttribs["extendedAttributes"].push(
         await this.queryCodeTables("EXTENDED_ATTRIB", [
