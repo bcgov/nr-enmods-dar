@@ -71,6 +71,7 @@ const observations: Observations = {
   CollectionMethod: "",
   FieldDeviceID: "",
   FieldDeviceType: "",
+  FieldVisitComments: "",
   SpecimenName: "",
   AnalysisMethod: "",
   DetectionCondition: "",
@@ -86,7 +87,7 @@ const observations: Observations = {
   LabDilutionFactor: "",
   LabComment: "",
   QCType: "",
-  QCSourceActivityName: "",
+  QCSourceActivityName: ""
 }
 
 const obsFile: ObservationFile = {
@@ -111,6 +112,7 @@ const obsFile: ObservationFile = {
   "Collection Method": "",
   "Field: Device ID": "",
   "Field: Device Type": "",
+  "Field: Comment": "",
   "Lab: Specimen Name": "",
   "Lab: Analysis Method": "",
   "Lab: Detection Condition": "",
@@ -126,7 +128,7 @@ const obsFile: ObservationFile = {
   "Lab: Dilution Factor": "",
   "Lab: Comment": "",
   "QC: Type": "",
-  "QC: Source Activity Name": ""
+  "QC: Source Sample ID": "",
 }
 
 @Injectable()

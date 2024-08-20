@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
 import * as fs from "fs";
+import FormData from "form-data";
 
 @Injectable()
 export class AqiApiService {
@@ -61,17 +62,20 @@ export class AqiApiService {
     const formData = new FormData();
     formData.append("file", fs.createReadStream(fileName));
     try {
-      const response = await axios.post(`${process.env.AQI_BASE_URL}/v2/observationimports/dryrun?fileType=SIMPLE_CSV&timeZoneOffset=-08:00&linkFieldVisitsForNewObservations=true`, formData, {
+      const response = await axios.post(`${process.env.AQI_BASE_URL}/v2/observationimports?fileType=SIMPLE_CSV&timeZoneOffset=-08:00&linkFieldVisitsForNewObservations=true`, formData, {
         headers: {
-          "Content-Type": "multipart/form-data; boundary=<calculated when request is sent>",
+          'Authorization': `token ${process.env.AQI_ACCESS_TOKEN}`,
+          'Accept': 'application/json; text/plain',
+          'x-api-key': process.env.AQI_ACCESS_TOKEN,
+          ...formData.getHeaders()
         }
       });
       this.logger.log(`API call to Observations succeeded: ${response.status}`);
-      return response.data.id;
+      console.log(response.headers.location)
     } catch (err) {
       console.error(
         "API CALL TO Observations failed: ",
-        err,
+        err.response,
       );
     }
   }

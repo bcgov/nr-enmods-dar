@@ -105,6 +105,7 @@ export type Observations = {
   CollectionMethod: string;
   FieldDeviceID: string;
   FieldDeviceType: string;
+  FieldVisitComments: string;
   SpecimenName: string;
   AnalysisMethod: string;
   DetectionCondition: string;
@@ -145,6 +146,7 @@ export type ObservationFile ={
   'Collection Method': string;
   'Field: Device ID': string;
   'Field: Device Type': string;
+  'Field: Comment': string;
   'Lab: Specimen Name': string;
   'Lab: Analysis Method': string;
   'Lab: Detection Condition': string;
@@ -160,7 +162,7 @@ export type ObservationFile ={
   'Lab: Dilution Factor': string;
   'Lab: Comment': string;
   'QC: Type': string;
-  'QC: Source Activity Name': string;
+  'QC: Source Sample ID': string;
 }
 
 export type EmailTemplate = {
