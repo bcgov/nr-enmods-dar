@@ -83,6 +83,86 @@ export type FieldSpecimens = {
   AnalyzingAgency: string;
 }
 
+export type Observations = {
+  ObservationID: string;
+  LocationID: string;
+  ObservedPropertyID: string;
+  ObservedDateTime: string;
+  AnalyzedDateTime: string;
+  DepthUpper: string;
+  DepthUnit: string;
+  DataClassification: string;
+  ResultValue: string;
+  ResultUnit: string;
+  SourceofRoundedValue: string;
+  RoundedValue: string;
+  RoundingSpecification: string;
+  ResultStatus: string;
+  ResultGrade: string;
+  Medium: string;
+  ActivityID: string;
+  ActivityName: string;
+  CollectionMethod: string;
+  FieldDeviceID: string;
+  FieldDeviceType: string;
+  SpecimenName: string;
+  AnalysisMethod: string;
+  DetectionCondition: string;
+  LimitType: string;
+  MethodDetectionLimit: string;
+  MethodReportingLimit: string;
+  LabQualityFlag: string
+  LabArrivalDateandTime: string;
+  LabPreparedDateTime: string;
+  Fraction: string;
+  AnalyzingAgency: string;
+  LabSampleID: string;
+  LabDilutionFactor: string;
+  LabComment: string;
+  QCType: string;
+  QCSourceActivityName: string;
+}
+
+export type ObservationFile ={
+  'Observation ID': string;
+  'Location ID': string;
+  'Observed Property ID': string;
+  'Observed DateTime': string;
+  'Analyzed DateTime': string;
+  'Depth': string;
+  'Depth Unit': string;
+  'Data Classification': string
+  'Result Value': string;
+  'Result Unit': string;
+  'Source Of Rounded Value': string;
+  'Rounded Value': string;
+  'Rounding Specification': string;
+  'Result Status': string;
+  'Result Grade': string;
+  'Medium': string;
+  'Activity ID': string;
+  'Activity Name': string;
+  'Collection Method': string;
+  'Field: Device ID': string;
+  'Field: Device Type': string;
+  'Lab: Specimen Name': string;
+  'Lab: Analysis Method': string;
+  'Lab: Detection Condition': string;
+  'Lab: Limit Type': string;
+  'Lab: MDL': string;
+  'Lab: MRL': string;
+  'Lab: Quality Flag': string
+  'Lab: Received DateTime': string;
+  'Lab: Prepared DateTime': string;
+  'Lab: Sample Fraction': string;
+  'Lab: From Laboratory': string;
+  'Lab: Sample ID': string;
+  'Lab: Dilution Factor': string;
+  'Lab: Comment': string;
+  'QC: Type': string;
+  'QC: Source Activity Name': string;
+}
+
 export type EmailTemplate = {
   from: string;
   subject: string;

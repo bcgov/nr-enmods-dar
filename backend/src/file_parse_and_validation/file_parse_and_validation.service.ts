@@ -1,9 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import axios, { AxiosInstance, AxiosRequestConfig, post } from "axios";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
-import { FieldActivities, FieldSpecimens, FieldVisits } from "src/types/types";
+import { FieldActivities, FieldSpecimens, FieldVisits, ObservationFile, Observations } from "src/types/types";
 import { AqiApiService } from "src/aqi_api/aqi_api.service";
 import * as XLSX from "xlsx";
+import * as fs from "fs";
+import * as path from "path";
+import * as csvWriter from 'csv-writer';
 import { PrismaService } from "nestjs-prisma";
 
 const visits: FieldVisits = {
@@ -45,6 +48,86 @@ const specimens: FieldSpecimens = {
   LabArrivalTemperature: "",
   AnalyzingAgency: ""
 };
+
+const observations: Observations = {
+  ObservationID: "",
+  LocationID: "",
+  ObservedPropertyID: "",
+  ObservedDateTime: "",
+  AnalyzedDateTime: "",
+  DepthUpper: "",
+  DepthUnit: "",
+  DataClassification: "",
+  ResultValue: "",
+  ResultUnit: "",
+  SourceofRoundedValue: "",
+  RoundedValue: "",
+  RoundingSpecification: "",
+  ResultStatus: "",
+  ResultGrade: "",
+  Medium: "",
+  ActivityID: "",
+  ActivityName: "",
+  CollectionMethod: "",
+  FieldDeviceID: "",
+  FieldDeviceType: "",
+  SpecimenName: "",
+  AnalysisMethod: "",
+  DetectionCondition: "",
+  LimitType: "",
+  MethodDetectionLimit: "",
+  MethodReportingLimit: "",
+  LabQualityFlag: "",
+  LabArrivalDateandTime: "",
+  LabPreparedDateTime: "",
+  Fraction: "",
+  AnalyzingAgency: "",
+  LabSampleID: "",
+  LabDilutionFactor: "",
+  LabComment: "",
+  QCType: "",
+  QCSourceActivityName: "",
+}
+
+const obsFile: ObservationFile = {
+  "Observation ID": "",
+  "Location ID": "",
+  "Observed Property ID": "",
+  "Observed DateTime": "",
+  "Analyzed DateTime": "",
+  "Depth": "",
+  "Depth Unit": "",
+  "Data Classification": "",
+  "Result Value": "",
+  "Result Unit": "",
+  "Source Of Rounded Value": "",
+  "Rounded Value": "",
+  "Rounding Specification": "",
+  "Result Status": "",
+  "Result Grade": "",
+  "Medium": "",
+  "Activity ID": "",
+  "Activity Name": "",
+  "Collection Method": "",
+  "Field: Device ID": "",
+  "Field: Device Type": "",
+  "Lab: Specimen Name": "",
+  "Lab: Analysis Method": "",
+  "Lab: Detection Condition": "",
+  "Lab: Limit Type": "",
+  "Lab: MDL": "",
+  "Lab: MRL": "",
+  "Lab: Quality Flag": "",
+  "Lab: Received DateTime": "",
+  "Lab: Prepared DateTime": "",
+  "Lab: Sample Fraction": "",
+  "Lab: From Laboratory": "",
+  "Lab: Sample ID": "",
+  "Lab: Dilution Factor": "",
+  "Lab: Comment": "",
+  "QC: Type": "",
+  "QC: Source Activity Name": ""
+}
 
 @Injectable()
 export class FileParseValidateService {
@@ -407,6 +490,44 @@ export class FileParseValidateService {
     });
   }
 
+  async formulateObservationFile(observationData: any, activityInfo: any, fileName: string){
+    for (const [index, observation] of observationData.entries()){
+      observation['ActivityID'] = activityInfo[index].activity.id;
+      break
+    }
+
+    const obsToWrite: ObservationFile[] = []
+
+    observationData.map((source) => {
+      const sourceKeys = Object.keys(source)
+      const targetKeys = Object.keys(obsFile) 
+
+      const newObs = {} as ObservationFile;
+
+      sourceKeys.forEach((sourceKey, i) => {
+        const targetKey = targetKeys[i]
+        if (targetKey !== undefined){
+          newObs[targetKey] = source[sourceKey]
+        }
+      })
+      obsToWrite.push(newObs)
+    })
+    
+    const baseFileName = path.basename(fileName, path.extname(fileName))
+    const filePath = path.join('src/tempObsFiles/', `temp-${baseFileName}.csv`)
+    const headers = Object.keys(obsToWrite[0]).map((key) => ({ id: key, title: key }));
+
+    const writer = csvWriter.createObjectCsvWriter({
+      path: filePath,
+      header: headers,
+    });
+
+    await writer.writeRecords(obsToWrite);
+    
+    await this.aqiService.importObservations(`src/tempObsFiles/temp-${baseFileName}.csv`)
+
+  }
+
   async parseFile(file: string, fileName: string) {
     const path = require("path");
     const extention = path.extname(fileName);
@@ -457,12 +578,16 @@ export class FileParseValidateService {
         null,
       );
 
+      const allObservations = this.filterFile<Observations>(allRecords, Object.keys(observations), null)
+
       let visitInfo = await this.postFieldVisits(allFieldVisits);
       let activityInfo = await this.postFieldActivities(
         visitInfo,
         allFieldActivities,
       );
+
       await this.postFieldSpecimens(activityInfo, allSpecimens);
+      await this.formulateObservationFile(allObservations, activityInfo, fileName)
     }
   }
 }
