@@ -80,6 +80,7 @@ export type FieldSpecimens = {
   TissueType: string;
   LabArrivalTemperature:string;
   SpecimenName: string;
+  AnalyzingAgency: string;
 }
 
 export type EmailTemplate = {

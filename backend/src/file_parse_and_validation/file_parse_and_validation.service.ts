@@ -43,6 +43,7 @@ const specimens: FieldSpecimens = {
   SpecimenName: "",
   TissueType: "",
   LabArrivalTemperature: "",
+  AnalyzingAgency: ""
 };
 
 @Injectable()
@@ -139,6 +140,18 @@ export class FileParseValidateService {
             'unit': { 'id': duID[0].aqi_units_id, 'customId': param[0] },
           },
         };
+      case "LABS":
+        let labID = await this.prisma.aqi_laboratories.findMany({
+          where: {
+            custom_id: {
+              equals: param,
+            },
+          },
+          select: {
+            aqi_laboratories_id: true,
+          },
+        });
+        return { 'laboratory': { 'id': labID[0].aqi_laboratories_id, 'customId': param } };
       case "TAGS":
         let returnTags: any = []
         for (const tag of param){
@@ -330,11 +343,17 @@ export class FileParseValidateService {
       let mediumCustomID = specimen.Medium;
       let FieldFiltered = specimen.FieldFiltered;
       let FieldFilterComment = specimen.FieldFilterComment;
+      let analyzingAgencyCustomID = specimen.AnalyzingAgency
 
       Object.assign(
         postData,
         await this.queryCodeTables("MEDIUM", mediumCustomID),
       );
+      Object.assign(
+        postData,
+        await this.queryCodeTables("LABS", analyzingAgencyCustomID),
+      )
+
       // get the EA custom id (EA Work Order Number, FieldFiltered, FieldFilterComment, FieldPreservative, EALabReportID, SpecimenName) and find the GUID
       extendedAttribs["extendedAttributes"].push(
         await this.queryCodeTables("EXTENDED_ATTRIB", [
