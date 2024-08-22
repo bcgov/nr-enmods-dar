@@ -337,7 +337,6 @@ export class FileParseValidateService {
         fieldVisit: await this.aqiService.fieldVisits(postData),
       });
       visitAndLocId.push(currentVisitAndLoc);
-      break;
     }
 
     return visitAndLocId;
@@ -413,7 +412,6 @@ export class FileParseValidateService {
         },
       });
       activityId.push(currentActivity);
-      break;
     }
     return activityId;
   }
@@ -471,7 +469,6 @@ export class FileParseValidateService {
       Object.assign(postData, extendedAttribs);
 
       await this.aqiService.fieldSpecimens(postData)
-      break;
     }
   }
 
@@ -495,7 +492,6 @@ export class FileParseValidateService {
   async formulateObservationFile(observationData: any, activityInfo: any, fileName: string){
     for (const [index, observation] of observationData.entries()){
       observation['ActivityID'] = activityInfo[index].activity.id;
-      break
     }
 
     const obsToWrite: ObservationFile[] = []
