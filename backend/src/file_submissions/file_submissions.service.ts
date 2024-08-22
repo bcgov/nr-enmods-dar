@@ -23,12 +23,8 @@ export class FileSubmissionsService {
     */
 
     // Call to function that makes API call to save file in the S3 bucket via COMS
-    let comsSubmissionID = await saveToS3(body.token, file);
-    const path = require("path");
-    const extention = path.extname(file.originalname);
-    const baseName = path.basename(file.originalname, extention);
-    const newFileName = `${baseName}-${comsSubmissionID}${extention}`;
-
+    let [comsSubmissionID, newFileName]= await saveToS3(body.token, file);
+    
     // Creating file DTO and inserting it in the database with the file GUID from the S3 bucket
     createFileSubmissionDto.submission_id = comsSubmissionID;
     createFileSubmissionDto.filename = newFileName;
@@ -248,7 +244,7 @@ async function saveToS3(token: any, file: Express.Multer.File) {
     fileGUID = response.data.id;
   });
 
-  return fileGUID;
+  return [fileGUID, newFileName];
 }
 
 async function getFromS3(submission_id: string) {

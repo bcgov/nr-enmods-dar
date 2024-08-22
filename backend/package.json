@@ -40,6 +40,7 @@
     "axios": "^1.7.2",
     "basic-ftp": "^5.0.5",
     "class-validator": "^0.14.1",
+    "csv-writer": "^1.6.0",
     "dotenv": "^16.0.1",
     "express-prom-bundle": "^7.0.0",
     "file-type": "^19.4.0",

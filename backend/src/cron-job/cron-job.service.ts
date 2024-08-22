@@ -5,7 +5,7 @@ import { Cron } from "@nestjs/schedule";
 import { PrismaService } from "nestjs-prisma";
 import { FileParseValidateService } from "src/file_parse_and_validation/file_parse_and_validation.service";
 import * as fs from "fs";
-
+import { ObjectStoreService } from "src/objectStore/objectStore.service";
 
 /**
  * Cron Job service for filling code tables with data from AQI API
@@ -19,6 +19,7 @@ export class CronJobService {
   constructor(
     private prisma: PrismaService,
     private readonly fileParser: FileParseValidateService,
+    private readonly objectStore: ObjectStoreService,
   ) {
     this.tableModels = new Map<string, any>([
       ["aqi_projects", this.prisma.aqi_projects],
@@ -26,6 +27,8 @@ export class CronJobService {
       ["aqi_units", this.prisma.aqi_units],
       ["aqi_collection_methods", this.prisma.aqi_collection_methods],
       ["aqi_extended_attributes", this.prisma.aqi_extended_attributes],
+      ["aqi_context_tags", this.prisma.aqi_context_tags],
+      ["aqi_laboratories", this.prisma.aqi_laboratories],
       ["aqi_locations", this.prisma.aqi_locations],
     ]);
   }
@@ -62,11 +65,23 @@ export class CronJobService {
       paramsEnabled: false,
     },
     {
+      endpoint: "/v1/tags",
+      method: "GET",
+      dbTable: "aqi_context_tags",
+      paramsEnabled: false,
+    },
+    {
+      endpoint: "/v1/laboratories",
+      method: "GET",
+      dbTable: "aqi_laboratories",
+      paramsEnabled: false,
+    },
+    {
       endpoint: "/v1/samplinglocations",
       method: "GET",
       dbTable: "aqi_locations",
       paramsEnabled: true,
-    },
+    }
   ];
 
   private async updateDatabase(dbTable: string, data: any) {
@@ -81,7 +96,7 @@ export class CronJobService {
           model.upsert({
             where: { [dbTable + "_id"]: record.id },
             update: {
-              custom_id: record.customId,
+              custom_id: record.customId || record.name,
               description: record.description,
               create_user_id: record.creationUserProfileId,
               create_utc_timestamp: record.creationTime
@@ -94,7 +109,7 @@ export class CronJobService {
             },
             create: {
               [dbTable + "_id"]: record.id,
-              custom_id: record.customId,
+              custom_id: record.customId || record.name,
               description: record.description,
               create_user_id: record.creationUserProfileId,
               create_utc_timestamp: record.creationTime
@@ -158,7 +173,7 @@ export class CronJobService {
         }
       } while (total > entries.length && api.paramsEnabled);
 
-      const filteredData = await this.filterData(entries);
+      const filteredData = await this.filterData(api.endpoint, entries);
       await this.updateDatabase(api.dbTable, filteredData);
     }
 
@@ -168,7 +183,7 @@ export class CronJobService {
     this.logger.log(`#######################################################`);
   }
 
-  private async filterData(entries: any) {
+  private async filterData(endpoint: string, entries: any) {
     const filterAttributes = (obj: any): any => {
       const { id, customId, description, auditAttributes } = obj;
       const creationUserProfileId = auditAttributes.creationUserProfileId;
@@ -188,13 +203,35 @@ export class CronJobService {
       };
     };
 
+    const filterTagAttributes = (obj: any): any => {
+      const { id, name, description, auditAttributes } = obj;
+      const creationUserProfileId = auditAttributes.creationUserProfileId;
+      const creationTime = auditAttributes.creationTime;
+      const modificationUserProfileId =
+        auditAttributes.modificationUserProfileId;
+      const modificationTime = auditAttributes.modificationTime;
+
+      return {
+        id,
+        name,
+        description,
+        creationUserProfileId,
+        creationTime,
+        modificationUserProfileId,
+        modificationTime,
+      };
+    };
     const filterArray = (array: any): any => {
-      return array.map(filterAttributes);
+      if (endpoint == "/v1/tags") {
+        return array.map(filterTagAttributes);
+      } else {
+        return array.map(filterAttributes);
+      }
     };
     return filterArray(entries);
   }
 
-  @Cron("0 */1 * * * *")
+  @Cron("0 */1 * * * *") // every 2 hours
   private async beginFileValidation() {
     /*
     TODO:
@@ -203,9 +240,9 @@ export class CronJobService {
     */
     let filesToValidate = await this.fileParser.getQueuedFiles();
     for (const file of filesToValidate) {
-      // const fileData = await this.fileParser.getFileData(file.submission_id)
-      const fileData = fs.readFileSync(`C:/Users/vmanawat/Downloads/TEST_MASTER_FILE.xlsx`, 'binary')
-      this.fileParser.parseFile(fileData, file.file_name)
+      console.log(file.file_name)
+      const fileBinary = await this.objectStore.getFileData(file.file_name)
+      this.fileParser.parseFile(fileBinary, file.file_name);
     }
   }
 }

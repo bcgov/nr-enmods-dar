@@ -100,6 +100,26 @@ model aqi_locations {
   update_utc_timestamp DateTime? @db.Timestamp(6)
 }
 
+model aqi_context_tags {
+  aqi_context_tags_id  String   @id @db.Uuid
+  custom_id            String   @db.VarChar(200)
+  description          String?  @db.VarChar(200)
+  create_user_id       String   @db.VarChar(200)
+  create_utc_timestamp DateTime @db.Timestamp(6)
+  update_user_id       String   @db.VarChar(200)
+  update_utc_timestamp DateTime @db.Timestamp(6)
+}
+
+model aqi_laboratories {
+  aqi_laboratories_id  String   @id @db.Uuid
+  custom_id            String   @db.VarChar(200)
+  description          String?  @db.VarChar(200)
+  create_user_id       String   @db.VarChar(200)
+  create_utc_timestamp DateTime @db.Timestamp(6)
+  update_user_id       String   @db.VarChar(200)
+  update_utc_timestamp DateTime @db.Timestamp(6)
+}
+
 model notifications {
   id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                String   @unique @db.VarChar(200)
