@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import axios from "axios";
-import * as crypto from 'crypto';
-import * as fs from 'fs';
+import * as crypto from "crypto";
+import * as fs from "fs";
 
 @Injectable()
 export class ObjectStoreService {
@@ -13,44 +13,39 @@ export class ObjectStoreService {
   private readonly bucketName = process.env.OBJECTSTORE_BUCKET;
   private readonly backupDirectory = process.env.OBJECTSTORE_BUCKET_NAME;
 
-  async getFileData(submission_id: string) {
-    if (!this.objectsotreEndpoint){
-      throw new Error("Object store endpoint not defined.");
-    }
-
-    const filenameWithExtension = 'TEST_MASTER_FILE-dc77af44-e300-45fc-b048-904f15e7a503.xlsx';
-
-    // Generate timestamp for signing the request
-    const date = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '') + 'Z';
-
-    // Generate the signature for the request
-    const stringToSign = `GET\n\n\n${date}\n/${this.bucketName}/${this.backupDirectory}/${filenameWithExtension}`;
-    const signature = crypto.createHmac('sha1', this.secretKey)
-                            .update(stringToSign)
-                            .digest('base64');
-
-    // Construct the URL
-    const url = `https://${this.objectsotreEndpoint}/${this.bucketName}/${this.backupDirectory}/${filenameWithExtension}`;
-
-    // // Perform the file download using Axios
-    const response = await axios.get(url, {
-      responseType: 'arraybuffer', // Important to handle binary data correctly
-      headers: {
-        // 'Host': this.objectsotreEndpoint,
-        'Date': date,
-        'Authorization': `AWS ${this.accessKey}:${signature}`,
-      },
-    });
-
-    console.log('*******************************************************************');
-    fs.writeFile('./temp.txt', response.data, (err) => {
-      if (err){
-        console.error(err);
-      }else{
-        console.log('File saved!');
+  async getFileData(fileName: string) {
+    try{
+      if (!this.objectsotreEndpoint) {
+        throw new Error("Object store endpoint not defined.");
       }
-    })
-    console.log('*******************************************************************');
+  
+      const dateValue = new Date().toUTCString();
+  
+      const stringToSign = `GET\n\n\n${dateValue}\n/${this.bucketName}/${fileName}`;
+  
+      const signature = crypto
+        .createHmac("sha1", this.secretKey)
+        .update(stringToSign)
+        .digest("base64");
+  
+      const requestUrl = `${this.objectsotreEndpoint}/${this.bucketName}/${fileName}`
+  
+      const headers = {
+        'Authorization': `AWS ${this.accessKey}:${signature}`,
+        'Date': dateValue,
+      };
+  
+      const response = await axios({
+        method: 'get',
+        url: requestUrl,
+        headers: headers,
+        responseType: 'arraybuffer',  // This is important for binary data
+      })
+  
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching the file:', error.message);
+      throw error;
+    }
   }
 }
-

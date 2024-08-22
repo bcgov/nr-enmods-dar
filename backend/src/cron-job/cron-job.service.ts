@@ -240,12 +240,9 @@ export class CronJobService {
     */
     let filesToValidate = await this.fileParser.getQueuedFiles();
     for (const file of filesToValidate) {
-      // const fileData = await this.objectStore.getFileData(file.submission_id)
-      const fileData = fs.readFileSync(
-        `C:/Users/vedan/Downloads/TEST_MASTER_FILE.xlsx`,
-        "binary",
-      );
-      this.fileParser.parseFile(fileData, file.file_name);
+      console.log(file.file_name)
+      const fileBinary = await this.objectStore.getFileData(file.file_name)
+      this.fileParser.parseFile(fileBinary, file.file_name);
     }
   }
 }

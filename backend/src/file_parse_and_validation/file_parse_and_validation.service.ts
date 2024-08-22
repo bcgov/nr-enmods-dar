@@ -4,7 +4,6 @@ import { FileSubmissionsService } from "src/file_submissions/file_submissions.se
 import { FieldActivities, FieldSpecimens, FieldVisits, ObservationFile, Observations } from "src/types/types";
 import { AqiApiService } from "src/aqi_api/aqi_api.service";
 import * as XLSX from "xlsx";
-import * as fs from "fs";
 import * as path from "path";
 import * as csvWriter from 'csv-writer';
 import { PrismaService } from "nestjs-prisma";
@@ -530,7 +529,7 @@ export class FileParseValidateService {
     const path = require("path");
     const extention = path.extname(fileName);
     if (extention == ".xlsx") {
-      const workbook = XLSX.read(file, { type: "binary" });
+      const workbook = XLSX.read(file, { type: "buffer" });
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData: any[][] = XLSX.utils.sheet_to_json(worksheet, {
         header: 1,
