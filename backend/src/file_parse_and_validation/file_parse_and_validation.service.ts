@@ -332,6 +332,7 @@ export class FileParseValidateService {
       Object.assign(currentVisitAndLoc, {
         samplingLocation: postData.samplingLocation,
       });
+      
       Object.assign(currentVisitAndLoc, {
         fieldVisit: await this.aqiService.fieldVisits(postData),
       });

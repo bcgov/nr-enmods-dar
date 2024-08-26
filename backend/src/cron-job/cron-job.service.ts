@@ -239,10 +239,25 @@ export class CronJobService {
       for each file returned, change the status to INPROGRESS and go to the parser
     */
     let filesToValidate = await this.fileParser.getQueuedFiles();
-    for (const file of filesToValidate) {
-      console.log(file.file_name)
-      const fileBinary = await this.objectStore.getFileData(file.file_name)
-      this.fileParser.parseFile(fileBinary, file.file_name);
+
+    if (filesToValidate.length < 1){
+      console.log("************** NO FILES TO VALIDATE **************");
+    }else{
+
+      for (const file of filesToValidate) {
+        const fileBinary = await this.objectStore.getFileData(file.file_name)
+
+        await this.prisma.file_submission.update({
+          where: {
+            submission_id: file.submission_id
+          },
+          data: {
+            submission_status_code: 'INPROGRESS'
+          }
+        })
+
+        this.fileParser.parseFile(fileBinary, file.file_name);
+      }
     }
   }
 }
