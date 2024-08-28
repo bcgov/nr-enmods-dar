@@ -307,18 +307,24 @@ export class FileParseValidateService {
         await this.queryCodeTables("PROJECT", projectCustomID),
       );
       // get the EA custom id (Ministry Contact and Sampling Agency) and find the GUID
-      extendedAttribs["extendedAttributes"].push(
-        await this.queryCodeTables("EXTENDED_ATTRIB", [
-          EAMinistryContact,
-          row.MinistryContact,
-        ]),
-      );
-      extendedAttribs["extendedAttributes"].push(
-        await this.queryCodeTables("EXTENDED_ATTRIB", [
-          EASamplingAgency,
-          row.SamplingAgency,
-        ]),
-      );
+
+      if (row.MinistryContact != ""){
+        extendedAttribs["extendedAttributes"].push(
+          await this.queryCodeTables("EXTENDED_ATTRIB", [
+            EAMinistryContact,
+            row.MinistryContact,
+          ]),
+        );
+      }
+
+      if (row.SamplingAgency!= ""){
+        extendedAttribs["extendedAttributes"].push(
+          await this.queryCodeTables("EXTENDED_ATTRIB", [
+            EASamplingAgency,
+            row.SamplingAgency,
+          ]),
+        );
+      }
 
       Object.assign(postData, extendedAttribs);
       Object.assign(postData, { startTime: row.FieldVisitStartTime });
@@ -351,9 +357,9 @@ export class FileParseValidateService {
     for (const [index, activity] of activityData.entries()) {
       let collectionMethodCustomID = activity.CollectionMethod;
       let mediumCustomID = activity.Medium;
-      let depthUnitCustomID = activity.DepthUnit;
-      let depthUnitValue = activity.DepthUpper;
-      let sampleContextTagCustomIds = activity.SamplingContextTag
+      let depthUnitCustomID = activity.DepthUnit == "" ? null : activity.DepthUnit;
+      let depthUnitValue = activity.DepthUpper; 
+      let sampleContextTagCustomIds = activity.SamplingContextTag == "" ? null : activity.SamplingContextTag
 
       // get the collection method custom id from object and find collection method GUID
       Object.assign(
@@ -369,13 +375,15 @@ export class FileParseValidateService {
         await this.queryCodeTables("MEDIUM", mediumCustomID),
       );
       // get the depth unit custom id from object and find depth unit GUID
-      Object.assign(
-        postData,
-        await this.queryCodeTables("DEPTH_UNIT", [
-          depthUnitCustomID,
-          depthUnitValue,
-        ]),
-      );
+      if (depthUnitCustomID != null || depthUnitValue != "") {
+        Object.assign(
+          postData,
+          await this.queryCodeTables("DEPTH_UNIT", [
+            depthUnitCustomID,
+            depthUnitValue,
+          ]),
+        );
+      }
 
       if (sampleContextTagCustomIds != null) {
         let tagsToLookup = sampleContextTagCustomIds.split(', ');
@@ -383,12 +391,14 @@ export class FileParseValidateService {
       }
       
       // get the EA custom id (Depth Lower and Depth Upper) and find the GUID
-      extendedAttribs["extendedAttributes"].push(
-        await this.queryCodeTables("EXTENDED_ATTRIB", [
-          "Depth Lower",
-          activity.DepthLower,
-        ]),
-      );
+      if (activity.DepthLower != ""){
+        extendedAttribs["extendedAttributes"].push(
+          await this.queryCodeTables("EXTENDED_ATTRIB", [
+            "Depth Lower",
+            activity.DepthLower,
+          ]),
+        );
+      }
 
       Object.assign(postData, { type: activity.ActivityType });
       Object.assign(postData, extendedAttribs);
@@ -438,24 +448,30 @@ export class FileParseValidateService {
       )
 
       // get the EA custom id (EA Work Order Number, FieldFiltered, FieldFilterComment, FieldPreservative, EALabReportID, SpecimenName) and find the GUID
-      extendedAttribs["extendedAttributes"].push(
-        await this.queryCodeTables("EXTENDED_ATTRIB", [
-          EAWorkOrderNumberCustomID,
-          specimen.WorkOrderNumber,
-        ]),
-      );
-      extendedAttribs["extendedAttributes"].push(
-        await this.queryCodeTables("EXTENDED_ATTRIB", [
-          EATissueType,
-          specimen.TissueType,
-        ]),
-      );
-      extendedAttribs["extendedAttributes"].push(
-        await this.queryCodeTables("EXTENDED_ATTRIB", [
-          EALabArrivalTemp,
-          specimen.LabArrivalTemperature,
-        ]),
-      );
+      if (specimen.WorkOrderNumber != ""){
+        extendedAttribs["extendedAttributes"].push(
+          await this.queryCodeTables("EXTENDED_ATTRIB", [
+            EAWorkOrderNumberCustomID,
+            specimen.WorkOrderNumber,
+          ]),
+        );
+      }
+      if (specimen.TissueType != ""){
+        extendedAttribs["extendedAttributes"].push(
+          await this.queryCodeTables("EXTENDED_ATTRIB", [
+            EATissueType,
+            specimen.TissueType,
+          ]),
+        );
+      }
+      if (specimen.LabArrivalTemperature != ""){
+        extendedAttribs["extendedAttributes"].push(
+          await this.queryCodeTables("EXTENDED_ATTRIB", [
+            EALabArrivalTemp,
+            specimen.LabArrivalTemperature,
+          ]),
+        );
+      }
 
       if (FieldFiltered == "TRUE") {
         Object.assign(postData, { filtered: "true" });
@@ -463,7 +479,11 @@ export class FileParseValidateService {
       } else {
         Object.assign(postData, { filtered: "false" });
       }
-      Object.assign(postData, { preservative: specimen.FieldPreservative });
+
+      if (specimen.FieldPreservative != "") {
+        Object.assign(postData, { preservative: specimen.FieldPreservative });
+      }
+
       Object.assign(postData, { name: specimen.SpecimenName });
       Object.assign(postData, { activity: activityInfo[index].activity });
       Object.assign(postData, extendedAttribs);
