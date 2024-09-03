@@ -1,11 +1,17 @@
 import { Injectable, Logger } from "@nestjs/common";
 import axios, { AxiosInstance, AxiosRequestConfig, post } from "axios";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
-import { FieldActivities, FieldSpecimens, FieldVisits, ObservationFile, Observations } from "src/types/types";
+import {
+  FieldActivities,
+  FieldSpecimens,
+  FieldVisits,
+  ObservationFile,
+  Observations,
+} from "src/types/types";
 import { AqiApiService } from "src/aqi_api/aqi_api.service";
 import * as XLSX from "xlsx";
 import * as path from "path";
-import * as csvWriter from 'csv-writer';
+import * as csvWriter from "csv-writer";
 import { PrismaService } from "nestjs-prisma";
 
 const visits: FieldVisits = {
@@ -31,7 +37,7 @@ const activities: FieldActivities = {
   ObservedDateTimeEnd: "",
   ActivityType: "SAMPLE_ROUTINE",
   ActivityName: "",
-  SamplingContextTag: ""
+  SamplingContextTag: "",
 };
 
 const specimens: FieldSpecimens = {
@@ -45,7 +51,7 @@ const specimens: FieldSpecimens = {
   SpecimenName: "",
   TissueType: "",
   LabArrivalTemperature: "",
-  AnalyzingAgency: ""
+  AnalyzingAgency: "",
 };
 
 const observations: Observations = {
@@ -86,8 +92,8 @@ const observations: Observations = {
   LabDilutionFactor: "",
   LabComment: "",
   QCType: "",
-  QCSourceActivityName: ""
-}
+  QCSourceActivityName: "",
+};
 
 const obsFile: ObservationFile = {
   "Observation ID": "",
@@ -95,7 +101,7 @@ const obsFile: ObservationFile = {
   "Observed Property ID": "",
   "Observed DateTime": "",
   "Analyzed DateTime": "",
-  "Depth": "",
+  Depth: "",
   "Depth Unit": "",
   "Data Classification": "",
   "Result Value": "",
@@ -105,7 +111,7 @@ const obsFile: ObservationFile = {
   "Rounding Specification": "",
   "Result Status": "",
   "Result Grade": "",
-  "Medium": "",
+  Medium: "",
   "Activity ID": "",
   "Activity Name": "",
   "Collection Method": "",
@@ -128,7 +134,7 @@ const obsFile: ObservationFile = {
   "Lab: Comment": "",
   "QC: Type": "",
   "QC: Source Sample ID": "",
-}
+};
 
 @Injectable()
 export class FileParseValidateService {
@@ -159,9 +165,9 @@ export class FileParseValidateService {
           },
         });
         return {
-          'samplingLocation': {
-            'id': locID[0].aqi_locations_id,
-            'custom_id': param,
+          samplingLocation: {
+            id: locID[0].aqi_locations_id,
+            custom_id: param,
           },
         };
       case "PROJECT":
@@ -176,7 +182,7 @@ export class FileParseValidateService {
           },
         });
         return {
-          'project': { 'id': projectID[0].aqi_projects_id, 'customId': param },
+          project: { id: projectID[0].aqi_projects_id, customId: param },
         };
       case "COLLECTION_METHODS":
         let cmID = await this.prisma.aqi_collection_methods.findMany({
@@ -190,9 +196,9 @@ export class FileParseValidateService {
           },
         });
         return {
-          'collectionMethod': {
-            'id': cmID[0].aqi_collection_methods_id,
-            'customId': param,
+          collectionMethod: {
+            id: cmID[0].aqi_collection_methods_id,
+            customId: param,
           },
         };
       case "MEDIUM":
@@ -206,7 +212,7 @@ export class FileParseValidateService {
             aqi_mediums_id: true,
           },
         });
-        return { 'medium': { 'id': mediumID[0].aqi_mediums_id, 'customId': param } };
+        return { medium: { id: mediumID[0].aqi_mediums_id, customId: param } };
       case "DEPTH_UNIT":
         let duID = await this.prisma.aqi_units.findMany({
           where: {
@@ -219,9 +225,9 @@ export class FileParseValidateService {
           },
         });
         return {
-          'depth': {
-            'value': param[1],
-            'unit': { 'id': duID[0].aqi_units_id, 'customId': param[0] },
+          depth: {
+            value: param[1],
+            unit: { id: duID[0].aqi_units_id, customId: param[0] },
           },
         };
       case "LABS":
@@ -235,10 +241,12 @@ export class FileParseValidateService {
             aqi_laboratories_id: true,
           },
         });
-        return { 'laboratory': { 'id': labID[0].aqi_laboratories_id, 'customId': param } };
+        return {
+          laboratory: { id: labID[0].aqi_laboratories_id, customId: param },
+        };
       case "TAGS":
-        let returnTags: any = []
-        for (const tag of param){
+        let returnTags: any = [];
+        for (const tag of param) {
           let tagID = await this.prisma.aqi_context_tags.findMany({
             where: {
               custom_id: {
@@ -249,7 +257,7 @@ export class FileParseValidateService {
               aqi_context_tags_id: true,
             },
           });
-          returnTags.push({'id': tagID[0].aqi_context_tags_id, 'name': tag});
+          returnTags.push({ id: tagID[0].aqi_context_tags_id, name: tag });
         }
         return returnTags;
       case "EXTENDED_ATTRIB":
@@ -266,21 +274,21 @@ export class FileParseValidateService {
 
         if (param[0] == "Specimen Lab Arrival Temperature (°C)") {
           return {
-            'attributeId': eaID[0].aqi_extended_attributes_id,
-            'customId': param[0],
-            'number': +param[1],
+            attributeId: eaID[0].aqi_extended_attributes_id,
+            customId: param[0],
+            number: +param[1],
           };
         } else if (param[0] == "Specimen Tissue Type") {
           return {
-            'attributeId': eaID[0].aqi_extended_attributes_id,
-            'customId': param[0],
-            'dropDownListItem': { 'customId': param[1] },
+            attributeId: eaID[0].aqi_extended_attributes_id,
+            customId: param[0],
+            dropDownListItem: { customId: param[1] },
           };
         } else {
           return {
-            'attributeId': eaID[0].aqi_extended_attributes_id,
-            'customId': param[0],
-            'text': param[1],
+            attributeId: eaID[0].aqi_extended_attributes_id,
+            customId: param[0],
+            text: param[1],
           };
         }
     }
@@ -308,7 +316,7 @@ export class FileParseValidateService {
       );
       // get the EA custom id (Ministry Contact and Sampling Agency) and find the GUID
 
-      if (row.MinistryContact != ""){
+      if (row.MinistryContact != "") {
         extendedAttribs["extendedAttributes"].push(
           await this.queryCodeTables("EXTENDED_ATTRIB", [
             EAMinistryContact,
@@ -317,7 +325,7 @@ export class FileParseValidateService {
         );
       }
 
-      if (row.SamplingAgency!= ""){
+      if (row.SamplingAgency != "") {
         extendedAttribs["extendedAttributes"].push(
           await this.queryCodeTables("EXTENDED_ATTRIB", [
             EASamplingAgency,
@@ -338,7 +346,7 @@ export class FileParseValidateService {
       Object.assign(currentVisitAndLoc, {
         samplingLocation: postData.samplingLocation,
       });
-      
+
       Object.assign(currentVisitAndLoc, {
         fieldVisit: await this.aqiService.fieldVisits(postData),
       });
@@ -352,14 +360,16 @@ export class FileParseValidateService {
     let postData = {};
     let activityId = [];
     const extendedAttribs = { extendedAttributes: [] };
-    const sampleContextTags = {'samplingContextTags': []}
+    const sampleContextTags = { samplingContextTags: [] };
 
     for (const [index, activity] of activityData.entries()) {
       let collectionMethodCustomID = activity.CollectionMethod;
       let mediumCustomID = activity.Medium;
-      let depthUnitCustomID = activity.DepthUnit == "" ? null : activity.DepthUnit;
-      let depthUnitValue = activity.DepthUpper; 
-      let sampleContextTagCustomIds = activity.SamplingContextTag == "" ? null : activity.SamplingContextTag
+      let depthUnitCustomID =
+        activity.DepthUnit == "" ? null : activity.DepthUnit;
+      let depthUnitValue = activity.DepthUpper;
+      let sampleContextTagCustomIds =
+        activity.SamplingContextTag == "" ? null : activity.SamplingContextTag;
 
       // get the collection method custom id from object and find collection method GUID
       Object.assign(
@@ -386,12 +396,15 @@ export class FileParseValidateService {
       }
 
       if (sampleContextTagCustomIds != null) {
-        let tagsToLookup = sampleContextTagCustomIds.split(', ');
-        sampleContextTags['samplingContextTags'] = await this.queryCodeTables("TAGS", tagsToLookup)
+        let tagsToLookup = sampleContextTagCustomIds.split(", ");
+        sampleContextTags["samplingContextTags"] = await this.queryCodeTables(
+          "TAGS",
+          tagsToLookup,
+        );
       }
-      
+
       // get the EA custom id (Depth Lower and Depth Upper) and find the GUID
-      if (activity.DepthLower != ""){
+      if (activity.DepthLower != "") {
         extendedAttribs["extendedAttributes"].push(
           await this.queryCodeTables("EXTENDED_ATTRIB", [
             "Depth Lower",
@@ -402,7 +415,7 @@ export class FileParseValidateService {
 
       Object.assign(postData, { type: activity.ActivityType });
       Object.assign(postData, extendedAttribs);
-      Object.assign(postData, sampleContextTags)
+      Object.assign(postData, sampleContextTags);
       Object.assign(postData, { startTime: activity.ObservedDateTime });
       Object.assign(postData, { endTime: activity.ObservedDateTimeEnd });
       Object.assign(postData, {
@@ -436,7 +449,7 @@ export class FileParseValidateService {
       let mediumCustomID = specimen.Medium;
       let FieldFiltered = specimen.FieldFiltered;
       let FieldFilterComment = specimen.FieldFilterComment;
-      let analyzingAgencyCustomID = specimen.AnalyzingAgency
+      let analyzingAgencyCustomID = specimen.AnalyzingAgency;
 
       Object.assign(
         postData,
@@ -445,10 +458,10 @@ export class FileParseValidateService {
       Object.assign(
         postData,
         await this.queryCodeTables("LABS", analyzingAgencyCustomID),
-      )
+      );
 
       // get the EA custom id (EA Work Order Number, FieldFiltered, FieldFilterComment, FieldPreservative, EALabReportID, SpecimenName) and find the GUID
-      if (specimen.WorkOrderNumber != ""){
+      if (specimen.WorkOrderNumber != "") {
         extendedAttribs["extendedAttributes"].push(
           await this.queryCodeTables("EXTENDED_ATTRIB", [
             EAWorkOrderNumberCustomID,
@@ -456,7 +469,7 @@ export class FileParseValidateService {
           ]),
         );
       }
-      if (specimen.TissueType != ""){
+      if (specimen.TissueType != "") {
         extendedAttribs["extendedAttributes"].push(
           await this.queryCodeTables("EXTENDED_ATTRIB", [
             EATissueType,
@@ -464,7 +477,7 @@ export class FileParseValidateService {
           ]),
         );
       }
-      if (specimen.LabArrivalTemperature != ""){
+      if (specimen.LabArrivalTemperature != "") {
         extendedAttribs["extendedAttributes"].push(
           await this.queryCodeTables("EXTENDED_ATTRIB", [
             EALabArrivalTemp,
@@ -488,7 +501,7 @@ export class FileParseValidateService {
       Object.assign(postData, { activity: activityInfo[index].activity });
       Object.assign(postData, extendedAttribs);
 
-      await this.aqiService.fieldSpecimens(postData)
+      await this.aqiService.fieldSpecimens(postData);
     }
   }
 
@@ -509,31 +522,38 @@ export class FileParseValidateService {
     });
   }
 
-  async formulateObservationFile(observationData: any, activityInfo: any, fileName: string){
-    for (const [index, observation] of observationData.entries()){
-      observation['ActivityID'] = activityInfo[index].activity.id;
+  async formulateObservationFile(
+    observationData: any,
+    activityInfo: any,
+    fileName: string,
+  ) {
+    for (const [index, observation] of observationData.entries()) {
+      observation["ActivityID"] = activityInfo[index].activity.id;
     }
 
-    const obsToWrite: ObservationFile[] = []
+    const obsToWrite: ObservationFile[] = [];
 
     observationData.map((source) => {
-      const sourceKeys = Object.keys(source)
-      const targetKeys = Object.keys(obsFile) 
+      const sourceKeys = Object.keys(source);
+      const targetKeys = Object.keys(obsFile);
 
       const newObs = {} as ObservationFile;
 
       sourceKeys.forEach((sourceKey, i) => {
-        const targetKey = targetKeys[i]
-        if (targetKey !== undefined){
-          newObs[targetKey] = source[sourceKey]
+        const targetKey = targetKeys[i];
+        if (targetKey !== undefined) {
+          newObs[targetKey] = source[sourceKey];
         }
-      })
-      obsToWrite.push(newObs)
-    })
-    
-    const baseFileName = path.basename(fileName, path.extname(fileName))
-    const filePath = path.join('src/tempObsFiles/', `temp-${baseFileName}.csv`)
-    const headers = Object.keys(obsToWrite[0]).map((key) => ({ id: key, title: key }));
+      });
+      obsToWrite.push(newObs);
+    });
+
+    const baseFileName = path.basename(fileName, path.extname(fileName));
+    const filePath = path.join("src/tempObsFiles/", `temp-${baseFileName}.csv`);
+    const headers = Object.keys(obsToWrite[0]).map((key) => ({
+      id: key,
+      title: key,
+    }));
 
     const writer = csvWriter.createObjectCsvWriter({
       path: filePath,
@@ -541,9 +561,10 @@ export class FileParseValidateService {
     });
 
     await writer.writeRecords(obsToWrite);
-    
-    await this.aqiService.importObservations(`src/tempObsFiles/temp-${baseFileName}.csv`)
 
+    await this.aqiService.importObservations(
+      `src/tempObsFiles/temp-${baseFileName}.csv`,
+    );
   }
 
   async parseFile(file: string, fileName: string) {
@@ -596,16 +617,20 @@ export class FileParseValidateService {
         null,
       );
 
-      const allObservations = this.filterFile<Observations>(allRecords, Object.keys(observations), null)
-
-      let visitInfo = await this.postFieldVisits(allFieldVisits);
-      let activityInfo = await this.postFieldActivities(
-        visitInfo,
-        allFieldActivities,
+      const allObservations = this.filterFile<Observations>(
+        allRecords,
+        Object.keys(observations),
+        null,
       );
 
-      await this.postFieldSpecimens(activityInfo, allSpecimens);
-      await this.formulateObservationFile(allObservations, activityInfo, fileName)
+      // let visitInfo = await this.postFieldVisits(allFieldVisits);
+      // let activityInfo = await this.postFieldActivities(
+      //   visitInfo,
+      //   allFieldActivities,
+      // );
+
+      // await this.postFieldSpecimens(activityInfo, allSpecimens);
+      // await this.formulateObservationFile(allObservations, activityInfo, fileName)
     }
   }
 }
