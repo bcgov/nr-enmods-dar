@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import axios, { AxiosInstance, AxiosRequestConfig, post } from "axios";
+import axios, { all, AxiosInstance, AxiosRequestConfig, post } from "axios";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
 import {
   FieldActivities,
@@ -278,7 +278,10 @@ export class FileParseValidateService {
             customId: param[0],
             number: +param[1],
           };
-        } else if (param[0] == "Specimen Tissue Type") {
+        } else if (
+          param[0] == "Specimen Tissue Type" ||
+          param[0] == "Sampling Agency"
+        ) {
           return {
             attributeId: eaID[0].aqi_extended_attributes_id,
             customId: param[0],
@@ -295,12 +298,13 @@ export class FileParseValidateService {
   }
 
   async postFieldVisits(visitData: any) {
-    let postData: any = {};
     const visitAndLocId = [];
-    const extendedAttribs = { extendedAttributes: [] };
     for (const row of visitData) {
-      let locationCustomID = row.LocationID;
-      let projectCustomID = row.Project;
+      let postData: any = {};
+      const extendedAttribs = { extendedAttributes: [] };
+
+      let locationCustomID = row.rec.LocationID;
+      let projectCustomID = row.rec.Project;
       let EAMinistryContact = "Ministry Contact";
       let EASamplingAgency = "Sampling Agency";
 
@@ -316,30 +320,30 @@ export class FileParseValidateService {
       );
       // get the EA custom id (Ministry Contact and Sampling Agency) and find the GUID
 
-      if (row.MinistryContact != "") {
+      if (row.rec.MinistryContact != "") {
         extendedAttribs["extendedAttributes"].push(
           await this.queryCodeTables("EXTENDED_ATTRIB", [
             EAMinistryContact,
-            row.MinistryContact,
+            row.rec.MinistryContact,
           ]),
         );
       }
 
-      if (row.SamplingAgency != "") {
+      if (row.rec.SamplingAgency != "") {
         extendedAttribs["extendedAttributes"].push(
           await this.queryCodeTables("EXTENDED_ATTRIB", [
             EASamplingAgency,
-            row.SamplingAgency,
+            row.rec.SamplingAgency,
           ]),
         );
       }
 
       Object.assign(postData, extendedAttribs);
-      Object.assign(postData, { startTime: row.FieldVisitStartTime });
-      Object.assign(postData, { endTime: row.FieldVisitEndTime });
-      Object.assign(postData, { participants: row.FieldVisitParticipants });
-      Object.assign(postData, { notes: row.FieldVisitComments });
-      Object.assign(postData, { planningStatus: row.PlanningStatus });
+      Object.assign(postData, { startTime: row.rec.FieldVisitStartTime });
+      Object.assign(postData, { endTime: row.rec.FieldVisitEndTime });
+      Object.assign(postData, { participants: row.rec.FieldVisitParticipants });
+      Object.assign(postData, { notes: row.rec.FieldVisitComments });
+      Object.assign(postData, { planningStatus: row.rec.PlanningStatus });
 
       let currentVisitAndLoc: any = {};
 
@@ -350,26 +354,33 @@ export class FileParseValidateService {
       Object.assign(currentVisitAndLoc, {
         fieldVisit: await this.aqiService.fieldVisits(postData),
       });
-      visitAndLocId.push(currentVisitAndLoc);
+      visitAndLocId.push({ rec: currentVisitAndLoc, count: row.count });
     }
 
     return visitAndLocId;
   }
 
-  async postFieldActivities(visitInfo: any, activityData: any) {
-    let postData = {};
+  async postFieldActivities(activityData: any) {
     let activityId = [];
-    const extendedAttribs = { extendedAttributes: [] };
-    const sampleContextTags = { samplingContextTags: [] };
 
-    for (const [index, activity] of activityData.entries()) {
-      let collectionMethodCustomID = activity.CollectionMethod;
-      let mediumCustomID = activity.Medium;
+    for (const row of activityData) {
+      let postData: any = {};
+      const extendedAttribs = { extendedAttributes: [] };
+      const sampleContextTags = { samplingContextTags: [] };
+
+      let collectionMethodCustomID = row.rec.CollectionMethod;
+      let mediumCustomID = row.rec.Medium;
       let depthUnitCustomID =
-        activity.DepthUnit == "" ? null : activity.DepthUnit;
-      let depthUnitValue = activity.DepthUpper;
+        row.rec.DepthUnit == ""
+          ? null
+          : row.rec.DepthUnit == "m" || row.rec.DepthUnit == "Metre"
+            ? "Metre"
+            : row.rec.DepthUnit == "ft" || row.rec.DepthUnit == "Feet"
+              ? "Feet"
+              : row.rec.DepthUnit;
+      let depthUnitValue = row.rec.DepthUpper;
       let sampleContextTagCustomIds =
-        activity.SamplingContextTag == "" ? null : activity.SamplingContextTag;
+        row.rec.SamplingContextTag == "" ? null : row.rec.SamplingContextTag;
 
       // get the collection method custom id from object and find collection method GUID
       Object.assign(
@@ -404,52 +415,53 @@ export class FileParseValidateService {
       }
 
       // get the EA custom id (Depth Lower and Depth Upper) and find the GUID
-      if (activity.DepthLower != "") {
+      if (row.rec.DepthLower != "") {
         extendedAttribs["extendedAttributes"].push(
           await this.queryCodeTables("EXTENDED_ATTRIB", [
             "Depth Lower",
-            activity.DepthLower,
+            row.rec.DepthLower,
           ]),
         );
       }
 
-      Object.assign(postData, { type: activity.ActivityType });
+      Object.assign(postData, { type: row.rec.ActivityType });
       Object.assign(postData, extendedAttribs);
       Object.assign(postData, sampleContextTags);
-      Object.assign(postData, { startTime: activity.ObservedDateTime });
-      Object.assign(postData, { endTime: activity.ObservedDateTimeEnd });
+      Object.assign(postData, { startTime: row.rec.ObservedDateTime });
+      Object.assign(postData, { endTime: row.rec.ObservedDateTimeEnd });
       Object.assign(postData, {
-        samplingLocation: visitInfo[index].samplingLocation,
+        samplingLocation: row.rec.samplingLocation,
       });
       Object.assign(postData, {
-        fieldVisit: { id: visitInfo[index].fieldVisit },
+        fieldVisit: { id: row.rec.fieldVisit },
       });
-      Object.assign(postData, { customId: activity.ActivityName });
+      Object.assign(postData, { customId: row.rec.ActivityName });
 
       let currentActivity = {};
       Object.assign(currentActivity, {
         activity: {
           id: await this.aqiService.fieldActivities(postData),
-          customId: activity.ActivityName,
-          startTime: activity.ObservedDateTime,
+          customId: row.rec.ActivityName,
+          startTime: row.rec.ObservedDateTime,
         },
       });
-      activityId.push(currentActivity);
+      activityId.push({ rec: currentActivity, count: row.count });
     }
     return activityId;
   }
 
-  async postFieldSpecimens(activityInfo: any, specimenData: any) {
-    let postData = {};
-    const extendedAttribs = { extendedAttributes: [] };
-    for (const [index, specimen] of specimenData.entries()) {
+  async postFieldSpecimens(specimenData: any) {
+    for (const row of specimenData) {
+      let postData = {};
+      const extendedAttribs = { extendedAttributes: [] };
+
       let EAWorkOrderNumberCustomID = "Work Order Number";
       let EATissueType = "Specimen Tissue Type";
       let EALabArrivalTemp = "Specimen Lab Arrival Temperature (°C)";
-      let mediumCustomID = specimen.Medium;
-      let FieldFiltered = specimen.FieldFiltered;
-      let FieldFilterComment = specimen.FieldFilterComment;
-      let analyzingAgencyCustomID = specimen.AnalyzingAgency;
+      let mediumCustomID = row.rec.Medium;
+      let FieldFiltered = row.rec.FieldFiltered;
+      let FieldFilterComment = row.rec.FieldFilterComment;
+      let analyzingAgencyCustomID = row.rec.AnalyzingAgency;
 
       Object.assign(
         postData,
@@ -461,27 +473,27 @@ export class FileParseValidateService {
       );
 
       // get the EA custom id (EA Work Order Number, FieldFiltered, FieldFilterComment, FieldPreservative, EALabReportID, SpecimenName) and find the GUID
-      if (specimen.WorkOrderNumber != "") {
+      if (row.rec.WorkOrderNumber != "") {
         extendedAttribs["extendedAttributes"].push(
           await this.queryCodeTables("EXTENDED_ATTRIB", [
             EAWorkOrderNumberCustomID,
-            specimen.WorkOrderNumber,
+            row.rec.WorkOrderNumber,
           ]),
         );
       }
-      if (specimen.TissueType != "") {
+      if (row.rec.TissueType != "") {
         extendedAttribs["extendedAttributes"].push(
           await this.queryCodeTables("EXTENDED_ATTRIB", [
             EATissueType,
-            specimen.TissueType,
+            row.rec.TissueType,
           ]),
         );
       }
-      if (specimen.LabArrivalTemperature != "") {
+      if (row.rec.LabArrivalTemperature != "") {
         extendedAttribs["extendedAttributes"].push(
           await this.queryCodeTables("EXTENDED_ATTRIB", [
             EALabArrivalTemp,
-            specimen.LabArrivalTemperature,
+            row.rec.LabArrivalTemperature,
           ]),
         );
       }
@@ -493,12 +505,12 @@ export class FileParseValidateService {
         Object.assign(postData, { filtered: "false" });
       }
 
-      if (specimen.FieldPreservative != "") {
-        Object.assign(postData, { preservative: specimen.FieldPreservative });
+      if (row.rec.FieldPreservative != "") {
+        Object.assign(postData, { preservative: row.rec.FieldPreservative });
       }
 
-      Object.assign(postData, { name: specimen.SpecimenName });
-      Object.assign(postData, { activity: activityInfo[index].activity });
+      Object.assign(postData, { name: row.rec.SpecimenName });
+      Object.assign(postData, { activity: row.rec.activity });
       Object.assign(postData, extendedAttribs);
 
       await this.aqiService.fieldSpecimens(postData);
@@ -520,6 +532,22 @@ export class FileParseValidateService {
 
       return filteredObj;
     });
+  }
+
+  getUniqueWithCounts(data: any[]) {
+    const map = new Map<string, number>();
+
+    data.forEach((visit) => {
+      const key = JSON.stringify(visit);
+      map.set(key, (map.get(key) || 0) + 1);
+    });
+
+    const dupeCount = Array.from(map.entries()).map(([key, count]) => ({
+      rec: JSON.parse(key),
+      count,
+    }));
+
+    return dupeCount;
   }
 
   async formulateObservationFile(
@@ -601,17 +629,21 @@ export class FileParseValidateService {
         ActivityType: "SAMPLE_ROUTINE",
       };
 
+      /*
+       * From the input file get all the atrributes and values for each sub section - Visits, Activities, Specimens and Observations
+       */
       const allFieldVisits = this.filterFile<FieldVisits>(
         allRecords,
         Object.keys(visits),
         fieldVisitCustomAttributes,
       );
-      const allFieldActivities = this.filterFile<FieldActivities>(
+
+      let allFieldActivities = this.filterFile<FieldActivities>(
         allRecords,
         Object.keys(activities),
         fieldActivityCustomAttrib,
       );
-      const allSpecimens = this.filterFile<FieldSpecimens>(
+      let allSpecimens = this.filterFile<FieldSpecimens>(
         allRecords,
         Object.keys(specimens),
         null,
@@ -623,14 +655,54 @@ export class FileParseValidateService {
         null,
       );
 
-      // let visitInfo = await this.postFieldVisits(allFieldVisits);
-      // let activityInfo = await this.postFieldActivities(
-      //   visitInfo,
-      //   allFieldActivities,
-      // );
+      /*
+       * Get unique records to prevent redundant API calls
+       * Post the unique records to the API
+       * Expand the returned list of object - this will be used for finding unique activities
+       */
+      const uniqueVisitsWithCounts = this.getUniqueWithCounts(allFieldVisits);
+      let visitInfo = await this.postFieldVisits(uniqueVisitsWithCounts);
+      let expandedVisitInfo = visitInfo.flatMap((visit) =>
+        Array(visit.count).fill(visit.rec),
+      );
 
-      // await this.postFieldSpecimens(activityInfo, allSpecimens);
-      // await this.formulateObservationFile(allObservations, activityInfo, fileName)
+      /*
+       * Merge the expanded visitInfo with allFieldActivities
+       * Collapse allFieldActivities with a dupe count
+       * Post the unique records to the API
+       * Expand the returned list of object - this will be used for finding unique specimens
+       */
+
+      allFieldActivities = allFieldActivities.map((obj2, index) => {
+        const obj1 = expandedVisitInfo[index];
+        return { ...obj2, ...obj1 };
+      });
+
+      const uniqueActivitiesWithCounts =
+        this.getUniqueWithCounts(allFieldActivities);
+      let activityInfo = await this.postFieldActivities(
+        uniqueActivitiesWithCounts,
+      );
+      let expandedActivityInfo = activityInfo.flatMap((activity) =>
+        Array(activity.count).fill(activity.rec),
+      );
+
+      /*
+       * Merge the expanded activityInfo with allSpecimens
+       * Collapse allSpecimens with a dupe count
+       * Post the unique records to the API
+       */
+      allSpecimens = allSpecimens.map((obj2, index) => {
+        const obj1 = expandedActivityInfo[index];
+        return { ...obj2, ...obj1 };
+      });
+      const uniqueSpecimensWithCounts = this.getUniqueWithCounts(allSpecimens);
+      await this.postFieldSpecimens(uniqueSpecimensWithCounts);
+      await this.formulateObservationFile(
+        allObservations,
+        expandedActivityInfo,
+        fileName,
+      );
     }
   }
 }

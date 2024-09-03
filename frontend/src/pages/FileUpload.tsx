@@ -263,7 +263,7 @@ function FileUpload() {
                               <Button style={{ color: 'orange' }}>
                                 <Error />
                               </Button>
-                            ) : fileStatusCodes.items[index] == 'INPROGRESS' ? (
+                            ) : fileStatusCodes.items[index] == 'INPROGRESS' || fileStatusCodes.items[index] == 'QUEUED'? (
                               <Button style={{ color: 'orange' }}>
                                 <CircularProgress color="secondary" />
                               </Button>
