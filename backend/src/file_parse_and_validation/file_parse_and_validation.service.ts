@@ -598,9 +598,10 @@ export class FileParseValidateService {
 
   localValidation(visits, activities, specimens, observations){
     // do validation for visits
-    for (const visit of visits) {
-      assert(visit.FieldVisitStartTime != null || visit.FieldVisitStartTime != '')
-      assert(visit.FieldVisitEndTime != null || visit.FieldVisitEndTime != '')
+    for (const [index,visit] of visits.entries()) {
+      if (visit.hasOwnProperty('FieldVisitStartTime')){
+        assert(visit.FieldVisitStartTime !== null && visit.FieldVisitStartTime !== '')
+      }
     }
 
   }
