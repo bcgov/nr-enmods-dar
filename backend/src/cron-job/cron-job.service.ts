@@ -247,14 +247,14 @@ export class CronJobService {
       for (const file of filesToValidate) {
         const fileBinary = await this.objectStore.getFileData(file.file_name)
 
-        await this.prisma.file_submission.update({
-          where: {
-            submission_id: file.submission_id
-          },
-          data: {
-            submission_status_code: 'INPROGRESS'
-          }
-        })
+        // await this.prisma.file_submission.update({
+        //   where: {
+        //     submission_id: file.submission_id
+        //   },
+        //   data: {
+        //     submission_status_code: 'INPROGRESS'
+        //   }
+        // })
 
         this.fileParser.parseFile(fileBinary, file.file_name);
       }
