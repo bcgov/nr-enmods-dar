@@ -179,3 +179,28 @@ model aqi_detection_conditions {
   update_user_id              String   @db.VarChar(200)
   update_utc_timestamp        DateTime @db.Timestamp(6)
 }
+
+model aqi_field_visits {
+  aqi_field_visits_id        String   @id @db.Uuid
+  aqi_field_visit_start_time DateTime @db.Timestamp(6)
+  aqi_location_custom_id     String   @db.VarChar(200)
+}
+
+model aqi_field_activities {
+  aqi_field_activities_id         String   @id @db.Uuid
+  aqi_field_activities_start_time DateTime @db.Timestamp(6)
+  aqi_field_activities_custom_id  String   @db.VarChar(200)
+  aqi_location_custom_id          String   @db.VarChar(200)
+  create_user_id                  String   @db.VarChar(200)
+  create_utc_timestamp            DateTime @db.Timestamp(6)
+  update_user_id                  String   @db.VarChar(200)
+  update_utc_timestamp            DateTime @db.Timestamp(6)
+}
+
+model aqi_specimens {
+  aqi_specimens_id                String   @id @db.Uuid
+  aqi_specimens_custom_id         String   @db.VarChar(200)
+  aqi_field_activities_start_time DateTime @db.Timestamp(6)
+  aqi_field_activities_custom_id  String   @db.VarChar(200)
+  aqi_location_custom_id          String   @db.VarChar(200)
+}

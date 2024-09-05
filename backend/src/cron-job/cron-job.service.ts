@@ -35,6 +35,9 @@ export class CronJobService {
       ["aqi_result_status", this.prisma.aqi_result_status],
       ["aqi_result_grade", this.prisma.aqi_result_grade],
       ["aqi_locations", this.prisma.aqi_locations],
+      ["aqi_field_visits", this.prisma.aqi_field_visits],
+      ["aqi_field_activities", this.prisma.aqi_field_activities],
+      ["aqi_specimens", this.prisma.aqi_specimens],
     ]);
   }
 
@@ -111,6 +114,24 @@ export class CronJobService {
       dbTable: "aqi_locations",
       paramsEnabled: true,
     },
+    {
+      endpoint: "/v1/fieldvisits",
+      method: "GET",
+      dbTable: "aqi_field_visits",
+      paramsEnabled: false,
+    },
+    {
+      endpoint: "/v1/activities",
+      method: "GET",
+      dbTable: "aqi_field_activities",
+      paramsEnabled: false,
+    },
+    {
+      endpoint: "/v1/specimens",
+      method: "GET",
+      dbTable: "aqi_specimens",
+      paramsEnabled: true,
+    }
   ];
 
   private async updateDatabase(dbTable: string, data: any) {
@@ -120,38 +141,113 @@ export class CronJobService {
       if (!model) throw new Error(`Unknown dbTable: ${dbTable}`);
       this.logger.log(`Upserting ${data.length} entries into ${dbTable}...`);
 
-      await this.prisma.$transaction(
-        data.map((record) =>
-          model.upsert({
-            where: { [dbTable + "_id"]: record.id },
-            update: {
-              custom_id: record.customId || record.name,
-              description: record.description,
-              create_user_id: record.creationUserProfileId,
-              create_utc_timestamp: record.creationTime
-                ? new Date(record.creationTime)
-                : null,
-              update_user_id: record.modificationUserProfileId,
-              update_utc_timestamp: record.modificationTime
-                ? new Date(record.modificationTime)
-                : null,
-            },
-            create: {
-              [dbTable + "_id"]: record.id,
-              custom_id: record.customId || record.name,
-              description: record.description,
-              create_user_id: record.creationUserProfileId,
-              create_utc_timestamp: record.creationTime
-                ? new Date(record.creationTime)
-                : null,
-              update_user_id: record.modificationUserProfileId,
-              update_utc_timestamp: record.modificationTime
-                ? new Date(record.modificationTime)
-                : null,
-            },
-          }),
-        ),
-      );
+      if (dbTable == "aqi_field_visits") {
+        await this.prisma.$transaction(
+          data.map((record) =>
+            model.upsert({
+              where: { [dbTable + "_id"]: record.id },
+              update: {
+                aqi_field_visit_start_time: new Date(record.startTime),
+                aqi_location_custom_id: record.locationCustomID,
+              },
+              create: {
+                [dbTable + "_id"]: record.id,
+                aqi_field_visit_start_time: new Date(record.startTime),
+                aqi_location_custom_id: record.locationCustomID,
+              },
+            }),
+          ),
+        )
+      } else if (dbTable == "aqi_field_activities"){
+        await this.prisma.$transaction(
+          data.map((record) =>
+            model.upsert({
+              where: { [dbTable + "_id"]: record.id },
+              update: {
+                aqi_field_activities_start_time: new Date(record.startTime),
+                aqi_field_activities_custom_id: record.customId,
+                aqi_location_custom_id: record.locationCustomID,
+                create_user_id: record.creationUserProfileId,
+                create_utc_timestamp: record.creationTime
+                  ? new Date(record.creationTime)
+                  : null,
+                update_user_id: record.modificationUserProfileId,
+                update_utc_timestamp: record.modificationTime
+                  ? new Date(record.modificationTime)
+                  : null,
+              },
+              create: {
+                [dbTable + "_id"]: record.id,
+                aqi_field_activities_start_time: new Date(record.startTime),
+                aqi_field_activities_custom_id: record.customId,
+                aqi_location_custom_id: record.locationCustomID,
+                create_user_id: record.creationUserProfileId,
+                create_utc_timestamp: record.creationTime
+                  ? new Date(record.creationTime)
+                  : null,
+                update_user_id: record.modificationUserProfileId,
+                update_utc_timestamp: record.modificationTime
+                  ? new Date(record.modificationTime)
+                  : null,
+              },
+            }),
+          ),
+        )
+      }else if(dbTable == "aqi_specimens"){
+        await this.prisma.$transaction(
+          data.map((record) =>
+            model.upsert({
+              where: { [dbTable + "_id"]: record.id },
+              update: {
+                aqi_specimens_custom_id: record.name,
+                aqi_field_activities_start_time: record.activityStartTime,
+                aqi_field_activities_custom_id: record.activityCustomId,
+                aqi_location_custom_id: record.locationCustomID
+              },
+              create: {
+                [dbTable + "_id"]: record.id,
+                aqi_specimens_custom_id: record.name,
+                aqi_field_activities_start_time: record.activityStartTime,
+                aqi_field_activities_custom_id: record.activityCustomId,
+                aqi_location_custom_id: record.locationCustomID
+              },
+            }),
+          ),
+        )
+      }else {
+        await this.prisma.$transaction(
+          data.map((record) =>
+            model.upsert({
+              where: { [dbTable + "_id"]: record.id },
+              update: {
+                custom_id: record.customId || record.name,
+                description: record.description,
+                create_user_id: record.creationUserProfileId,
+                create_utc_timestamp: record.creationTime
+                  ? new Date(record.creationTime)
+                  : null,
+                update_user_id: record.modificationUserProfileId,
+                update_utc_timestamp: record.modificationTime
+                  ? new Date(record.modificationTime)
+                  : null,
+              },
+              create: {
+                [dbTable + "_id"]: record.id,
+                custom_id: record.customId || record.name,
+                description: record.description,
+                create_user_id: record.creationUserProfileId,
+                create_utc_timestamp: record.creationTime
+                  ? new Date(record.creationTime)
+                  : null,
+                update_user_id: record.modificationUserProfileId,
+                update_utc_timestamp: record.modificationTime
+                  ? new Date(record.modificationTime)
+                  : null,
+              },
+            }),
+          ),
+        );
+      }
 
       this.logger.log(
         `Upserted ${data.length} entries into ${dbTable} - ${(new Date().getTime() - startTime) / 1000} seconds`,
@@ -163,7 +259,7 @@ export class CronJobService {
     }
   }
 
-  @Cron("0 0 */2 * * *") // every 2 hours
+  @Cron("0 */1 * * * *") // every 2 hours
   private async fetchLocations() {
     this.logger.log(`#######################################################`);
     this.logger.log(`Starting Code Table Cron Job`);
@@ -250,15 +346,60 @@ export class CronJobService {
         modificationTime,
       };
     };
-    const filterAnalysisMethodsAttributes = (obj: any): any => {
-      console.log(obj)
-      exit
+    const filterFieldVisitAttributes = (obj: any): any => {
+      const { id, startTime, samplingLocation } = obj;
+      const locationCustomID = samplingLocation.customId;
+
+      return {
+        id,
+        startTime,
+        locationCustomID,
+      };
+    };
+    const filterActivityAttributes = (obj: any): any => {
+      const { id, customId, startTime, samplingLocation, auditAttributes} = obj;
+      const locationCustomID = samplingLocation.customId
+      const creationUserProfileId = auditAttributes.creationUserProfileId;
+      const creationTime = auditAttributes.creationTime;
+      const modificationUserProfileId =
+        auditAttributes.modificationUserProfileId;
+      const modificationTime = auditAttributes.modificationTime;
+
+      return {
+        id,
+        customId,
+        startTime,
+        locationCustomID,
+        creationUserProfileId,
+        creationTime,
+        modificationUserProfileId,
+        modificationTime
+      };
+    }
+    const filterSpecimenAttributes = (obj: any): any => {
+      const { id, name, activity } = obj;
+      const activityStartTime = activity.startTime
+      const activityCustomId = activity.customId;
+      const locationCustomID = activity.samplingLocation.customId;
+
+      return {
+        id,
+        name,
+        activityStartTime,
+        activityCustomId,
+        locationCustomID,
+      };
+     
     }
     const filterArray = (array: any): any => {
       if (endpoint == "/v1/tags") {
         return array.map(filterNameAttributes);
-      } else if(endpoint == "/v2/analysismethods") {
-        return array.map(filterAnalysisMethodsAttributes);
+      } else if (endpoint == "/v1/fieldvisits") {
+        return array.map(filterFieldVisitAttributes);
+      } else if (endpoint == "/v1/activities") {
+        return array.map(filterActivityAttributes);
+      }else if (endpoint == "/v1/specimens"){
+        return array.map(filterSpecimenAttributes);
       }else {
         return array.map(filterAttributes);
       }
@@ -266,7 +407,7 @@ export class CronJobService {
     return filterArray(entries);
   }
 
-  @Cron("0 */1 * * * *") // every 2 hours
+  // @Cron("0 */1 * * * *") // every 2 hours
   private async beginFileValidation() {
     /*
     TODO:
@@ -275,12 +416,11 @@ export class CronJobService {
     */
     let filesToValidate = await this.fileParser.getQueuedFiles();
 
-    if (filesToValidate.length < 1){
+    if (filesToValidate.length < 1) {
       console.log("************** NO FILES TO VALIDATE **************");
-    }else{
-
+    } else {
       for (const file of filesToValidate) {
-        const fileBinary = await this.objectStore.getFileData(file.file_name)
+        const fileBinary = await this.objectStore.getFileData(file.file_name);
 
         // await this.prisma.file_submission.update({
         //   where: {
