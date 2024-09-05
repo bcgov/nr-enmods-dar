@@ -70,3 +70,40 @@ CREATE TABLE IF NOT EXISTS enmods.aqi_laboratories (
   update_user_id varchar(200) NOT NULL,
   update_utc_timestamp timestamp NOT NULL
 );
+CREATE TABLE IF NOT EXISTS enmods.aqi_observed_properties(
+  aqi_observed_properties_id UUID PRIMARY KEY NOT NULL,
+  custom_id varchar(200) NOT NULL,
+  description varchar(2000) NULL,
+  create_user_id varchar(200) NOT NULL,
+  create_utc_timestamp timestamp NOT NULL,
+  update_user_id varchar(200) NOT NULL,
+  update_utc_timestamp timestamp NOT NULL
+);
+CREATE TABLE IF NOT EXISTS enmods.aqi_detection_conditions(
+  aqi_detection_conditions_id UUID PRIMARY KEY NOT NULL,
+  custom_id varchar(200) NOT NULL,
+  description varchar(2000) NULL,
+  create_user_id varchar(200) NOT NULL,
+  create_utc_timestamp timestamp NOT NULL,
+  update_user_id varchar(200) NOT NULL,
+  update_utc_timestamp timestamp NOT NULL
+);
+CREATE TABLE IF NOT EXISTS enmods.aqi_result_status(
+  aqi_result_status_id UUID PRIMARY KEY NOT NULL,
+  custom_id varchar(200) NOT NULL,
+  description varchar(2000) NULL,
+  create_user_id varchar(200) NOT NULL,
+  create_utc_timestamp timestamp NOT NULL,
+  update_user_id varchar(200) NOT NULL,
+  update_utc_timestamp timestamp NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS enmods.aqi_result_grade (
+  aqi_result_grade_id UUID PRIMARY KEY NOT NULL,
+  custom_id varchar(200) NOT NULL,
+  description varchar(2000) NULL,
+  create_user_id varchar(200) NOT NULL,
+  create_utc_timestamp timestamp NOT NULL,
+  update_user_id varchar(200) NOT NULL,
+  update_utc_timestamp timestamp NOT NULL
+)

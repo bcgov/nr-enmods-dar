@@ -6,6 +6,7 @@ import { PrismaService } from "nestjs-prisma";
 import { FileParseValidateService } from "src/file_parse_and_validation/file_parse_and_validation.service";
 import * as fs from "fs";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
+import { exit } from "process";
 
 /**
  * Cron Job service for filling code tables with data from AQI API
@@ -29,6 +30,10 @@ export class CronJobService {
       ["aqi_extended_attributes", this.prisma.aqi_extended_attributes],
       ["aqi_context_tags", this.prisma.aqi_context_tags],
       ["aqi_laboratories", this.prisma.aqi_laboratories],
+      ["aqi_observed_properties", this.prisma.aqi_observed_properties],
+      ["aqi_detection_conditions", this.prisma.aqi_detection_conditions],
+      ["aqi_result_status", this.prisma.aqi_result_status],
+      ["aqi_result_grade", this.prisma.aqi_result_grade],
       ["aqi_locations", this.prisma.aqi_locations],
     ]);
   }
@@ -77,11 +82,35 @@ export class CronJobService {
       paramsEnabled: false,
     },
     {
+      endpoint: "/v1/observedproperties",
+      method: "GET",
+      dbTable: "aqi_observed_properties",
+      paramsEnabled: false,
+    },
+    {
+      endpoint: "/v1/detectionconditions",
+      method: "GET",
+      dbTable: "aqi_detection_conditions",
+      paramsEnabled: false,
+    },
+    {
+      endpoint: "/v1/resultstatuses",
+      method: "GET",
+      dbTable: "aqi_result_status",
+      paramsEnabled: false,
+    },
+    {
+      endpoint: "/v1/resultgrades",
+      method: "GET",
+      dbTable: "aqi_result_grade",
+      paramsEnabled: false,
+    },
+    {
       endpoint: "/v1/samplinglocations",
       method: "GET",
       dbTable: "aqi_locations",
       paramsEnabled: true,
-    }
+    },
   ];
 
   private async updateDatabase(dbTable: string, data: any) {
@@ -203,7 +232,7 @@ export class CronJobService {
       };
     };
 
-    const filterTagAttributes = (obj: any): any => {
+    const filterNameAttributes = (obj: any): any => {
       const { id, name, description, auditAttributes } = obj;
       const creationUserProfileId = auditAttributes.creationUserProfileId;
       const creationTime = auditAttributes.creationTime;
@@ -221,10 +250,16 @@ export class CronJobService {
         modificationTime,
       };
     };
+    const filterAnalysisMethodsAttributes = (obj: any): any => {
+      console.log(obj)
+      exit
+    }
     const filterArray = (array: any): any => {
       if (endpoint == "/v1/tags") {
-        return array.map(filterTagAttributes);
-      } else {
+        return array.map(filterNameAttributes);
+      } else if(endpoint == "/v2/analysismethods") {
+        return array.map(filterAnalysisMethodsAttributes);
+      }else {
         return array.map(filterAttributes);
       }
     };

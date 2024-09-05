@@ -596,14 +596,10 @@ export class FileParseValidateService {
     return dupeCount;
   }
 
-  localValidation(visits, activities, specimens, observations){
-    // do validation for visits
-    for (const [index,visit] of visits.entries()) {
-      if (visit.hasOwnProperty('FieldVisitStartTime')){
-        assert(visit.FieldVisitStartTime !== null && visit.FieldVisitStartTime !== '')
-      }
+  localValidation(allRecords){
+    for (const [index,record] of allRecords.entries()) {
+      console.log(index, record)
     }
-
   }
 
   async parseFile(file: string, fileName: string) {
@@ -671,56 +667,56 @@ export class FileParseValidateService {
        * Do the local validation for each section here - if passed then go to the API calls - else create the message/file/email for the errors
        */
 
-      const localValidationResults = this.localValidation(allFieldVisits, allFieldActivities, allSpecimens, allObservations)
+      const localValidationResults = this.localValidation(allRecords)
 
-      // /*
-      //  * Get unique records to prevent redundant API calls
-      //  * Post the unique records to the API
-      //  * Expand the returned list of object - this will be used for finding unique activities
-      //  */
-      // const uniqueVisitsWithCounts = this.getUniqueWithCounts(allFieldVisits);
-      // let visitInfo = await this.postFieldVisits(uniqueVisitsWithCounts);
-      // let expandedVisitInfo = visitInfo.flatMap((visit) =>
-      //   Array(visit.count).fill(visit.rec),
-      // );
+    //   /*
+    //    * Get unique records to prevent redundant API calls
+    //    * Post the unique records to the API
+    //    * Expand the returned list of object - this will be used for finding unique activities
+    //    */
+    //   const uniqueVisitsWithCounts = this.getUniqueWithCounts(allFieldVisits);
+    //   let visitInfo = await this.postFieldVisits(uniqueVisitsWithCounts);
+    //   let expandedVisitInfo = visitInfo.flatMap((visit) =>
+    //     Array(visit.count).fill(visit.rec),
+    //   );
 
-      // /*
-      //  * Merge the expanded visitInfo with allFieldActivities
-      //  * Collapse allFieldActivities with a dupe count
-      //  * Post the unique records to the API
-      //  * Expand the returned list of object - this will be used for finding unique specimens
-      //  */
+    //   /*
+    //    * Merge the expanded visitInfo with allFieldActivities
+    //    * Collapse allFieldActivities with a dupe count
+    //    * Post the unique records to the API
+    //    * Expand the returned list of object - this will be used for finding unique specimens
+    //    */
 
-      // allFieldActivities = allFieldActivities.map((obj2, index) => {
-      //   const obj1 = expandedVisitInfo[index];
-      //   return { ...obj2, ...obj1 };
-      // });
+    //   allFieldActivities = allFieldActivities.map((obj2, index) => {
+    //     const obj1 = expandedVisitInfo[index];
+    //     return { ...obj2, ...obj1 };
+    //   });
 
-      // const uniqueActivitiesWithCounts =
-      //   this.getUniqueWithCounts(allFieldActivities);
-      // let activityInfo = await this.postFieldActivities(
-      //   uniqueActivitiesWithCounts,
-      // );
-      // let expandedActivityInfo = activityInfo.flatMap((activity) =>
-      //   Array(activity.count).fill(activity.rec),
-      // );
+    //   const uniqueActivitiesWithCounts =
+    //     this.getUniqueWithCounts(allFieldActivities);
+    //   let activityInfo = await this.postFieldActivities(
+    //     uniqueActivitiesWithCounts,
+    //   );
+    //   let expandedActivityInfo = activityInfo.flatMap((activity) =>
+    //     Array(activity.count).fill(activity.rec),
+    //   );
 
-      // /*
-      //  * Merge the expanded activityInfo with allSpecimens
-      //  * Collapse allSpecimens with a dupe count
-      //  * Post the unique records to the API
-      //  */
-      // allSpecimens = allSpecimens.map((obj2, index) => {
-      //   const obj1 = expandedActivityInfo[index];
-      //   return { ...obj2, ...obj1 };
-      // });
-      // const uniqueSpecimensWithCounts = this.getUniqueWithCounts(allSpecimens);
-      // await this.postFieldSpecimens(uniqueSpecimensWithCounts);
-      // await this.formulateObservationFile(
-      //   allObservations,
-      //   expandedActivityInfo,
-      //   fileName,
-      // );
+    //   /*
+    //    * Merge the expanded activityInfo with allSpecimens
+    //    * Collapse allSpecimens with a dupe count
+    //    * Post the unique records to the API
+    //    */
+    //   allSpecimens = allSpecimens.map((obj2, index) => {
+    //     const obj1 = expandedActivityInfo[index];
+    //     return { ...obj2, ...obj1 };
+    //   });
+    //   const uniqueSpecimensWithCounts = this.getUniqueWithCounts(allSpecimens);
+    //   await this.postFieldSpecimens(uniqueSpecimensWithCounts);
+    //   await this.formulateObservationFile(
+    //     allObservations,
+    //     expandedActivityInfo,
+    //     fileName,
+    //   );
     }
   }
 }

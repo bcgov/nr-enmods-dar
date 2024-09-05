@@ -43,7 +43,7 @@ model file_submission {
 model aqi_projects {
   aqi_projects_id      String   @id @db.Uuid
   custom_id            String   @db.VarChar(200)
-  description          String?  @db.VarChar(200)
+  description          String?  @db.VarChar(2000)
   create_user_id       String   @db.VarChar(200)
   create_utc_timestamp DateTime @db.Timestamp(6)
   update_user_id       String   @db.VarChar(200)
@@ -53,7 +53,7 @@ model aqi_projects {
 model aqi_mediums {
   aqi_mediums_id       String   @id @db.Uuid
   custom_id            String   @db.VarChar(200)
-  description          String?  @db.VarChar(200)
+  description          String?  @db.VarChar(2000)
   create_user_id       String   @db.VarChar(200)
   create_utc_timestamp DateTime @db.Timestamp(6)
   update_user_id       String   @db.VarChar(200)
@@ -63,7 +63,7 @@ model aqi_mediums {
 model aqi_units {
   aqi_units_id         String   @id @db.Uuid
   custom_id            String   @db.VarChar(200)
-  description          String?  @db.VarChar(200)
+  description          String?  @db.VarChar(2000)
   create_user_id       String   @db.VarChar(200)
   create_utc_timestamp DateTime @db.Timestamp(6)
   update_user_id       String   @db.VarChar(200)
@@ -73,7 +73,7 @@ model aqi_units {
 model aqi_collection_methods {
   aqi_collection_methods_id String   @id @db.Uuid
   custom_id                 String   @db.VarChar(200)
-  description               String?  @db.VarChar(200)
+  description               String?  @db.VarChar(2000)
   create_user_id            String   @db.VarChar(200)
   create_utc_timestamp      DateTime @db.Timestamp(6)
   update_user_id            String   @db.VarChar(200)
@@ -83,7 +83,7 @@ model aqi_collection_methods {
 model aqi_extended_attributes {
   aqi_extended_attributes_id String   @id @db.Uuid
   custom_id                  String   @db.VarChar(200)
-  description                String?  @db.VarChar(200)
+  description                String?  @db.VarChar(2000)
   create_user_id             String   @db.VarChar(200)
   create_utc_timestamp       DateTime @db.Timestamp(6)
   update_user_id             String   @db.VarChar(200)
@@ -103,7 +103,7 @@ model aqi_locations {
 model aqi_context_tags {
   aqi_context_tags_id  String   @id @db.Uuid
   custom_id            String   @db.VarChar(200)
-  description          String?  @db.VarChar(200)
+  description          String?  @db.VarChar(2000)
   create_user_id       String   @db.VarChar(200)
   create_utc_timestamp DateTime @db.Timestamp(6)
   update_user_id       String   @db.VarChar(200)
@@ -113,7 +113,7 @@ model aqi_context_tags {
 model aqi_laboratories {
   aqi_laboratories_id  String   @id @db.Uuid
   custom_id            String   @db.VarChar(200)
-  description          String?  @db.VarChar(200)
+  description          String?  @db.VarChar(2000)
   create_user_id       String   @db.VarChar(200)
   create_utc_timestamp DateTime @db.Timestamp(6)
   update_user_id       String   @db.VarChar(200)
@@ -138,4 +138,44 @@ model ftp_users {
   create_utc_timestamp DateTime @db.Timestamp(6)
   update_user_id       String   @db.VarChar(200)
   update_utc_timestamp DateTime @db.Timestamp(6)
+}
+
+model aqi_observed_properties {
+  aqi_observed_properties_id String   @id @db.Uuid
+  custom_id                  String   @db.VarChar(200)
+  description                String?  @db.VarChar(2000)
+  create_user_id             String   @db.VarChar(200)
+  create_utc_timestamp       DateTime @db.Timestamp(6)
+  update_user_id             String   @db.VarChar(200)
+  update_utc_timestamp       DateTime @db.Timestamp(6)
+}
+
+model aqi_result_grade {
+  aqi_result_grade_id  String   @id @db.Uuid
+  custom_id            String   @db.VarChar(200)
+  description          String?  @db.VarChar(2000)
+  create_user_id       String   @db.VarChar(200)
+  create_utc_timestamp DateTime @db.Timestamp(6)
+  update_user_id       String   @db.VarChar(200)
+  update_utc_timestamp DateTime @db.Timestamp(6)
+}
+
+model aqi_result_status {
+  aqi_result_status_id String   @id @db.Uuid
+  custom_id            String   @db.VarChar(200)
+  description          String?  @db.VarChar(2000)
+  create_user_id       String   @db.VarChar(200)
+  create_utc_timestamp DateTime @db.Timestamp(6)
+  update_user_id       String   @db.VarChar(200)
+  update_utc_timestamp DateTime @db.Timestamp(6)
+}
+
+model aqi_detection_conditions {
+  aqi_detection_conditions_id String   @id @db.Uuid
+  custom_id                   String   @db.VarChar(200)
+  description                 String?  @db.VarChar(2000)
+  create_user_id              String   @db.VarChar(200)
+  create_utc_timestamp        DateTime @db.Timestamp(6)
+  update_user_id              String   @db.VarChar(200)
+  update_utc_timestamp        DateTime @db.Timestamp(6)
 }
