@@ -204,3 +204,23 @@ model aqi_specimens {
   aqi_field_activities_custom_id  String   @db.VarChar(200)
   aqi_location_custom_id          String   @db.VarChar(200)
 }
+
+model aqi_preservatives {
+  aqi_preservatives_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  custom_id            String   @db.VarChar(200)
+  description          String?  @db.VarChar(2000)
+  create_user_id       String   @db.VarChar(200)
+  create_utc_timestamp DateTime @db.Timestamp(6)
+  update_user_id       String   @db.VarChar(200)
+  update_utc_timestamp DateTime @db.Timestamp(6)
+}
+
+model aqi_sample_fractions {
+  aqi_sample_fractions_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  custom_id               String   @db.VarChar(200)
+  description             String?  @db.VarChar(2000)
+  create_user_id          String   @db.VarChar(200)
+  create_utc_timestamp    DateTime @db.Timestamp(6)
+  update_user_id          String   @db.VarChar(200)
+  update_utc_timestamp    DateTime @db.Timestamp(6)
+}

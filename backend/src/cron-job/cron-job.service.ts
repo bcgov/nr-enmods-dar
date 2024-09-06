@@ -259,7 +259,7 @@ export class CronJobService {
     }
   }
 
-  @Cron("0 */1 * * * *") // every 2 hours
+  @Cron("0 0 */2 * * *") // every 2 hours
   private async fetchLocations() {
     this.logger.log(`#######################################################`);
     this.logger.log(`Starting Code Table Cron Job`);
@@ -407,7 +407,7 @@ export class CronJobService {
     return filterArray(entries);
   }
 
-  // @Cron("0 */1 * * * *") // every 2 hours
+  @Cron("0 */1 * * * *") // every 2 hours
   private async beginFileValidation() {
     /*
     TODO:

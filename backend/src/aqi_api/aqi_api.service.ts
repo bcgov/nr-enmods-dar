@@ -1,14 +1,15 @@
 import { Injectable, Logger } from "@nestjs/common";
-import axios, { AxiosInstance, AxiosRequestConfig } from "axios";
+import axios, { AxiosInstance } from "axios";
 import * as fs from "fs";
 import FormData from "form-data";
+import { PrismaService } from "nestjs-prisma";
 
 @Injectable()
 export class AqiApiService {
   private readonly logger = new Logger(AqiApiService.name);
   private axiosInstance: AxiosInstance;
 
-  constructor() {
+  constructor(private prisma: PrismaService) {
     this.axiosInstance = axios.create({
       baseURL: process.env.AQI_BASE_URL,
       headers: {
@@ -76,6 +77,26 @@ export class AqiApiService {
       console.error(
         "API CALL TO Observations failed: ",
         err.response,
+      );
+    }
+  }
+
+  async databaseLookup(dbTable: string, queryParam: string){
+    try {
+      let result = await this.prisma[dbTable].findMany({ 
+        where:{
+          custom_id: queryParam
+        }
+      })
+      if (result.length > 0 ) {
+        return true
+      } else {
+        return false
+      };
+    } catch (err) {
+      console.error(
+        `API CALL TO ${dbTable} failed: `,
+        err,
       );
     }
   }
