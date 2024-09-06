@@ -596,126 +596,206 @@ export class FileParseValidateService {
   }
 
   async localValidation(allRecords) {
-    let error_log = ""
+    let error_log = "";
     for (const [index, record] of allRecords.entries()) {
-      if (record.hasOwnProperty("Project")){
-        const present = await this.aqiService.databaseLookup('aqi_projects', record.Project)
-        if ( !present ){
-          error_log += `Row ${index}: Project ${record.Project} not found in AQI Projects\n`
+      const isoDateTimeRegex =
+        /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(:(\d{2})(\.\d+)?)?(Z|([+-]\d{2}:\d{2}))?$/;
+
+      const numberRegex = /^-?\d+(\.\d+)?$/;
+
+      const dateTimeFields = [
+        "FieldVisitStartTime",
+        "FieldVisitEndTime",
+        "ObservedDateTime",
+        "ObservedDateTimeEnd",
+        "AnalyzedDateTime",
+      ];
+
+      const numericalFields = [
+        "DepthUpper",
+        "DepthLower",
+        "ResultValue",
+        "MethodDetectionLimit",
+        "MethodReportingLimit",
+      ];
+
+      const unitFields = ["DepthUnit", "ResultUnit"];
+
+      // check all datetimes
+      dateTimeFields.forEach((field) => {
+        if (record.hasOwnProperty(field) && record[field]) {
+          const valid = isoDateTimeRegex.test(record[field]);
+          if (!valid) {
+            error_log += `ERROR: Row ${index} ${field} ${record[field]} is not a valid ISO datetime\n`;
+          } else if (record.hasOwnProperty(field) && !record[field]) {
+            error_log += `ERROR: Row ${index} ${field} missing value\n`;
+          }
+        }
+      });
+
+      // check all numerical fields
+      numericalFields.forEach((field) => {
+        if (record.hasOwnProperty(field)) {
+          const valid =
+            numberRegex.test(record[field]) &&
+            !isNaN(parseFloat(record[field]));
+          if (record[field] !== "" && !valid) {
+            error_log += `ERROR: Row ${index} ${field} ${record[field]} is not a valid number\n`;
+          }
+        }
+      });
+
+      // check all unit fields
+      unitFields.forEach(async (field) => {
+        if (record.hasOwnProperty(field) && record[field]) {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_units",
+            record[field],
+          );
+          if (!present) {
+            error_log += `ERROR: Row ${index} ${field} ${record[field]} not found in AQI Units\n`;
+          }
+        }else if((record.hasOwnProperty(field) && !record[field])){
+          error_log += `WARNING: Row ${index} ${field} ${record[field]} is empty\n`;
+        }
+      });
+
+      if (record.hasOwnProperty("Project")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_projects",
+          record.Project,
+        );
+        if (!present) {
+          error_log += `ERROR: Row ${index} Project ${record.Project} not found in AQI Projects\n`;
         }
       }
 
-      if (record.hasOwnProperty("LocationID")){
-        const present = await this.aqiService.databaseLookup('aqi_locations', record.LocationID)
-        if (!present ){
-          error_log += `Row ${index}: Location ID ${record.LocationID} not found in AQI Locations\n`
-        }
-      }
-      
-      if (record.hasOwnProperty("FieldVisitStartTime") || record.hasOwnProperty("FieldVisitEndTime") || record.hasOwnProperty("ObservedDateTime") 
-        || record.hasOwnProperty("ObservedDateTimeEnd") || record.hasOwnProperty("AnalyzedDateTime")) {
-        const isoDateTimeRegex = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(:(\d{2})(\.\d+)?)?(Z|([+-]\d{2}:\d{2}))?$/;
-        const valid = isoDateTimeRegex.test(record.FieldVisitStartTime)
-        if ( !valid ){
-          error_log += `Row ${index}: Field Visit Start Time ${record.FieldVisitStartTime} is not a valid ISO datetime\n`
+      if (record.hasOwnProperty("LocationID")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_locations",
+          record.LocationID,
+        );
+        if (!present) {
+          error_log += `ERROR: Row ${index} Location ID ${record.LocationID} not found in AQI Locations\n`;
         }
       }
 
-      if (record.hasOwnProperty("Preservative")){
-        const present = await this.aqiService.databaseLookup('aqi_preservatives', record.Preservative)
-        if (!present ){
-          error_log += `Row ${index}: Preservative ${record.LocationID} not found in AQI Preservatives\n`
+      if (record.hasOwnProperty("Preservative")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_preservatives",
+          record.Preservative,
+        );
+        if (!present) {
+          error_log += `ERROR: Row ${index} Preservative ${record.LocationID} not found in AQI Preservatives\n`;
         }
       }
 
-      if (record.hasOwnProperty("SamplingConextTag")){
-        const present = await this.aqiService.databaseLookup('aqi_context_tags', record.SamplingConextTag)
-        if (!present ){
-          error_log += `Row ${index}: Sampling Conext Tag ${record.SamplingConextTag} not found in AQI Sampling Context Tags\n`
+      if (record.hasOwnProperty("SamplingConextTag")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_context_tags",
+          record.SamplingConextTag,
+        );
+        if (!present) {
+          error_log += `ERROR: Row ${index} Sampling Conext Tag ${record.SamplingConextTag} not found in AQI Sampling Context Tags\n`;
         }
       }
 
-      if (record.hasOwnProperty("CollectionMethod")){
-        const present = await this.aqiService.databaseLookup('aqi_collection_methods', record.CollectionMethod)
-        if (!present ){
-          error_log += `Row ${index}: Collection Method ${record.CollectionMethod} not found in AQI Collection Methods\n`
+      if (record.hasOwnProperty("CollectionMethod")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_collection_methods",
+          record.CollectionMethod,
+        );
+        if (!present) {
+          error_log += `ERROR: Row ${index} Collection Method ${record.CollectionMethod} not found in AQI Collection Methods\n`;
         }
       }
 
-      if (record.hasOwnProperty("Medium")){
-        const present = await this.aqiService.databaseLookup('aqi_mediums', record.Medium)
-        if (!present ){
-          error_log += `Row ${index}: Medium ${record.Medium} not found in AQI Mediums\n`
+      if (record.hasOwnProperty("Medium")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_mediums",
+          record.Medium,
+        );
+        if (!present) {
+          error_log += `ERROR: Row ${index} Medium ${record.Medium} not found in AQI Mediums\n`;
         }
       }
 
-      if (record.hasOwnProperty("DepthUpper")){
-        const numberRegex = /^-?\d+(\.\d+)?$/;
-        const valid = numberRegex.test(record.DepthUpper) && !isNaN(parseFloat(record.DepthUpper));
-
-        if ( !valid ){
-          error_log += `Row ${index}: Depth ${record.DepthUpper} is not a valid number\n`
+      if (record.hasOwnProperty("ObservedPropertyID")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_observed_properties",
+          record.ObservedPropertyID,
+        );
+        if (!present) {
+          error_log += `ERROR: Row ${index} Observed Property ID ${record.ObservedPropertyID} not found in AQI Observed Properties\n`;
         }
       }
 
-      if (record.hasOwnProperty("DepthUnit")){
-        const present = await this.aqiService.databaseLookup('aqi_units', record.ResultUnit)
-        if (!present ){
-          error_log += `Row ${index}: Result Unit ${record.ResultUnit} not found in AQI Units\n`
+      if (record.hasOwnProperty("DetectionCondition") && record.DetectionCondition) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_detection_conditions",
+          record.DetectionCondition.toUpperCase().replace(/ /g, '_'),
+        );
+        if (!present) {
+          error_log += `ERROR: Row ${index} Detection Condition ${record.DetectionCondition} not found in AQI Detection Conditions\n`;
         }
       }
 
-      if (record.hasOwnProperty("ObservedPropertyID")){
-        const present = await this.aqiService.databaseLookup('aqi_observed_properties', record.ObservedPropertyID)
-        if (!present ){
-          error_log += `Row ${index}: Observed Property ID ${record.ObservedPropertyID} not found in AQI Observed Properties\n`
+      if (record.hasOwnProperty("Fraction") && record.Fraction) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_sample_fractions",
+          record.Fraction.toUpperCase(),
+        );
+        if (!present) {
+          error_log += `ERROR: Row ${index} Fraction ${record.Fraction} not found in AQI Sample Fractions\n`;
         }
       }
 
-      if (record.hasOwnProperty("DetectionCondition")){
-        const present = await this.aqiService.databaseLookup('aqi_detection_conditions', record.DetectionCondition)
-        if (!present ){
-          error_log += `Row ${index}: Detection Condition ${record.DetectionCondition} not found in AQI Detection Conditions\n`
+      if (record.hasOwnProperty("DataClassification")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_data_classifications",
+          record.DataClassification,
+        );
+        if (!present) {
+          error_log += `ERROR: Row ${index} Data Classification ${record.DataClassification} not found in AQI Data Classifications\n`;
         }
       }
 
-      if (record.hasOwnProperty("Fraction")){
-        const present = await this.aqiService.databaseLookup('aqi_sample_fractions', record.Fraction)
-        if (!present ){
-          error_log += `Row ${index}: Fraction ${record.Fraction} not found in AQI Sample Fractions\n`
+      if (record.hasOwnProperty("AnalyzingAgency")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_laboratories",
+          record.AnalyzingAgency,
+        );
+        if (!present) {
+          error_log += `ERROR: Row ${index} Analyzing Agency ${record.AnalyzingAgency} not found in AQI Agencies\n`;
         }
       }
 
-      if (record.hasOwnProperty("DataClassification")){
-        const present = await this.aqiService.databaseLookup('aqi_data_classifications', record.DataClassification)
-        if (!present ){
-          error_log += `Row ${index}: Data Classification ${record.DataClassification} not found in AQI Data Classifications\n`
+      if (record.hasOwnProperty("ResultStatus")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_result_status",
+          record.ResultStatus,
+        );
+        if (!present) {
+          error_log += `ERROR: Row ${index} Result Status ${record.ResultStatus} not found in AQI Result Statuses\n`;
         }
       }
 
-      if (record.hasOwnProperty("AnalyzingAgency")){
-        const present = await this.aqiService.databaseLookup('aqi_laboratories', record.AnalyzingAgency)
-        if (!present ){
-          error_log += `Row ${index}: Analyzing Agency ${record.AnalyzingAgency} not found in AQI Agencies\n`
+      if (record.hasOwnProperty("ResultGrade")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_result_grade",
+          record.ResultGrade,
+        );
+        if (!present) {
+          error_log += `ERROR: Row ${index} Result Grade ${record.ResultGrade} not found in AQI Result Grades\n`;
         }
       }
-
-      if (record.hasOwnProperty("ResultStatus")){
-        const present = await this.aqiService.databaseLookup('aqi_result_status', record.ResultStatus)
-        if (!present ){
-          error_log += `Row ${index}: Result Status ${record.ResultStatus} not found in AQI Result Statuses\n`
-        }
-      }
-
-      if (record.hasOwnProperty("ResultGrade")){
-        const present = await this.aqiService.databaseLookup('aqi_result_grade', record.ResultGrade)
-        if (!present ){
-          error_log += `Row ${index}: Result Grade ${record.ResultGrade} not found in AQI Result Grades\n`
-        }
-      }
-
     }
-    if (error_log != "") {console.log(error_log)} else {console.log("NO ERRORS")}
+
+    if (error_log != "") {
+      console.log(error_log);
+    } else {
+      console.log("NO ERRORS");
+    }
   }
 
   async parseFile(file: string, fileName: string) {
