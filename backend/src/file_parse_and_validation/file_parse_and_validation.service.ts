@@ -813,20 +813,18 @@ export class FileParseValidateService {
       }
 
       // check if the specimen already exists -- check if the specimen name for that given visit and location already exists
-      const specimenExists = await this.aqiService.AQILookup(
-        "aqi_specimens",
-        [record.SpecimenName, record.ObservedDateTime, record.ActivityName, record.LocationID],
-      );
+      const specimenExists = await this.aqiService.AQILookup("aqi_specimens", [
+        record.SpecimenName,
+        record.ObservedDateTime,
+        record.ActivityName,
+        record.LocationID,
+      ]);
       if (specimenExists) {
         error_log += `ERROR: Row ${index} Specimen Name for that Acitivity at Start Time ${record.ObservedDateTime} already exists in AQI Specimens\n`;
       }
     }
 
-    if (error_log != "") {
-      console.log(error_log);
-    } else {
-      console.log("NO ERRORS");
-    }
+    return error_log;
   }
 
   async parseFile(file: string, fileName: string) {
@@ -894,6 +892,14 @@ export class FileParseValidateService {
        */
 
       const localValidationResults = this.localValidation(allRecords);
+
+      if ((await localValidationResults).includes("ERROR")) {
+        /*
+         * Set the file status to 'REJECTED'
+         * Create the error log file here
+         * Send the an email to the submitter and the ministry contact that is inside the file
+         */
+      }
 
       // /*
       //   * Get unique records to prevent redundant API calls
