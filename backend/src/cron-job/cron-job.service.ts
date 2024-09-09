@@ -131,7 +131,7 @@ export class CronJobService {
       method: "GET",
       dbTable: "aqi_specimens",
       paramsEnabled: true,
-    }
+    },
   ];
 
   private async updateDatabase(dbTable: string, data: any) {
@@ -157,8 +157,8 @@ export class CronJobService {
               },
             }),
           ),
-        )
-      } else if (dbTable == "aqi_field_activities"){
+        );
+      } else if (dbTable == "aqi_field_activities") {
         await this.prisma.$transaction(
           data.map((record) =>
             model.upsert({
@@ -166,6 +166,7 @@ export class CronJobService {
               update: {
                 aqi_field_activities_start_time: new Date(record.startTime),
                 aqi_field_activities_custom_id: record.customId,
+                aqi_field_visit_start_time: new Date(record.visitStartTime),
                 aqi_location_custom_id: record.locationCustomID,
                 create_user_id: record.creationUserProfileId,
                 create_utc_timestamp: record.creationTime
@@ -180,6 +181,7 @@ export class CronJobService {
                 [dbTable + "_id"]: record.id,
                 aqi_field_activities_start_time: new Date(record.startTime),
                 aqi_field_activities_custom_id: record.customId,
+                aqi_field_visit_start_time: new Date(record.visitStartTime),
                 aqi_location_custom_id: record.locationCustomID,
                 create_user_id: record.creationUserProfileId,
                 create_utc_timestamp: record.creationTime
@@ -192,8 +194,8 @@ export class CronJobService {
               },
             }),
           ),
-        )
-      }else if(dbTable == "aqi_specimens"){
+        );
+      } else if (dbTable == "aqi_specimens") {
         await this.prisma.$transaction(
           data.map((record) =>
             model.upsert({
@@ -202,19 +204,19 @@ export class CronJobService {
                 aqi_specimens_custom_id: record.name,
                 aqi_field_activities_start_time: record.activityStartTime,
                 aqi_field_activities_custom_id: record.activityCustomId,
-                aqi_location_custom_id: record.locationCustomID
+                aqi_location_custom_id: record.locationCustomID,
               },
               create: {
                 [dbTable + "_id"]: record.id,
                 aqi_specimens_custom_id: record.name,
                 aqi_field_activities_start_time: record.activityStartTime,
                 aqi_field_activities_custom_id: record.activityCustomId,
-                aqi_location_custom_id: record.locationCustomID
+                aqi_location_custom_id: record.locationCustomID,
               },
             }),
           ),
-        )
-      }else {
+        );
+      } else {
         await this.prisma.$transaction(
           data.map((record) =>
             model.upsert({
@@ -357,8 +359,16 @@ export class CronJobService {
       };
     };
     const filterActivityAttributes = (obj: any): any => {
-      const { id, customId, startTime, samplingLocation, auditAttributes} = obj;
-      const locationCustomID = samplingLocation.customId
+      const {
+        id,
+        customId,
+        startTime,
+        fieldVisit,
+        samplingLocation,
+        auditAttributes,
+      } = obj;
+      const locationCustomID = samplingLocation.customId;
+      const visitStartTime = fieldVisit.startTime;
       const creationUserProfileId = auditAttributes.creationUserProfileId;
       const creationTime = auditAttributes.creationTime;
       const modificationUserProfileId =
@@ -369,16 +379,17 @@ export class CronJobService {
         id,
         customId,
         startTime,
+        visitStartTime,
         locationCustomID,
         creationUserProfileId,
         creationTime,
         modificationUserProfileId,
-        modificationTime
+        modificationTime,
       };
-    }
+    };
     const filterSpecimenAttributes = (obj: any): any => {
       const { id, name, activity } = obj;
-      const activityStartTime = activity.startTime
+      const activityStartTime = activity.startTime;
       const activityCustomId = activity.customId;
       const locationCustomID = activity.samplingLocation.customId;
 
@@ -389,8 +400,7 @@ export class CronJobService {
         activityCustomId,
         locationCustomID,
       };
-     
-    }
+    };
     const filterArray = (array: any): any => {
       if (endpoint == "/v1/tags") {
         return array.map(filterNameAttributes);
@@ -398,9 +408,9 @@ export class CronJobService {
         return array.map(filterFieldVisitAttributes);
       } else if (endpoint == "/v1/activities") {
         return array.map(filterActivityAttributes);
-      }else if (endpoint == "/v1/specimens"){
+      } else if (endpoint == "/v1/specimens") {
         return array.map(filterSpecimenAttributes);
-      }else {
+      } else {
         return array.map(filterAttributes);
       }
     };

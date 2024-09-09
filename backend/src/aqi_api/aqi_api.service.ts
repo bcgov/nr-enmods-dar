@@ -63,41 +63,88 @@ export class AqiApiService {
     const formData = new FormData();
     formData.append("file", fs.createReadStream(fileName));
     try {
-      const response = await axios.post(`${process.env.AQI_BASE_URL}/v2/observationimports?fileType=SIMPLE_CSV&timeZoneOffset=-08:00&linkFieldVisitsForNewObservations=true`, formData, {
-        headers: {
-          'Authorization': `token ${process.env.AQI_ACCESS_TOKEN}`,
-          'Accept': 'application/json; text/plain',
-          'x-api-key': process.env.AQI_ACCESS_TOKEN,
-          ...formData.getHeaders()
-        }
-      });
-      this.logger.log(`API call to Observations succeeded: ${response.status}`);
-      console.log(response.headers.location)
-    } catch (err) {
-      console.error(
-        "API CALL TO Observations failed: ",
-        err.response,
+      const response = await axios.post(
+        `${process.env.AQI_BASE_URL}/v2/observationimports?fileType=SIMPLE_CSV&timeZoneOffset=-08:00&linkFieldVisitsForNewObservations=true`,
+        formData,
+        {
+          headers: {
+            Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+            Accept: "application/json; text/plain",
+            "x-api-key": process.env.AQI_ACCESS_TOKEN,
+            ...formData.getHeaders(),
+          },
+        },
       );
+      this.logger.log(`API call to Observations succeeded: ${response.status}`);
+      console.log(response.headers.location);
+    } catch (err) {
+      console.error("API CALL TO Observations failed: ", err.response);
     }
   }
 
-  async databaseLookup(dbTable: string, queryParam: string){
+  async databaseLookup(dbTable: string, queryParam: string) {
     try {
-      let result = await this.prisma[dbTable].findMany({ 
-        where:{
-          custom_id: queryParam
-        }
-      })
-      if (result.length > 0 ) {
-        return true
+      let result = await this.prisma[dbTable].findMany({
+        where: {
+          custom_id: queryParam,
+        },
+      });
+      if (result.length > 0) {
+        return true;
       } else {
-        return false
-      };
+        return false;
+      }
     } catch (err) {
-      console.error(
-        `API CALL TO ${dbTable} failed: `,
-        err,
-      );
+      console.error(`API CALL TO ${dbTable} failed: `, err);
+    }
+  }
+
+  async AQILookup(dbTable: string, queryParam: any) {
+    let result = null;
+    if (dbTable == "aqi_field_visits") {
+      try {
+        result = await this.prisma[dbTable].findMany({
+          where: {
+            aqi_location_custom_id: queryParam[0],
+            aqi_field_visit_start_time: queryParam[1],
+          },
+        });
+      } catch (err) {
+        console.error(`API CALL TO ${dbTable} failed: `, err);
+      }
+    }else if (dbTable == "aqi_field_activities"){
+      try {
+        result = await this.prisma[dbTable].findMany({
+          where: {
+            aqi_field_activities_custom_id: queryParam[0],
+            aqi_field_visit_start_time: queryParam[1],
+            aqi_location_custom_id: queryParam[2],
+          },
+        });
+      } catch (err) {
+        console.error(`API CALL TO ${dbTable} failed: `, err);
+      }
+    }else if (dbTable == "aqi_specimens"){
+      try {
+        result = await this.prisma[dbTable].findMany({
+          where: {
+            aqi_specimens_custom_id: queryParam[0],
+            aqi_field_activities_start_time: queryParam[1],
+            aqi_field_activities_custom_id: queryParam[2],
+            aqi_location_custom_id: queryParam[3],
+          },
+        });
+      } catch (err) {
+        console.error(`API CALL TO ${dbTable} failed: `, err);
+      }
+    }
+
+
+
+    if (result.length > 0) {
+      return true;
+    } else {
+      return false;
     }
   }
 }

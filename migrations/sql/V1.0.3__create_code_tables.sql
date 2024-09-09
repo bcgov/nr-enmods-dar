@@ -108,14 +108,15 @@ CREATE TABLE IF NOT EXISTS enmods.aqi_result_grade (
 );
 CREATE TABLE IF NOT EXISTS enmods.aqi_field_visits(
   aqi_field_visits_id UUID PRIMARY KEY NOT NULL,
-  aqi_field_visit_start_time timestamp NOT NULL,
+  aqi_field_visit_start_time timestamptz NOT NULL,
   aqi_location_custom_id varchar(200) NOT NULL
 );
 CREATE TABLE IF NOT EXISTS enmods.aqi_field_activities(
   aqi_field_activities_id UUID PRIMARY KEY NOT NULL,
-  aqi_field_activities_start_time timestamp NOT NULL,
+  aqi_field_activities_start_time timestamptz NOT NULL,
   aqi_field_activities_custom_id varchar(200) NOT NULL,
   aqi_location_custom_id varchar(200) NOT NULL,
+  aqi_field_visit_start_time timestamptz NOT NULL,
   create_user_id varchar(200) NOT NULL,
   create_utc_timestamp timestamp NOT NULL,
   update_user_id varchar(200) NOT NULL,
@@ -124,7 +125,7 @@ CREATE TABLE IF NOT EXISTS enmods.aqi_field_activities(
 CREATE TABLE IF NOT EXISTS enmods.aqi_specimens(
   aqi_specimens_id UUID PRIMARY KEY NOT NULL,
   aqi_specimens_custom_id varchar(200) NOT NULL,
-  aqi_field_activities_start_time timestamp NOT NULL,
+  aqi_field_activities_start_time timestamptz NOT NULL,
   aqi_field_activities_custom_id varchar(200) NOT NULL,
   aqi_location_custom_id varchar(200) NOT NULL
 );

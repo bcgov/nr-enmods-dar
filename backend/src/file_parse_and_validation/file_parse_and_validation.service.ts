@@ -655,7 +655,7 @@ export class FileParseValidateService {
           if (!present) {
             error_log += `ERROR: Row ${index} ${field} ${record[field]} not found in AQI Units\n`;
           }
-        }else if((record.hasOwnProperty(field) && !record[field])){
+        } else if (record.hasOwnProperty(field) && !record[field]) {
           error_log += `WARNING: Row ${index} ${field} ${record[field]} is empty\n`;
         }
       });
@@ -686,7 +686,7 @@ export class FileParseValidateService {
           record.Preservative,
         );
         if (!present) {
-          error_log += `ERROR: Row ${index} Preservative ${record.LocationID} not found in AQI Preservatives\n`;
+          error_log += `ERROR: Row ${index} Preservative ${record.Preservative} not found in AQI Preservatives\n`;
         }
       }
 
@@ -730,10 +730,13 @@ export class FileParseValidateService {
         }
       }
 
-      if (record.hasOwnProperty("DetectionCondition") && record.DetectionCondition) {
+      if (
+        record.hasOwnProperty("DetectionCondition") &&
+        record.DetectionCondition
+      ) {
         const present = await this.aqiService.databaseLookup(
           "aqi_detection_conditions",
-          record.DetectionCondition.toUpperCase().replace(/ /g, '_'),
+          record.DetectionCondition.toUpperCase().replace(/ /g, "_"),
         );
         if (!present) {
           error_log += `ERROR: Row ${index} Detection Condition ${record.DetectionCondition} not found in AQI Detection Conditions\n`;
@@ -788,6 +791,34 @@ export class FileParseValidateService {
         if (!present) {
           error_log += `ERROR: Row ${index} Result Grade ${record.ResultGrade} not found in AQI Result Grades\n`;
         }
+      }
+
+      // check if the visit already exists -- check if visit timetsamp for that location already exists
+
+      const visitExists = await this.aqiService.AQILookup("aqi_field_visits", [
+        record.LocationID,
+        record.FieldVisitStartTime,
+      ]);
+      if (visitExists) {
+        error_log += `ERROR: Row ${index} Visit for Location ${record.LocationID} at Start Time ${record.FieldVisitStartTime} already exists in AQI Field Visits\n`;
+      }
+
+      // check if the activity already exits -- check if the activity name for that given visit and location already exists
+      const activityExists = await this.aqiService.AQILookup(
+        "aqi_field_activities",
+        [record.ActivityName, record.FieldVisitStartTime, record.LocationID],
+      );
+      if (activityExists) {
+        error_log += `ERROR: Row ${index} Activity Name for Field Visit at Start Time ${record.FieldVisitStartTime} already exists in AQI Activities\n`;
+      }
+
+      // check if the specimen already exists -- check if the specimen name for that given visit and location already exists
+      const specimenExists = await this.aqiService.AQILookup(
+        "aqi_specimens",
+        [record.SpecimenName, record.ObservedDateTime, record.ActivityName, record.LocationID],
+      );
+      if (specimenExists) {
+        error_log += `ERROR: Row ${index} Specimen Name for that Acitivity at Start Time ${record.ObservedDateTime} already exists in AQI Specimens\n`;
       }
     }
 
@@ -864,54 +895,54 @@ export class FileParseValidateService {
 
       const localValidationResults = this.localValidation(allRecords);
 
-      //   /*
-      //    * Get unique records to prevent redundant API calls
-      //    * Post the unique records to the API
-      //    * Expand the returned list of object - this will be used for finding unique activities
-      //    */
-      //   const uniqueVisitsWithCounts = this.getUniqueWithCounts(allFieldVisits);
-      //   let visitInfo = await this.postFieldVisits(uniqueVisitsWithCounts);
-      //   let expandedVisitInfo = visitInfo.flatMap((visit) =>
-      //     Array(visit.count).fill(visit.rec),
-      //   );
+      // /*
+      //   * Get unique records to prevent redundant API calls
+      //   * Post the unique records to the API
+      //   * Expand the returned list of object - this will be used for finding unique activities
+      //   */
+      // const uniqueVisitsWithCounts = this.getUniqueWithCounts(allFieldVisits);
+      // let visitInfo = await this.postFieldVisits(uniqueVisitsWithCounts);
+      // let expandedVisitInfo = visitInfo.flatMap((visit) =>
+      //   Array(visit.count).fill(visit.rec),
+      // );
 
-      //   /*
-      //    * Merge the expanded visitInfo with allFieldActivities
-      //    * Collapse allFieldActivities with a dupe count
-      //    * Post the unique records to the API
-      //    * Expand the returned list of object - this will be used for finding unique specimens
-      //    */
+      // /*
+      //   * Merge the expanded visitInfo with allFieldActivities
+      //   * Collapse allFieldActivities with a dupe count
+      //   * Post the unique records to the API
+      //   * Expand the returned list of object - this will be used for finding unique specimens
+      //   */
 
-      //   allFieldActivities = allFieldActivities.map((obj2, index) => {
-      //     const obj1 = expandedVisitInfo[index];
-      //     return { ...obj2, ...obj1 };
-      //   });
+      // allFieldActivities = allFieldActivities.map((obj2, index) => {
+      //   const obj1 = expandedVisitInfo[index];
+      //   return { ...obj2, ...obj1 };
+      // });
 
-      //   const uniqueActivitiesWithCounts =
-      //     this.getUniqueWithCounts(allFieldActivities);
-      //   let activityInfo = await this.postFieldActivities(
-      //     uniqueActivitiesWithCounts,
-      //   );
-      //   let expandedActivityInfo = activityInfo.flatMap((activity) =>
-      //     Array(activity.count).fill(activity.rec),
-      //   );
+      // const uniqueActivitiesWithCounts =
+      //   this.getUniqueWithCounts(allFieldActivities);
+      // let activityInfo = await this.postFieldActivities(
+      //   uniqueActivitiesWithCounts,
+      // );
+      // let expandedActivityInfo = activityInfo.flatMap((activity) =>
+      //   Array(activity.count).fill(activity.rec),
+      // );
 
-      //   /*
-      //    * Merge the expanded activityInfo with allSpecimens
-      //    * Collapse allSpecimens with a dupe count
-      //    * Post the unique records to the API
-      //    */
-      //   allSpecimens = allSpecimens.map((obj2, index) => {
-      //     const obj1 = expandedActivityInfo[index];
-      //     return { ...obj2, ...obj1 };
-      //   });
-      //   const uniqueSpecimensWithCounts = this.getUniqueWithCounts(allSpecimens);
-      //   await this.postFieldSpecimens(uniqueSpecimensWithCounts);
-      //   await this.formulateObservationFile(
-      //     allObservations,
-      //     expandedActivityInfo,
-      //     fileName,
-      //   );
+      // /*
+      //   * Merge the expanded activityInfo with allSpecimens
+      //   * Collapse allSpecimens with a dupe count
+      //   * Post the unique records to the API
+      //   */
+      // allSpecimens = allSpecimens.map((obj2, index) => {
+      //   const obj1 = expandedActivityInfo[index];
+      //   return { ...obj2, ...obj1 };
+      // });
+      // const uniqueSpecimensWithCounts = this.getUniqueWithCounts(allSpecimens);
+      // await this.postFieldSpecimens(uniqueSpecimensWithCounts);
+      // await this.formulateObservationFile(
+      //   allObservations,
+      //   expandedActivityInfo,
+      //   fileName,
+      // );
     }
   }
 }
