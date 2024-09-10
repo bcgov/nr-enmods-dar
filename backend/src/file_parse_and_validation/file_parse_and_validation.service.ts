@@ -899,56 +899,59 @@ export class FileParseValidateService {
          * Create the error log file here
          * Send the an email to the submitter and the ministry contact that is inside the file
          */
+        console.log(await localValidationResults);
+      } else {
+        /*
+         * If the local validation passed then split the file into 4 and process with the AQI API calls
+         * Get unique records to prevent redundant API calls
+         * Post the unique records to the API
+         * Expand the returned list of object - this will be used for finding unique activities
+         */
+        const uniqueVisitsWithCounts = this.getUniqueWithCounts(allFieldVisits);
+        let visitInfo = await this.postFieldVisits(uniqueVisitsWithCounts);
+        let expandedVisitInfo = visitInfo.flatMap((visit) =>
+          Array(visit.count).fill(visit.rec),
+        );
+
+        /*
+         * Merge the expanded visitInfo with allFieldActivities
+         * Collapse allFieldActivities with a dupe count
+         * Post the unique records to the API
+         * Expand the returned list of object - this will be used for finding unique specimens
+         */
+
+        allFieldActivities = allFieldActivities.map((obj2, index) => {
+          const obj1 = expandedVisitInfo[index];
+          return { ...obj2, ...obj1 };
+        });
+
+        const uniqueActivitiesWithCounts =
+          this.getUniqueWithCounts(allFieldActivities);
+        let activityInfo = await this.postFieldActivities(
+          uniqueActivitiesWithCounts,
+        );
+        let expandedActivityInfo = activityInfo.flatMap((activity) =>
+          Array(activity.count).fill(activity.rec),
+        );
+
+        /*
+         * Merge the expanded activityInfo with allSpecimens
+         * Collapse allSpecimens with a dupe count
+         * Post the unique records to the API
+         */
+        allSpecimens = allSpecimens.map((obj2, index) => {
+          const obj1 = expandedActivityInfo[index];
+          return { ...obj2, ...obj1 };
+        });
+        const uniqueSpecimensWithCounts =
+          this.getUniqueWithCounts(allSpecimens);
+        await this.postFieldSpecimens(uniqueSpecimensWithCounts);
+        await this.formulateObservationFile(
+          allObservations,
+          expandedActivityInfo,
+          fileName,
+        );
       }
-
-      // /*
-      //   * Get unique records to prevent redundant API calls
-      //   * Post the unique records to the API
-      //   * Expand the returned list of object - this will be used for finding unique activities
-      //   */
-      // const uniqueVisitsWithCounts = this.getUniqueWithCounts(allFieldVisits);
-      // let visitInfo = await this.postFieldVisits(uniqueVisitsWithCounts);
-      // let expandedVisitInfo = visitInfo.flatMap((visit) =>
-      //   Array(visit.count).fill(visit.rec),
-      // );
-
-      // /*
-      //   * Merge the expanded visitInfo with allFieldActivities
-      //   * Collapse allFieldActivities with a dupe count
-      //   * Post the unique records to the API
-      //   * Expand the returned list of object - this will be used for finding unique specimens
-      //   */
-
-      // allFieldActivities = allFieldActivities.map((obj2, index) => {
-      //   const obj1 = expandedVisitInfo[index];
-      //   return { ...obj2, ...obj1 };
-      // });
-
-      // const uniqueActivitiesWithCounts =
-      //   this.getUniqueWithCounts(allFieldActivities);
-      // let activityInfo = await this.postFieldActivities(
-      //   uniqueActivitiesWithCounts,
-      // );
-      // let expandedActivityInfo = activityInfo.flatMap((activity) =>
-      //   Array(activity.count).fill(activity.rec),
-      // );
-
-      // /*
-      //   * Merge the expanded activityInfo with allSpecimens
-      //   * Collapse allSpecimens with a dupe count
-      //   * Post the unique records to the API
-      //   */
-      // allSpecimens = allSpecimens.map((obj2, index) => {
-      //   const obj1 = expandedActivityInfo[index];
-      //   return { ...obj2, ...obj1 };
-      // });
-      // const uniqueSpecimensWithCounts = this.getUniqueWithCounts(allSpecimens);
-      // await this.postFieldSpecimens(uniqueSpecimensWithCounts);
-      // await this.formulateObservationFile(
-      //   allObservations,
-      //   expandedActivityInfo,
-      //   fileName,
-      // );
     }
   }
 }
