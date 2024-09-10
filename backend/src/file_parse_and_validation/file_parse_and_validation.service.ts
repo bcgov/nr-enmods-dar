@@ -214,6 +214,20 @@ export class FileParseValidateService {
         });
         return { medium: { id: mediumID[0].aqi_mediums_id, customId: param } };
       case "DEPTH_UNIT":
+        if (
+          param[0] == "m" ||
+          param[0] == "Metre" ||
+          param[0] == "metre" ||
+          param[0] == "Meter" ||
+          param[0] == "meter"
+        ) {
+          param[0] = "metre";
+        }
+
+        if (param[0] == "ft" || param[0] == "Feet" || param[0] == "feet") {
+          param[0] = "feet";
+        }
+
         let duID = await this.prisma.aqi_units.findMany({
           where: {
             custom_id: {
@@ -793,35 +807,35 @@ export class FileParseValidateService {
         }
       }
 
-      // check if the visit already exists -- check if visit timetsamp for that location already exists
+      // // check if the visit already exists -- check if visit timetsamp for that location already exists
 
-      const visitExists = await this.aqiService.AQILookup("aqi_field_visits", [
-        record.LocationID,
-        record.FieldVisitStartTime,
-      ]);
-      if (visitExists) {
-        error_log += `ERROR: Row ${index} Visit for Location ${record.LocationID} at Start Time ${record.FieldVisitStartTime} already exists in AQI Field Visits\n`;
-      }
+      // const visitExists = await this.aqiService.AQILookup("aqi_field_visits", [
+      //   record.LocationID,
+      //   record.FieldVisitStartTime,
+      // ]);
+      // if (visitExists) {
+      //   error_log += `ERROR: Row ${index} Visit for Location ${record.LocationID} at Start Time ${record.FieldVisitStartTime} already exists in AQI Field Visits\n`;
+      // }
 
-      // check if the activity already exits -- check if the activity name for that given visit and location already exists
-      const activityExists = await this.aqiService.AQILookup(
-        "aqi_field_activities",
-        [record.ActivityName, record.FieldVisitStartTime, record.LocationID],
-      );
-      if (activityExists) {
-        error_log += `ERROR: Row ${index} Activity Name for Field Visit at Start Time ${record.FieldVisitStartTime} already exists in AQI Activities\n`;
-      }
+      // // check if the activity already exits -- check if the activity name for that given visit and location already exists
+      // const activityExists = await this.aqiService.AQILookup(
+      //   "aqi_field_activities",
+      //   [record.ActivityName, record.FieldVisitStartTime, record.LocationID],
+      // );
+      // if (activityExists) {
+      //   error_log += `ERROR: Row ${index} Activity Name for Field Visit at Start Time ${record.FieldVisitStartTime} already exists in AQI Activities\n`;
+      // }
 
-      // check if the specimen already exists -- check if the specimen name for that given visit and location already exists
-      const specimenExists = await this.aqiService.AQILookup("aqi_specimens", [
-        record.SpecimenName,
-        record.ObservedDateTime,
-        record.ActivityName,
-        record.LocationID,
-      ]);
-      if (specimenExists) {
-        error_log += `ERROR: Row ${index} Specimen Name for that Acitivity at Start Time ${record.ObservedDateTime} already exists in AQI Specimens\n`;
-      }
+      // // check if the specimen already exists -- check if the specimen name for that given visit and location already exists
+      // const specimenExists = await this.aqiService.AQILookup("aqi_specimens", [
+      //   record.SpecimenName,
+      //   record.ObservedDateTime,
+      //   record.ActivityName,
+      //   record.LocationID,
+      // ]);
+      // if (specimenExists) {
+      //   error_log += `ERROR: Row ${index} Specimen Name for that Acitivity at Start Time ${record.ObservedDateTime} already exists in AQI Specimens\n`;
+      // }
     }
 
     return error_log;
@@ -892,6 +906,7 @@ export class FileParseValidateService {
        */
 
       const localValidationResults = this.localValidation(allRecords);
+      console.log(await localValidationResults)
 
       if ((await localValidationResults).includes("ERROR")) {
         /*
@@ -900,7 +915,8 @@ export class FileParseValidateService {
          * Send the an email to the submitter and the ministry contact that is inside the file
          */
         console.log(await localValidationResults);
-      } else {
+      } else if (!(await localValidationResults).includes("ERROR")){
+        console.log("LOCAL VALIDATION PASSED!");
         /*
          * If the local validation passed then split the file into 4 and process with the AQI API calls
          * Get unique records to prevent redundant API calls
@@ -913,44 +929,44 @@ export class FileParseValidateService {
           Array(visit.count).fill(visit.rec),
         );
 
-        /*
-         * Merge the expanded visitInfo with allFieldActivities
-         * Collapse allFieldActivities with a dupe count
-         * Post the unique records to the API
-         * Expand the returned list of object - this will be used for finding unique specimens
-         */
+        // /*
+        //  * Merge the expanded visitInfo with allFieldActivities
+        //  * Collapse allFieldActivities with a dupe count
+        //  * Post the unique records to the API
+        //  * Expand the returned list of object - this will be used for finding unique specimens
+        //  */
 
-        allFieldActivities = allFieldActivities.map((obj2, index) => {
-          const obj1 = expandedVisitInfo[index];
-          return { ...obj2, ...obj1 };
-        });
+        // allFieldActivities = allFieldActivities.map((obj2, index) => {
+        //   const obj1 = expandedVisitInfo[index];
+        //   return { ...obj2, ...obj1 };
+        // });
 
-        const uniqueActivitiesWithCounts =
-          this.getUniqueWithCounts(allFieldActivities);
-        let activityInfo = await this.postFieldActivities(
-          uniqueActivitiesWithCounts,
-        );
-        let expandedActivityInfo = activityInfo.flatMap((activity) =>
-          Array(activity.count).fill(activity.rec),
-        );
+        // const uniqueActivitiesWithCounts =
+        //   this.getUniqueWithCounts(allFieldActivities);
+        // let activityInfo = await this.postFieldActivities(
+        //   uniqueActivitiesWithCounts,
+        // );
+        // let expandedActivityInfo = activityInfo.flatMap((activity) =>
+        //   Array(activity.count).fill(activity.rec),
+        // );
 
-        /*
-         * Merge the expanded activityInfo with allSpecimens
-         * Collapse allSpecimens with a dupe count
-         * Post the unique records to the API
-         */
-        allSpecimens = allSpecimens.map((obj2, index) => {
-          const obj1 = expandedActivityInfo[index];
-          return { ...obj2, ...obj1 };
-        });
-        const uniqueSpecimensWithCounts =
-          this.getUniqueWithCounts(allSpecimens);
-        await this.postFieldSpecimens(uniqueSpecimensWithCounts);
-        await this.formulateObservationFile(
-          allObservations,
-          expandedActivityInfo,
-          fileName,
-        );
+        // /*
+        //  * Merge the expanded activityInfo with allSpecimens
+        //  * Collapse allSpecimens with a dupe count
+        //  * Post the unique records to the API
+        //  */
+        // allSpecimens = allSpecimens.map((obj2, index) => {
+        //   const obj1 = expandedActivityInfo[index];
+        //   return { ...obj2, ...obj1 };
+        // });
+        // const uniqueSpecimensWithCounts =
+        //   this.getUniqueWithCounts(allSpecimens);
+        // await this.postFieldSpecimens(uniqueSpecimensWithCounts);
+        // await this.formulateObservationFile(
+        //   allObservations,
+        //   expandedActivityInfo,
+        //   fileName,
+        // );
       }
     }
   }
