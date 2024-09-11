@@ -807,35 +807,35 @@ export class FileParseValidateService {
         }
       }
 
-      // // check if the visit already exists -- check if visit timetsamp for that location already exists
+      // check if the visit already exists -- check if visit timetsamp for that location already exists
 
-      // const visitExists = await this.aqiService.AQILookup("aqi_field_visits", [
-      //   record.LocationID,
-      //   record.FieldVisitStartTime,
-      // ]);
-      // if (visitExists) {
-      //   error_log += `ERROR: Row ${index} Visit for Location ${record.LocationID} at Start Time ${record.FieldVisitStartTime} already exists in AQI Field Visits\n`;
-      // }
+      const visitExists = await this.aqiService.AQILookup("aqi_field_visits", [
+        record.LocationID,
+        record.FieldVisitStartTime,
+      ]);
+      if (visitExists) {
+        error_log += `ERROR: Row ${index} Visit for Location ${record.LocationID} at Start Time ${record.FieldVisitStartTime} already exists in AQI Field Visits\n`;
+      }
 
-      // // check if the activity already exits -- check if the activity name for that given visit and location already exists
-      // const activityExists = await this.aqiService.AQILookup(
-      //   "aqi_field_activities",
-      //   [record.ActivityName, record.FieldVisitStartTime, record.LocationID],
-      // );
-      // if (activityExists) {
-      //   error_log += `ERROR: Row ${index} Activity Name for Field Visit at Start Time ${record.FieldVisitStartTime} already exists in AQI Activities\n`;
-      // }
+      // check if the activity already exits -- check if the activity name for that given visit and location already exists
+      const activityExists = await this.aqiService.AQILookup(
+        "aqi_field_activities",
+        [record.ActivityName, record.FieldVisitStartTime, record.LocationID],
+      );
+      if (activityExists) {
+        error_log += `ERROR: Row ${index} Activity Name for Field Visit at Start Time ${record.FieldVisitStartTime} already exists in AQI Activities\n`;
+      }
 
-      // // check if the specimen already exists -- check if the specimen name for that given visit and location already exists
-      // const specimenExists = await this.aqiService.AQILookup("aqi_specimens", [
-      //   record.SpecimenName,
-      //   record.ObservedDateTime,
-      //   record.ActivityName,
-      //   record.LocationID,
-      // ]);
-      // if (specimenExists) {
-      //   error_log += `ERROR: Row ${index} Specimen Name for that Acitivity at Start Time ${record.ObservedDateTime} already exists in AQI Specimens\n`;
-      // }
+      // check if the specimen already exists -- check if the specimen name for that given visit and location already exists
+      const specimenExists = await this.aqiService.AQILookup("aqi_specimens", [
+        record.SpecimenName,
+        record.ObservedDateTime,
+        record.ActivityName,
+        record.LocationID,
+      ]);
+      if (specimenExists) {
+        error_log += `ERROR: Row ${index} Specimen Name for that Acitivity at Start Time ${record.ObservedDateTime} already exists in AQI Specimens\n`;
+      }
     }
 
     return error_log;
@@ -906,7 +906,6 @@ export class FileParseValidateService {
        */
 
       const localValidationResults = this.localValidation(allRecords);
-      console.log(await localValidationResults)
 
       if ((await localValidationResults).includes("ERROR")) {
         /*

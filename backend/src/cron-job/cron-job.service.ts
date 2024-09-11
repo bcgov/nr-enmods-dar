@@ -1,12 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
 import axios from "axios";
 import { error } from "winston";
-import { Cron } from "@nestjs/schedule";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "nestjs-prisma";
 import { FileParseValidateService } from "src/file_parse_and_validation/file_parse_and_validation.service";
-import * as fs from "fs";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
-import { exit } from "process";
 
 /**
  * Cron Job service for filling code tables with data from AQI API
@@ -16,6 +14,8 @@ export class CronJobService {
   private readonly logger = new Logger(CronJobService.name);
 
   private tableModels;
+
+  private dataPullDownComplete: boolean = false;
 
   constructor(
     private prisma: PrismaService,
@@ -118,13 +118,13 @@ export class CronJobService {
       endpoint: "/v1/fieldvisits",
       method: "GET",
       dbTable: "aqi_field_visits",
-      paramsEnabled: false,
+      paramsEnabled: true,
     },
     {
       endpoint: "/v1/activities",
       method: "GET",
       dbTable: "aqi_field_activities",
-      paramsEnabled: false,
+      paramsEnabled: true,
     },
     {
       endpoint: "/v1/specimens",
@@ -261,8 +261,8 @@ export class CronJobService {
     }
   }
 
-  @Cron("0 0 */2 * * *") // every 2 hours
-  private async fetchLocations() {
+  @Cron(CronExpression.EVERY_5_MINUTES)
+  private async fetchAQSSData() {
     this.logger.log(`#######################################################`);
     this.logger.log(`Starting Code Table Cron Job`);
     axios.defaults.method = "GET";
@@ -301,12 +301,19 @@ export class CronJobService {
       } while (total > entries.length && api.paramsEnabled);
 
       const filteredData = await this.filterData(api.endpoint, entries);
-      await this.updateDatabase(api.dbTable, filteredData);
+      try {
+        await this.updateDatabase(api.dbTable, filteredData);
+        this.dataPullDownComplete = true;
+      } catch (error) {
+        this.dataPullDownComplete = false;
+        console.error(`Error updating database for ${api.endpoint}`, error);
+      }
     }
 
     this.logger.log(
       `Cron Job Time Taken: ${(new Date().getTime() - startTime) / 1000} seconds`,
     );
+
     this.logger.log(`#######################################################`);
   }
 
@@ -417,13 +424,18 @@ export class CronJobService {
     return filterArray(entries);
   }
 
-  @Cron("0 */1 * * * *") // every 2 hours
+  @Cron(CronExpression.EVERY_MINUTE) // every 2 hours
   private async beginFileValidation() {
     /*
     TODO:
       grab all the files from the DB and S3 bucket that have a status of QUEUED
       for each file returned, change the status to INPROGRESS and go to the parser
     */
+    if (!this.dataPullDownComplete) {
+      this.logger.warn("Data pull down from AQSS did not complete");
+      return;
+    }
+
     let filesToValidate = await this.fileParser.getQueuedFiles();
 
     if (filesToValidate.length < 1) {
@@ -431,7 +443,6 @@ export class CronJobService {
     } else {
       for (const file of filesToValidate) {
         const fileBinary = await this.objectStore.getFileData(file.file_name);
-
         // await this.prisma.file_submission.update({
         //   where: {
         //     submission_id: file.submission_id
@@ -443,6 +454,7 @@ export class CronJobService {
 
         this.fileParser.parseFile(fileBinary, file.file_name);
       }
+      this.dataPullDownComplete = false;
     }
   }
 }
