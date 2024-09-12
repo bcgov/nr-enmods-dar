@@ -12,6 +12,7 @@ import { AqiApiService } from "src/aqi_api/aqi_api.service";
 import * as XLSX from "xlsx";
 import * as path from "path";
 import * as csvWriter from "csv-writer";
+import fs from "fs";
 import { PrismaService } from "nestjs-prisma";
 
 const visits: FieldVisits = {
@@ -531,15 +532,7 @@ export class FileParseValidateService {
     }
   }
 
-  async formulateObservationFile(
-    observationData: any,
-    activityInfo: any,
-    fileName: string,
-  ) {
-    for (const [index, observation] of observationData.entries()) {
-      observation["ActivityID"] = activityInfo[index].activity.id;
-    }
-
+  async formulateObservationFile(observationData: any, fileName: string) {
     const obsToWrite: ObservationFile[] = [];
 
     observationData.map((source) => {
@@ -558,7 +551,7 @@ export class FileParseValidateService {
     });
 
     const baseFileName = path.basename(fileName, path.extname(fileName));
-    const filePath = path.join("src/tempObsFiles/", `temp-${baseFileName}.csv`);
+    const filePath = path.join("src/tempObsFiles/", `obs-${baseFileName}.csv`);
     const headers = Object.keys(obsToWrite[0]).map((key) => ({
       id: key,
       title: key,
@@ -570,10 +563,7 @@ export class FileParseValidateService {
     });
 
     await writer.writeRecords(obsToWrite);
-
-    await this.aqiService.importObservations(
-      `src/tempObsFiles/temp-${baseFileName}.csv`,
-    );
+    return filePath;
   }
 
   filterFile<T>(data: any[], keys, customAttributes): Partial<T>[] {
@@ -609,8 +599,8 @@ export class FileParseValidateService {
     return dupeCount;
   }
 
-  async localValidation(allRecords) {
-    let error_log = "";
+  async localValidation(allRecords, observaionFilePath) {
+    let errorLog = "";
     for (const [index, record] of allRecords.entries()) {
       const isoDateTimeRegex =
         /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(:(\d{2})(\.\d+)?)?(Z|([+-]\d{2}:\d{2}))?$/;
@@ -640,9 +630,17 @@ export class FileParseValidateService {
         if (record.hasOwnProperty(field) && record[field]) {
           const valid = isoDateTimeRegex.test(record[field]);
           if (!valid) {
-            error_log += `ERROR: Row ${index} ${field} ${record[field]} is not a valid ISO datetime\n`;
+            errorLog += `ERROR: Row ${index + 2} ${field} ${record[field]} is not a valid ISO datetime\n`;
           } else if (record.hasOwnProperty(field) && !record[field]) {
-            error_log += `ERROR: Row ${index} ${field} missing value\n`;
+            errorLog += `ERROR: Row ${index + 2} ${field} missing value\n`;
+          }
+        } else if (record.hasOwnProperty(field) && !record[field]) {
+          if (
+            field == "FieldVisitStartTime" ||
+            field == "ObservedDateTime" ||
+            field == "AnalyzedDateTime"
+          ) {
+            errorLog += `ERROR: Row ${index + 2} mandatory field ${field} has no value.\n`;
           }
         }
       });
@@ -654,7 +652,7 @@ export class FileParseValidateService {
             numberRegex.test(record[field]) &&
             !isNaN(parseFloat(record[field]));
           if (record[field] !== "" && !valid) {
-            error_log += `ERROR: Row ${index} ${field} ${record[field]} is not a valid number\n`;
+            errorLog += `ERROR: Row ${index + 2} ${field} ${record[field]} is not a valid number\n`;
           }
         }
       });
@@ -667,10 +665,10 @@ export class FileParseValidateService {
             record[field],
           );
           if (!present) {
-            error_log += `ERROR: Row ${index} ${field} ${record[field]} not found in AQI Units\n`;
+            errorLog += `ERROR: Row ${index + 2} ${field} ${record[field]} not found in AQI Units\n`;
           }
         } else if (record.hasOwnProperty(field) && !record[field]) {
-          error_log += `WARNING: Row ${index} ${field} ${record[field]} is empty\n`;
+          errorLog += `WARNING: Row ${index + 2} ${field} ${record[field]} is empty\n`;
         }
       });
 
@@ -680,7 +678,7 @@ export class FileParseValidateService {
           record.Project,
         );
         if (!present) {
-          error_log += `ERROR: Row ${index} Project ${record.Project} not found in AQI Projects\n`;
+          errorLog += `ERROR: Row ${index + 2} Project ${record.Project} not found in AQI Projects\n`;
         }
       }
 
@@ -690,7 +688,7 @@ export class FileParseValidateService {
           record.LocationID,
         );
         if (!present) {
-          error_log += `ERROR: Row ${index} Location ID ${record.LocationID} not found in AQI Locations\n`;
+          errorLog += `ERROR: Row ${index + 2} Location ID ${record.LocationID} not found in AQI Locations\n`;
         }
       }
 
@@ -700,7 +698,7 @@ export class FileParseValidateService {
           record.Preservative,
         );
         if (!present) {
-          error_log += `ERROR: Row ${index} Preservative ${record.Preservative} not found in AQI Preservatives\n`;
+          errorLog += `ERROR: Row ${index + 2} Preservative ${record.Preservative} not found in AQI Preservatives\n`;
         }
       }
 
@@ -710,7 +708,7 @@ export class FileParseValidateService {
           record.SamplingConextTag,
         );
         if (!present) {
-          error_log += `ERROR: Row ${index} Sampling Conext Tag ${record.SamplingConextTag} not found in AQI Sampling Context Tags\n`;
+          errorLog += `ERROR: Row ${index + 2} Sampling Conext Tag ${record.SamplingConextTag} not found in AQI Sampling Context Tags\n`;
         }
       }
 
@@ -720,7 +718,7 @@ export class FileParseValidateService {
           record.CollectionMethod,
         );
         if (!present) {
-          error_log += `ERROR: Row ${index} Collection Method ${record.CollectionMethod} not found in AQI Collection Methods\n`;
+          errorLog += `ERROR: Row ${index + 2} Collection Method ${record.CollectionMethod} not found in AQI Collection Methods\n`;
         }
       }
 
@@ -730,7 +728,7 @@ export class FileParseValidateService {
           record.Medium,
         );
         if (!present) {
-          error_log += `ERROR: Row ${index} Medium ${record.Medium} not found in AQI Mediums\n`;
+          errorLog += `ERROR: Row ${index + 2} Medium ${record.Medium} not found in AQI Mediums\n`;
         }
       }
 
@@ -740,7 +738,7 @@ export class FileParseValidateService {
           record.ObservedPropertyID,
         );
         if (!present) {
-          error_log += `ERROR: Row ${index} Observed Property ID ${record.ObservedPropertyID} not found in AQI Observed Properties\n`;
+          errorLog += `ERROR: Row ${index + 2} Observed Property ID ${record.ObservedPropertyID} not found in AQI Observed Properties\n`;
         }
       }
 
@@ -753,7 +751,7 @@ export class FileParseValidateService {
           record.DetectionCondition.toUpperCase().replace(/ /g, "_"),
         );
         if (!present) {
-          error_log += `ERROR: Row ${index} Detection Condition ${record.DetectionCondition} not found in AQI Detection Conditions\n`;
+          errorLog += `ERROR: Row ${index + 2} Detection Condition ${record.DetectionCondition} not found in AQI Detection Conditions\n`;
         }
       }
 
@@ -763,7 +761,7 @@ export class FileParseValidateService {
           record.Fraction.toUpperCase(),
         );
         if (!present) {
-          error_log += `ERROR: Row ${index} Fraction ${record.Fraction} not found in AQI Sample Fractions\n`;
+          errorLog += `ERROR: Row ${index + 2} Fraction ${record.Fraction} not found in AQI Sample Fractions\n`;
         }
       }
 
@@ -773,7 +771,7 @@ export class FileParseValidateService {
           record.DataClassification,
         );
         if (!present) {
-          error_log += `ERROR: Row ${index} Data Classification ${record.DataClassification} not found in AQI Data Classifications\n`;
+          errorLog += `ERROR: Row ${index + 2} Data Classification ${record.DataClassification} not found in AQI Data Classifications\n`;
         }
       }
 
@@ -783,7 +781,7 @@ export class FileParseValidateService {
           record.AnalyzingAgency,
         );
         if (!present) {
-          error_log += `ERROR: Row ${index} Analyzing Agency ${record.AnalyzingAgency} not found in AQI Agencies\n`;
+          errorLog += `ERROR: Row ${index + 2} Analyzing Agency ${record.AnalyzingAgency} not found in AQI Agencies\n`;
         }
       }
 
@@ -793,7 +791,7 @@ export class FileParseValidateService {
           record.ResultStatus,
         );
         if (!present) {
-          error_log += `ERROR: Row ${index} Result Status ${record.ResultStatus} not found in AQI Result Statuses\n`;
+          errorLog += `ERROR: Row ${index + 2} Result Status ${record.ResultStatus} not found in AQI Result Statuses\n`;
         }
       }
 
@@ -803,7 +801,7 @@ export class FileParseValidateService {
           record.ResultGrade,
         );
         if (!present) {
-          error_log += `ERROR: Row ${index} Result Grade ${record.ResultGrade} not found in AQI Result Grades\n`;
+          errorLog += `ERROR: Row ${index + 2} Result Grade ${record.ResultGrade} not found in AQI Result Grades\n`;
         }
       }
 
@@ -814,7 +812,7 @@ export class FileParseValidateService {
         record.FieldVisitStartTime,
       ]);
       if (visitExists) {
-        error_log += `ERROR: Row ${index} Visit for Location ${record.LocationID} at Start Time ${record.FieldVisitStartTime} already exists in AQI Field Visits\n`;
+        errorLog += `ERROR: Row ${index + 2} Visit for Location ${record.LocationID} at Start Time ${record.FieldVisitStartTime} already exists in AQI Field Visits\n`;
       }
 
       // check if the activity already exits -- check if the activity name for that given visit and location already exists
@@ -823,7 +821,7 @@ export class FileParseValidateService {
         [record.ActivityName, record.FieldVisitStartTime, record.LocationID],
       );
       if (activityExists) {
-        error_log += `ERROR: Row ${index} Activity Name for Field Visit at Start Time ${record.FieldVisitStartTime} already exists in AQI Activities\n`;
+        errorLog += `ERROR: Row ${index + 2} Activity Name for Field Visit at Start Time ${record.FieldVisitStartTime} already exists in AQI Activities\n`;
       }
 
       // check if the specimen already exists -- check if the specimen name for that given visit and location already exists
@@ -834,11 +832,21 @@ export class FileParseValidateService {
         record.LocationID,
       ]);
       if (specimenExists) {
-        error_log += `ERROR: Row ${index} Specimen Name for that Acitivity at Start Time ${record.ObservedDateTime} already exists in AQI Specimens\n`;
+        errorLog += `ERROR: Row ${index + 2} Specimen Name for that Acitivity at Start Time ${record.ObservedDateTime} already exists in AQI Specimens\n`;
       }
+
+      errorLog += "\n";
     }
 
-    return error_log;
+    // Do a dry run of the observations
+    const observationsErrors = await this.aqiService.importObservations(
+      observaionFilePath,
+      "dryrun",
+    );
+
+    const finalErrorLog = this.aqiService.mergeErrorMessages(errorLog, observationsErrors)
+
+    return finalErrorLog;
   }
 
   async parseFile(file: string, fileName: string) {
@@ -901,11 +909,19 @@ export class FileParseValidateService {
         null,
       );
 
+      const ObsFilePath = await this.formulateObservationFile(
+        allObservations,
+        fileName,
+      );
+
       /*
        * Do the local validation for each section here - if passed then go to the API calls - else create the message/file/email for the errors
        */
 
-      const localValidationResults = this.localValidation(allRecords);
+      const localValidationResults = this.localValidation(
+        allRecords,
+        ObsFilePath,
+      );
 
       if ((await localValidationResults).includes("ERROR")) {
         /*
@@ -913,20 +929,22 @@ export class FileParseValidateService {
          * Create the error log file here
          * Send the an email to the submitter and the ministry contact that is inside the file
          */
+
+        console.log("LOCAL VALIDATION FAILED!");
         console.log(await localValidationResults);
-      } else if (!(await localValidationResults).includes("ERROR")){
+      } else if (!(await localValidationResults).includes("ERROR")) {
         console.log("LOCAL VALIDATION PASSED!");
-        /*
-         * If the local validation passed then split the file into 4 and process with the AQI API calls
-         * Get unique records to prevent redundant API calls
-         * Post the unique records to the API
-         * Expand the returned list of object - this will be used for finding unique activities
-         */
-        const uniqueVisitsWithCounts = this.getUniqueWithCounts(allFieldVisits);
-        let visitInfo = await this.postFieldVisits(uniqueVisitsWithCounts);
-        let expandedVisitInfo = visitInfo.flatMap((visit) =>
-          Array(visit.count).fill(visit.rec),
-        );
+        // /*
+        //  * If the local validation passed then split the file into 4 and process with the AQI API calls
+        //  * Get unique records to prevent redundant API calls
+        //  * Post the unique records to the API
+        //  * Expand the returned list of object - this will be used for finding unique activities
+        //  */
+        // const uniqueVisitsWithCounts = this.getUniqueWithCounts(allFieldVisits);
+        // let visitInfo = await this.postFieldVisits(uniqueVisitsWithCounts);
+        // let expandedVisitInfo = visitInfo.flatMap((visit) =>
+        //   Array(visit.count).fill(visit.rec),
+        // );
 
         // /*
         //  * Merge the expanded visitInfo with allFieldActivities
@@ -961,10 +979,9 @@ export class FileParseValidateService {
         // const uniqueSpecimensWithCounts =
         //   this.getUniqueWithCounts(allSpecimens);
         // await this.postFieldSpecimens(uniqueSpecimensWithCounts);
-        // await this.formulateObservationFile(
-        //   allObservations,
-        //   expandedActivityInfo,
-        //   fileName,
+
+        // await this.aqiService.importObservations(
+        //   `src/tempObsFiles/temp-${fileName}.csv`, ""
         // );
       }
     }

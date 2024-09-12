@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import axios, { AxiosInstance } from "axios";
+import axios, { AxiosError, AxiosInstance } from "axios";
 import * as fs from "fs";
 import FormData from "form-data";
 import { PrismaService } from "nestjs-prisma";
@@ -8,6 +8,9 @@ import { PrismaService } from "nestjs-prisma";
 export class AqiApiService {
   private readonly logger = new Logger(AqiApiService.name);
   private axiosInstance: AxiosInstance;
+
+  private wait = (ms: number) =>
+    new Promise((resolve) => setTimeout(resolve, ms));
 
   constructor(private prisma: PrismaService) {
     this.axiosInstance = axios.create({
@@ -59,27 +62,112 @@ export class AqiApiService {
     }
   }
 
-  async importObservations(fileName: any) {
+  async importObservations(fileName: any, method: string) {
     const formData = new FormData();
     formData.append("file", fs.createReadStream(fileName));
     try {
-      const response = await axios.post(
-        `${process.env.AQI_BASE_URL}/v2/observationimports?fileType=SIMPLE_CSV&timeZoneOffset=-08:00&linkFieldVisitsForNewObservations=true`,
-        formData,
+      if (method == "dryrun") {
+        const response = await axios.post(
+          `${process.env.AQI_BASE_URL}/v2/observationimports/dryrun?fileType=SIMPLE_CSV&timeZoneOffset=-08:00&linkFieldVisitsForNewObservations=true`,
+          formData,
+          {
+            headers: {
+              Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+              Accept: "application/json; text/plain",
+              "x-api-key": process.env.AQI_ACCESS_TOKEN,
+              ...formData.getHeaders(),
+            },
+          },
+        );
+        this.logger.log(
+          `API call to Observations Dry Run succeeded: ${response.status}`,
+        );
+
+        const statusURL = response.headers.location;
+        const obsStatus = await this.getObservationsStatusResult(statusURL);
+        const errorMessages = this.parseObsResultResponse(obsStatus);
+        return errorMessages;
+      } else {
+        const response = await axios.post(
+          `${process.env.AQI_BASE_URL}/v2/observationimports?fileType=SIMPLE_CSV&timeZoneOffset=-08:00&linkFieldVisitsForNewObservations=true`,
+          formData,
+          {
+            headers: {
+              Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+              Accept: "application/json; text/plain",
+              "x-api-key": process.env.AQI_ACCESS_TOKEN,
+              ...formData.getHeaders(),
+            },
+          },
+        );
+        this.logger.log(
+          `API call to Observation Import succeeded: ${response.status}`,
+        );
+        const statusURL = response.headers.location;
+        const obsResults = await this.getObservationsStatusResult(statusURL);
+
+        const errorMessages = this.parseObsResultResponse(obsResults);
+      }
+    } catch (err) {
+      console.error("API call to Observation Import failed: ", err.response);
+    }
+  }
+
+  async getObservationsStatusResult(location: string) {
+    try {
+      const response = await axios.get(location, {
+        headers: {
+          Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+          "x-api-key": process.env.AQI_ACCESS_TOKEN,
+        },
+      });
+
+      await this.wait(5000);
+
+      const obsResultResponse = await axios.get(
+        `${process.env.AQI_BASE_URL}/v2/observationimports/${response.data.id}/result`,
         {
           headers: {
             Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
-            Accept: "application/json; text/plain",
             "x-api-key": process.env.AQI_ACCESS_TOKEN,
-            ...formData.getHeaders(),
           },
         },
       );
-      this.logger.log(`API call to Observations succeeded: ${response.status}`);
-      console.log(response.headers.location);
+
+      this.logger.log(
+        `API call to Observations Status succeeded: ${response.status}`,
+      );
+      return obsResultResponse;
     } catch (err) {
-      console.error("API CALL TO Observations failed: ", err.response);
+      if (axios.isAxiosError(err)) {
+        const axiosError = err as AxiosError;
+        if (axiosError.response?.status === 409) {
+          console.warn("409 Conflict: Continuing without failing");
+          return axiosError.response.data;
+        } else {
+          console.error(
+            "API CALL TO Observations Status failed: ",
+            err.response,
+          );
+        }
+      }
     }
+  }
+
+  parseObsResultResponse(obsResults: any) {
+    let errorMessages = "";
+    if (obsResults.errorCount > 0) {
+      obsResults.importItems.forEach((item) => {
+        const rowId = item.rowId;
+        const errors = item.errors;
+
+        Object.entries(errors).forEach((error) => {
+          errorMessages += `ERROR: Row ${rowId} Observation file: ${error[1][0].errorMessage}\n`;
+        });
+        errorMessages += "\n";
+      });
+    }
+    return errorMessages;
   }
 
   async databaseLookup(dbTable: string, queryParam: string) {
@@ -112,7 +200,7 @@ export class AqiApiService {
       } catch (err) {
         console.error(`API CALL TO ${dbTable} failed: `, err);
       }
-    }else if (dbTable == "aqi_field_activities"){
+    } else if (dbTable == "aqi_field_activities") {
       try {
         result = await this.prisma[dbTable].findMany({
           where: {
@@ -124,7 +212,7 @@ export class AqiApiService {
       } catch (err) {
         console.error(`API CALL TO ${dbTable} failed: `, err);
       }
-    }else if (dbTable == "aqi_specimens"){
+    } else if (dbTable == "aqi_specimens") {
       try {
         result = await this.prisma[dbTable].findMany({
           where: {
@@ -139,12 +227,44 @@ export class AqiApiService {
       }
     }
 
-
-
     if (result.length > 0) {
       return true;
     } else {
       return false;
     }
+  }
+
+  mergeErrorMessages(localErrors: string, remoteErrors: string) {
+    const localErrorLines = localErrors.split("\n");
+    const remoteErrorLines = remoteErrors.split("\n");
+
+    const errorMap: any = {};
+
+    const extractRowNumber = (line: string): number | null => {
+      const match = line.match(/Row (\d+)/);
+      return match ? parseInt(match[1]) : null;
+    };
+
+    const addErrorsToMap = (lines: string[]) => {
+      lines.forEach((line) => {
+        const rowNumber = extractRowNumber(line);
+        if (rowNumber !== null) {
+          if (!errorMap[rowNumber]) {
+            errorMap[rowNumber] = [];
+          }
+          errorMap[rowNumber].push(line);
+        }
+      });
+    };
+
+    addErrorsToMap(localErrorLines);
+    addErrorsToMap(remoteErrorLines);
+
+    const mergedErrors = Object.keys(errorMap)
+      .sort((a, b) => parseInt(a) - parseInt(b))
+      .flatMap((row) => errorMap[parseInt(row)])
+      .join("\n");
+
+    return mergedErrors;
   }
 }
