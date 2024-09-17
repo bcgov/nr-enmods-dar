@@ -41,7 +41,7 @@ global:
     ftpUser: ~
     ftpPassword: ~
     #-- frontend
-    port: ~
+    port: 3000
     apiName: ~
     baseUrl: ~
     viteAppApiUrl: ~
