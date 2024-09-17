@@ -442,21 +442,20 @@ export class CronJobService {
 
     if (filesToValidate.length < 1) {
       console.log("************** NO FILES TO VALIDATE **************");
+      return
     } else {
       for (const file of filesToValidate) {
         const fileBinary = await this.objectStore.getFileData(file.file_name);
-        await this.fileSubmissionsService.updateFileStatus(
+        
+        this.fileParser.parseFile(
+          fileBinary,
+          file.file_name,
           file.submission_id,
-          "INPROGRESS",
+          file.file_operation_code,
         );
-
-        // this.fileParser.parseFile(
-        //   fileBinary,
-        //   file.file_name,
-        //   file.submission_id,
-        // );
       }
       this.dataPullDownComplete = false;
+      return
     }
   }
 }
