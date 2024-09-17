@@ -844,12 +844,15 @@ export class FileParseValidateService {
       "dryrun",
     );
 
-    const finalErrorLog = this.aqiService.mergeErrorMessages(errorLog, observationsErrors)
+    const finalErrorLog = this.aqiService.mergeErrorMessages(
+      errorLog,
+      observationsErrors,
+    );
 
     return finalErrorLog;
   }
 
-  async parseFile(file: string, fileName: string) {
+  async parseFile(file: string, fileName: string, file_submission_id: string) {
     const path = require("path");
     const extention = path.extname(fileName);
     if (extention == ".xlsx") {
@@ -929,60 +932,63 @@ export class FileParseValidateService {
          * Create the error log file here
          * Send the an email to the submitter and the ministry contact that is inside the file
          */
-
-        console.log("LOCAL VALIDATION FAILED!");
+        await this.fileSubmissionsService.updateFileStatus(
+          file_submission_id,
+          "REJECTED",
+        );
         console.log(await localValidationResults);
       } else if (!(await localValidationResults).includes("ERROR")) {
-        console.log("LOCAL VALIDATION PASSED!");
-        // /*
-        //  * If the local validation passed then split the file into 4 and process with the AQI API calls
-        //  * Get unique records to prevent redundant API calls
-        //  * Post the unique records to the API
-        //  * Expand the returned list of object - this will be used for finding unique activities
-        //  */
-        // const uniqueVisitsWithCounts = this.getUniqueWithCounts(allFieldVisits);
-        // let visitInfo = await this.postFieldVisits(uniqueVisitsWithCounts);
-        // let expandedVisitInfo = visitInfo.flatMap((visit) =>
-        //   Array(visit.count).fill(visit.rec),
-        // );
+        await this.fileSubmissionsService.updateFileStatus(
+          file_submission_id,
+          "VALIDATED",
+        );
+        /*
+         * If the local validation passed then split the file into 4 and process with the AQI API calls
+         * Get unique records to prevent redundant API calls
+         * Post the unique records to the API
+         * Expand the returned list of object - this will be used for finding unique activities
+         */
+        const uniqueVisitsWithCounts = this.getUniqueWithCounts(allFieldVisits);
+        let visitInfo = await this.postFieldVisits(uniqueVisitsWithCounts);
+        let expandedVisitInfo = visitInfo.flatMap((visit) =>
+          Array(visit.count).fill(visit.rec),
+        );
 
-        // /*
-        //  * Merge the expanded visitInfo with allFieldActivities
-        //  * Collapse allFieldActivities with a dupe count
-        //  * Post the unique records to the API
-        //  * Expand the returned list of object - this will be used for finding unique specimens
-        //  */
+        /*
+         * Merge the expanded visitInfo with allFieldActivities
+         * Collapse allFieldActivities with a dupe count
+         * Post the unique records to the API
+         * Expand the returned list of object - this will be used for finding unique specimens
+         */
 
-        // allFieldActivities = allFieldActivities.map((obj2, index) => {
-        //   const obj1 = expandedVisitInfo[index];
-        //   return { ...obj2, ...obj1 };
-        // });
+        allFieldActivities = allFieldActivities.map((obj2, index) => {
+          const obj1 = expandedVisitInfo[index];
+          return { ...obj2, ...obj1 };
+        });
 
-        // const uniqueActivitiesWithCounts =
-        //   this.getUniqueWithCounts(allFieldActivities);
-        // let activityInfo = await this.postFieldActivities(
-        //   uniqueActivitiesWithCounts,
-        // );
-        // let expandedActivityInfo = activityInfo.flatMap((activity) =>
-        //   Array(activity.count).fill(activity.rec),
-        // );
+        const uniqueActivitiesWithCounts =
+          this.getUniqueWithCounts(allFieldActivities);
+        let activityInfo = await this.postFieldActivities(
+          uniqueActivitiesWithCounts,
+        );
+        let expandedActivityInfo = activityInfo.flatMap((activity) =>
+          Array(activity.count).fill(activity.rec),
+        );
 
-        // /*
-        //  * Merge the expanded activityInfo with allSpecimens
-        //  * Collapse allSpecimens with a dupe count
-        //  * Post the unique records to the API
-        //  */
-        // allSpecimens = allSpecimens.map((obj2, index) => {
-        //   const obj1 = expandedActivityInfo[index];
-        //   return { ...obj2, ...obj1 };
-        // });
-        // const uniqueSpecimensWithCounts =
-        //   this.getUniqueWithCounts(allSpecimens);
-        // await this.postFieldSpecimens(uniqueSpecimensWithCounts);
+        /*
+         * Merge the expanded activityInfo with allSpecimens
+         * Collapse allSpecimens with a dupe count
+         * Post the unique records to the API
+         */
+        allSpecimens = allSpecimens.map((obj2, index) => {
+          const obj1 = expandedActivityInfo[index];
+          return { ...obj2, ...obj1 };
+        });
+        const uniqueSpecimensWithCounts =
+          this.getUniqueWithCounts(allSpecimens);
+        await this.postFieldSpecimens(uniqueSpecimensWithCounts);
 
-        // await this.aqiService.importObservations(
-        //   `src/tempObsFiles/temp-${fileName}.csv`, ""
-        // );
+        await this.aqiService.importObservations(ObsFilePath, "");
       }
     }
   }

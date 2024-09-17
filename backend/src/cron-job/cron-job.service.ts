@@ -4,6 +4,7 @@ import { error } from "winston";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "nestjs-prisma";
 import { FileParseValidateService } from "src/file_parse_and_validation/file_parse_and_validation.service";
+import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
 
 /**
@@ -20,6 +21,7 @@ export class CronJobService {
   constructor(
     private prisma: PrismaService,
     private readonly fileParser: FileParseValidateService,
+    private readonly fileSubmissionsService: FileSubmissionsService,
     private readonly objectStore: ObjectStoreService,
   ) {
     this.tableModels = new Map<string, any>([
@@ -443,16 +445,16 @@ export class CronJobService {
     } else {
       for (const file of filesToValidate) {
         const fileBinary = await this.objectStore.getFileData(file.file_name);
-        // await this.prisma.file_submission.update({
-        //   where: {
-        //     submission_id: file.submission_id
-        //   },
-        //   data: {
-        //     submission_status_code: 'INPROGRESS'
-        //   }
-        // })
+        await this.fileSubmissionsService.updateFileStatus(
+          file.submission_id,
+          "INPROGRESS",
+        );
 
-        this.fileParser.parseFile(fileBinary, file.file_name);
+        this.fileParser.parseFile(
+          fileBinary,
+          file.file_name,
+          file.submission_id,
+        );
       }
       this.dataPullDownComplete = false;
     }

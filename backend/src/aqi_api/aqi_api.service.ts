@@ -85,6 +85,7 @@ export class AqiApiService {
 
         const statusURL = response.headers.location;
         const obsStatus = await this.getObservationsStatusResult(statusURL);
+
         const errorMessages = this.parseObsResultResponse(obsStatus);
         return errorMessages;
       } else {
@@ -107,9 +108,10 @@ export class AqiApiService {
         const obsResults = await this.getObservationsStatusResult(statusURL);
 
         const errorMessages = this.parseObsResultResponse(obsResults);
+        return errorMessages;
       }
     } catch (err) {
-      console.error("API call to Observation Import failed: ", err.response);
+      console.error("API call to Observation Import failed: ", err);
     }
   }
 
@@ -122,7 +124,7 @@ export class AqiApiService {
         },
       });
 
-      await this.wait(5000);
+      await this.wait(15000);
 
       const obsResultResponse = await axios.get(
         `${process.env.AQI_BASE_URL}/v2/observationimports/${response.data.id}/result`,
