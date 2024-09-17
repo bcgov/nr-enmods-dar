@@ -27,6 +27,7 @@ model file_submission {
   submission_date        DateTime               @db.Timestamp(6)
   submitter_user_id      String                 @db.VarChar(200)
   submission_status_code String                 @db.VarChar(10)
+  file_operation_code    String                 @db.VarChar(10)
   submitter_agency_name  String                 @db.VarChar(200)
   sample_count           Int?
   results_count          Int?
@@ -37,6 +38,7 @@ model file_submission {
   create_utc_timestamp   DateTime               @db.Timestamp(6)
   update_user_id         String                 @db.VarChar(200)
   update_utc_timestamp   DateTime               @db.Timestamp(6)
+  file_operation_codes   file_operation_codes   @relation(fields: [file_operation_code], references: [file_operation_code], onDelete: NoAction, onUpdate: NoAction, map: "file_operation_code_fk")
   submission_status      submission_status_code @relation(fields: [submission_status_code], references: [submission_status_code], onDelete: NoAction, onUpdate: NoAction, map: "submission_status_code_fk")
 }
 
@@ -234,4 +236,16 @@ model aqi_data_classifications {
   create_utc_timestamp        DateTime @db.Timestamp(6)
   update_user_id              String   @db.VarChar(200)
   update_utc_timestamp        DateTime @db.Timestamp(6)
+}
+
+model file_operation_codes {
+  file_operation_code  String            @id(map: "file_operation_code_pk") @db.VarChar(20)
+  description          String            @db.VarChar(250)
+  display_order        Int
+  active_ind           Boolean           @default(true)
+  create_user_id       String            @db.VarChar(200)
+  create_utc_timestamp DateTime          @db.Timestamp(6)
+  update_user_id       String            @db.VarChar(200)
+  update_utc_timestamp DateTime          @db.Timestamp(6)
+  file_submission      file_submission[]
 }

@@ -30,6 +30,11 @@ export class FileSubmissionDto {
   submission_status_code: string;
 
   @ApiProperty({
+    description: 'File operation',
+  })
+  file_operation_code: string;
+
+  @ApiProperty({
     description: 'Submitter agency name',
     // default: '9999',
   })

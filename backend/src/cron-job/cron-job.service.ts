@@ -433,10 +433,10 @@ export class CronJobService {
       grab all the files from the DB and S3 bucket that have a status of QUEUED
       for each file returned, change the status to INPROGRESS and go to the parser
     */
-    // if (!this.dataPullDownComplete) {
-    //   this.logger.warn("Data pull down from AQSS did not complete");
-    //   return;
-    // }
+    if (!this.dataPullDownComplete) {
+      this.logger.warn("Data pull down from AQSS did not complete");
+      return;
+    }
 
     let filesToValidate = await this.fileParser.getQueuedFiles();
 
@@ -450,11 +450,11 @@ export class CronJobService {
           "INPROGRESS",
         );
 
-        this.fileParser.parseFile(
-          fileBinary,
-          file.file_name,
-          file.submission_id,
-        );
+        // this.fileParser.parseFile(
+        //   fileBinary,
+        //   file.file_name,
+        //   file.submission_id,
+        // );
       }
       this.dataPullDownComplete = false;
     }

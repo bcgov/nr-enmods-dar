@@ -67,15 +67,12 @@ function FileUpload() {
     setOpen(false);
   };
 
-  const validateFile = async (file: string | Blob, index: number) => {};
-
-  const validateAllFiles = (files) => {};
-
-  const submitFile = async (file: string | Blob, index: number) => {
+  const validateFile = async (file: string | Blob, index: number) => {
     if (file) {
       const formData = new FormData();
       var JWT = jwtDecode(UserService.getToken()?.toString());
       formData.append("file", file);
+      formData.append("operation", "VALIDATE");
       formData.append("userID", JWT.idir_username); // TODO: This will need to be updated based on BCeID
       formData.append("orgGUID", JWT.idir_user_guid); // TODO: This will need to be updated based on BCeID and company GUID
       formData.append("token", UserService.getToken()?.toString());
@@ -86,18 +83,17 @@ function FileUpload() {
         setFileStatusCodes({
           items: newStatusCodes,
         });
-
-        console.log(response);
       });
     }
   };
 
-  const submitAllFiles = async (files: any) => {
+  const validateAllFiles = (files) => {
     if (files) {
       Object.entries(files).forEach(async ([key, value], index) => {
         const formData = new FormData();
         var JWT = jwtDecode(UserService.getToken()?.toString());
         formData.append("file", value);
+        formData.append("operation", "VALIDATE");
         formData.append("userID", JWT.idir_username); // TODO: This will need to be updated based on BCeID
         formData.append("orgGUID", JWT.idir_user_guid); // TODO: This will need to be updated based on BCeID and company GUID
         formData.append("token", UserService.getToken()?.toString());
@@ -108,7 +104,48 @@ function FileUpload() {
           setFileStatusCodes({
             items: newStatusCodes,
           });
-          // const results = await getFiles("1");
+        });
+      });
+    }
+  };
+
+  const submitFile = async (file: string | Blob, index: number) => {
+    if (file) {
+      const formData = new FormData();
+      var JWT = jwtDecode(UserService.getToken()?.toString());
+      formData.append("file", file);
+      formData.append("operation", "IMPORT");
+      formData.append("userID", JWT.idir_username); // TODO: This will need to be updated based on BCeID
+      formData.append("orgGUID", JWT.idir_user_guid); // TODO: This will need to be updated based on BCeID and company GUID
+      formData.append("token", UserService.getToken()?.toString());
+
+      await insertFile(formData).then((response) => {
+        const newStatusCodes = fileStatusCodes.items;
+        newStatusCodes[index] = response.submission_status_code;
+        setFileStatusCodes({
+          items: newStatusCodes,
+        });
+      });
+    }
+  };
+
+  const submitAllFiles = async (files: any) => {
+    if (files) {
+      Object.entries(files).forEach(async ([key, value], index) => {
+        const formData = new FormData();
+        var JWT = jwtDecode(UserService.getToken()?.toString());
+        formData.append("file", value);
+        formData.append("operation", "IMPORT");
+        formData.append("userID", JWT.idir_username); // TODO: This will need to be updated based on BCeID
+        formData.append("orgGUID", JWT.idir_user_guid); // TODO: This will need to be updated based on BCeID and company GUID
+        formData.append("token", UserService.getToken()?.toString());
+
+        await insertFile(formData).then(async (response) => {
+          const newStatusCodes = fileStatusCodes.items;
+          newStatusCodes[index] = response.submission_status_code;
+          setFileStatusCodes({
+            items: newStatusCodes,
+          });
         });
       });
     }
