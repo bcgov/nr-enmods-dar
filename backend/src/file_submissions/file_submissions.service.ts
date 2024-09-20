@@ -23,8 +23,8 @@ export class FileSubmissionsService {
     */
 
     // Call to function that makes API call to save file in the S3 bucket via COMS
-    let [comsSubmissionID, newFileName]= await saveToS3(body.token, file);
-    
+    let [comsSubmissionID, newFileName] = await saveToS3(body.token, file);
+
     // Creating file DTO and inserting it in the database with the file GUID from the S3 bucket
     createFileSubmissionDto.submission_id = comsSubmissionID;
     createFileSubmissionDto.filename = newFileName;
@@ -35,6 +35,7 @@ export class FileSubmissionsService {
         where: { submission_status_code: "QUEUED" },
       })
     ).submission_status_code;
+    createFileSubmissionDto.file_operation_code = body.operation;
     createFileSubmissionDto.submitter_agency_name = "SALUSSYSTEMS"; // TODO: change this once BCeID is set up
     createFileSubmissionDto.sample_count = 0;
     createFileSubmissionDto.result_count = 0;
@@ -50,6 +51,7 @@ export class FileSubmissionsService {
       submission_date: createFileSubmissionDto.submission_date,
       submitter_user_id: createFileSubmissionDto.submitter_user_id,
       submission_status: { connect: { submission_status_code: "QUEUED" } },
+      file_operation_codes: { connect: { file_operation_code: createFileSubmissionDto.file_operation_code } },
       submitter_agency_name: createFileSubmissionDto.submitter_agency_name,
       sample_count: createFileSubmissionDto.sample_count,
       results_count: createFileSubmissionDto.result_count,
@@ -205,6 +207,17 @@ export class FileSubmissionsService {
 
     records = { ...results, count, results };
     return records;
+  }
+
+  async updateFileStatus(submission_id: string, status: string) {
+    await this.prisma.file_submission.update({
+      where: {
+        submission_id: submission_id,
+      },
+      data: {
+        submission_status_code: status,
+      },
+    });
   }
 
   update(id: number, updateFileSubmissionDto: UpdateFileSubmissionDto) {

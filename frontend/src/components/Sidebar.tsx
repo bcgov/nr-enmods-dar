@@ -2,13 +2,9 @@ import { List, ListItemButton, ListItemText } from '@mui/material'
 import { Link } from 'react-router-dom'
 
 const topics = [
-  { name: 'BC Home', link: '/' },
-  { name: 'Ministry of Environment', link: '/' },
-  { name: 'EDT', link: '/' },
   { name: 'Submit', link: '/submit' },
   { name: 'Dashboard', link: '/dashboard' },
   { name: 'Web User - FTP User Links', link: '/' },
-  { name: 'EMS', link: '/' },
   { name: 'Admin', link: '/admin' },
 ]
 

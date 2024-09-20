@@ -1,11 +1,18 @@
 import { Injectable, Logger } from "@nestjs/common";
-import axios, { AxiosInstance, AxiosRequestConfig, post } from "axios";
+import axios, { AxiosInstance } from "axios";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
-import { FieldActivities, FieldSpecimens, FieldVisits, ObservationFile, Observations } from "src/types/types";
+import {
+  FieldActivities,
+  FieldSpecimens,
+  FieldVisits,
+  ObservationFile,
+  Observations,
+} from "src/types/types";
 import { AqiApiService } from "src/aqi_api/aqi_api.service";
 import * as XLSX from "xlsx";
 import * as path from "path";
-import * as csvWriter from 'csv-writer';
+import * as csvWriter from "csv-writer";
+import fs from "fs";
 import { PrismaService } from "nestjs-prisma";
 
 const visits: FieldVisits = {
@@ -31,7 +38,7 @@ const activities: FieldActivities = {
   ObservedDateTimeEnd: "",
   ActivityType: "SAMPLE_ROUTINE",
   ActivityName: "",
-  SamplingContextTag: ""
+  SamplingContextTag: "",
 };
 
 const specimens: FieldSpecimens = {
@@ -45,7 +52,7 @@ const specimens: FieldSpecimens = {
   SpecimenName: "",
   TissueType: "",
   LabArrivalTemperature: "",
-  AnalyzingAgency: ""
+  AnalyzingAgency: "",
 };
 
 const observations: Observations = {
@@ -86,8 +93,8 @@ const observations: Observations = {
   LabDilutionFactor: "",
   LabComment: "",
   QCType: "",
-  QCSourceActivityName: ""
-}
+  QCSourceActivityName: "",
+};
 
 const obsFile: ObservationFile = {
   "Observation ID": "",
@@ -95,7 +102,7 @@ const obsFile: ObservationFile = {
   "Observed Property ID": "",
   "Observed DateTime": "",
   "Analyzed DateTime": "",
-  "Depth": "",
+  Depth: "",
   "Depth Unit": "",
   "Data Classification": "",
   "Result Value": "",
@@ -105,7 +112,7 @@ const obsFile: ObservationFile = {
   "Rounding Specification": "",
   "Result Status": "",
   "Result Grade": "",
-  "Medium": "",
+  Medium: "",
   "Activity ID": "",
   "Activity Name": "",
   "Collection Method": "",
@@ -128,7 +135,7 @@ const obsFile: ObservationFile = {
   "Lab: Comment": "",
   "QC: Type": "",
   "QC: Source Sample ID": "",
-}
+};
 
 @Injectable()
 export class FileParseValidateService {
@@ -159,9 +166,9 @@ export class FileParseValidateService {
           },
         });
         return {
-          'samplingLocation': {
-            'id': locID[0].aqi_locations_id,
-            'custom_id': param,
+          samplingLocation: {
+            id: locID[0].aqi_locations_id,
+            custom_id: param,
           },
         };
       case "PROJECT":
@@ -176,7 +183,7 @@ export class FileParseValidateService {
           },
         });
         return {
-          'project': { 'id': projectID[0].aqi_projects_id, 'customId': param },
+          project: { id: projectID[0].aqi_projects_id, customId: param },
         };
       case "COLLECTION_METHODS":
         let cmID = await this.prisma.aqi_collection_methods.findMany({
@@ -190,9 +197,9 @@ export class FileParseValidateService {
           },
         });
         return {
-          'collectionMethod': {
-            'id': cmID[0].aqi_collection_methods_id,
-            'customId': param,
+          collectionMethod: {
+            id: cmID[0].aqi_collection_methods_id,
+            customId: param,
           },
         };
       case "MEDIUM":
@@ -206,8 +213,22 @@ export class FileParseValidateService {
             aqi_mediums_id: true,
           },
         });
-        return { 'medium': { 'id': mediumID[0].aqi_mediums_id, 'customId': param } };
+        return { medium: { id: mediumID[0].aqi_mediums_id, customId: param } };
       case "DEPTH_UNIT":
+        if (
+          param[0] == "m" ||
+          param[0] == "Metre" ||
+          param[0] == "metre" ||
+          param[0] == "Meter" ||
+          param[0] == "meter"
+        ) {
+          param[0] = "metre";
+        }
+
+        if (param[0] == "ft" || param[0] == "Feet" || param[0] == "feet") {
+          param[0] = "feet";
+        }
+
         let duID = await this.prisma.aqi_units.findMany({
           where: {
             custom_id: {
@@ -219,9 +240,9 @@ export class FileParseValidateService {
           },
         });
         return {
-          'depth': {
-            'value': param[1],
-            'unit': { 'id': duID[0].aqi_units_id, 'customId': param[0] },
+          depth: {
+            value: param[1],
+            unit: { id: duID[0].aqi_units_id, customId: param[0] },
           },
         };
       case "LABS":
@@ -235,10 +256,12 @@ export class FileParseValidateService {
             aqi_laboratories_id: true,
           },
         });
-        return { 'laboratory': { 'id': labID[0].aqi_laboratories_id, 'customId': param } };
+        return {
+          laboratory: { id: labID[0].aqi_laboratories_id, customId: param },
+        };
       case "TAGS":
-        let returnTags: any = []
-        for (const tag of param){
+        let returnTags: any = [];
+        for (const tag of param) {
           let tagID = await this.prisma.aqi_context_tags.findMany({
             where: {
               custom_id: {
@@ -249,7 +272,7 @@ export class FileParseValidateService {
               aqi_context_tags_id: true,
             },
           });
-          returnTags.push({'id': tagID[0].aqi_context_tags_id, 'name': tag});
+          returnTags.push({ id: tagID[0].aqi_context_tags_id, name: tag });
         }
         return returnTags;
       case "EXTENDED_ATTRIB":
@@ -266,33 +289,37 @@ export class FileParseValidateService {
 
         if (param[0] == "Specimen Lab Arrival Temperature (°C)") {
           return {
-            'attributeId': eaID[0].aqi_extended_attributes_id,
-            'customId': param[0],
-            'number': +param[1],
+            attributeId: eaID[0].aqi_extended_attributes_id,
+            customId: param[0],
+            number: +param[1],
           };
-        } else if (param[0] == "Specimen Tissue Type") {
+        } else if (
+          param[0] == "Specimen Tissue Type" ||
+          param[0] == "Sampling Agency"
+        ) {
           return {
-            'attributeId': eaID[0].aqi_extended_attributes_id,
-            'customId': param[0],
-            'dropDownListItem': { 'customId': param[1] },
+            attributeId: eaID[0].aqi_extended_attributes_id,
+            customId: param[0],
+            dropDownListItem: { customId: param[1] },
           };
         } else {
           return {
-            'attributeId': eaID[0].aqi_extended_attributes_id,
-            'customId': param[0],
-            'text': param[1],
+            attributeId: eaID[0].aqi_extended_attributes_id,
+            customId: param[0],
+            text: param[1],
           };
         }
     }
   }
 
   async postFieldVisits(visitData: any) {
-    let postData: any = {};
     const visitAndLocId = [];
-    const extendedAttribs = { extendedAttributes: [] };
     for (const row of visitData) {
-      let locationCustomID = row.LocationID;
-      let projectCustomID = row.Project;
+      let postData: any = {};
+      const extendedAttribs = { extendedAttributes: [] };
+
+      let locationCustomID = row.rec.LocationID;
+      let projectCustomID = row.rec.Project;
       let EAMinistryContact = "Ministry Contact";
       let EASamplingAgency = "Sampling Agency";
 
@@ -307,52 +334,68 @@ export class FileParseValidateService {
         await this.queryCodeTables("PROJECT", projectCustomID),
       );
       // get the EA custom id (Ministry Contact and Sampling Agency) and find the GUID
-      extendedAttribs["extendedAttributes"].push(
-        await this.queryCodeTables("EXTENDED_ATTRIB", [
-          EAMinistryContact,
-          row.MinistryContact,
-        ]),
-      );
-      extendedAttribs["extendedAttributes"].push(
-        await this.queryCodeTables("EXTENDED_ATTRIB", [
-          EASamplingAgency,
-          row.SamplingAgency,
-        ]),
-      );
+
+      if (row.rec.MinistryContact != "") {
+        extendedAttribs["extendedAttributes"].push(
+          await this.queryCodeTables("EXTENDED_ATTRIB", [
+            EAMinistryContact,
+            row.rec.MinistryContact,
+          ]),
+        );
+      }
+
+      if (row.rec.SamplingAgency != "") {
+        extendedAttribs["extendedAttributes"].push(
+          await this.queryCodeTables("EXTENDED_ATTRIB", [
+            EASamplingAgency,
+            row.rec.SamplingAgency,
+          ]),
+        );
+      }
 
       Object.assign(postData, extendedAttribs);
-      Object.assign(postData, { startTime: row.FieldVisitStartTime });
-      Object.assign(postData, { endTime: row.FieldVisitEndTime });
-      Object.assign(postData, { participants: row.FieldVisitParticipants });
-      Object.assign(postData, { notes: row.FieldVisitComments });
-      Object.assign(postData, { planningStatus: row.PlanningStatus });
+      Object.assign(postData, { startTime: row.rec.FieldVisitStartTime });
+      Object.assign(postData, { endTime: row.rec.FieldVisitEndTime });
+      Object.assign(postData, { participants: row.rec.FieldVisitParticipants });
+      Object.assign(postData, { notes: row.rec.FieldVisitComments });
+      Object.assign(postData, { planningStatus: row.rec.PlanningStatus });
 
       let currentVisitAndLoc: any = {};
 
       Object.assign(currentVisitAndLoc, {
         samplingLocation: postData.samplingLocation,
       });
+
       Object.assign(currentVisitAndLoc, {
         fieldVisit: await this.aqiService.fieldVisits(postData),
       });
-      visitAndLocId.push(currentVisitAndLoc);
+      visitAndLocId.push({ rec: currentVisitAndLoc, count: row.count });
     }
 
     return visitAndLocId;
   }
 
-  async postFieldActivities(visitInfo: any, activityData: any) {
-    let postData = {};
+  async postFieldActivities(activityData: any) {
     let activityId = [];
-    const extendedAttribs = { extendedAttributes: [] };
-    const sampleContextTags = {'samplingContextTags': []}
 
-    for (const [index, activity] of activityData.entries()) {
-      let collectionMethodCustomID = activity.CollectionMethod;
-      let mediumCustomID = activity.Medium;
-      let depthUnitCustomID = activity.DepthUnit;
-      let depthUnitValue = activity.DepthUpper;
-      let sampleContextTagCustomIds = activity.SamplingContextTag
+    for (const row of activityData) {
+      let postData: any = {};
+      const extendedAttribs = { extendedAttributes: [] };
+      const sampleContextTags = { samplingContextTags: [] };
+
+      let collectionMethodCustomID = row.rec.CollectionMethod;
+      let mediumCustomID = row.rec.Medium;
+      let depthUnitCustomID =
+        row.rec.DepthUnit == ""
+          ? null
+          : row.rec.DepthUnit == "m" || row.rec.DepthUnit == "Metre"
+            ? "Metre"
+            : row.rec.DepthUnit == "ft" || row.rec.DepthUnit == "Feet"
+              ? "Feet"
+              : row.rec.DepthUnit;
+      let depthUnitValue = row.rec.DepthUpper;
+      let sampleContextTagCustomIds =
+        row.rec.SamplingContextTag == "" ? null : row.rec.SamplingContextTag;
 
       // get the collection method custom id from object and find collection method GUID
       Object.assign(
@@ -368,64 +411,72 @@ export class FileParseValidateService {
         await this.queryCodeTables("MEDIUM", mediumCustomID),
       );
       // get the depth unit custom id from object and find depth unit GUID
-      Object.assign(
-        postData,
-        await this.queryCodeTables("DEPTH_UNIT", [
-          depthUnitCustomID,
-          depthUnitValue,
-        ]),
-      );
+      if (depthUnitCustomID != null || depthUnitValue != "") {
+        Object.assign(
+          postData,
+          await this.queryCodeTables("DEPTH_UNIT", [
+            depthUnitCustomID,
+            depthUnitValue,
+          ]),
+        );
+      }
 
       if (sampleContextTagCustomIds != null) {
-        let tagsToLookup = sampleContextTagCustomIds.split(', ');
-        sampleContextTags['samplingContextTags'] = await this.queryCodeTables("TAGS", tagsToLookup)
+        let tagsToLookup = sampleContextTagCustomIds.split(", ");
+        sampleContextTags["samplingContextTags"] = await this.queryCodeTables(
+          "TAGS",
+          tagsToLookup,
+        );
       }
-      
-      // get the EA custom id (Depth Lower and Depth Upper) and find the GUID
-      extendedAttribs["extendedAttributes"].push(
-        await this.queryCodeTables("EXTENDED_ATTRIB", [
-          "Depth Lower",
-          activity.DepthLower,
-        ]),
-      );
 
-      Object.assign(postData, { type: activity.ActivityType });
+      // get the EA custom id (Depth Lower and Depth Upper) and find the GUID
+      if (row.rec.DepthLower != "") {
+        extendedAttribs["extendedAttributes"].push(
+          await this.queryCodeTables("EXTENDED_ATTRIB", [
+            "Depth Lower",
+            row.rec.DepthLower,
+          ]),
+        );
+      }
+
+      Object.assign(postData, { type: row.rec.ActivityType });
       Object.assign(postData, extendedAttribs);
-      Object.assign(postData, sampleContextTags)
-      Object.assign(postData, { startTime: activity.ObservedDateTime });
-      Object.assign(postData, { endTime: activity.ObservedDateTimeEnd });
+      Object.assign(postData, sampleContextTags);
+      Object.assign(postData, { startTime: row.rec.ObservedDateTime });
+      Object.assign(postData, { endTime: row.rec.ObservedDateTimeEnd });
       Object.assign(postData, {
-        samplingLocation: visitInfo[index].samplingLocation,
+        samplingLocation: row.rec.samplingLocation,
       });
       Object.assign(postData, {
-        fieldVisit: { id: visitInfo[index].fieldVisit },
+        fieldVisit: { id: row.rec.fieldVisit },
       });
-      Object.assign(postData, { customId: activity.ActivityName });
+      Object.assign(postData, { customId: row.rec.ActivityName });
 
       let currentActivity = {};
       Object.assign(currentActivity, {
         activity: {
           id: await this.aqiService.fieldActivities(postData),
-          customId: activity.ActivityName,
-          startTime: activity.ObservedDateTime,
+          customId: row.rec.ActivityName,
+          startTime: row.rec.ObservedDateTime,
         },
       });
-      activityId.push(currentActivity);
+      activityId.push({ rec: currentActivity, count: row.count });
     }
     return activityId;
   }
 
-  async postFieldSpecimens(activityInfo: any, specimenData: any) {
-    let postData = {};
-    const extendedAttribs = { extendedAttributes: [] };
-    for (const [index, specimen] of specimenData.entries()) {
+  async postFieldSpecimens(specimenData: any) {
+    for (const row of specimenData) {
+      let postData = {};
+      const extendedAttribs = { extendedAttributes: [] };
+
       let EAWorkOrderNumberCustomID = "Work Order Number";
       let EATissueType = "Specimen Tissue Type";
       let EALabArrivalTemp = "Specimen Lab Arrival Temperature (°C)";
-      let mediumCustomID = specimen.Medium;
-      let FieldFiltered = specimen.FieldFiltered;
-      let FieldFilterComment = specimen.FieldFilterComment;
-      let analyzingAgencyCustomID = specimen.AnalyzingAgency
+      let mediumCustomID = row.rec.Medium;
+      let FieldFiltered = row.rec.FieldFiltered;
+      let FieldFilterComment = row.rec.FieldFilterComment;
+      let analyzingAgencyCustomID = row.rec.AnalyzingAgency;
 
       Object.assign(
         postData,
@@ -434,27 +485,33 @@ export class FileParseValidateService {
       Object.assign(
         postData,
         await this.queryCodeTables("LABS", analyzingAgencyCustomID),
-      )
+      );
 
       // get the EA custom id (EA Work Order Number, FieldFiltered, FieldFilterComment, FieldPreservative, EALabReportID, SpecimenName) and find the GUID
-      extendedAttribs["extendedAttributes"].push(
-        await this.queryCodeTables("EXTENDED_ATTRIB", [
-          EAWorkOrderNumberCustomID,
-          specimen.WorkOrderNumber,
-        ]),
-      );
-      extendedAttribs["extendedAttributes"].push(
-        await this.queryCodeTables("EXTENDED_ATTRIB", [
-          EATissueType,
-          specimen.TissueType,
-        ]),
-      );
-      extendedAttribs["extendedAttributes"].push(
-        await this.queryCodeTables("EXTENDED_ATTRIB", [
-          EALabArrivalTemp,
-          specimen.LabArrivalTemperature,
-        ]),
-      );
+      if (row.rec.WorkOrderNumber != "") {
+        extendedAttribs["extendedAttributes"].push(
+          await this.queryCodeTables("EXTENDED_ATTRIB", [
+            EAWorkOrderNumberCustomID,
+            row.rec.WorkOrderNumber,
+          ]),
+        );
+      }
+      if (row.rec.TissueType != "") {
+        extendedAttribs["extendedAttributes"].push(
+          await this.queryCodeTables("EXTENDED_ATTRIB", [
+            EATissueType,
+            row.rec.TissueType,
+          ]),
+        );
+      }
+      if (row.rec.LabArrivalTemperature != "") {
+        extendedAttribs["extendedAttributes"].push(
+          await this.queryCodeTables("EXTENDED_ATTRIB", [
+            EALabArrivalTemp,
+            row.rec.LabArrivalTemperature,
+          ]),
+        );
+      }
 
       if (FieldFiltered == "TRUE") {
         Object.assign(postData, { filtered: "true" });
@@ -462,13 +519,51 @@ export class FileParseValidateService {
       } else {
         Object.assign(postData, { filtered: "false" });
       }
-      Object.assign(postData, { preservative: specimen.FieldPreservative });
-      Object.assign(postData, { name: specimen.SpecimenName });
-      Object.assign(postData, { activity: activityInfo[index].activity });
+
+      if (row.rec.FieldPreservative != "") {
+        Object.assign(postData, { preservative: row.rec.FieldPreservative });
+      }
+
+      Object.assign(postData, { name: row.rec.SpecimenName });
+      Object.assign(postData, { activity: row.rec.activity });
       Object.assign(postData, extendedAttribs);
 
-      await this.aqiService.fieldSpecimens(postData)
+      await this.aqiService.fieldSpecimens(postData);
     }
+  }
+
+  async formulateObservationFile(observationData: any, fileName: string) {
+    const obsToWrite: ObservationFile[] = [];
+
+    observationData.map((source) => {
+      const sourceKeys = Object.keys(source);
+      const targetKeys = Object.keys(obsFile);
+
+      const newObs = {} as ObservationFile;
+
+      sourceKeys.forEach((sourceKey, i) => {
+        const targetKey = targetKeys[i];
+        if (targetKey !== undefined) {
+          newObs[targetKey] = source[sourceKey];
+        }
+      });
+      obsToWrite.push(newObs);
+    });
+
+    const baseFileName = path.basename(fileName, path.extname(fileName));
+    const filePath = path.join("src/tempObsFiles/", `obs-${baseFileName}.csv`);
+    const headers = Object.keys(obsToWrite[0]).map((key) => ({
+      id: key,
+      title: key,
+    }));
+
+    const writer = csvWriter.createObjectCsvWriter({
+      path: filePath,
+      header: headers,
+    });
+
+    await writer.writeRecords(obsToWrite);
+    return filePath;
   }
 
   filterFile<T>(data: any[], keys, customAttributes): Partial<T>[] {
@@ -488,44 +583,281 @@ export class FileParseValidateService {
     });
   }
 
-  async formulateObservationFile(observationData: any, activityInfo: any, fileName: string){
-    for (const [index, observation] of observationData.entries()){
-      observation['ActivityID'] = activityInfo[index].activity.id;
-    }
+  getUniqueWithCounts(data: any[]) {
+    const map = new Map<string, number>();
 
-    const obsToWrite: ObservationFile[] = []
-
-    observationData.map((source) => {
-      const sourceKeys = Object.keys(source)
-      const targetKeys = Object.keys(obsFile) 
-
-      const newObs = {} as ObservationFile;
-
-      sourceKeys.forEach((sourceKey, i) => {
-        const targetKey = targetKeys[i]
-        if (targetKey !== undefined){
-          newObs[targetKey] = source[sourceKey]
-        }
-      })
-      obsToWrite.push(newObs)
-    })
-    
-    const baseFileName = path.basename(fileName, path.extname(fileName))
-    const filePath = path.join('src/tempObsFiles/', `temp-${baseFileName}.csv`)
-    const headers = Object.keys(obsToWrite[0]).map((key) => ({ id: key, title: key }));
-
-    const writer = csvWriter.createObjectCsvWriter({
-      path: filePath,
-      header: headers,
+    data.forEach((visit) => {
+      const key = JSON.stringify(visit);
+      map.set(key, (map.get(key) || 0) + 1);
     });
 
-    await writer.writeRecords(obsToWrite);
-    
-    await this.aqiService.importObservations(`src/tempObsFiles/temp-${baseFileName}.csv`)
+    const dupeCount = Array.from(map.entries()).map(([key, count]) => ({
+      rec: JSON.parse(key),
+      count,
+    }));
 
+    return dupeCount;
   }
 
-  async parseFile(file: string, fileName: string) {
+  async localValidation(allRecords, observaionFilePath) {
+    let errorLog = "";
+    for (const [index, record] of allRecords.entries()) {
+      const isoDateTimeRegex =
+        /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(:(\d{2})(\.\d+)?)?(Z|([+-]\d{2}:\d{2}))?$/;
+
+      const numberRegex = /^-?\d+(\.\d+)?$/;
+
+      const dateTimeFields = [
+        "FieldVisitStartTime",
+        "FieldVisitEndTime",
+        "ObservedDateTime",
+        "ObservedDateTimeEnd",
+        "AnalyzedDateTime",
+      ];
+
+      const numericalFields = [
+        "DepthUpper",
+        "DepthLower",
+        "ResultValue",
+        "MethodDetectionLimit",
+        "MethodReportingLimit",
+      ];
+
+      const unitFields = ["DepthUnit", "ResultUnit"];
+
+      // check all datetimes
+      dateTimeFields.forEach((field) => {
+        if (record.hasOwnProperty(field) && record[field]) {
+          const valid = isoDateTimeRegex.test(record[field]);
+          if (!valid) {
+            errorLog += `ERROR: Row ${index + 2} ${field} ${record[field]} is not a valid ISO datetime\n`;
+          } else if (record.hasOwnProperty(field) && !record[field]) {
+            errorLog += `ERROR: Row ${index + 2} ${field} missing value\n`;
+          }
+        } else if (record.hasOwnProperty(field) && !record[field]) {
+          if (
+            field == "FieldVisitStartTime" ||
+            field == "ObservedDateTime" ||
+            field == "AnalyzedDateTime"
+          ) {
+            errorLog += `ERROR: Row ${index + 2} mandatory field ${field} has no value.\n`;
+          }
+        }
+      });
+
+      // check all numerical fields
+      numericalFields.forEach((field) => {
+        if (record.hasOwnProperty(field)) {
+          const valid =
+            numberRegex.test(record[field]) &&
+            !isNaN(parseFloat(record[field]));
+          if (record[field] !== "" && !valid) {
+            errorLog += `ERROR: Row ${index + 2} ${field} ${record[field]} is not a valid number\n`;
+          }
+        }
+      });
+
+      // check all unit fields
+      unitFields.forEach(async (field) => {
+        if (record.hasOwnProperty(field) && record[field]) {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_units",
+            record[field],
+          );
+          if (!present) {
+            errorLog += `ERROR: Row ${index + 2} ${field} ${record[field]} not found in AQI Units\n`;
+          }
+        } else if (record.hasOwnProperty(field) && !record[field]) {
+          errorLog += `WARNING: Row ${index + 2} ${field} ${record[field]} is empty\n`;
+        }
+      });
+
+      if (record.hasOwnProperty("Project")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_projects",
+          record.Project,
+        );
+        if (!present) {
+          errorLog += `ERROR: Row ${index + 2} Project ${record.Project} not found in AQI Projects\n`;
+        }
+      }
+
+      if (record.hasOwnProperty("LocationID")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_locations",
+          record.LocationID,
+        );
+        if (!present) {
+          errorLog += `ERROR: Row ${index + 2} Location ID ${record.LocationID} not found in AQI Locations\n`;
+        }
+      }
+
+      if (record.hasOwnProperty("Preservative")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_preservatives",
+          record.Preservative,
+        );
+        if (!present) {
+          errorLog += `ERROR: Row ${index + 2} Preservative ${record.Preservative} not found in AQI Preservatives\n`;
+        }
+      }
+
+      if (record.hasOwnProperty("SamplingConextTag")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_context_tags",
+          record.SamplingConextTag,
+        );
+        if (!present) {
+          errorLog += `ERROR: Row ${index + 2} Sampling Conext Tag ${record.SamplingConextTag} not found in AQI Sampling Context Tags\n`;
+        }
+      }
+
+      if (record.hasOwnProperty("CollectionMethod")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_collection_methods",
+          record.CollectionMethod,
+        );
+        if (!present) {
+          errorLog += `ERROR: Row ${index + 2} Collection Method ${record.CollectionMethod} not found in AQI Collection Methods\n`;
+        }
+      }
+
+      if (record.hasOwnProperty("Medium")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_mediums",
+          record.Medium,
+        );
+        if (!present) {
+          errorLog += `ERROR: Row ${index + 2} Medium ${record.Medium} not found in AQI Mediums\n`;
+        }
+      }
+
+      if (record.hasOwnProperty("ObservedPropertyID")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_observed_properties",
+          record.ObservedPropertyID,
+        );
+        if (!present) {
+          errorLog += `ERROR: Row ${index + 2} Observed Property ID ${record.ObservedPropertyID} not found in AQI Observed Properties\n`;
+        }
+      }
+
+      if (
+        record.hasOwnProperty("DetectionCondition") &&
+        record.DetectionCondition
+      ) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_detection_conditions",
+          record.DetectionCondition.toUpperCase().replace(/ /g, "_"),
+        );
+        if (!present) {
+          errorLog += `ERROR: Row ${index + 2} Detection Condition ${record.DetectionCondition} not found in AQI Detection Conditions\n`;
+        }
+      }
+
+      if (record.hasOwnProperty("Fraction") && record.Fraction) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_sample_fractions",
+          record.Fraction.toUpperCase(),
+        );
+        if (!present) {
+          errorLog += `ERROR: Row ${index + 2} Fraction ${record.Fraction} not found in AQI Sample Fractions\n`;
+        }
+      }
+
+      if (record.hasOwnProperty("DataClassification")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_data_classifications",
+          record.DataClassification,
+        );
+        if (!present) {
+          errorLog += `ERROR: Row ${index + 2} Data Classification ${record.DataClassification} not found in AQI Data Classifications\n`;
+        }
+      }
+
+      if (record.hasOwnProperty("AnalyzingAgency")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_laboratories",
+          record.AnalyzingAgency,
+        );
+        if (!present) {
+          errorLog += `ERROR: Row ${index + 2} Analyzing Agency ${record.AnalyzingAgency} not found in AQI Agencies\n`;
+        }
+      }
+
+      if (record.hasOwnProperty("ResultStatus")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_result_status",
+          record.ResultStatus,
+        );
+        if (!present) {
+          errorLog += `ERROR: Row ${index + 2} Result Status ${record.ResultStatus} not found in AQI Result Statuses\n`;
+        }
+      }
+
+      if (record.hasOwnProperty("ResultGrade")) {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_result_grade",
+          record.ResultGrade,
+        );
+        if (!present) {
+          errorLog += `ERROR: Row ${index + 2} Result Grade ${record.ResultGrade} not found in AQI Result Grades\n`;
+        }
+      }
+
+      // check if the visit already exists -- check if visit timetsamp for that location already exists
+
+      const visitExists = await this.aqiService.AQILookup("aqi_field_visits", [
+        record.LocationID,
+        record.FieldVisitStartTime,
+      ]);
+      if (visitExists) {
+        errorLog += `ERROR: Row ${index + 2} Visit for Location ${record.LocationID} at Start Time ${record.FieldVisitStartTime} already exists in AQI Field Visits\n`;
+      }
+
+      // check if the activity already exits -- check if the activity name for that given visit and location already exists
+      const activityExists = await this.aqiService.AQILookup(
+        "aqi_field_activities",
+        [record.ActivityName, record.FieldVisitStartTime, record.LocationID],
+      );
+      if (activityExists) {
+        errorLog += `ERROR: Row ${index + 2} Activity Name for Field Visit at Start Time ${record.FieldVisitStartTime} already exists in AQI Activities\n`;
+      }
+
+      // check if the specimen already exists -- check if the specimen name for that given visit and location already exists
+      const specimenExists = await this.aqiService.AQILookup("aqi_specimens", [
+        record.SpecimenName,
+        record.ObservedDateTime,
+        record.ActivityName,
+        record.LocationID,
+      ]);
+      if (specimenExists) {
+        errorLog += `ERROR: Row ${index + 2} Specimen Name for that Acitivity at Start Time ${record.ObservedDateTime} already exists in AQI Specimens\n`;
+      }
+
+      errorLog += "\n";
+    }
+
+    // Do a dry run of the observations
+    const observationsErrors = await this.aqiService.importObservations(
+      observaionFilePath,
+      "dryrun",
+    );
+
+    const finalErrorLog = this.aqiService.mergeErrorMessages(
+      errorLog,
+      observationsErrors,
+    );
+
+    return finalErrorLog;
+  }
+
+  async parseFile(
+    file: string,
+    fileName: string,
+    file_submission_id: string,
+    file_operation_code: string,
+  ) {
     const path = require("path");
     const extention = path.extname(fileName);
     if (extention == ".xlsx") {
@@ -559,32 +891,123 @@ export class FileParseValidateService {
         ActivityType: "SAMPLE_ROUTINE",
       };
 
+      /*
+       * From the input file get all the atrributes and values for each sub section - Visits, Activities, Specimens and Observations
+       */
       const allFieldVisits = this.filterFile<FieldVisits>(
         allRecords,
         Object.keys(visits),
         fieldVisitCustomAttributes,
       );
-      const allFieldActivities = this.filterFile<FieldActivities>(
+
+      let allFieldActivities = this.filterFile<FieldActivities>(
         allRecords,
         Object.keys(activities),
         fieldActivityCustomAttrib,
       );
-      const allSpecimens = this.filterFile<FieldSpecimens>(
+      let allSpecimens = this.filterFile<FieldSpecimens>(
         allRecords,
         Object.keys(specimens),
         null,
       );
 
-      const allObservations = this.filterFile<Observations>(allRecords, Object.keys(observations), null)
-
-      let visitInfo = await this.postFieldVisits(allFieldVisits);
-      let activityInfo = await this.postFieldActivities(
-        visitInfo,
-        allFieldActivities,
+      const allObservations = this.filterFile<Observations>(
+        allRecords,
+        Object.keys(observations),
+        null,
       );
 
-      await this.postFieldSpecimens(activityInfo, allSpecimens);
-      await this.formulateObservationFile(allObservations, activityInfo, fileName)
+      const ObsFilePath = await this.formulateObservationFile(
+        allObservations,
+        fileName,
+      );
+
+      /*
+       * Do the local validation for each section here - if passed then go to the API calls - else create the message/file/email for the errors
+       */
+
+      await this.fileSubmissionsService.updateFileStatus(
+        file_submission_id,
+        "INPROGRESS",
+      );
+
+      const localValidationResults = this.localValidation(
+        allRecords,
+        ObsFilePath,
+      );
+
+      if ((await localValidationResults).includes("ERROR")) {
+        /*
+         * Set the file status to 'REJECTED'
+         * Create the error log file here
+         * Send the an email to the submitter and the ministry contact that is inside the file
+         */
+        await this.fileSubmissionsService.updateFileStatus(
+          file_submission_id,
+          "REJECTED",
+        );
+        console.log(await localValidationResults);
+
+        return;
+      } else if (!(await localValidationResults).includes("ERROR")) {
+        await this.fileSubmissionsService.updateFileStatus(
+          file_submission_id,
+          "VALIDATED",
+        );
+
+        if (file_operation_code === "VALIDATE") {
+          return;
+        } else {
+          /*
+           * If the local validation passed then split the file into 4 and process with the AQI API calls
+           * Get unique records to prevent redundant API calls
+           * Post the unique records to the API
+           * Expand the returned list of object - this will be used for finding unique activities
+           */
+          const uniqueVisitsWithCounts =
+            this.getUniqueWithCounts(allFieldVisits);
+          let visitInfo = await this.postFieldVisits(uniqueVisitsWithCounts);
+          let expandedVisitInfo = visitInfo.flatMap((visit) =>
+            Array(visit.count).fill(visit.rec),
+          );
+
+          /*
+           * Merge the expanded visitInfo with allFieldActivities
+           * Collapse allFieldActivities with a dupe count
+           * Post the unique records to the API
+           * Expand the returned list of object - this will be used for finding unique specimens
+           */
+
+          allFieldActivities = allFieldActivities.map((obj2, index) => {
+            const obj1 = expandedVisitInfo[index];
+            return { ...obj2, ...obj1 };
+          });
+
+          const uniqueActivitiesWithCounts =
+            this.getUniqueWithCounts(allFieldActivities);
+          let activityInfo = await this.postFieldActivities(
+            uniqueActivitiesWithCounts,
+          );
+          let expandedActivityInfo = activityInfo.flatMap((activity) =>
+            Array(activity.count).fill(activity.rec),
+          );
+
+          /*
+           * Merge the expanded activityInfo with allSpecimens
+           * Collapse allSpecimens with a dupe count
+           * Post the unique records to the API
+           */
+          allSpecimens = allSpecimens.map((obj2, index) => {
+            const obj1 = expandedActivityInfo[index];
+            return { ...obj2, ...obj1 };
+          });
+          const uniqueSpecimensWithCounts =
+            this.getUniqueWithCounts(allSpecimens);
+          await this.postFieldSpecimens(uniqueSpecimensWithCounts);
+
+          await this.aqiService.importObservations(ObsFilePath, "");
+        }
+      }
     }
   }
 }

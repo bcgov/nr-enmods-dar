@@ -7,6 +7,7 @@ export class CreateFileSubmissionDto extends PickType(FileSubmissionDto, [
   'submission_date',
   'submitter_user_id',
   'submission_status_code',
+  'file_operation_code',
   'submitter_agency_name',
   'sample_count',
   'result_count',
