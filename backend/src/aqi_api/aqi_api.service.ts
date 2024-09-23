@@ -9,8 +9,8 @@ export class AqiApiService {
   private readonly logger = new Logger(AqiApiService.name);
   private axiosInstance: AxiosInstance;
 
-  private wait = (ms: number) =>
-    new Promise((resolve) => setTimeout(resolve, ms));
+  private wait = (seconds: number) =>
+    new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 
   constructor(private prisma: PrismaService) {
     this.axiosInstance = axios.create({
@@ -105,9 +105,9 @@ export class AqiApiService {
           `API call to Observation Import succeeded: ${response.status}`,
         );
         const statusURL = response.headers.location;
-        const obsResults = await this.getObservationsStatusResult(statusURL);
+        const obsStatus = await this.getObservationsStatusResult(statusURL);
 
-        const errorMessages = this.parseObsResultResponse(obsResults);
+        const errorMessages = this.parseObsResultResponse(obsStatus);
         return errorMessages;
       }
     } catch (err) {
@@ -115,16 +115,17 @@ export class AqiApiService {
     }
   }
 
-  async getObservationsStatusResult(location: string) {
+  async getObservationsStatusResult(statusURL: string) {
     try {
-      const response = await axios.get(location, {
+      const response = await axios.get(statusURL, {
         headers: {
           Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
           "x-api-key": process.env.AQI_ACCESS_TOKEN,
         },
       });
 
-      await this.wait(15000);
+      await this.wait(9);
+      console.log(response.data.id)
 
       const obsResultResponse = await axios.get(
         `${process.env.AQI_BASE_URL}/v2/observationimports/${response.data.id}/result`,
@@ -157,16 +158,16 @@ export class AqiApiService {
   }
 
   parseObsResultResponse(obsResults: any) {
-    let errorMessages = "";
+    let errorMessages = [];
     if (obsResults.errorCount > 0) {
       obsResults.importItems.forEach((item) => {
         const rowId = item.rowId;
         const errors = item.errors;
 
         Object.entries(errors).forEach((error) => {
-          errorMessages += `ERROR: Row ${rowId} Observation file: ${error[1][0].errorMessage}\n`;
+          let errorLog = `{"rowNum": ${rowId}, "type": "ERROR", "message": {"Observation File": "${error[1][0].errorMessage}"}}`;
+          errorMessages.push(JSON.parse(errorLog));
         });
-        errorMessages += "\n";
       });
     }
     return errorMessages;
@@ -236,37 +237,21 @@ export class AqiApiService {
     }
   }
 
-  mergeErrorMessages(localErrors: string, remoteErrors: string) {
-    const localErrorLines = localErrors.split("\n");
-    const remoteErrorLines = remoteErrors.split("\n");
+  mergeErrorMessages(localErrors: any[], remoteErrors: any[]) {
+    const map = new Map<number, any>();
 
-    const errorMap: any = {};
-
-    const extractRowNumber = (line: string): number | null => {
-      const match = line.match(/Row (\d+)/);
-      return match ? parseInt(match[1]) : null;
+    const mergeItem = (item: any) => {
+      const exists = map.get(item.rowNum);
+      map.set(
+        item.rowNum,
+        exists
+          ? { ...exists, message: { ...exists.message, ...item.message } }
+          : item,
+      );
     };
 
-    const addErrorsToMap = (lines: string[]) => {
-      lines.forEach((line) => {
-        const rowNumber = extractRowNumber(line);
-        if (rowNumber !== null) {
-          if (!errorMap[rowNumber]) {
-            errorMap[rowNumber] = [];
-          }
-          errorMap[rowNumber].push(line);
-        }
-      });
-    };
+    [...localErrors, ...remoteErrors].forEach(mergeItem);
 
-    addErrorsToMap(localErrorLines);
-    addErrorsToMap(remoteErrorLines);
-
-    const mergedErrors = Object.keys(errorMap)
-      .sort((a, b) => parseInt(a) - parseInt(b))
-      .flatMap((row) => errorMap[parseInt(row)])
-      .join("\n");
-
-    return mergedErrors;
+    return Array.from(map.values());
   }
 }
