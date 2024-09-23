@@ -957,7 +957,7 @@ export class FileParseValidateService {
         ObsFilePath,
       );
 
-      if (localValidationResults.some(item => item.type === "ERROR")) {
+      if (localValidationResults.some((item) => item.type === "ERROR")) {
         /*
          * Set the file status to 'REJECTED'
          * Save the error logs to the database table
@@ -967,6 +967,16 @@ export class FileParseValidateService {
           file_submission_id,
           "REJECTED",
         );
+
+        const file_error_log_data = {
+          file_submission_id: file_submission_id,
+          file_name: fileName,
+          error_log: localValidationResults,
+        };
+
+        await this.prisma.file_error_logs.create({
+          data: file_error_log_data,
+        });
 
         return;
       } else if (!(await localValidationResults).includes("ERROR")) {

@@ -38,6 +38,7 @@ model file_submission {
   create_utc_timestamp   DateTime               @db.Timestamp(6)
   update_user_id         String                 @db.VarChar(200)
   update_utc_timestamp   DateTime               @db.Timestamp(6)
+  file_error_logs        file_error_logs[]
   file_operation_codes   file_operation_codes   @relation(fields: [file_operation_code], references: [file_operation_code], onDelete: NoAction, onUpdate: NoAction, map: "file_operation_code_fk")
   submission_status      submission_status_code @relation(fields: [submission_status_code], references: [submission_status_code], onDelete: NoAction, onUpdate: NoAction, map: "submission_status_code_fk")
 }
@@ -228,16 +229,6 @@ model aqi_sample_fractions {
   update_utc_timestamp    DateTime @db.Timestamp(6)
 }
 
-model aqi_data_classifications {
-  aqi_data_classifications_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  custom_id                   String   @db.VarChar(200)
-  description                 String?  @db.VarChar(2000)
-  create_user_id              String   @db.VarChar(200)
-  create_utc_timestamp        DateTime @db.Timestamp(6)
-  update_user_id              String   @db.VarChar(200)
-  update_utc_timestamp        DateTime @db.Timestamp(6)
-}
-
 model file_operation_codes {
   file_operation_code  String            @id(map: "file_operation_code_pk") @db.VarChar(20)
   description          String            @db.VarChar(250)
@@ -248,4 +239,22 @@ model file_operation_codes {
   update_user_id       String            @db.VarChar(200)
   update_utc_timestamp DateTime          @db.Timestamp(6)
   file_submission      file_submission[]
+}
+
+model file_error_logs {
+  file_error_log_id  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  file_submission_id String?          @db.Uuid
+  file_name          String?          @db.VarChar(200)
+  error_log          Json?
+  file_submission    file_submission? @relation(fields: [file_submission_id], references: [submission_id], onDelete: NoAction, onUpdate: NoAction, map: "file_submission_id_fk")
+}
+
+model aqi_data_classifications {
+  aqi_data_classifications_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  custom_id                   String   @db.VarChar(200)
+  description                 String?  @db.VarChar(2000)
+  create_user_id              String   @db.VarChar(200)
+  create_utc_timestamp        DateTime @db.Timestamp(6)
+  update_user_id              String   @db.VarChar(200)
+  update_utc_timestamp        DateTime @db.Timestamp(6)
 }

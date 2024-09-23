@@ -9,8 +9,8 @@ export class AqiApiService {
   private readonly logger = new Logger(AqiApiService.name);
   private axiosInstance: AxiosInstance;
 
-  private wait = (ms: number) =>
-    new Promise((resolve) => setTimeout(resolve, ms));
+  private wait = (seconds: number) =>
+    new Promise((resolve) => setTimeout(resolve, seconds * 1000));
 
   constructor(private prisma: PrismaService) {
     this.axiosInstance = axios.create({
@@ -115,16 +115,17 @@ export class AqiApiService {
     }
   }
 
-  async getObservationsStatusResult(location: string) {
+  async getObservationsStatusResult(statusURL: string) {
     try {
-      const response = await axios.get(location, {
+      const response = await axios.get(statusURL, {
         headers: {
           Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
           "x-api-key": process.env.AQI_ACCESS_TOKEN,
         },
       });
 
-      await this.wait(15000);
+      await this.wait(9);
+      console.log(response.data.id)
 
       const obsResultResponse = await axios.get(
         `${process.env.AQI_BASE_URL}/v2/observationimports/${response.data.id}/result`,
