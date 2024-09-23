@@ -600,7 +600,7 @@ export class FileParseValidateService {
   }
 
   async localValidation(allRecords, observaionFilePath) {
-    let errorLog = "";
+    let errorLogs = [];
     for (const [index, record] of allRecords.entries()) {
       const isoDateTimeRegex =
         /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(:(\d{2})(\.\d+)?)?(Z|([+-]\d{2}:\d{2}))?$/;
@@ -630,9 +630,11 @@ export class FileParseValidateService {
         if (record.hasOwnProperty(field) && record[field]) {
           const valid = isoDateTimeRegex.test(record[field]);
           if (!valid) {
-            errorLog += `ERROR: Row ${index + 2} ${field} ${record[field]} is not a valid ISO datetime\n`;
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${field}": "${record[field]} is not valid ISO DateTime"}}`;
+            errorLogs.push(JSON.parse(errorLog));
           } else if (record.hasOwnProperty(field) && !record[field]) {
-            errorLog += `ERROR: Row ${index + 2} ${field} missing value\n`;
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${field}": "Cannot be empty"}}`;
+            errorLogs.push(JSON.parse(errorLog));
           }
         } else if (record.hasOwnProperty(field) && !record[field]) {
           if (
@@ -640,7 +642,8 @@ export class FileParseValidateService {
             field == "ObservedDateTime" ||
             field == "AnalyzedDateTime"
           ) {
-            errorLog += `ERROR: Row ${index + 2} mandatory field ${field} has no value.\n`;
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${field}": "Cannot be empty"}}`;
+            errorLogs.push(JSON.parse(errorLog));
           }
         }
       });
@@ -652,7 +655,8 @@ export class FileParseValidateService {
             numberRegex.test(record[field]) &&
             !isNaN(parseFloat(record[field]));
           if (record[field] !== "" && !valid) {
-            errorLog += `ERROR: Row ${index + 2} ${field} ${record[field]} is not a valid number\n`;
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${field}": "${record[field]} is not valid number"}}`;
+            errorLogs.push(JSON.parse(errorLog));
           }
         }
       });
@@ -665,10 +669,12 @@ export class FileParseValidateService {
             record[field],
           );
           if (!present) {
-            errorLog += `ERROR: Row ${index + 2} ${field} ${record[field]} not found in AQI Units\n`;
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${field}": "${record[field]} not found in AQI Units"}}`;
+            errorLogs.push(JSON.parse(errorLog));
           }
         } else if (record.hasOwnProperty(field) && !record[field]) {
-          errorLog += `WARNING: Row ${index + 2} ${field} ${record[field]} is empty\n`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${field}": Cannot be empty"}}`;
+          errorLogs.push(JSON.parse(errorLog));
         }
       });
 
@@ -678,7 +684,8 @@ export class FileParseValidateService {
           record.Project,
         );
         if (!present) {
-          errorLog += `ERROR: Row ${index + 2} Project ${record.Project} not found in AQI Projects\n`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Project": "${record.Project} not found in AQI Projects"}}`;
+          errorLogs.push(JSON.parse(errorLog));
         }
       }
 
@@ -688,7 +695,8 @@ export class FileParseValidateService {
           record.LocationID,
         );
         if (!present) {
-          errorLog += `ERROR: Row ${index + 2} Location ID ${record.LocationID} not found in AQI Locations\n`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Location_ID": "${record.LocationID} not found in AQI Locations"}}`;
+          errorLogs.push(JSON.parse(errorLog));
         }
       }
 
@@ -698,7 +706,8 @@ export class FileParseValidateService {
           record.Preservative,
         );
         if (!present) {
-          errorLog += `ERROR: Row ${index + 2} Preservative ${record.Preservative} not found in AQI Preservatives\n`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Preservative": "${record.Preservative} not found in AQI Preservatives"}}`;
+          errorLogs.push(JSON.parse(errorLog));
         }
       }
 
@@ -708,7 +717,8 @@ export class FileParseValidateService {
           record.SamplingConextTag,
         );
         if (!present) {
-          errorLog += `ERROR: Row ${index + 2} Sampling Conext Tag ${record.SamplingConextTag} not found in AQI Sampling Context Tags\n`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Sampling_Context_Tag": "${record.SamplingConextTag} not found in AQI Sampling Context Tags"}}`;
+          errorLogs.push(JSON.parse(errorLog));
         }
       }
 
@@ -718,7 +728,8 @@ export class FileParseValidateService {
           record.CollectionMethod,
         );
         if (!present) {
-          errorLog += `ERROR: Row ${index + 2} Collection Method ${record.CollectionMethod} not found in AQI Collection Methods\n`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Collection_Method": "${record.CollectionMethod} not found in AQI Collection Methods"}}`;
+          errorLogs.push(JSON.parse(errorLog));
         }
       }
 
@@ -728,7 +739,8 @@ export class FileParseValidateService {
           record.Medium,
         );
         if (!present) {
-          errorLog += `ERROR: Row ${index + 2} Medium ${record.Medium} not found in AQI Mediums\n`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Medium": "${record.Medium} not found in AQI Mediums"}}`;
+          errorLogs.push(JSON.parse(errorLog));
         }
       }
 
@@ -738,6 +750,8 @@ export class FileParseValidateService {
           record.ObservedPropertyID,
         );
         if (!present) {
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Observed_Property_ID": "${record.ObservedPropertyID} not found in AQI Observed Properties"}}`;
+          errorLogs.push(JSON.parse(errorLog));
           errorLog += `ERROR: Row ${index + 2} Observed Property ID ${record.ObservedPropertyID} not found in AQI Observed Properties\n`;
         }
       }
@@ -751,7 +765,8 @@ export class FileParseValidateService {
           record.DetectionCondition.toUpperCase().replace(/ /g, "_"),
         );
         if (!present) {
-          errorLog += `ERROR: Row ${index + 2} Detection Condition ${record.DetectionCondition} not found in AQI Detection Conditions\n`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Detection_Condition": "${record.DetectionCondition} not found in AQI Detection Conditions"}}`;
+          errorLogs.push(JSON.parse(errorLog));
         }
       }
 
@@ -761,7 +776,8 @@ export class FileParseValidateService {
           record.Fraction.toUpperCase(),
         );
         if (!present) {
-          errorLog += `ERROR: Row ${index + 2} Fraction ${record.Fraction} not found in AQI Sample Fractions\n`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Fraction": "${record.Fraction} not found in AQI Fractions"}}`;
+          errorLogs.push(JSON.parse(errorLog));
         }
       }
 
@@ -771,7 +787,8 @@ export class FileParseValidateService {
           record.DataClassification,
         );
         if (!present) {
-          errorLog += `ERROR: Row ${index + 2} Data Classification ${record.DataClassification} not found in AQI Data Classifications\n`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Data_Classification": "${record.DataClassification} not found in AQI Data Classesifications"}}`;
+          errorLogs.push(JSON.parse(errorLog));
         }
       }
 
@@ -781,7 +798,8 @@ export class FileParseValidateService {
           record.AnalyzingAgency,
         );
         if (!present) {
-          errorLog += `ERROR: Row ${index + 2} Analyzing Agency ${record.AnalyzingAgency} not found in AQI Agencies\n`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Analyzing_Agency": "${record.AnalyzingAgency} not found in AQI Agencies"}}`;
+          errorLogs.push(JSON.parse(errorLog));
         }
       }
 
@@ -791,7 +809,8 @@ export class FileParseValidateService {
           record.ResultStatus,
         );
         if (!present) {
-          errorLog += `ERROR: Row ${index + 2} Result Status ${record.ResultStatus} not found in AQI Result Statuses\n`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Result_Status": "${record.ResultStatus} not found in AQI Result Statuses"}}`;
+          errorLogs.push(JSON.parse(errorLog));
         }
       }
 
@@ -801,7 +820,8 @@ export class FileParseValidateService {
           record.ResultGrade,
         );
         if (!present) {
-          errorLog += `ERROR: Row ${index + 2} Result Grade ${record.ResultGrade} not found in AQI Result Grades\n`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Result_Grade": "${record.ResultGrade} not found in AQI Result Grades"}}`;
+          errorLogs.push(JSON.parse(errorLog));
         }
       }
 
@@ -812,7 +832,8 @@ export class FileParseValidateService {
         record.FieldVisitStartTime,
       ]);
       if (visitExists) {
-        errorLog += `ERROR: Row ${index + 2} Visit for Location ${record.LocationID} at Start Time ${record.FieldVisitStartTime} already exists in AQI Field Visits\n`;
+        let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": Visit for Location ${record.LocationID} at Start Time ${record.FieldVisitStartTime} already exists in AQI Field Visits}`;
+        errorLogs.push(JSON.parse(errorLog));
       }
 
       // check if the activity already exits -- check if the activity name for that given visit and location already exists
@@ -821,7 +842,8 @@ export class FileParseValidateService {
         [record.ActivityName, record.FieldVisitStartTime, record.LocationID],
       );
       if (activityExists) {
-        errorLog += `ERROR: Row ${index + 2} Activity Name for Field Visit at Start Time ${record.FieldVisitStartTime} already exists in AQI Activities\n`;
+        let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": Activity Name ${record.ActivityName} for Field Visit at Start Time ${record.FieldVisitStartTime} already exists in AQI Activities}`;
+        errorLogs.push(JSON.parse(errorLog));
       }
 
       // check if the specimen already exists -- check if the specimen name for that given visit and location already exists
@@ -832,10 +854,9 @@ export class FileParseValidateService {
         record.LocationID,
       ]);
       if (specimenExists) {
-        errorLog += `ERROR: Row ${index + 2} Specimen Name for that Acitivity at Start Time ${record.ObservedDateTime} already exists in AQI Specimens\n`;
+        let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": Specimen Name ${record.SpecimenName} for that Acitivity at Start Time ${record.ObservedDateTime} already exists in AQI Specimen}`;
+        errorLogs.push(JSON.parse(errorLog));
       }
-
-      errorLog += "\n";
     }
 
     // Do a dry run of the observations
@@ -845,7 +866,7 @@ export class FileParseValidateService {
     );
 
     const finalErrorLog = this.aqiService.mergeErrorMessages(
-      errorLog,
+      errorLogs,
       observationsErrors,
     );
 
@@ -926,27 +947,26 @@ export class FileParseValidateService {
        * Do the local validation for each section here - if passed then go to the API calls - else create the message/file/email for the errors
        */
 
-      await this.fileSubmissionsService.updateFileStatus(
-        file_submission_id,
-        "INPROGRESS",
-      );
+      // await this.fileSubmissionsService.updateFileStatus(
+      //   file_submission_id,
+      //   "INPROGRESS",
+      // );
 
-      const localValidationResults = this.localValidation(
+      const localValidationResults = await this.localValidation(
         allRecords,
         ObsFilePath,
       );
 
-      if ((await localValidationResults).includes("ERROR")) {
+      if (localValidationResults.some(item => item.type === "ERROR")) {
         /*
          * Set the file status to 'REJECTED'
-         * Create the error log file here
+         * Save the error logs to the database table
          * Send the an email to the submitter and the ministry contact that is inside the file
          */
         await this.fileSubmissionsService.updateFileStatus(
           file_submission_id,
           "REJECTED",
         );
-        console.log(await localValidationResults);
 
         return;
       } else if (!(await localValidationResults).includes("ERROR")) {
