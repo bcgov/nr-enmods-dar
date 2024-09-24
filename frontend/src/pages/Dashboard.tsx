@@ -25,7 +25,7 @@ import {
 } from "@mui/material";
 import { FileStatusCode } from "@/types/types";
 import { getFileStatusCodes } from "@/common/manage-dropdowns";
-import { downloadFile, searchFiles } from "@/common/manage-files";
+import { downloadFile, downloadFileLogs, searchFiles } from "@/common/manage-files";
 
 const columns = [
   {
@@ -481,12 +481,12 @@ async function handleDownload(fileName: string): Promise<void> {
   });
 }
 
-function handleDelete(fileName: string, submission_id: string): void {
-  console.log(fileName);
-  console.log(submission_id);
+async function handleMessages(fileName: string, submission_id: string): Promise<void> {
+
+  await downloadFileLogs(submission_id)
 }
 
-function handleMessages(fileName: string, submission_id: string): void {
+function handleDelete(fileName: string, submission_id: string): void {
   console.log(fileName);
   console.log(submission_id);
 }
