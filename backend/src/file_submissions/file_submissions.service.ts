@@ -32,6 +32,7 @@ export class FileSubmissionsService {
     // Creating file DTO and inserting it in the database with the file GUID from the S3 bucket
     createFileSubmissionDto.submission_id = comsSubmissionID;
     createFileSubmissionDto.filename = newFileName;
+    createFileSubmissionDto.original_filename = file.originalname;
     createFileSubmissionDto.submission_date = new Date();
     createFileSubmissionDto.submitter_user_id = body.userID;
     createFileSubmissionDto.submission_status_code = (

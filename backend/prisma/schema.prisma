@@ -24,6 +24,7 @@ model submission_status_code {
 model file_submission {
   submission_id          String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   file_name              String                 @db.VarChar(200)
+  original_file_name     String                 @db.VarChar(200)
   submission_date        DateTime               @db.Timestamp(6)
   submitter_user_id      String                 @db.VarChar(200)
   submission_status_code String                 @db.VarChar(10)
@@ -242,11 +243,13 @@ model file_operation_codes {
 }
 
 model file_error_logs {
-  file_error_log_id  String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  file_submission_id String?          @db.Uuid
-  file_name          String?          @db.VarChar(200)
-  error_log          Json?
-  file_submission    file_submission? @relation(fields: [file_submission_id], references: [submission_id], onDelete: NoAction, onUpdate: NoAction, map: "file_submission_id_fk")
+  file_error_log_id    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  file_submission_id   String?          @db.Uuid
+  file_name            String?          @db.VarChar(200)
+  original_file_name   String?          @db.VarChar(200)
+  error_log            Json?
+  create_utc_timestamp DateTime         @db.Timestamp(6)
+  file_submission      file_submission? @relation(fields: [file_submission_id], references: [submission_id], onDelete: NoAction, onUpdate: NoAction, map: "file_submission_id_fk")
 }
 
 model aqi_data_classifications {

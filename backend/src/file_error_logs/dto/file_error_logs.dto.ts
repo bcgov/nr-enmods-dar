@@ -17,7 +17,17 @@ export class FileErrorLogDto {
   file_name: string;
 
   @ApiProperty({
+    description: "original file name",
+  })
+  original_file_name: string;
+
+  @ApiProperty({
     description: "Error log data",
   })
   error_log: string;
+
+  @ApiProperty({
+    description: 'When the user created the record',
+  })
+  create_utc_timestamp: Date;
 }

@@ -4,6 +4,7 @@ import { FileSubmissionDto } from "./file_submission.dto";
 export class CreateFileSubmissionDto extends PickType(FileSubmissionDto, [
   'submission_id',
   'filename',
+  'original_filename',
   'submission_date',
   'submitter_user_id',
   'submission_status_code',

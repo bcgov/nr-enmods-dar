@@ -13,6 +13,11 @@ export class FileSubmissionDto {
   filename: string;
 
   @ApiProperty({
+    description: 'original filename',
+  })
+  original_filename: string;
+
+  @ApiProperty({
     description: 'Submission date'
   })
   submission_date: Date;

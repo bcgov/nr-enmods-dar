@@ -481,7 +481,7 @@ async function handleDownload(fileName: string): Promise<void> {
   });
 }
 
-async function handleMessages(fileName: string, submission_id: string): Promise<void> {
+async function handleMessages(submission_id: string): Promise<void> {
 
   await downloadFileLogs(submission_id)
 }
