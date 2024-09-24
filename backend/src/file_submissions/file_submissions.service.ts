@@ -6,10 +6,14 @@ import { FileResultsWithCount } from "src/interface/fileResultsWithCount";
 import { file_submission, Prisma } from "@prisma/client";
 import { FileInfo } from "src/types/types";
 import { randomUUID } from "crypto";
+import { ObjectStoreService } from "src/objectStore/objectStore.service";
 
 @Injectable()
 export class FileSubmissionsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private readonly objectStore: ObjectStoreService,
+  ) {}
 
   async create(body: any, file: Express.Multer.File) {
     const createFileSubmissionDto = new CreateFileSubmissionDto();
@@ -51,7 +55,11 @@ export class FileSubmissionsService {
       submission_date: createFileSubmissionDto.submission_date,
       submitter_user_id: createFileSubmissionDto.submitter_user_id,
       submission_status: { connect: { submission_status_code: "QUEUED" } },
-      file_operation_codes: { connect: { file_operation_code: createFileSubmissionDto.file_operation_code } },
+      file_operation_codes: {
+        connect: {
+          file_operation_code: createFileSubmissionDto.file_operation_code,
+        },
+      },
       submitter_agency_name: createFileSubmissionDto.submitter_agency_name,
       sample_count: createFileSubmissionDto.sample_count,
       results_count: createFileSubmissionDto.result_count,
@@ -173,42 +181,6 @@ export class FileSubmissionsService {
     return records;
   }
 
-  async findOne(
-    fileName: string,
-  ): Promise<FileResultsWithCount<file_submission>> {
-    let records: FileResultsWithCount<file_submission> = {
-      count: 0,
-      results: [],
-    };
-    /*
-      TODO: 
-      - Find the file_submission record with the submission_id = id
-      - Grab the file from the S3 bucket
-      - Do the initial validation first (validate the fields in the file that are not in the AQI API). if failed, set the submission_status_code to FAILED, populate the error_log column and return with the error message.
-      - Once the initial validation has passed, then call the AQI API on the rest of the fields. If failed, set the submission_status_code to FAILED, populate error_log column and return with error message.
-      - Once the AQI API call is done, then update the submission_status_code field in the database to PASSED. If failed, set the submission_status_code to FAILED, populate error_log column and return with error message.
-    */
-
-    const query = {
-      where: {
-        file_name: {
-          contains: fileName,
-        },
-      },
-    };
-
-    const [results, count] = await this.prisma.$transaction([
-      this.prisma.file_submission.findMany(query),
-
-      this.prisma.file_submission.count({
-        where: query.where,
-      }),
-    ]);
-
-    records = { ...results, count, results };
-    return records;
-  }
-
   async updateFileStatus(submission_id: string, status: string) {
     await this.prisma.file_submission.update({
       where: {
@@ -226,6 +198,16 @@ export class FileSubmissionsService {
 
   remove(id: number) {
     return `This action removes a #${id} fileSubmission`;
+  }
+
+  async getFromS3(fileName: string) {
+    try{
+      const fileBinary = await this.objectStore.getFileData(fileName)
+      return fileBinary
+    } catch (err){
+      console.error(`Error fetching file from S3: ${err.message}`);
+      throw err;
+    }
   }
 }
 
@@ -258,23 +240,4 @@ async function saveToS3(token: any, file: Express.Multer.File) {
   });
 
   return [fileGUID, newFileName];
-}
-
-async function getFromS3(submission_id: string) {
-  const axios = require("axios");
-
-  let config = {
-    method: "get",
-    maxBodyLength: Infinity,
-    url: `${process.env.COMS_URI}/v1/object/${submission_id}`,
-    headers: {
-      Accept: "application/json",
-    },
-  };
-
-  await axios.request(config).then((response) => {
-    console.log(response);
-  });
-
-  return null;
 }

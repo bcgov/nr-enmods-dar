@@ -11,6 +11,7 @@ import {
   ParseFilePipe,
   MaxFileSizeValidator,
   UseGuards,
+  Res,
 } from "@nestjs/common";
 import { FileSubmissionsService } from "./file_submissions.service";
 import { CreateFileSubmissionDto } from "./dto/create-file_submission.dto";
@@ -35,7 +36,7 @@ import { FileInfo } from "src/types/types";
 export class FileSubmissionsController {
   constructor(
     private readonly fileSubmissionsService: FileSubmissionsService,
-    private readonly sanitizeService: SanitizeService
+    private readonly sanitizeService: SanitizeService,
   ) {}
 
   @Post()
@@ -44,41 +45,36 @@ export class FileSubmissionsController {
     @UploadedFile(
       new ParseFilePipe({
         validators: [new MaxFileSizeValidator({ maxSize: 10000000 })],
-      })
+      }),
     )
     file: Express.Multer.File,
-    @Body() body: any
+    @Body() body: any,
   ) {
     return this.fileSubmissionsService.create(body, file);
   }
 
   @Get()
-  findByCode(
-    @Param("submissionCode") submissionCode: string
-  ) {
+  findByCode(@Param("submissionCode") submissionCode: string) {
     return this.fileSubmissionsService.findByCode(submissionCode);
   }
 
   @Post("search")
   @UseInterceptors(FileInterceptor("file"))
   async findByQuery(
-    @Body() body: any
+    @Body() body: any,
   ): Promise<FileResultsWithCount<FileInfo>> {
     return this.fileSubmissionsService.findBySearch(body);
   }
 
   @Get(":fileName")
-  findOne(
-    @Param("fileName") fileName: string
-  ): Promise<FileResultsWithCount<file_submission>> {
-    const sanitizedParam = this.sanitizeService.sanitizeInput(fileName);
-    return this.fileSubmissionsService.findOne(sanitizedParam);
+  getFromS3(@Param("fileName") fileName: string) {
+    return this.fileSubmissionsService.getFromS3(fileName);
   }
 
   @Patch(":id")
   update(
     @Param("id") id: string,
-    @Body() updateFileSubmissionDto: UpdateFileSubmissionDto
+    @Body() updateFileSubmissionDto: UpdateFileSubmissionDto,
   ) {
     return this.fileSubmissionsService.update(+id, updateFileSubmissionDto);
   }

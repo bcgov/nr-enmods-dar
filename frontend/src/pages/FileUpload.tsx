@@ -28,7 +28,7 @@ import {
 } from "@mui/icons-material";
 import "@/index.css";
 import { jwtDecode } from "jwt-decode";
-import { getFiles, insertFile, validationRequest } from "@/common/manage-files";
+import { insertFile } from "@/common/manage-files";
 import UserService from "@/service/user-service";
 
 const fileTypes = ["xlsx", "csv", "txt"];

@@ -30,3 +30,10 @@ export const searchFiles = async (formData: FormData): Promise<FileInfo[]> => {
     const response: FileInfo[] = await api.post<FileInfo[]>(getParameters)
     return response;
 }
+
+export const downloadFile = async (fileName: String) => {
+    const url = `${config.API_BASE_URL}/v1/file_submissions/${fileName}`;
+    const getParameters = api.generateApiParameters(url)
+    const response = await api.get(getParameters)
+    return response
+}
