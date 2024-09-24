@@ -266,20 +266,20 @@ export default function Dashboard() {
                     id="file-name-input"
                     variant="outlined"
                     size="small"
-                    sx={{ width: "520px" }}
+                    sx={{ width: "650px" }}
                     onChange={(event) =>
                       handleFormInputChange("fileName", event)
                     }
                   />
                 </Grid>
 
-                <Grid item xs={3} sx={{ paddingBottom: "20px" }}>
+                <Grid item xs={1.9} sx={{ paddingBottom: "20px" }}>
                   <FormLabel id="submission-date-label">
                     Submission Date
                   </FormLabel>
                 </Grid>
 
-                <Grid item xs={5} sx={{ paddingBottom: "20px" }}>
+                <Grid item xs={4.8} sx={{ paddingBottom: "20px" }}>
                   <FormLabel
                     id="submission-date-from-label"
                     sx={{ paddingRight: "5px" }}
@@ -326,7 +326,7 @@ export default function Dashboard() {
                       name="dropdown-agency"
                       variant="outlined"
                       size="small"
-                      sx={{ width: "515px" }}
+                      sx={{ width: "645px" }}
                       onChange={handleAgencyChange}
                       value={selectedSubmitterAgencyName}
                     >
@@ -352,7 +352,7 @@ export default function Dashboard() {
                       name="dropdown-user"
                       variant="outlined"
                       size="small"
-                      sx={{ width: "515px" }}
+                      sx={{ width: "645px" }}
                       onChange={handleUsernameChange}
                       value={selectedSubmitterUserName}
                     >
@@ -378,7 +378,7 @@ export default function Dashboard() {
                       name="dropdown-status"
                       variant="outlined"
                       size="small"
-                      sx={{ width: "515px" }}
+                      sx={{ width: "645px" }}
                       onChange={handleStatusChange}
                       value={selectedStatusCode}
                     >
@@ -400,7 +400,7 @@ export default function Dashboard() {
                 </Grid>
               </Grid>
             </FormControl>
-            <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+            <Box sx={{ paddingLeft: "735px" }}>
               <Button
                 id="search-button"
                 type="submit"

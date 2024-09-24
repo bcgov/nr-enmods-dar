@@ -20,15 +20,13 @@ const styles = {
   },
   content: {
     display: 'flex',
-    width: '1200px',
+    width: '1800px',
     bgcolor: '#ffffff',
   },
   sidebar: {
     paddingTop: '8em',
-    paddingLeft: '2em',
-    // width: '28%',
+    paddingLeft: '0.5em',
     width: '20%',
-    // bgcolor: '#efefff',
   },
   mainContent: {
     marginTop: '8em',

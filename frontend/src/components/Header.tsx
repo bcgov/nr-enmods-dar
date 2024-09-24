@@ -19,7 +19,7 @@ const styles = {
     alignItems: 'center',
   },
   innerContent: {
-    maxWidth: '1200px',
+    maxWidth: '1800px',
     width: '100%',
     margin: '0 auto',
     display: 'flex',

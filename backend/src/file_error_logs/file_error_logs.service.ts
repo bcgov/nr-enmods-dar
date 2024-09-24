@@ -21,11 +21,11 @@ export class FileErrorLogsService {
         file_submission_id: file_submission_id,
       },
       select: {
-        error_log: true
-      }
-    })
+        error_log: true,
+      },
+    });
 
-    console.log(fileLogs[0].error_log)
+    formulateErrorFile(fileLogs[0].error_log);
   }
 
   update(id: number, updateFileErrorLogDto: UpdateFileErrorLogDto) {
@@ -35,4 +35,18 @@ export class FileErrorLogsService {
   remove(id: number) {
     return `This action removes a #${id} fileErrorLog`;
   }
+}
+
+function formulateErrorFile(logs: any) {
+  let formattedMessages = "";
+
+  logs.forEach((log) => {
+    const rowNum = log.rowNum;
+
+    for (const [key, msg] of Object.entries(log.message)) {
+      formattedMessages += `Row ${rowNum}: ${key} - ${msg}\n`;
+    }
+  });
+
+  console.log(formattedMessages);
 }
