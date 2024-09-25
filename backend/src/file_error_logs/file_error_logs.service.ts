@@ -47,7 +47,7 @@ function formulateErrorFile(logs: any) {
     `${date} ${time}\n\n` +
     `Uploaded for \n\n` +
     `The following warnings/errors were found during the validation/import of the data.\n` +
-    `The data will need to be corrected and uploaded again for validation/import to EMS.\n` +
+    `The data will need to be corrected and uploaded again for validation/import to ENMODS.\n` +
     `If you have any questions, please contact the ministry contact listed below.\n\n` +
     `-----------------------------------------------------------------------\n` +
     `Ministry Contact: \n` +
@@ -63,7 +63,7 @@ function formulateErrorFile(logs: any) {
 
   if (logs[0].error_log.length >= 1) {
     formattedMessages +=
-      "\nData was not updated in AQSS due to errors found in the submission file. Please correct the data and resubmit.";
+      "\nData was not updated in ENMODS due to errors found in the submission file. Please correct the data and resubmit.";
   }
 
   return formattedMessages;
