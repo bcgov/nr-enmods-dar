@@ -118,7 +118,7 @@ const columns = [
       <IconButton
         color="primary"
         onClick={() =>
-          handleMessages(params.row.file_name, params.row.submission_id)
+          handleMessages(params.row.submission_id)
         }
       >
         <Description />
