@@ -118,7 +118,10 @@ const columns = [
       <IconButton
         color="primary"
         onClick={() =>
-          handleMessages(params.row.submission_id)
+          handleMessages(
+            params.row.submission_id,
+            params.row.original_file_name,
+          )
         }
       >
         <Description />
@@ -488,8 +491,24 @@ async function handleDownload(
   });
 }
 
-async function handleMessages(submission_id: string): Promise<void> {
-  await downloadFileLogs(submission_id);
+async function handleMessages(
+  submission_id: string,
+  original_file_name: string,
+): Promise<void> {
+  const fileNameParts = original_file_name.split(".");
+  const fileName =
+    fileNameParts.length > 1
+      ? fileNameParts.slice(0, -1).join(".")
+      : original_file_name;
+
+  const errorMessages = await downloadFileLogs(submission_id);
+  const blob = new Blob([errorMessages], { type: "text/plain" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `${fileName}_logs.txt`;
+  document.body.appendChild(link); // Append link to body
+  link.click(); // Click the link
+  document.body.removeChild(link); // Clean up
 }
 
 function handleDelete(fileName: string, submission_id: string): void {

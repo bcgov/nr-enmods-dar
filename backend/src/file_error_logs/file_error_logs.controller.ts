@@ -36,7 +36,7 @@ export class FileErrorLogsController {
   }
 
   @Get(":file_submission_id")
-  findOne(@Param("file_submission_id") id: string) {
+  findOne(@Param("file_submission_id") id: string): Promise<string> {
     return this.fileErrorLogsService.findOne(id);
   }
 

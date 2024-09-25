@@ -15,17 +15,15 @@ export class FileErrorLogsService {
     return `This action returns all fileErrorLogs`;
   }
 
-  async findOne(file_submission_id: string) {
+  async findOne(file_submission_id: string): Promise<string> {
     const fileLogs = await this.prisma.file_error_logs.findMany({
       where: {
         file_submission_id: file_submission_id,
       },
-      select: {
-        error_log: true,
-      },
     });
 
-    formulateErrorFile(fileLogs[0].error_log);
+    const formattedMessage = formulateErrorFile(fileLogs);
+    return formattedMessage;
   }
 
   update(id: number, updateFileErrorLogDto: UpdateFileErrorLogDto) {
@@ -39,14 +37,34 @@ export class FileErrorLogsService {
 
 function formulateErrorFile(logs: any) {
   let formattedMessages = "";
+  const [date, timeWithZ] = new Date(logs[0].create_utc_timestamp)
+    .toISOString()
+    .split("T");
+  const time = timeWithZ.replace("Z", "");
 
-  logs.forEach((log) => {
+  formattedMessages =
+    `User's Original File: ${logs[0].original_file_name}\n` +
+    `${date} ${time}\n\n` +
+    `Uploaded for \n\n` +
+    `The following warnings/errors were found during the validation/import of the data.\n` +
+    `The data will need to be corrected and uploaded again for validation/import to EMS.\n` +
+    `If you have any questions, please contact the ministry contact listed below.\n\n` +
+    `-----------------------------------------------------------------------\n` +
+    `Ministry Contact: \n` +
+    `-----------------------------------------------------------------------\n\n`;
+
+  logs[0].error_log.forEach((log) => {
     const rowNum = log.rowNum;
 
     for (const [key, msg] of Object.entries(log.message)) {
-      formattedMessages += `Row ${rowNum}: ${key} - ${msg}\n`;
+      formattedMessages += `${log.type}: Row ${rowNum}: ${key} - ${msg}\n`;
     }
   });
 
-  console.log(formattedMessages);
+  if (logs[0].error_log.length >= 1) {
+    formattedMessages +=
+      "\nData was not updated in AQSS due to errors found in the submission file. Please correct the data and resubmit.";
+  }
+
+  return formattedMessages;
 }
