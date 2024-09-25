@@ -448,6 +448,7 @@ export class CronJobService {
         this.fileParser.parseFile(
           fileBinary,
           file.file_name,
+          file.original_file_name,
           file.submission_id,
           file.file_operation_code,
         );

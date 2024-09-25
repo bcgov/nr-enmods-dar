@@ -124,8 +124,8 @@ export class AqiApiService {
         },
       });
 
-      await this.wait(9);
-      
+      await this.wait(10);
+
       const obsResultResponse = await axios.get(
         `${process.env.AQI_BASE_URL}/v2/observationimports/${response.data.id}/result`,
         {

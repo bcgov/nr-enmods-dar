@@ -29,18 +29,19 @@ export type UserInfo = {
 
 export type FileInfo = {
   submission_id: string;
-  file_name: string, 
-  submission_date: Date,
-  submitter_user_id: string,
-  submitter_agency_name: string,
-  submission_status_code: string,
-  sample_count: number,
-  results_count: number,
+  file_name: string;
+  original_file_name: string;
+  submission_date: Date;
+  submitter_user_id: string;
+  submitter_agency_name: string;
+  submission_status_code: string;
+  sample_count: number;
+  results_count: number;
 };
 
 export type ResultsWithCount = {
-  results: [],
-  count: number,
+  results: [];
+  count: number;
 };
 
 export type FieldVisits = {
@@ -52,7 +53,7 @@ export type FieldVisits = {
   FieldVisitEndTime: string;
   FieldVisitParticipants: string;
   FieldVisitComments: string;
-  PlanningStatus: 'DONE';
+  PlanningStatus: "DONE";
 };
 
 export type FieldActivities = {
@@ -64,10 +65,10 @@ export type FieldActivities = {
   LocationID: string;
   ObservedDateTime: string;
   ObservedDateTimeEnd: string;
-  ActivityType: 'SAMPLE_ROUTINE';
+  ActivityType: "SAMPLE_ROUTINE";
   ActivityName: string;
   SamplingContextTag: string;
-}
+};
 
 export type FieldSpecimens = {
   WorkOrderNumber: string;
@@ -76,12 +77,12 @@ export type FieldSpecimens = {
   FieldPreservative: string;
   ObservedDateTime: string;
   ObservedDateTimeEnd: string;
-  Medium:string;
+  Medium: string;
   TissueType: string;
-  LabArrivalTemperature:string;
+  LabArrivalTemperature: string;
   SpecimenName: string;
   AnalyzingAgency: string;
-}
+};
 
 export type Observations = {
   ObservationID: string;
@@ -112,7 +113,7 @@ export type Observations = {
   LimitType: string;
   MethodDetectionLimit: string;
   MethodReportingLimit: string;
-  LabQualityFlag: string
+  LabQualityFlag: string;
   LabArrivalDateandTime: string;
   LabPreparedDateTime: string;
   Fraction: string;
@@ -122,48 +123,48 @@ export type Observations = {
   LabComment: string;
   QCType: string;
   QCSourceActivityName: string;
-}
+};
 
-export type ObservationFile ={
-  'Observation ID': string;
-  'Location ID': string;
-  'Observed Property ID': string;
-  'Observed DateTime': string;
-  'Analyzed DateTime': string;
-  'Depth': string;
-  'Depth Unit': string;
-  'Data Classification': string
-  'Result Value': string;
-  'Result Unit': string;
-  'Source Of Rounded Value': string;
-  'Rounded Value': string;
-  'Rounding Specification': string;
-  'Result Status': string;
-  'Result Grade': string;
-  'Medium': string;
-  'Activity ID': string;
-  'Activity Name': string;
-  'Collection Method': string;
-  'Field: Device ID': string;
-  'Field: Device Type': string;
-  'Field: Comment': string;
-  'Lab: Specimen Name': string;
-  'Lab: Analysis Method': string;
-  'Lab: Detection Condition': string;
-  'Lab: Limit Type': string;
-  'Lab: MDL': string;
-  'Lab: MRL': string;
-  'Lab: Quality Flag': string
-  'Lab: Received DateTime': string;
-  'Lab: Prepared DateTime': string;
-  'Lab: Sample Fraction': string;
-  'Lab: From Laboratory': string;
-  'Lab: Sample ID': string;
-  'Lab: Dilution Factor': string;
-  'Lab: Comment': string;
-  'QC: Type': string;
-  'QC: Source Sample ID': string;
-}
+export type ObservationFile = {
+  "Observation ID": string;
+  "Location ID": string;
+  "Observed Property ID": string;
+  "Observed DateTime": string;
+  "Analyzed DateTime": string;
+  Depth: string;
+  "Depth Unit": string;
+  "Data Classification": string;
+  "Result Value": string;
+  "Result Unit": string;
+  "Source Of Rounded Value": string;
+  "Rounded Value": string;
+  "Rounding Specification": string;
+  "Result Status": string;
+  "Result Grade": string;
+  Medium: string;
+  "Activity ID": string;
+  "Activity Name": string;
+  "Collection Method": string;
+  "Field: Device ID": string;
+  "Field: Device Type": string;
+  "Field: Comment": string;
+  "Lab: Specimen Name": string;
+  "Lab: Analysis Method": string;
+  "Lab: Detection Condition": string;
+  "Lab: Limit Type": string;
+  "Lab: MDL": string;
+  "Lab: MRL": string;
+  "Lab: Quality Flag": string;
+  "Lab: Received DateTime": string;
+  "Lab: Prepared DateTime": string;
+  "Lab: Sample Fraction": string;
+  "Lab: From Laboratory": string;
+  "Lab: Sample ID": string;
+  "Lab: Dilution Factor": string;
+  "Lab: Comment": string;
+  "QC: Type": string;
+  "QC: Source Sample ID": string;
+};
 
 export type EmailTemplate = {
   from: string;

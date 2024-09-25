@@ -25,7 +25,11 @@ import {
 } from "@mui/material";
 import { FileStatusCode } from "@/types/types";
 import { getFileStatusCodes } from "@/common/manage-dropdowns";
-import { downloadFile, downloadFileLogs, searchFiles } from "@/common/manage-files";
+import {
+  downloadFile,
+  downloadFileLogs,
+  searchFiles,
+} from "@/common/manage-files";
 
 const columns = [
   {
@@ -42,10 +46,10 @@ const columns = [
           color: "blue",
         }}
         onClick={() =>
-          handleDownload(params.row.file_name, params.row.submission_id)
+          handleDownload(params.row.file_name, params.row.original_file_name)
         }
       >
-        {params.value}
+        {params.row.original_file_name}
       </FormControl>
     ),
   },
@@ -439,7 +443,7 @@ export default function Dashboard() {
           onPaginationModelChange={handlePaginationChange}
           autoHeight={true}
           // onRowClick={(params) => setSelectedRow(params.row)}
-          sx={{ width: "1200px", height: `${paginationModel.pageSize * 100}` }}
+          sx={{ width: "1400px", height: `${paginationModel.pageSize * 100}` }}
         />
         <Dialog open={!!selectedRow} onClose={handleClose}>
           <DialogTitle>Row Details</DialogTitle>
@@ -467,14 +471,17 @@ export default function Dashboard() {
   );
 }
 
-async function handleDownload(fileName: string): Promise<void> {
+async function handleDownload(
+  fileName: string,
+  originalFileName: string,
+): Promise<void> {
   const fileMimeType = getMimeType(fileName);
   await downloadFile(fileName).then((response) => {
     const fileBuffer = new Uint8Array(response.data);
     const blob = new Blob([fileBuffer], { type: fileMimeType });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = fileName;
+    link.download = originalFileName;
     document.body.appendChild(link); // Append link to body
     link.click(); // Click the link
     document.body.removeChild(link); // Clean up
@@ -482,8 +489,7 @@ async function handleDownload(fileName: string): Promise<void> {
 }
 
 async function handleMessages(submission_id: string): Promise<void> {
-
-  await downloadFileLogs(submission_id)
+  await downloadFileLogs(submission_id);
 }
 
 function handleDelete(fileName: string, submission_id: string): void {

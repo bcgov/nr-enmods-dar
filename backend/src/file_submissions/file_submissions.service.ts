@@ -53,6 +53,7 @@ export class FileSubmissionsService {
     const newFilePostData: Prisma.file_submissionCreateInput = {
       submission_id: createFileSubmissionDto.submission_id,
       file_name: createFileSubmissionDto.filename,
+      original_file_name: createFileSubmissionDto.original_filename,
       submission_date: createFileSubmissionDto.submission_date,
       submitter_user_id: createFileSubmissionDto.submitter_user_id,
       submission_status: { connect: { submission_status_code: "QUEUED" } },
@@ -107,7 +108,7 @@ export class FileSubmissionsService {
     let offset: number = body.page * limit;
 
     const whereClause = {
-      file_name: {},
+      original_file_name: {},
       submission_date: {},
       submitter_user_id: {},
       submitter_agency_name: {},
@@ -115,7 +116,7 @@ export class FileSubmissionsService {
     };
 
     if (body.fileName) {
-      whereClause.file_name = {
+      whereClause.original_file_name = {
         contains: body.fileName,
       };
     }
@@ -154,6 +155,7 @@ export class FileSubmissionsService {
     const selectColumns = {
       submission_id: true,
       file_name: true,
+      original_file_name: true,
       submission_date: true,
       submitter_user_id: true,
       submitter_agency_name: true,
@@ -202,10 +204,10 @@ export class FileSubmissionsService {
   }
 
   async getFromS3(fileName: string) {
-    try{
-      const fileBinary = await this.objectStore.getFileData(fileName)
-      return fileBinary
-    } catch (err){
+    try {
+      const fileBinary = await this.objectStore.getFileData(fileName);
+      return fileBinary;
+    } catch (err) {
       console.error(`Error fetching file from S3: ${err.message}`);
       throw err;
     }

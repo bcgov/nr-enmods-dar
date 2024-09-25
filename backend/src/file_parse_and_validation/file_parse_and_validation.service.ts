@@ -876,6 +876,7 @@ export class FileParseValidateService {
   async parseFile(
     file: string,
     fileName: string,
+    originalFileName: string,
     file_submission_id: string,
     file_operation_code: string,
   ) {
@@ -971,13 +972,14 @@ export class FileParseValidateService {
         const file_error_log_data = {
           file_submission_id: file_submission_id,
           file_name: fileName,
+          original_file_name: originalFileName,
           error_log: localValidationResults,
+          create_utc_timestamp: new Date(),
         };
 
         await this.prisma.file_error_logs.create({
           data: file_error_log_data,
         });
-
         return;
       } else if (!(await localValidationResults).includes("ERROR")) {
         await this.fileSubmissionsService.updateFileStatus(
