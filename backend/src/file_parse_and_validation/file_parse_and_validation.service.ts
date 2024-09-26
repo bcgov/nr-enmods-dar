@@ -14,6 +14,7 @@ import * as path from "path";
 import * as csvWriter from "csv-writer";
 import fs from "fs";
 import { PrismaService } from "nestjs-prisma";
+import { NotificationsService } from "src/notifications/notifications.service";
 
 const visits: FieldVisits = {
   MinistryContact: "",
@@ -146,6 +147,7 @@ export class FileParseValidateService {
     private prisma: PrismaService,
     private readonly fileSubmissionsService: FileSubmissionsService,
     private readonly aqiService: AqiApiService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getQueuedFiles() {
@@ -599,7 +601,7 @@ export class FileParseValidateService {
     return dupeCount;
   }
 
-  async localValidation(allRecords, observaionFilePath) {
+  async localValidation(allRecords, observationFilePath) {
     let errorLogs = [];
     for (const [index, record] of allRecords.entries()) {
       const isoDateTimeRegex =
@@ -861,7 +863,7 @@ export class FileParseValidateService {
 
     // Do a dry run of the observations
     const observationsErrors = await this.aqiService.importObservations(
-      observaionFilePath,
+      observationFilePath,
       "dryrun",
     );
 
@@ -976,6 +978,16 @@ export class FileParseValidateService {
 
         await this.prisma.file_error_logs.create({
           data: file_error_log_data,
+        });
+
+        const email = "mtennant@salussystems.com";
+        await this.notificationsService.sendDataSubmitterNotification(email, {
+          file_name: fileName,
+          user_account_name: "???",
+          location_ids: [],
+          file_status: "REJECTED",
+          errors: localValidationResults,
+          warnings: null,
         });
 
         return;

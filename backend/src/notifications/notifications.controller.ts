@@ -32,20 +32,20 @@ export class NotificationsController {
       file_name: "test_file.csv",
       user_account_name: "MTENNANT",
       file_status: "Failed",
-      errors: "Something went wrong.",
-      warnings: "",
+      errors: ["Something went wrong."],
+      warnings: [],
     };
     return this.notificationsService.sendContactNotification(email, variables);
   }
 
   @Post("update-notification")
   updateNotification(
-    @Body() userData: { email: string; username: string; enabled: boolean }
+    @Body() userData: { email: string; username: string; enabled: boolean },
   ) {
     return this.notificationsService.updateNotificationEntry(
       userData.email,
       userData.username,
-      userData.enabled
+      userData.enabled,
     );
   }
 
@@ -53,7 +53,7 @@ export class NotificationsController {
   getNotificationStatus(@Body() userData: { email: string; username: string }) {
     return this.notificationsService.getNotificationStatus(
       userData.email,
-      userData.username
+      userData.username,
     );
   }
 

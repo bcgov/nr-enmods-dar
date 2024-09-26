@@ -160,8 +160,8 @@ export class NotificationsService {
       user_account_name: string;
       location_ids: string[];
       file_status: string;
-      errors: string;
-      warnings: string;
+      errors: string[];
+      warnings: string[];
     },
   ): Promise<String> {
     let body = `
@@ -170,10 +170,15 @@ export class NotificationsService {
     <p>Date and Time of Upload: {{sys_time}}</p>
     <p>Locations ID(s): ${variables.location_ids.join(", ")}</p>
     `;
-    if (variables.warnings !== "") {
+
+    const warningString =
+      variables.warnings.length > 0 ? variables.warnings.join("\n") : "";
+    const errorString =
+      variables.errors.length > 0 ? variables.errors.join("\n") : "";
+    if (warningString !== "") {
       body += `<p>Warnings: {{warnings}}</p>`;
     }
-    if (variables.errors !== "") {
+    if (errorString !== "") {
       body += `<p>Errors: {{errors}}</p>`;
     }
 
@@ -194,13 +199,17 @@ export class NotificationsService {
     };
     const sys_time = date.toLocaleString("en-US", options);
     let status_string = "Imported";
-    if (variables.errors !== "") {
+    if (errorString !== "") {
       status_string = "Failed";
-    } else if (variables.warnings !== "") {
+    } else if (warningString !== "") {
       status_string = "Imported with Warnings";
     }
     return this.sendEmail([email], emailTemplate, {
-      ...variables,
+      file_name: variables.file_name,
+      user_account_name: variables.user_account_name,
+      file_status: variables.file_status,
+      errors: errorString,
+      warnings: warningString,
       sys_time,
       status_string,
     });
@@ -220,8 +229,8 @@ export class NotificationsService {
       file_name: string;
       user_account_name: string;
       file_status: string;
-      warnings: string;
-      errors: string;
+      warnings: string[];
+      errors: string[];
     },
   ): Promise<String> {
     const notificationInfo = await this.getNotificationStatus(
@@ -240,10 +249,15 @@ export class NotificationsService {
     <p>Date and Time of Upload: {{sys_time}}</p>
     <p>Locations ID(s): E123445, E464353, E232524</p>
     `;
-    if (variables.warnings !== "") {
+
+    const warningString =
+      variables.warnings.length > 0 ? variables.warnings.join("\n") : "";
+    const errorString =
+      variables.errors.length > 0 ? variables.errors.join("\n") : "";
+    if (warningString !== "") {
       body += `<p>Warnings: {{warnings}}</p>`;
     }
-    if (variables.errors !== "") {
+    if (errorString !== "") {
       body += `<p>Errors: {{errors}}</p>`;
     }
 
@@ -266,13 +280,17 @@ export class NotificationsService {
     };
     const sys_time = date.toLocaleString("en-US", options);
     let status_string = "Imported";
-    if (variables.errors !== "") {
+    if (errorString !== "") {
       status_string = "Failed";
-    } else if (variables.warnings !== "") {
+    } else if (warningString !== "") {
       status_string = "Imported with Warnings";
     }
     return this.sendEmail([email], emailTemplate, {
-      ...variables,
+      file_name: variables.file_name,
+      user_account_name: variables.user_account_name,
+      file_status: variables.file_status,
+      errors: errorString,
+      warnings: warningString,
       sys_time,
       status_string,
     });
@@ -380,8 +398,8 @@ export class NotificationsService {
       user_account_name: username,
       location_ids: [],
       file_status: "FAILED",
-      errors: errors.join(","),
-      warnings: "",
+      errors: errors,
+      warnings: [],
     };
 
     // Notify the Data Submitter
