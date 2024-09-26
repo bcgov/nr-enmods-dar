@@ -27,6 +27,16 @@ export class FileErrorLogDto {
   error_log: string;
 
   @ApiProperty({
+    description: 'The operation the file was submitted for',
+  })
+  file_operation_code: string;
+
+  @ApiProperty({
+    description: 'The ministry contact that needs to be notified',
+  })
+  ministry_contact: string;
+
+  @ApiProperty({
     description: 'When the user created the record',
   })
   create_utc_timestamp: Date;

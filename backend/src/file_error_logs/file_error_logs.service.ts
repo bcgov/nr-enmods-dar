@@ -41,16 +41,23 @@ function formulateErrorFile(logs: any) {
     .toISOString()
     .split("T");
   const time = timeWithZ.replace("Z", "");
+  let fileOperation = ""
+
+  if (logs[0].file_operation_code === 'VALIDATE'){
+    fileOperation = "True";
+  }else{
+    fileOperation = "False";
+  }
 
   formattedMessages =
     `User's Original File: ${logs[0].original_file_name}\n` +
     `${date} ${time}\n\n` +
-    `Uploaded for \n\n` +
+    `QA Only: ${fileOperation}\n\n` +
     `The following warnings/errors were found during the validation/import of the data.\n` +
     `The data will need to be corrected and uploaded again for validation/import to ENMODS.\n` +
-    `If you have any questions, please contact the ministry contact listed below.\n\n` +
+    `If you have any questions, please contact the ministry contact(s) listed below.\n\n` +
     `-----------------------------------------------------------------------\n` +
-    `Ministry Contact: \n` +
+    `Ministry Contact: ${logs[0].ministry_contact}\n` +
     `-----------------------------------------------------------------------\n\n`;
 
   logs[0].error_log.forEach((log) => {

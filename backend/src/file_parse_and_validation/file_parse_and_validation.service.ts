@@ -944,6 +944,7 @@ export class FileParseValidateService {
         fileName,
       );
 
+      const uniqueMinistryContacts = Array.from(new Set(allRecords.map(rec => rec.MinistryContact)))
       /*
        * Do the local validation for each section here - if passed then go to the API calls - else create the message/file/email for the errors
        */
@@ -973,6 +974,8 @@ export class FileParseValidateService {
           file_submission_id: file_submission_id,
           file_name: fileName,
           original_file_name: originalFileName,
+          file_operation_code: file_operation_code,
+          ministry_contact: uniqueMinistryContacts.join(', '),
           error_log: localValidationResults,
           create_utc_timestamp: new Date(),
         };
