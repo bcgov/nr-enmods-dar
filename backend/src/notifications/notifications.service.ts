@@ -172,9 +172,9 @@ export class NotificationsService {
     `;
 
     const warningString =
-      variables.warnings.length > 0 ? variables.warnings.join("\n") : "";
+      variables.warnings?.length > 0 ? variables.warnings.join("\n") : "";
     const errorString =
-      variables.errors.length > 0 ? variables.errors.join("\n") : "";
+      variables.errors?.length > 0 ? variables.errors.join("\n") : "";
     if (warningString !== "") {
       body += `<p>Warnings: {{warnings}}</p>`;
     }
