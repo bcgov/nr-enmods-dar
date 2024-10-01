@@ -1050,6 +1050,11 @@ export class FileParseValidateService {
           await this.postFieldSpecimens(uniqueSpecimensWithCounts);
 
           await this.aqiService.importObservations(ObsFilePath, "");
+
+          await this.fileSubmissionsService.updateFileStatus(
+            file_submission_id,
+            "SUBMITTED",
+          );
         }
       }
     }
