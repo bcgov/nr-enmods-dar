@@ -26,6 +26,7 @@ import {
 import { FileStatusCode } from "@/types/types";
 import { getFileStatusCodes } from "@/common/manage-dropdowns";
 import {
+  deleteFile,
   downloadFile,
   downloadFileLogs,
   searchFiles,
@@ -511,9 +512,9 @@ async function handleMessages(
   document.body.removeChild(link); // Clean up
 }
 
-function handleDelete(fileName: string, submission_id: string): void {
-  console.log(fileName);
-  console.log(submission_id);
+async function handleDelete(fileName: string, submission_id: string): Promise<void> {
+  let deleted = false;
+  deleted = await deleteFile(fileName, submission_id);
 }
 
 function getMimeType(fileName: string) {

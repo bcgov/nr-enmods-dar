@@ -142,6 +142,41 @@ export const put = <T, M = {}>(
   });
 };
 
+export const deleteMethod = <T, M = {}>(
+  parameters: ApiRequestParameters<M>,
+  headers?: {},
+): Promise<T> => {
+  let config: AxiosRequestConfig = { headers: headers };
+  return new Promise<T>((resolve, reject) => {
+    const { url, requiresAuthentication, params } = parameters;
+
+    if (requiresAuthentication) {
+      axios.defaults.headers.common["Authorization"] =
+        `Bearer ${localStorage.getItem(AUTH_TOKEN)}`;
+    }
+
+    if (params) {
+      config.params = params;
+    }
+
+    axios
+      .delete(url, config)
+      .then((response: AxiosResponse) => {
+        const { data, status } = response;
+
+        if (status === STATUS_CODES.Unauthorized) {
+          window.location = KEYCLOAK_URL;
+        }
+
+        resolve(data as T);
+      })
+      .catch((error: AxiosError) => {
+        console.log(error.message);
+        reject(error);
+      });
+  });
+};
+
 export const generateApiParameters = <T = {}>(
   url: string,
   params?: T,

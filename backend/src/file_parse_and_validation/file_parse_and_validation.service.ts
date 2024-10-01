@@ -369,7 +369,7 @@ export class FileParseValidateService {
       Object.assign(currentVisitAndLoc, {
         fieldVisit: await this.aqiService.fieldVisits(postData),
       });
-      visitAndLocId.push({ rec: currentVisitAndLoc, count: row.count });
+      visitAndLocId.push({ rec: currentVisitAndLoc, count: row.count, positions: row.positions });
     }
 
     return visitAndLocId;
@@ -460,7 +460,7 @@ export class FileParseValidateService {
           startTime: row.rec.ObservedDateTime,
         },
       });
-      activityId.push({ rec: currentActivity, count: row.count });
+      activityId.push({ rec: currentActivity, count: row.count, positions: row.positions });
     }
     return activityId;
   }
@@ -584,19 +584,32 @@ export class FileParseValidateService {
   }
 
   getUniqueWithCounts(data: any[]) {
-    const map = new Map<string, number>();
+    const map = new Map<string, {rec: any, count: number, positions: number[]}>();
 
-    data.forEach((visit) => {
-      const key = JSON.stringify(visit);
-      map.set(key, (map.get(key) || 0) + 1);
-    });
-
-    const dupeCount = Array.from(map.entries()).map(([key, count]) => ({
-      rec: JSON.parse(key),
-      count,
-    }));
-
+    data.forEach((obj, index) => {
+      const key = JSON.stringify(obj);
+      if (map.has(key)) {
+        const entry = map.get(key)!;
+        entry.count++;
+        entry.positions.push(index);
+      } else {
+        map.set(key, { rec: obj, count: 1, positions: [index] });
+      }
+    })
+    const dupeCount = Array.from(map.values());
     return dupeCount;
+  }
+
+  expandList (data: any[]) {
+    const expandedList: any[] = [];
+    
+    data.forEach(({rec, positions}) => {
+      positions.forEach(position => {
+        expandedList[position] = rec
+      })
+    })
+
+    return expandedList;
   }
 
   async localValidation(allRecords, observaionFilePath) {
@@ -1002,9 +1015,7 @@ export class FileParseValidateService {
           const uniqueVisitsWithCounts =
             this.getUniqueWithCounts(allFieldVisits);
           let visitInfo = await this.postFieldVisits(uniqueVisitsWithCounts);
-          let expandedVisitInfo = visitInfo.flatMap((visit) =>
-            Array(visit.count).fill(visit.rec),
-          );
+          let expandedVisitInfo = this.expandList(visitInfo)
 
           /*
            * Merge the expanded visitInfo with allFieldActivities
@@ -1023,10 +1034,8 @@ export class FileParseValidateService {
           let activityInfo = await this.postFieldActivities(
             uniqueActivitiesWithCounts,
           );
-          let expandedActivityInfo = activityInfo.flatMap((activity) =>
-            Array(activity.count).fill(activity.rec),
-          );
-
+          let expandedActivityInfo = this.expandList(activityInfo)
+          
           /*
            * Merge the expanded activityInfo with allSpecimens
            * Collapse allSpecimens with a dupe count

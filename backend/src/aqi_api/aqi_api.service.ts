@@ -3,6 +3,7 @@ import axios, { AxiosError, AxiosInstance } from "axios";
 import * as fs from "fs";
 import FormData from "form-data";
 import { PrismaService } from "nestjs-prisma";
+import path from "path";
 
 @Injectable()
 export class AqiApiService {
@@ -252,5 +253,100 @@ export class AqiApiService {
     [...localErrors, ...remoteErrors].forEach(mergeItem);
 
     return Array.from(map.values());
+  }
+
+  getUnique(type: string, data: any[]): any[] {
+    switch (type) {
+      case "obs":
+        let uniqueObservations = [];
+        data.filter((item) => {
+          const pairKey = `${item.id}-${item.customId}`;
+          if (!uniqueObservations.includes(pairKey)) {
+            uniqueObservations.push(pairKey);
+          }
+        });
+        return uniqueObservations;
+      case "specimen":
+        let uniqueSpecimens =[];
+        data.filter((item) => {
+          const pairKey = `${item.id}`;
+          if (!uniqueSpecimens.includes(pairKey)) {
+            uniqueSpecimens.push(pairKey);
+          }
+        });
+        return uniqueSpecimens;
+      case "activity":
+        let uniqueActivities = [];
+        data.filter((item) => {
+          const pairKey = `${item.id}-${item.customId}`;
+          if (!uniqueActivities.includes(pairKey)) {
+            uniqueActivities.push(pairKey);
+          }
+        });
+        return uniqueActivities;
+      case "visit":
+        let uniqueVisits = [];
+        data.filter((item) => {
+          const pairKey = `${item.id}-${item.customId}`;
+          if (!uniqueVisits.includes(pairKey)) {
+            uniqueVisits.push(pairKey);
+          }
+        });
+        return uniqueVisits;
+      default:
+        return [];
+    }
+  }
+
+  async deleteRelatedData(file_name: string) {
+    let file_name_to_search = `obs-${path.parse(file_name).name}`;
+    let allObservations = [],
+      uniqueObservations = [];
+    let allSpecimens = [],
+      uniqueSpecimens = [];
+    let allActivities = [],
+      uniqueActivities = [];
+    let allVisits = [],
+      uniqueVisits = [];
+    try {
+      let observations = (
+        await this.axiosInstance.get("/v2/observations?limit=1000")
+      ).data.domainObjects;
+      const relatedData = observations.filter((observation) =>
+        observation.activity.loggerFileName.includes(file_name_to_search),
+      );
+
+      relatedData.forEach((observation) => {
+        allObservations.push({
+          id: observation.id,
+          customID: observation.customId,
+        });
+        allSpecimens.push({
+          id: observation.specimen.id,
+          customID: observation.specimen.name,
+        });
+        allActivities.push({
+          id: observation.activity.id,
+          customID: observation.activity.customId,
+        });
+        allVisits.push({
+          id: observation.fieldVisit.id,
+          startTime: observation.fieldVisit.startTime,
+        });
+      });
+
+      uniqueObservations = this.getUnique("obs", allObservations);
+      uniqueSpecimens = this.getUnique("specimen", allSpecimens);
+      uniqueActivities = this.getUnique("activity", allActivities);
+      uniqueVisits = this.getUnique("visit", allVisits);
+
+      console.log(uniqueObservations.length)
+      console.log(uniqueSpecimens.length)
+      console.log(uniqueActivities.length)
+      console.log(uniqueVisits.length)
+      
+    } catch (err) {
+      console.error(`API call to fetch Observations failed: `, err);
+    }
   }
 }
