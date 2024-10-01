@@ -260,7 +260,7 @@ export class AqiApiService {
       case "obs":
         let uniqueObservations = [];
         data.filter((item) => {
-          const pairKey = `${item.id}-${item.customId}`;
+          const pairKey = `${item.id}`;
           if (!uniqueObservations.includes(pairKey)) {
             uniqueObservations.push(pairKey);
           }
@@ -278,7 +278,7 @@ export class AqiApiService {
       case "activity":
         let uniqueActivities = [];
         data.filter((item) => {
-          const pairKey = `${item.id}-${item.customId}`;
+          const pairKey = `${item.id}`;
           if (!uniqueActivities.includes(pairKey)) {
             uniqueActivities.push(pairKey);
           }
@@ -287,7 +287,7 @@ export class AqiApiService {
       case "visit":
         let uniqueVisits = [];
         data.filter((item) => {
-          const pairKey = `${item.id}-${item.customId}`;
+          const pairKey = `${item.id}`;
           if (!uniqueVisits.includes(pairKey)) {
             uniqueVisits.push(pairKey);
           }
@@ -340,10 +340,7 @@ export class AqiApiService {
       uniqueActivities = this.getUnique("activity", allActivities);
       uniqueVisits = this.getUnique("visit", allVisits);
 
-      console.log(uniqueObservations.length)
-      console.log(uniqueSpecimens.length)
-      console.log(uniqueActivities.length)
-      console.log(uniqueVisits.length)
+
       
     } catch (err) {
       console.error(`API call to fetch Observations failed: `, err);
