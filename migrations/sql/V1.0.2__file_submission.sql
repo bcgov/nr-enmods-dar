@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS enmods.file_submission (
   submission_id UUID PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
   file_name varchar(200) NOT NULL,
+  original_file_name varchar(200) NOT NULL,
   submission_date timestamp NOT NULL,
   submitter_user_id varchar(200) NOT NULL,
   submission_status_code varchar(10) NOT NULL,

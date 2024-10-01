@@ -28,6 +28,7 @@ BEGIN
             IF NOT EXISTS (SELECT 1 FROM enmods.file_submission WHERE file_name = v_fileName) THEN
                 INSERT INTO enmods.file_submission (
                     file_name,
+                    original_file_name,
                     submission_date,
                     submitter_user_id,
                     submission_status_code,
@@ -44,6 +45,7 @@ BEGIN
                     update_utc_timestamp
                 )
                 VALUES (
+                    v_fileName,
                     v_fileName,
                     v_submissionDate,
                     'VMANAWAT',
