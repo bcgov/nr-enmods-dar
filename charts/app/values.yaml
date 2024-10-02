@@ -44,7 +44,7 @@ global:
     port: 3000
     apiName: ~
     baseUrl: ~
-    viteAppApiUrl: ~
+    viteAppApiUrl: "/api"
     viteAppKeycloakUrl: ~
     viteAppKeycloakUrl2: ~
     viteAppKeycloakRealm: ~
