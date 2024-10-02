@@ -4,7 +4,6 @@ import { error } from "winston";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "nestjs-prisma";
 import { FileParseValidateService } from "src/file_parse_and_validation/file_parse_and_validation.service";
-import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
 
 /**
@@ -21,7 +20,6 @@ export class CronJobService {
   constructor(
     private prisma: PrismaService,
     private readonly fileParser: FileParseValidateService,
-    private readonly fileSubmissionsService: FileSubmissionsService,
     private readonly objectStore: ObjectStoreService,
   ) {
     this.tableModels = new Map<string, any>([
@@ -433,10 +431,10 @@ export class CronJobService {
       grab all the files from the DB and S3 bucket that have a status of QUEUED
       for each file returned, change the status to INPROGRESS and go to the parser
     */
-    // if (!this.dataPullDownComplete) {
-    //   this.logger.warn("Data pull down from AQSS did not complete");
-    //   return;
-    // }
+    if (!this.dataPullDownComplete) {
+      this.logger.warn("Data pull down from AQSS did not complete");
+      return;
+    }
 
     let filesToValidate = await this.fileParser.getQueuedFiles();
 
@@ -450,6 +448,7 @@ export class CronJobService {
         this.fileParser.parseFile(
           fileBinary,
           file.file_name,
+          file.original_file_name,
           file.submission_id,
           file.file_operation_code,
         );
