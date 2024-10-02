@@ -962,10 +962,10 @@ export class FileParseValidateService {
        * Do the local validation for each section here - if passed then go to the API calls - else create the message/file/email for the errors
        */
 
-      // await this.fileSubmissionsService.updateFileStatus(
-      //   file_submission_id,
-      //   "INPROGRESS",
-      // );
+      await this.fileSubmissionsService.updateFileStatus(
+        file_submission_id,
+        "INPROGRESS",
+      );
 
       const localValidationResults = await this.localValidation(
         allRecords,

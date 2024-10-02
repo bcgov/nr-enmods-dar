@@ -115,6 +115,7 @@ export class FileSubmissionsService {
       submitter_user_id: {},
       submitter_agency_name: {},
       submission_status_code: {},
+      active_ind: true
     };
 
     if (body.fileName) {
@@ -203,6 +204,14 @@ export class FileSubmissionsService {
 
   async remove(file_name: string, id: string) {
     await this.aqiService.deleteRelatedData(file_name)
+    await this.prisma.file_submission.update({
+      where:{
+        submission_id: id,
+      },
+      data:{
+        active_ind: false,
+      }
+    })
     return false
   }
 
