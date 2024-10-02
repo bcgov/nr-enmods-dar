@@ -36,7 +36,7 @@ export class FileErrorLogsService {
 }
 
 function formulateErrorFile(logs: any) {
-  if (logs.length > 0){
+  if (logs[0].error_log.length > 0){
     let formattedMessages = "";
     const [date, timeWithZ] = new Date(logs[0].create_utc_timestamp)
       .toISOString()
@@ -74,6 +74,33 @@ function formulateErrorFile(logs: any) {
         "\nData was not updated in ENMODS due to errors found in the submission file. Please correct the data and resubmit.";
     }
 
+    return formattedMessages;
+  }else{
+    const [date, timeWithZ] = new Date(logs[0].create_utc_timestamp)
+      .toISOString()
+      .split("T");
+    const time = timeWithZ.replace("Z", "");
+    let formattedMessages = "";
+    let fileOperation = ""
+
+    if (logs[0].file_operation_code === 'VALIDATE'){
+      fileOperation = "True";
+    }else{
+      fileOperation = "False";
+    }
+    formattedMessages =
+      `User's Original File: ${logs[0].original_file_name}\n` +
+      `${date} ${time}\n\n` +
+      `QA Only: ${fileOperation}\n\n` +
+      `The following warnings/errors were found during the validation/import of the data.\n` +
+      `The data will need to be corrected and uploaded again for validation/import to ENMODS.\n` +
+      `If you have any questions, please contact the ministry contact(s) listed below.\n\n` +
+      `-----------------------------------------------------------------------\n` +
+      `Ministry Contact: ${logs[0].ministry_contact}\n` +
+      `-----------------------------------------------------------------------\n\n` +
+      `No errors were found during the validation/import of the data.\n\n` +
+      `The file was successfully imported.\n\n`;
+    
     return formattedMessages;
   }
 }
