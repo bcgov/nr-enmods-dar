@@ -279,7 +279,7 @@ bitnami-pg:
       storageClass: netapp-block-standard
       accessModes:
         - ReadWriteOnce
-      size: 500Mi
+      size: 256Mi
     containerSecurityContext:
       enabled: false
     podSecurityContext:
@@ -291,11 +291,11 @@ bitnami-pg:
           PGPASSWORD=$POSTGRES_PASSWORD psql -U postgres -d postgres -c "CREATE EXTENSION postgis;"
     resources:
       requests:
-        cpu: 50m
-        memory: 150Mi
-      limits:
-        cpu: 150m
+        cpu: 100m
         memory: 250Mi
+      limits:
+        cpu: 200m
+        memory: 500Mi
 
 backup:
   enabled: true
