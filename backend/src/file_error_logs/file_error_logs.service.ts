@@ -36,7 +36,7 @@ export class FileErrorLogsService {
 }
 
 function formulateErrorFile(logs: any) {
-  if (logs){
+  if (logs.length > 0){
     let formattedMessages = "";
     const [date, timeWithZ] = new Date(logs[0].create_utc_timestamp)
       .toISOString()

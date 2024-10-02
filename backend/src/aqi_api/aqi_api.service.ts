@@ -267,7 +267,7 @@ export class AqiApiService {
         });
         return uniqueObservations;
       case "specimen":
-        let uniqueSpecimens =[];
+        let uniqueSpecimens = [];
         data.filter((item) => {
           const pairKey = `${item.id}`;
           if (!uniqueSpecimens.includes(pairKey)) {
@@ -340,8 +340,117 @@ export class AqiApiService {
       uniqueActivities = this.getUnique("activity", allActivities);
       uniqueVisits = this.getUnique("visit", allVisits);
 
+      // Delete all the observations for the activities imported from AQI
+      if (uniqueObservations.length > 0) {
+        try {
+          let deletion = await axios.delete(
+            `${process.env.AQI_BASE_URL}/v2/observations?specimentIds=${uniqueSpecimens}`,
+            {
+              headers: {
+                Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+                "x-api-key": process.env.AQI_ACCESS_TOKEN,
+              },
+            },
+          );
+          console.log("AQI OBS DELETION: " + deletion);
+        } catch (err) {
+          console.error(`API call to delete AQI observation failed: `, err);
+        }
+      }
 
-      
+      // Delete all the specimens for the activities imported from AQI and the PSQL db
+      if (uniqueSpecimens.length > 0) {
+        for (const specimen of uniqueSpecimens) {
+          try {
+            let aqiDeletion = await axios.delete(
+              `${process.env.AQI_BASE_URL}/v1/specimens/${specimen}`,
+              {
+                headers: {
+                  Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+                  "x-api-key": process.env.AQI_ACCESS_TOKEN,
+                },
+              },
+            );
+            console.log("AQI SPECIMEN DELETION: " + aqiDeletion);
+          } catch (err) {
+            console.error(`API call to delete AQI specimen failed: `, err);
+          }
+        }
+        try {
+          const dbDeletion = await this.prisma.aqi_specimens.deleteMany({
+            where: {
+              aqi_specimens_id: {
+                in: uniqueSpecimens,
+              },
+            },
+          });
+          console.log("DB SPECIMEN DELETION: " + dbDeletion);
+        } catch (err) {
+          console.error(`API call to delete DB specimen failed: `, err);
+        }
+      }
+
+      // Delete all the activities for the visits imported
+      if (uniqueActivities.length > 0) {
+        try {
+          let deletion = await axios.delete(
+            `${process.env.AQI_BASE_URL}/v1/activities?ids=${uniqueActivities}`,
+            {
+              headers: {
+                Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+                "x-api-key": process.env.AQ,
+              },
+            },
+          );
+          console.log("AQI ACTIVITY DELETION: " + deletion);
+        } catch (err) {
+          console.error(`API call to delete DB activity failed: `, err);
+        }
+
+        try {
+          const dbDeletion = await this.prisma.aqi_field_activities.deleteMany({
+            where: {
+              aqi_field_activities_id: {
+                in: uniqueActivities,
+              },
+            },
+          });
+          console.log("DB ACTIVITY DELETION: " + dbDeletion);
+        } catch (err) {
+          console.error(`API call to delete DB activities failed: `, err);
+        }
+      }
+
+      // Delete all the visits for the visits imported
+      if (uniqueVisits.length > 0) {
+        try {
+          let deletion = await axios.delete(
+            `${process.env.AQI_BASE_URL}/v1/fieldVisits?ids=${uniqueVisits}`,
+            {
+              headers: {
+                Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+                "x-api-key": process.env.AQI_ACCESS_TOKEN,
+              },
+            },
+          );
+          console.log("AQI VISIT DELETION: " + deletion);
+        } catch (err) {
+          console.error(`API call to delete AQI visit failed: `, err);
+        }
+
+        try {
+          const dbDeletion = await this.prisma.aqi_field_visits.deleteMany({
+            where: {
+              aqi_field_visits_id: {
+                in: uniqueVisits,
+              },
+            },
+          });
+          console.log("DB VISIT DELETION: " + dbDeletion);
+        } catch (err) {
+          console.error(`API call to delete DB visits failed: `, err);
+        }
+      }
     } catch (err) {
       console.error(`API call to fetch Observations failed: `, err);
     }
