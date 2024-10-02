@@ -17,6 +17,9 @@ export class CronJobService {
 
   private dataPullDownComplete: boolean = false;
 
+  private wait = (seconds: number) =>
+    new Promise((resolve) => setTimeout(resolve, seconds * 1000));
+
   constructor(
     private prisma: PrismaService,
     private readonly fileParser: FileParseValidateService,
@@ -451,7 +454,10 @@ export class CronJobService {
           file.original_file_name,
           file.submission_id,
           file.file_operation_code,
-        );
+        ); 
+        this.logger.log(`SENT FILE: ${file.file_name}`);
+        await this.wait(10)
+        this.logger.log(`WAITING FOR PREVIOUS FILE`)
       }
       this.dataPullDownComplete = false;
       return;

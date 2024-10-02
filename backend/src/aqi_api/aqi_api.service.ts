@@ -125,7 +125,7 @@ export class AqiApiService {
         },
       });
 
-      await this.wait(10);
+      await this.wait(15);
 
       const obsResultResponse = await axios.get(
         `${process.env.AQI_BASE_URL}/v2/observationimports/${response.data.id}/result`,
@@ -425,7 +425,7 @@ export class AqiApiService {
       if (uniqueVisits.length > 0) {
         try {
           let deletion = await axios.delete(
-            `${process.env.AQI_BASE_URL}/v1/fieldVisits?ids=${uniqueVisits}`,
+            `${process.env.AQI_BASE_URL}/v1/fieldvisits?ids=${uniqueVisits}`,
             {
               headers: {
                 Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,

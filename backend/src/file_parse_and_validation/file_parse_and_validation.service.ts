@@ -845,7 +845,7 @@ export class FileParseValidateService {
         record.FieldVisitStartTime,
       ]);
       if (visitExists) {
-        let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": Visit for Location ${record.LocationID} at Start Time ${record.FieldVisitStartTime} already exists in AQI Field Visits}`;
+        let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Visit": "Visit for Location ${record.LocationID} at Start Time ${record.FieldVisitStartTime} already exists in AQI Field Visits"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
 
@@ -855,7 +855,7 @@ export class FileParseValidateService {
         [record.ActivityName, record.FieldVisitStartTime, record.LocationID],
       );
       if (activityExists) {
-        let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": Activity Name ${record.ActivityName} for Field Visit at Start Time ${record.FieldVisitStartTime} already exists in AQI Activities}`;
+        let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Activity": "Activity Name ${record.ActivityName} for Field Visit at Start Time ${record.FieldVisitStartTime} already exists in AQI Activities"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
 
@@ -867,7 +867,7 @@ export class FileParseValidateService {
         record.LocationID,
       ]);
       if (specimenExists) {
-        let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": Specimen Name ${record.SpecimenName} for that Acitivity at Start Time ${record.ObservedDateTime} already exists in AQI Specimen}`;
+        let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Specimen": "Specimen Name ${record.SpecimenName} for that Acitivity at Start Time ${record.ObservedDateTime} already exists in AQI Specimen"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
     }
