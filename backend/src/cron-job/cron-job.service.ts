@@ -32,37 +32,37 @@ export class CronJobService {
 
   private apisToCall = [
     {
-      endpoint: "/v1/projects",
+      endpoint: "/api/v1/projects",
       method: "GET",
       dbTable: "aqi_projects",
       paramsEnabled: false,
     },
     {
-      endpoint: "/v1/mediums",
+      endpoint: "/api/v1/mediums",
       method: "GET",
       dbTable: "aqi_mediums",
       paramsEnabled: false,
     },
     {
-      endpoint: "/v1/units",
+      endpoint: "/api/v1/units",
       method: "GET",
       dbTable: "aqi_units",
       paramsEnabled: false,
     },
     {
-      endpoint: "/v1/collectionmethods",
+      endpoint: "/api/v1/collectionmethods",
       method: "GET",
       dbTable: "aqi_collection_methods",
       paramsEnabled: false,
     },
     {
-      endpoint: "/v1/extendedattributes",
+      endpoint: "/api/v1/extendedattributes",
       method: "GET",
       dbTable: "aqi_extended_attributes",
       paramsEnabled: false,
     },
     {
-      endpoint: "/v1/samplinglocations",
+      endpoint: "/api/v1/samplinglocations",
       method: "GET",
       dbTable: "aqi_locations",
       paramsEnabled: true,
