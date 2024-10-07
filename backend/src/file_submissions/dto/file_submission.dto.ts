@@ -13,6 +13,11 @@ export class FileSubmissionDto {
   filename: string;
 
   @ApiProperty({
+    description: 'original filename',
+  })
+  original_filename: string;
+
+  @ApiProperty({
     description: 'Submission date'
   })
   submission_date: Date;
@@ -28,6 +33,11 @@ export class FileSubmissionDto {
     // default: '9999',
   })
   submission_status_code: string;
+
+  @ApiProperty({
+    description: 'File operation',
+  })
+  file_operation_code: string;
 
   @ApiProperty({
     description: 'Submitter agency name',

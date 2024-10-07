@@ -157,7 +157,7 @@ export class FtpService {
   }
 
   // @Cron("0 */5 * * * *") // every 5 minutes
-  @Cron("0,15,30,45 * * * * *") // every 15s
+  // @Cron("0,15,30,45 * * * * *") // every 15s
   async handleCron() {
     this.logger.log("START ################");
     this.logger.log("######################");

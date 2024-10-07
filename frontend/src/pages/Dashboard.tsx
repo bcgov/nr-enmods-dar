@@ -1,17 +1,17 @@
-import apiService from '@/service/api-service'
-import Button from '@mui/material/Button'
-import Dialog from '@mui/material/Dialog'
-import DialogActions from '@mui/material/DialogActions'
-import DialogContent from '@mui/material/DialogContent'
-import DialogTitle from '@mui/material/DialogTitle'
-import Table from '@mui/material/Table'
-import TableBody from '@mui/material/TableBody'
-import TableCell from '@mui/material/TableCell'
-import TableRow from '@mui/material/TableRow'
-import { DataGrid, GridToolbar } from '@mui/x-data-grid'
-import { useEffect, useState } from 'react'
-import { DeleteRounded, Description } from '@mui/icons-material'
-import _kc from '@/keycloak'
+import apiService from "@/service/api-service";
+import Button from "@mui/material/Button";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableRow from "@mui/material/TableRow";
+import { DataGrid, GridToolbar } from "@mui/x-data-grid";
+import { useEffect, useState } from "react";
+import { DeleteRounded, Description } from "@mui/icons-material";
+import _kc from "@/keycloak";
 import {
   Box,
   FormControl,
@@ -22,79 +22,82 @@ import {
   Select,
   TextField,
   Typography,
-} from '@mui/material'
-import { FileStatusCode } from '@/types/types'
-import { getFileStatusCodes } from '@/common/manage-dropdowns'
-import { searchFiles } from '@/common/manage-files'
-import userEvent from '@testing-library/user-event'
+} from "@mui/material";
+import { FileStatusCode } from "@/types/types";
+import { getFileStatusCodes } from "@/common/manage-dropdowns";
+import {
+  downloadFile,
+  downloadFileLogs,
+  searchFiles,
+} from "@/common/manage-files";
 
 const columns = [
   {
-    field: 'file_name',
-    headerName: 'File Name',
+    field: "file_name",
+    headerName: "File Name",
     sortable: true,
     filterable: true,
     flex: 1.5,
     renderCell: (params) => (
       <FormControl
         style={{
-          cursor: 'pointer',
-          textDecoration: 'underline',
-          color: 'blue',
+          cursor: "pointer",
+          textDecoration: "underline",
+          color: "blue",
         }}
         onClick={() =>
-          handleDownload(params.row.file_name, params.row.submission_id)
+          handleDownload(params.row.file_name, params.row.original_file_name)
         }
       >
-        {params.value}
+        {params.row.original_file_name}
       </FormControl>
     ),
   },
   {
-    field: 'submission_date',
-    headerName: 'Submission Date',
+    field: "submission_date",
+    headerName: "Submission Date",
     sortable: true,
     filterable: true,
     flex: 2,
   },
   {
-    field: 'submitter_user_id',
-    headerName: 'Submitter Username',
+    field: "submitter_user_id",
+    headerName: "Submitter Username",
     sortable: true,
     filterable: true,
     flex: 2,
   },
   {
-    field: 'submitter_agency_name',
-    headerName: 'Submitter Agency',
+    field: "submitter_agency_name",
+    headerName: "Submitter Agency",
     sortable: true,
     filterable: true,
     flex: 2,
   },
   {
-    field: 'submission_status_code',
-    headerName: 'Status',
+    field: "submission_status_code",
+    headerName: "Status",
     sortable: true,
     filterable: true,
     flex: 1.5,
   },
   {
-    field: 'sample_count',
-    headerName: '# Samples',
+    field: "sample_count",
+    headerName: "# Samples",
     sortable: true,
     filterable: true,
     flex: 1,
   },
   {
-    field: 'results_count',
-    headerName: '# Results',
+    field: "results_count",
+    headerName: "# Results",
     sortable: true,
     filterable: true,
     flex: 1,
   },
   {
-    field: 'delete',
-    headerName: 'Delete',
+    field: "delete",
+    headerName: "Delete",
     flex: 0.75,
     renderCell: (params) => (
       <IconButton
@@ -108,142 +111,145 @@ const columns = [
     ),
   },
   {
-    field: 'messages',
-    headerName: 'Messages',
+    field: "messages",
+    headerName: "Messages",
     flex: 1,
     renderCell: (params) => (
       <IconButton
         color="primary"
         onClick={() =>
-          handleMessages(params.row.file_name, params.row.submission_id)
+          handleMessages(
+            params.row.submission_id,
+            params.row.original_file_name,
+          )
         }
       >
         <Description />
       </IconButton>
     ),
   },
-]
+];
 
 export default function Dashboard() {
   const [formData, setFormData] = useState({
-    fileName: '',
-    submissionDateTo: '',
-    submissionDateFrom: '',
-    submitterUsername: '',
-    submitterAgency: '',
-    fileStatus: '',
-  })
+    fileName: "",
+    submissionDateTo: "",
+    submissionDateFrom: "",
+    submitterUsername: "",
+    submitterAgency: "",
+    fileStatus: "",
+  });
 
   const handleFormInputChange = (key, event) => {
     setFormData({
       ...formData,
       [key]: event.target.value,
-    })
-  }
+    });
+  };
 
   const [data, setData] = useState<any>({
     items: [],
     totalRows: 0,
-  })
+  });
 
   const [paginationModel, setPaginationModel] = useState({
     page: 0,
     pageSize: 10,
-  })
+  });
 
   const handlePaginationChange = (params) => {
     setTimeout(() => {
       if (params.pageSize != paginationModel.pageSize) {
-        setPaginationModel({ page: 0, pageSize: params.pageSize })
-      }else{
-        setPaginationModel({...paginationModel, page: params.page })
+        setPaginationModel({ page: 0, pageSize: params.pageSize });
+      } else {
+        setPaginationModel({ ...paginationModel, page: params.page });
       }
-    }, 10)
-  }
+    }, 10);
+  };
 
   const handleSearch = async (event) => {
     if (event != null) {
-      event.preventDefault()
-      setPaginationModel({ page: 0, pageSize: 10 })
+      event.preventDefault();
+      setPaginationModel({ page: 0, pageSize: 10 });
     }
 
-    const requestData = new FormData()
+    const requestData = new FormData();
     for (var key in formData) {
-      requestData.append(key, formData[key])
+      requestData.append(key, formData[key]);
     }
 
-    requestData.append('page', paginationModel.page)
-    requestData.append('pageSize', paginationModel.pageSize)
+    requestData.append("page", paginationModel.page);
+    requestData.append("pageSize", paginationModel.pageSize);
 
     await searchFiles(requestData).then((response) => {
-      const dataValues = Object.values(response.results)
-      const totalRecFound = response.count
+      const dataValues = Object.values(response.results);
+      const totalRecFound = response.count;
       setData({
         items: dataValues,
         totalRows: totalRecFound,
-      })
-    })
-  }
+      });
+    });
+  };
 
   const [submissionStatusCodes, setSubmissionStatusCodes] = useState({
     items: [],
-  })
+  });
 
-  const [selectedStatusCode, setSelectedStatusCode] = useState('ALL')
+  const [selectedStatusCode, setSelectedStatusCode] = useState("ALL");
   const [selectedSubmitterUserName, setSelectedSubmitterUserName] =
-    useState('ALL')
+    useState("ALL");
   const [selectedSubmitterAgencyName, setSelectedSubmitterAgencyName] =
-    useState('ALL')
+    useState("ALL");
 
   const handleStatusChange = (event) => {
-    setSelectedStatusCode(event.target.value)
-    handleFormInputChange('fileStatus', event)
-  }
+    setSelectedStatusCode(event.target.value);
+    handleFormInputChange("fileStatus", event);
+  };
 
   const handleUsernameChange = (event) => {
-    setSelectedSubmitterUserName(event.target.value)
-    handleFormInputChange('submitterUsername', event)
-  }
+    setSelectedSubmitterUserName(event.target.value);
+    handleFormInputChange("submitterUsername", event);
+  };
 
   const handleAgencyChange = (event) => {
-    setSelectedSubmitterAgencyName(event.target.value)
-    handleFormInputChange('submitterAgency', event)
-  }
+    setSelectedSubmitterAgencyName(event.target.value);
+    handleFormInputChange("submitterAgency", event);
+  };
 
   useEffect(() => {
     async function fetchFileStatusCodes() {
       await getFileStatusCodes().then((response) => {
-        const newSubmissionCodes = submissionStatusCodes.items
+        const newSubmissionCodes = submissionStatusCodes.items;
         Object.keys(response).map((key) => {
-          newSubmissionCodes[key] = response[key]
-        })
+          newSubmissionCodes[key] = response[key];
+        });
         setSubmissionStatusCodes({
           items: newSubmissionCodes,
-        })
-      })
+        });
+      });
     }
 
-    fetchFileStatusCodes()
-  }, [])
+    fetchFileStatusCodes();
+  }, []);
 
   useEffect(() => {
     if (data.items.length > 0) {
-      handleSearch(null)
+      handleSearch(null);
     }
-  }, [paginationModel])
+  }, [paginationModel]);
 
-  const [selectedRow, setSelectedRow] = useState<null | any[]>(null)
+  const [selectedRow, setSelectedRow] = useState<null | any[]>(null);
 
   const handleClose = () => {
-    setSelectedRow(null)
-  }
+    setSelectedRow(null);
+  };
 
   return (
     <>
       <div
         style={{
-          width: '90%',
-          marginLeft: '4em',
+          width: "90%",
+          marginLeft: "4em",
         }}
       >
         <Box>
@@ -252,14 +258,14 @@ export default function Dashboard() {
           </Typography>
         </Box>
 
-        <Box sx={{ paddingTop: '50px' }}>
+        <Box sx={{ paddingTop: "50px" }}>
           <form onSubmit={handleSearch}>
             <FormControl>
               <Grid container>
-                <Grid item xs={12} sx={{ paddingBottom: '20px' }}>
+                <Grid item xs={12} sx={{ paddingBottom: "20px" }}>
                   <FormLabel
                     id="file-name-label"
-                    sx={{ paddingRight: '100px' }}
+                    sx={{ paddingRight: "100px" }}
                   >
                     File Name
                   </FormLabel>
@@ -267,23 +273,23 @@ export default function Dashboard() {
                     id="file-name-input"
                     variant="outlined"
                     size="small"
-                    sx={{ width: '520px' }}
+                    sx={{ width: "650px" }}
                     onChange={(event) =>
-                      handleFormInputChange('fileName', event)
+                      handleFormInputChange("fileName", event)
                     }
                   />
                 </Grid>
 
-                <Grid item xs={3} sx={{ paddingBottom: '20px' }}>
+                <Grid item xs={1.9} sx={{ paddingBottom: "20px" }}>
                   <FormLabel id="submission-date-label">
                     Submission Date
                   </FormLabel>
                 </Grid>
 
-                <Grid item xs={5} sx={{ paddingBottom: '20px' }}>
+                <Grid item xs={4.8} sx={{ paddingBottom: "20px" }}>
                   <FormLabel
                     id="submission-date-from-label"
-                    sx={{ paddingRight: '5px' }}
+                    sx={{ paddingRight: "5px" }}
                   >
                     From:
                   </FormLabel>
@@ -293,15 +299,15 @@ export default function Dashboard() {
                     size="small"
                     type="date"
                     onChange={(event) =>
-                      handleFormInputChange('submissionDateFrom', event)
+                      handleFormInputChange("submissionDateFrom", event)
                     }
                   />
                 </Grid>
 
-                <Grid item xs={4} sx={{ paddingBottom: '20px' }}>
+                <Grid item xs={4} sx={{ paddingBottom: "20px" }}>
                   <FormLabel
                     id="submission-date-to-label"
-                    sx={{ paddingRight: '5px' }}
+                    sx={{ paddingRight: "5px" }}
                   >
                     To:
                   </FormLabel>
@@ -310,15 +316,15 @@ export default function Dashboard() {
                     size="small"
                     type="date"
                     onChange={(event) =>
-                      handleFormInputChange('submissionDateTo', event)
+                      handleFormInputChange("submissionDateTo", event)
                     }
                   />
                 </Grid>
 
-                <Grid item xs={12} sx={{ paddingBottom: '20px' }}>
+                <Grid item xs={12} sx={{ paddingBottom: "20px" }}>
                   <FormLabel
                     id="submitting-agency-label"
-                    sx={{ paddingRight: '45px' }}
+                    sx={{ paddingRight: "45px" }}
                   >
                     Submitting Agency
                   </FormLabel>
@@ -327,7 +333,7 @@ export default function Dashboard() {
                       name="dropdown-agency"
                       variant="outlined"
                       size="small"
-                      sx={{ width: '515px' }}
+                      sx={{ width: "645px" }}
                       onChange={handleAgencyChange}
                       value={selectedSubmitterAgencyName}
                     >
@@ -341,10 +347,10 @@ export default function Dashboard() {
                   </FormControl>
                 </Grid>
 
-                <Grid item xs={12} sx={{ paddingBottom: '20px' }}>
+                <Grid item xs={12} sx={{ paddingBottom: "20px" }}>
                   <FormLabel
                     id="submitting-user-label"
-                    sx={{ paddingRight: '32px' }}
+                    sx={{ paddingRight: "32px" }}
                   >
                     Submitter Username
                   </FormLabel>
@@ -353,7 +359,7 @@ export default function Dashboard() {
                       name="dropdown-user"
                       variant="outlined"
                       size="small"
-                      sx={{ width: '515px' }}
+                      sx={{ width: "645px" }}
                       onChange={handleUsernameChange}
                       value={selectedSubmitterUserName}
                     >
@@ -367,10 +373,10 @@ export default function Dashboard() {
                   </FormControl>
                 </Grid>
 
-                <Grid item xs={12} sx={{ paddingBottom: '20px' }}>
+                <Grid item xs={12} sx={{ paddingBottom: "20px" }}>
                   <FormLabel
                     id="file-status-code-label"
-                    sx={{ paddingRight: '135px' }}
+                    sx={{ paddingRight: "135px" }}
                   >
                     Status
                   </FormLabel>
@@ -379,7 +385,7 @@ export default function Dashboard() {
                       name="dropdown-status"
                       variant="outlined"
                       size="small"
-                      sx={{ width: '515px' }}
+                      sx={{ width: "645px" }}
                       onChange={handleStatusChange}
                       value={selectedStatusCode}
                     >
@@ -395,13 +401,13 @@ export default function Dashboard() {
                               {option.submission_status_code}
                             </MenuItem>
                           ))
-                        : ''}
+                        : ""}
                     </Select>
                   </FormControl>
                 </Grid>
               </Grid>
             </FormControl>
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <Box sx={{ paddingLeft: "735px" }}>
               <Button
                 id="search-button"
                 type="submit"
@@ -418,8 +424,8 @@ export default function Dashboard() {
       <div
         id="search-result-table"
         style={{
-          margin: '4em',
-          paddingBottom: '30px',
+          margin: "4em",
+          paddingBottom: "30px",
         }}
       >
         <DataGrid
@@ -432,7 +438,7 @@ export default function Dashboard() {
           rows={data.items ? data.items : []}
           rowCount={data.totalRows ? data.totalRows : 0}
           columns={columns}
-          getRowId={(row) => row['submission_id']}
+          getRowId={(row) => row["submission_id"]}
           pagination
           paginationMode="server"
           pageSizeOptions={[5, 10, 20, 50, 100]}
@@ -440,7 +446,7 @@ export default function Dashboard() {
           onPaginationModelChange={handlePaginationChange}
           autoHeight={true}
           // onRowClick={(params) => setSelectedRow(params.row)}
-          sx={{ width: '1200px', height: `${paginationModel.pageSize * 100}` }}
+          sx={{ width: "1400px", height: `${paginationModel.pageSize * 100}` }}
         />
         <Dialog open={!!selectedRow} onClose={handleClose}>
           <DialogTitle>Row Details</DialogTitle>
@@ -465,20 +471,63 @@ export default function Dashboard() {
         </Dialog>
       </div>
     </>
-  )
+  );
 }
 
-function handleDownload(fileName: string, submission_id: string): void {
-  console.log(fileName)
-  console.log(submission_id)
+async function handleDownload(
+  fileName: string,
+  originalFileName: string,
+): Promise<void> {
+  const fileMimeType = getMimeType(fileName);
+  await downloadFile(fileName).then((response) => {
+    const fileBuffer = new Uint8Array(response.data);
+    const blob = new Blob([fileBuffer], { type: fileMimeType });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = originalFileName;
+    document.body.appendChild(link); // Append link to body
+    link.click(); // Click the link
+    document.body.removeChild(link); // Clean up
+  });
+}
+
+async function handleMessages(
+  submission_id: string,
+  original_file_name: string,
+): Promise<void> {
+  const fileNameParts = original_file_name.split(".");
+  const fileName =
+    fileNameParts.length > 1
+      ? fileNameParts.slice(0, -1).join(".")
+      : original_file_name;
+
+  const errorMessages = await downloadFileLogs(submission_id);
+  const blob = new Blob([errorMessages], { type: "text/plain" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = `${fileName}_logs.txt`;
+  document.body.appendChild(link); // Append link to body
+  link.click(); // Click the link
+  document.body.removeChild(link); // Clean up
 }
 
 function handleDelete(fileName: string, submission_id: string): void {
-  console.log(fileName)
-  console.log(submission_id)
+  console.log(fileName);
+  console.log(submission_id);
 }
 
-function handleMessages(fileName: string, submission_id: string): void {
-  console.log(fileName)
-  console.log(submission_id)
+function getMimeType(fileName: string) {
+  const fileNameParts = fileName.split(".");
+  const ext = fileNameParts.length > 1 ? fileNameParts.pop() || "" : "";
+
+  switch (ext) {
+    case "xlsx":
+      return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    case "csv":
+      return "text/csv";
+    case "txt":
+      return "text/plain";
+    default:
+      return "application/octet-stream";
+  }
 }
