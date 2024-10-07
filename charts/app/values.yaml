@@ -260,9 +260,9 @@ bitnami-pg:
     repository: bcgov/nr-containers/bitnami/postgresql
     tag: 15.6.0
   auth:
-    existingSecret: "{{ .Release.Name }}"
-    username: "quickstart"
-    database: quickstart
+    existingSecret: "{{ .Release.Name }}-database"
+    username: "postgres"
+    database: postgres
   shmVolume:
     enabled: false
   backup:
