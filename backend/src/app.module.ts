@@ -33,7 +33,6 @@ const DB_NAME = process.env.POSTGRES_DATABASE || "postgres";
 const DB_SCHEMA = process.env.POSTGRES_SCHEMA || "enmods";
 const dataSourceURL = `postgresql://${DB_USER}:${DB_PWD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=${DB_SCHEMA}&connection_limit=5`;
 
-
 function getMiddlewares() {
   if (process.env.PRISMA_LOGGING) {
     return [
