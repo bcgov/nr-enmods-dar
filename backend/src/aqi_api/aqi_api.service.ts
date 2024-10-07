@@ -10,9 +10,6 @@ export class AqiApiService {
   private readonly logger = new Logger(AqiApiService.name);
   private axiosInstance: AxiosInstance;
 
-  private wait = (seconds: number) =>
-    new Promise((resolve) => setTimeout(resolve, seconds * 1000));
-
   constructor(private prisma: PrismaService) {
     this.axiosInstance = axios.create({
       baseURL: process.env.AQI_BASE_URL,
@@ -32,6 +29,20 @@ export class AqiApiService {
     } catch (err) {
       console.error(
         "API CALL TO Field Visits failed: ",
+        err.response.data.message,
+      );
+    }
+  }
+
+  async putFieldVisits(GUID: string, body: any) {
+    console.log(body)
+    try{
+      const response = await this.axiosInstance.put(`/v1/fieldvisits/${GUID}`, body);
+      this.logger.log(`API call to Field Visits succeeded: ${response.status}`);
+      return response.data.id;
+    }catch (err){
+      console.error(
+        "API CALL TO PUT Field Visits failed: ",
         err.response.data.message,
       );
     }
@@ -109,6 +120,8 @@ export class AqiApiService {
         const obsStatus = await this.getObservationsStatusResult(statusURL);
 
         const errorMessages = this.parseObsResultResponse(obsStatus);
+        console.log(obsStatus);
+        console.log(errorMessages);
         return errorMessages;
       }
     } catch (err) {
@@ -117,6 +130,13 @@ export class AqiApiService {
   }
 
   async getObservationsStatusResult(statusURL: string) {
+    const wait = async (ms: number) => {
+      const seconds = ms / 1000;
+      for (let i = 1; i <= seconds; i++) {
+        await new Promise((resolve) => setTimeout(resolve, ms)); // wait 1 second
+      }
+    };
+
     try {
       const response = await axios.get(statusURL, {
         headers: {
@@ -125,7 +145,7 @@ export class AqiApiService {
         },
       });
 
-      await this.wait(15);
+      await wait(5000);
 
       const obsResultResponse = await axios.get(
         `${process.env.AQI_BASE_URL}/v2/observationimports/${response.data.id}/result`,
@@ -200,6 +220,7 @@ export class AqiApiService {
             aqi_field_visit_start_time: queryParam[1],
           },
         });
+        return result[0].aqi_field_visits_id;
       } catch (err) {
         console.error(`API CALL TO ${dbTable} failed: `, err);
       }
@@ -212,6 +233,7 @@ export class AqiApiService {
             aqi_location_custom_id: queryParam[2],
           },
         });
+        return result[0].aqi_field_activities_id;
       } catch (err) {
         console.error(`API CALL TO ${dbTable} failed: `, err);
       }
@@ -225,15 +247,10 @@ export class AqiApiService {
             aqi_location_custom_id: queryParam[3],
           },
         });
+        return result[0].aqi_specimens_id;
       } catch (err) {
         console.error(`API CALL TO ${dbTable} failed: `, err);
       }
-    }
-
-    if (result.length > 0) {
-      return true;
-    } else {
-      return false;
     }
   }
 
