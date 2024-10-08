@@ -1,15 +1,10 @@
-import apiService from "@/service/api-service";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableRow from "@mui/material/TableRow";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
-import { useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import { DeleteRounded, Description } from "@mui/icons-material";
 import _kc from "@/keycloak";
 import {
@@ -23,7 +18,6 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { FileStatusCode } from "@/types/types";
 import { getFileStatusCodes } from "@/common/manage-dropdowns";
 import {
   deleteFile,
@@ -42,7 +36,9 @@ export default function Dashboard() {
       sortable: true,
       filterable: true,
       flex: 1.5,
-      renderCell: (params) => (
+      renderCell: (params: {
+        row: { file_name: string; original_file_name: string };
+      }) => (
         <FormControl
           style={{
             cursor: "pointer",
@@ -103,34 +99,93 @@ export default function Dashboard() {
       field: "delete",
       headerName: "Delete",
       flex: 0.75,
-      renderCell: (params) => (
-        <IconButton
-          color="primary"
-          onClick={() =>
-            handleOpen(params.row.file_name, params.row.submission_id)
-          }
-        >
-          <DeleteRounded />
-        </IconButton>
-      ),
+      renderCell: (params: {
+        row: {
+          file_name: string;
+          original_file_name: string;
+          submission_id: string;
+          submission_status_code: string;
+        };
+      }) => {
+        if (params.row.submission_status_code === "SUBMITTED") {
+          return (
+            <IconButton
+              color="primary"
+              onClick={() =>
+                handleOpen(
+                  params.row.original_file_name,
+                  params.row.submission_id,
+                )
+              }
+            >
+              <DeleteRounded />
+            </IconButton>
+          );
+        } else {
+          return (
+            <IconButton
+              color="primary"
+              disabled
+              onClick={() =>
+                handleOpen(
+                  params.row.original_file_name,
+                  params.row.submission_id,
+                )
+              }
+            >
+              <DeleteRounded />
+            </IconButton>
+          );
+        }
+      },
     },
     {
       field: "messages",
       headerName: "Messages",
       flex: 1,
-      renderCell: (params) => (
-        <IconButton
-          color="primary"
-          onClick={() =>
-            handleMessages(
-              params.row.submission_id,
-              params.row.original_file_name,
-            )
-          }
-        >
-          <Description />
-        </IconButton>
-      ),
+      renderCell: (params: {
+        row: {
+          file_name: string;
+          original_file_name: string;
+          submission_id: string;
+          submission_status_code: string;
+        };
+      }) => {
+        if (
+          params.row.submission_status_code === "VALIDATED" ||
+          params.row.submission_status_code === "REJECTED" ||
+          params.row.submission_status_code === "SUBMITTED"
+        ) {
+          return (
+            <IconButton
+              color="primary"
+              onClick={() =>
+                handleMessages(
+                  params.row.submission_id,
+                  params.row.original_file_name,
+                )
+              }
+            >
+              <Description />
+            </IconButton>
+          );
+        } else {
+          return (
+            <IconButton
+              color="primary"
+              disabled
+              onClick={() =>
+                handleMessages(
+                  params.row.submission_id,
+                  params.row.original_file_name,
+                )
+              }
+            >
+              <Description />
+            </IconButton>
+          );
+        }
+      },
     },
   ];
 
@@ -143,7 +198,7 @@ export default function Dashboard() {
     fileStatus: "",
   });
 
-  const handleFormInputChange = (key, event) => {
+  const handleFormInputChange = (key:string, event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
       ...formData,
       [key]: event.target.value,
@@ -160,7 +215,7 @@ export default function Dashboard() {
     pageSize: 10,
   });
 
-  const handlePaginationChange = (params) => {
+  const handlePaginationChange = (params: {pageSize: number, page: number}) => {
     setTimeout(() => {
       if (params.pageSize != paginationModel.pageSize) {
         setPaginationModel({ page: 0, pageSize: params.pageSize });
@@ -171,7 +226,6 @@ export default function Dashboard() {
   };
 
   const handleSearch = async (event) => {
-    console.log('here2')
     if (event != null) {
       event.preventDefault();
       setPaginationModel({ page: 0, pageSize: 10 });
@@ -221,10 +275,10 @@ export default function Dashboard() {
   };
 
   const handleCloseAndSubmit = async () => {
-    console.log('here')
+    console.log("here");
     handleClose();
     await handleSearch(undefined);
-  }
+  };
 
   useEffect(() => {
     async function fetchFileStatusCodes() {
