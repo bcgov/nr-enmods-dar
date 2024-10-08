@@ -6,6 +6,8 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "nestjs-prisma";
 import { UpdateNotificationEntryDto } from "./dto/update-notification_entry.dto";
 import { EmailTemplate } from "src/types/types";
+import { FileErrorLogsService } from "src/file_error_logs/file_error_logs.service";
+import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
 
 @Injectable()
 export class NotificationsService {
@@ -13,6 +15,8 @@ export class NotificationsService {
 
   constructor(
     private readonly httpService: HttpService,
+    private readonly fileErrorLogsService: FileErrorLogsService,
+    private readonly fileSubmissionsService: FileSubmissionsService,
     private prisma: PrismaService,
   ) {}
 
@@ -154,6 +158,61 @@ export class NotificationsService {
    * @returns
    */
   async sendDataSubmitterNotification(
+    file_submission_id: string,
+  ): Promise<String> {
+    // let body = `
+    // <p>Status: {{file_status}}</p>
+    // <p>Files Original Name: {{file_name}}</p>
+    // <p>Date and Time of Upload: {{sys_time}}</p>
+    // <p>Locations ID(s): ${variables.location_ids.join(", ")}</p>
+    // `;
+
+    // const warningString =
+    //   variables.warnings?.length > 0 ? variables.warnings.join("\n") : "";
+    // const errorString =
+    //   variables.errors?.length > 0 ? variables.errors.join("\n") : "";
+    // if (warningString !== "") {
+    //   body += `<p>Warnings: {{warnings}}</p>`;
+    // }
+    // if (errorString !== "") {
+    //   body += `<p>Errors: {{errors}}</p>`;
+    // }
+    const file_submission =
+      await this.fileSubmissionsService.findBySubmissionId(file_submission_id);
+    const body = await this.fileErrorLogsService.findOne(file_submission_id);
+    const {original_file_name, submitter_user_id,submission_status_code}
+    await this.findEmailByUserId
+
+    const emailTemplate = {
+      from: "enmodshelp@gov.bc.ca",
+      subject: "EnMoDS Data {{submission_status_code}} from {{submitter_user_id}}",
+      body: body,
+    };
+    const date = new Date();
+    const options: Intl.DateTimeFormatOptions = {
+      timeZone: "America/Los_Angeles",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+    };
+    const sys_time = date.toLocaleString("en-US", options);
+    // let status_string = "Imported";
+    // if (errorString !== "") {
+    //   status_string = "Failed";
+    // } else if (warningString !== "") {
+    //   status_string = "Imported with Warnings";
+    // }
+    return this.sendEmail([email], emailTemplate, {
+      submitter_user_id: submitter_user_id,
+      submission_status_code: submission_status_code,
+      sys_time,
+    });
+  }
+
+  async sendDataSubmitterNotification2(
     email: string,
     variables: {
       file_name: string;

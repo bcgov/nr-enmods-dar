@@ -988,15 +988,9 @@ export class FileParseValidateService {
           data: file_error_log_data,
         });
 
-        const email = "mtennant@salussystems.com";
-        await this.notificationsService.sendDataSubmitterNotification(email, {
-          file_name: fileName,
-          user_account_name: "???",
-          location_ids: [],
-          file_status: "REJECTED",
-          errors: localValidationResults,
-          warnings: null,
-        });
+        await this.notificationsService.sendDataSubmitterNotification(
+          file_submission_id,
+        );
 
         return;
       } else if (!(await localValidationResults).includes("ERROR")) {

@@ -184,6 +184,17 @@ export class FileSubmissionsService {
     return records;
   }
 
+  async findBySubmissionId(submission_id: string) {
+    return await this.prisma.file_submission.findUnique({
+      where: {
+        submission_id: submission_id,
+      },
+      include: {
+        file_error_logs: true,
+      },
+    });
+  }
+
   async updateFileStatus(submission_id: string, status: string) {
     await this.prisma.file_submission.update({
       where: {
