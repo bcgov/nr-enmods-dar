@@ -312,7 +312,7 @@ export class FileParseValidateService {
     }
   }
 
-  async postFieldVisits(visitData: any) {
+  async fieldVisitJson(visitData: any, apiType: string) {
     const visitAndLocId = [];
     for (const row of visitData) {
       let postData: any = {};
@@ -360,26 +360,31 @@ export class FileParseValidateService {
       Object.assign(postData, { notes: row.rec.FieldVisitComments });
       Object.assign(postData, { planningStatus: row.rec.PlanningStatus });
 
-      let currentVisitAndLoc: any = {};
+      if (apiType === "post") {
+        let currentVisitAndLoc: any = {};
 
-      Object.assign(currentVisitAndLoc, {
-        samplingLocation: postData.samplingLocation,
-      });
+        Object.assign(currentVisitAndLoc, {
+          samplingLocation: postData.samplingLocation,
+        });
 
-      Object.assign(currentVisitAndLoc, {
-        fieldVisit: await this.aqiService.fieldVisits(postData),
-      });
-      visitAndLocId.push({
-        rec: currentVisitAndLoc,
-        count: row.count,
-        positions: row.positions,
-      });
+        Object.assign(currentVisitAndLoc, {
+          fieldVisit: await this.aqiService.fieldVisits(postData),
+        });
+        visitAndLocId.push({
+          rec: currentVisitAndLoc,
+          count: row.count,
+          positions: row.positions,
+        });
+      } else if (apiType === "put") {
+        const GUIDtoUpdate = row.rec.id;
+        await this.aqiService.putFieldVisits(GUIDtoUpdate, postData);
+      }
     }
 
     return visitAndLocId;
   }
 
-  async postFieldActivities(activityData: any) {
+  async fieldActivityJson(activityData: any, apiType: string) {
     let activityId = [];
 
     for (const row of activityData) {
@@ -456,24 +461,29 @@ export class FileParseValidateService {
       });
       Object.assign(postData, { customId: row.rec.ActivityName });
 
-      let currentActivity = {};
-      Object.assign(currentActivity, {
-        activity: {
-          id: await this.aqiService.fieldActivities(postData),
-          customId: row.rec.ActivityName,
-          startTime: row.rec.ObservedDateTime,
-        },
-      });
-      activityId.push({
-        rec: currentActivity,
-        count: row.count,
-        positions: row.positions,
-      });
+      if (apiType === "post") {
+        let currentActivity = {};
+        Object.assign(currentActivity, {
+          activity: {
+            id: await this.aqiService.fieldActivities(postData),
+            customId: row.rec.ActivityName,
+            startTime: row.rec.ObservedDateTime,
+          },
+        });
+        activityId.push({
+          rec: currentActivity,
+          count: row.count,
+          positions: row.positions,
+        });
+      } else {
+        const GUIDtoUpdate = row.rec.id;
+        await this.aqiService.putFieldActivities(GUIDtoUpdate, postData);
+      }
     }
     return activityId;
   }
 
-  async postFieldSpecimens(specimenData: any) {
+  async specimensJson(specimenData: any, apiType: string) {
     let specimenIds = [];
     for (const row of specimenData) {
       let postData = {};
@@ -537,20 +547,24 @@ export class FileParseValidateService {
       Object.assign(postData, { activity: row.rec.activity });
       Object.assign(postData, extendedAttribs);
 
-      await this.aqiService.fieldSpecimens(postData);
-      let currentSpecimen = {};
-      Object.assign(currentSpecimen, {
-        specimen: {
-          id: await this.aqiService.fieldSpecimens(postData),
-          customId: row.rec.SpecimenName,
-          startTime: row.rec.ObservedDateTime,
-        },
-      });
-      specimenIds.push({
-        rec: currentSpecimen,
-        count: row.count,
-        positions: row.positions,
-      });
+      if (apiType === "post") {
+        let currentSpecimen = {};
+        Object.assign(currentSpecimen, {
+          specimen: {
+            id: await this.aqiService.fieldSpecimens(postData),
+            customId: row.rec.SpecimenName,
+            startTime: row.rec.ObservedDateTime,
+          },
+        });
+        specimenIds.push({
+          rec: currentSpecimen,
+          count: row.count,
+          positions: row.positions,
+        });
+      } else if (apiType === "put") {
+        const GUIDtoUpdate = row.rec.id;
+        await this.aqiService.putSpecimens(GUIDtoUpdate, postData);
+      }
     }
     return specimenIds;
   }
@@ -872,7 +886,7 @@ export class FileParseValidateService {
         record.LocationID,
         record.FieldVisitStartTime,
       ]);
-      if (visitExists) {
+      if (visitExists != null) {
         existingGUIDS["visit"] = visitExists;
         let errorLog = `{"rowNum": ${index + 2}, "type": "WARN", "message": {"Visit": "Visit for Location ${record.LocationID} at Start Time ${record.FieldVisitStartTime} already exists in AQI Field Visits"}}`;
         errorLogs.push(JSON.parse(errorLog));
@@ -883,7 +897,7 @@ export class FileParseValidateService {
         "aqi_field_activities",
         [record.ActivityName, record.FieldVisitStartTime, record.LocationID],
       );
-      if (activityExists) {
+      if (activityExists != null) {
         existingGUIDS["activity"] = activityExists;
         let errorLog = `{"rowNum": ${index + 2}, "type": "WARN", "message": {"Activity": "Activity Name ${record.ActivityName} for Field Visit at Start Time ${record.FieldVisitStartTime} already exists in AQI Activities"}}`;
         errorLogs.push(JSON.parse(errorLog));
@@ -896,12 +910,15 @@ export class FileParseValidateService {
         record.ActivityName,
         record.LocationID,
       ]);
-      if (specimenExists) {
+      if (specimenExists != null) {
         existingGUIDS["specimen"] = specimenExists;
         let errorLog = `{"rowNum": ${index + 2}, "type": "WARN", "message": {"Specimen": "Specimen Name ${record.SpecimenName} for that Acitivity at Start Time ${record.ObservedDateTime} already exists in AQI Specimen"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
-      existingRecords.push({ rowNum: index, existingGUIDS: existingGUIDS });
+
+      if (Object.keys(existingGUIDS).length > 0) {
+        existingRecords.push({ rowNum: index, existingGUIDS: existingGUIDS });
+      }
     }
 
     // Do a dry run of the observations
@@ -1041,14 +1058,13 @@ export class FileParseValidateService {
          * Save the error logs to the database table
          * Send the an email to the submitter and the ministry contact that is inside the file
          */
-
         await this.rejectFileAndLogErrors(
           file_submission_id,
           fileName,
           originalFileName,
           file_operation_code,
           uniqueMinistryContacts.join(", "),
-          localValidationResults,
+          localValidationResults[0],
         );
         return;
       } else if (
@@ -1081,12 +1097,33 @@ export class FileParseValidateService {
 
         const uniqueVisitsWithIDsAndCounts =
           this.getUniqueWithCounts(allVisitsWithGUIDS);
+        await this.fieldVisitJson(uniqueVisitsWithIDsAndCounts, "put");
 
-        for (const fieldVisit of uniqueVisitsWithIDsAndCounts) {
-         const GUID = fieldVisit.rec.id
-         delete fieldVisit.rec.id;
-         await this.aqiService.putFieldVisits(GUID, fieldVisit.rec)
-        }
+        const allActivitiesWithGUIDS = allFieldActivities.map(
+          (activity, index) => {
+            return {
+              id: existingActivityGUIDS[index],
+              ...activity,
+            };
+          },
+        );
+
+        const uniqueActivitiesWithIDsAndCounts = this.getUniqueWithCounts(
+          allActivitiesWithGUIDS,
+        );
+        await this.fieldActivityJson(uniqueActivitiesWithIDsAndCounts, "put");
+
+        const allSpecimensWithGUIDS = allSpecimens.map((specimen, index) => {
+          return {
+            id: existingSpecimenGUIDS[index],
+            ...specimen,
+          };
+        });
+
+        const uniqueSpecimensWithIDsAndCounts = this.getUniqueWithCounts(
+          allSpecimensWithGUIDS,
+        );
+        await this.specimensJson(uniqueSpecimensWithIDsAndCounts, "put");
       } else if (
         !(await localValidationResults[0]).includes("ERROR") &&
         !(await localValidationResults[0]).includes("WARN")
@@ -1107,7 +1144,10 @@ export class FileParseValidateService {
            */
           const uniqueVisitsWithCounts =
             this.getUniqueWithCounts(allFieldVisits);
-          let visitInfo = await this.postFieldVisits(uniqueVisitsWithCounts);
+          let visitInfo = await this.fieldVisitJson(
+            uniqueVisitsWithCounts,
+            "post",
+          );
           let expandedVisitInfo = this.expandList(visitInfo);
 
           /*
@@ -1124,8 +1164,9 @@ export class FileParseValidateService {
 
           const uniqueActivitiesWithCounts =
             this.getUniqueWithCounts(allFieldActivities);
-          let activityInfo = await this.postFieldActivities(
+          let activityInfo = await this.fieldActivityJson(
             uniqueActivitiesWithCounts,
+            "post",
           );
           let expandedActivityInfo = this.expandList(activityInfo);
 
@@ -1140,8 +1181,9 @@ export class FileParseValidateService {
           });
           const uniqueSpecimensWithCounts =
             this.getUniqueWithCounts(allSpecimens);
-          let specimenInfo = await this.postFieldSpecimens(
+          let specimenInfo = await this.specimensJson(
             uniqueSpecimensWithCounts,
+            "post",
           );
 
           await this.aqiService.importObservations(ObsFilePath, "import");
@@ -1152,13 +1194,13 @@ export class FileParseValidateService {
           );
 
           // Save the created GUIDs to aqi_inserted_elements
-          console.log(visitInfo);
-          console.log(activityInfo);
-          console.log(specimenInfo);
+          // console.log(visitInfo);
+          // console.log(activityInfo);
+          // console.log(specimenInfo);
 
-          console.log(visitInfo.length);
-          console.log(activityInfo.length);
-          console.log(specimenInfo.length);
+          // console.log(visitInfo.length);
+          // console.log(activityInfo.length);
+          // console.log(specimenInfo.length);
 
           const file_error_log_data = {
             file_submission_id: file_submission_id,
@@ -1166,7 +1208,7 @@ export class FileParseValidateService {
             original_file_name: originalFileName,
             file_operation_code: file_operation_code,
             ministry_contact: uniqueMinistryContacts.join(", "),
-            error_log: localValidationResults,
+            error_log: localValidationResults[0],
             create_utc_timestamp: new Date(),
           };
 

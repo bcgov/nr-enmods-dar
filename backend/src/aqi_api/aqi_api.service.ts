@@ -24,21 +24,20 @@ export class AqiApiService {
   async fieldVisits(body: any) {
     try {
       const response = await this.axiosInstance.post("/v1/fieldvisits", body);
-      this.logger.log(`API call to Field Visits succeeded: ${response.status}`);
+      this.logger.log(`API call to POST Field Visits succeeded: ${response.status}`);
       return response.data.id;
     } catch (err) {
       console.error(
-        "API CALL TO Field Visits failed: ",
+        "API CALL TO POST Field Visits failed: ",
         err.response.data.message,
       );
     }
   }
 
   async putFieldVisits(GUID: string, body: any) {
-    console.log(body)
     try{
       const response = await this.axiosInstance.put(`/v1/fieldvisits/${GUID}`, body);
-      this.logger.log(`API call to Field Visits succeeded: ${response.status}`);
+      this.logger.log(`API call to PUT Field Visits succeeded: ${response.status}`);
       return response.data.id;
     }catch (err){
       console.error(
@@ -51,11 +50,24 @@ export class AqiApiService {
   async fieldActivities(body: any) {
     try {
       const response = await this.axiosInstance.post("/v1/activities", body);
-      this.logger.log(`API call to Activities succeeded: ${response.status}`);
+      this.logger.log(`API call to POST Activities succeeded: ${response.status}`);
       return response.data.id;
     } catch (err) {
       console.error(
-        "API CALL TO Activities failed: ",
+        "API CALL TO POST Activities failed: ",
+        err.response.data.message,
+      );
+    }
+  }
+
+  async putFieldActivities(GUID: string, body: any) {
+    try{
+      const response = await this.axiosInstance.put(`/v1/activities/${GUID}`, body);
+      this.logger.log(`API call to PUT Field Activities succeeded: ${response.status}`);
+      return response.data.id;
+    }catch (err){
+      console.error(
+        "API CALL TO PUT Field Activities failed: ",
         err.response.data.message,
       );
     }
@@ -64,11 +76,24 @@ export class AqiApiService {
   async fieldSpecimens(body: any) {
     try {
       const response = await this.axiosInstance.post("/v1/specimens", body);
-      this.logger.log(`API call to Specimens succeeded: ${response.status}`);
+      this.logger.log(`API call to POST Specimens succeeded: ${response.status}`);
       return response.data.id;
     } catch (err) {
       console.error(
-        "API CALL TO Specimens failed: ",
+        "API CALL TO POST Specimens failed: ",
+        err.response.data.message,
+      );
+    }
+  }
+
+  async putSpecimens(GUID: string, body: any) {
+    try{
+      const response = await this.axiosInstance.put(`/v1/specimens/${GUID}`, body);
+      this.logger.log(`API call to PUT Specimens succeeded: ${response.status}`);
+      return response.data.id;
+    }catch (err){
+      console.error(
+        "API CALL TO PUT Specimens failed: ",
         err.response.data.message,
       );
     }
@@ -120,8 +145,7 @@ export class AqiApiService {
         const obsStatus = await this.getObservationsStatusResult(statusURL);
 
         const errorMessages = this.parseObsResultResponse(obsStatus);
-        console.log(obsStatus);
-        console.log(errorMessages);
+
         return errorMessages;
       }
     } catch (err) {
@@ -220,7 +244,11 @@ export class AqiApiService {
             aqi_field_visit_start_time: queryParam[1],
           },
         });
-        return result[0].aqi_field_visits_id;
+        if (result.length > 0){
+          return result[0].aqi_field_visits_id;
+        } else {
+          return null;
+        }
       } catch (err) {
         console.error(`API CALL TO ${dbTable} failed: `, err);
       }
@@ -233,7 +261,11 @@ export class AqiApiService {
             aqi_location_custom_id: queryParam[2],
           },
         });
-        return result[0].aqi_field_activities_id;
+        if (result.length > 0) {
+          return result[0].aqi_field_activities_id;
+        } else {
+          return null;
+        }
       } catch (err) {
         console.error(`API CALL TO ${dbTable} failed: `, err);
       }
@@ -247,7 +279,11 @@ export class AqiApiService {
             aqi_location_custom_id: queryParam[3],
           },
         });
-        return result[0].aqi_specimens_id;
+        if (result.length > 0) {
+          return result[0].aqi_specimens_id;
+        } else {
+          return null;
+        }
       } catch (err) {
         console.error(`API CALL TO ${dbTable} failed: `, err);
       }

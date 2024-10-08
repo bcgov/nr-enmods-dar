@@ -188,13 +188,15 @@ export class FileSubmissionsService {
   }
 
   async updateFileStatus(submission_id: string, status: string) {
-    await this.prisma.file_submission.update({
-      where: {
-        submission_id: submission_id,
-      },
-      data: {
-        submission_status_code: status,
-      },
+    await this.prisma.$transaction(async (prisma) => {
+      const updateStatus = await this.prisma.file_submission.update({
+        where: {
+          submission_id: submission_id,
+        },
+        data: {
+          submission_status_code: status,
+        },
+      });
     });
   }
 
