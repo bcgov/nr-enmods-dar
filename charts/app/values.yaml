@@ -103,12 +103,12 @@ backend:
       limits:
         cpu: 50m
         memory: 50Mi
-        ephemeral-storage: "100Mi" # Request 50Mi for ephemeral storage
+        ephemeral-storage: "100Mi"
 
       requests:
         cpu: 50m
         memory: 25Mi
-        ephemeral-storage: "50Mi" # Set the limit to 100Mi for ephemeral storage
+        ephemeral-storage: "50Mi"
   #-- the service for the component. for inter namespace communication, use the service name as the hostname.
   service:
     #-- the type of the service. it can be ClusterIP, NodePort, LoadBalancer, ExternalName. ClusterIP is the default and is recommended.
