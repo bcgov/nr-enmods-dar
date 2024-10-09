@@ -214,6 +214,41 @@ export class FileSubmissionsService {
   }
 }
 
+/**
+ * Grants the current IDIR user the ability to upload files to the S3 bucket
+ * @param token
+ */
+async function grantBucketAccess(token: string) {
+  const axios = require("axios");
+
+  let config = {
+    method: "put",
+    url: `${process.env.COMS_URI}/v1/bucket`,
+    headers: {
+      Authorization: "Bearer " + token,
+      "Content-Type": "application/json",
+    },
+    data: {
+      accessKeyId: process.env.OBJECTSTORE_ACCESS_KEY,
+      bucket: process.env.OBJECTSTORE_BUCKET,
+      bucketName: process.env.OBJECTSTORE_BUCKET_NAME,
+      endpoint: process.env.OBJECTSTORE_URL,
+      secretAccessKey: process.env.OBJECTSTORE_SECRET_KEY,
+      active: true,
+      key: "/",
+      permCodes: ["CREATE"],
+    },
+  };
+
+  await axios
+    .request(config)
+    .then((res) => console.log(res))
+    .catch((err) => {
+      console.log("create bucket failed");
+      console.log(err);
+    });
+}
+
 async function saveToS3(token: any, file: Express.Multer.File) {
   const path = require("path");
   let fileGUID = null;
@@ -224,6 +259,8 @@ async function saveToS3(token: any, file: Express.Multer.File) {
   const newFileName = `${baseName}-${guid}${extention}`;
 
   const axios = require("axios");
+
+  await grantBucketAccess(token);
 
   let config = {
     method: "put",
