@@ -103,12 +103,12 @@ backend:
       limits:
         cpu: 50m
         memory: 50Mi
-        ephemeral-storage: "100Mi"
+        ephemeral-storage: 100Mi
 
       requests:
         cpu: 50m
         memory: 25Mi
-        ephemeral-storage: "50Mi"
+        ephemeral-storage: 50Mi
   #-- the service for the component. for inter namespace communication, use the service name as the hostname.
   service:
     #-- the type of the service. it can be ClusterIP, NodePort, LoadBalancer, ExternalName. ClusterIP is the default and is recommended.
@@ -124,15 +124,39 @@ backend:
     accessMode: ReadWriteOnce
     size: 150Mi
     storageClassName: netapp-file-standard
+    swapFiles:
+      enabled: true
+      size: 250Mi # The size of the swap file, adjust as needed
+      storageClassName: netapp-file-standard # Or use your specific storage class
 
   volumeMounts:
     - name: obs-temp-files
       mountPath: /app/src/tempObsFiles
+    - name: swap-volume
+      mountPath: /swap # Mount the PVC for swap files
 
   volumes:
     - name: obs-temp-files
       persistentVolumeClaim:
         claimName: obs-temp-files-pvc
+    - name: swap-volume
+      persistentVolumeClaim:
+        claimName: swap-files-pvc # Ensure this PVC is created for swap files
+  initContainers:
+    - name: setup-swap
+      image: alpine # Use a small Linux image like Alpine
+      command:
+        - sh
+        - -c
+        - |
+          # Create a 1GB swap file
+          dd if=/dev/zero of=/swap/swapfile bs=1M count=200
+          mkswap /swap/swapfile
+          chmod 600 /swap/swapfile
+          swapon /swap/swapfile
+      volumeMounts:
+        - name: swap-volume
+          mountPath: /swap
 
 frontend:
   # -- enable or disable a component deployment.
