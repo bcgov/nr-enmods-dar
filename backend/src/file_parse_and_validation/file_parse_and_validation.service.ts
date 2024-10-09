@@ -569,7 +569,11 @@ export class FileParseValidateService {
     return specimenIds;
   }
 
-  async formulateObservationFile(observationData: any, fileName: string) {
+  async formulateObservationFile(
+    observationData: any,
+    fileName: string,
+    originalFileName: string,
+  ) {
     const obsToWrite: ObservationFile[] = [];
 
     observationData.map((source) => {
@@ -584,6 +588,7 @@ export class FileParseValidateService {
           newObs[targetKey] = source[sourceKey];
         }
       });
+      newObs["EA_FileID"] = originalFileName;
       obsToWrite.push(newObs);
     });
 
@@ -964,6 +969,45 @@ export class FileParseValidateService {
     return;
   }
 
+  async saveAQIInsertedElements(
+    fileName: string,
+    originalFileName: string,
+    visitInfo: any[],
+    activityInfo: any[],
+    specimenInfo: any[],
+  ) {
+    let importedGUIDS = {};
+
+    const visitGUIDS = visitInfo.map((visit) => visit.rec.fieldVisit);
+    const activityGUIDS = activityInfo.map(
+      (activity) => activity.rec.activity.id,
+    );
+    const specimenGUIDS = specimenInfo.map(
+      (specimen) => specimen.rec.specimen.id,
+    );
+
+    const observationGUIDS =
+      await this.aqiService.getObservationsFromFile(originalFileName);
+
+    importedGUIDS["observations"] = observationGUIDS;
+    importedGUIDS["specimens"] = specimenGUIDS;
+    importedGUIDS["activities"] = activityGUIDS;
+    importedGUIDS["visits"] = visitGUIDS;
+
+    const imported_guids_data = {
+      file_name: fileName,
+      original_file_name: originalFileName,
+      imported_guids: importedGUIDS,
+      create_utc_timestamp: new Date(),
+    };
+
+    await this.prisma.$transaction(async (prisma) => {
+      await prisma.aqi_imported_data.create({
+        data: imported_guids_data
+      });
+    })
+  }
+
   async parseFile(
     file: string,
     fileName: string,
@@ -1033,6 +1077,7 @@ export class FileParseValidateService {
       const ObsFilePath = await this.formulateObservationFile(
         allObservations,
         fileName,
+        originalFileName,
       );
 
       const uniqueMinistryContacts = Array.from(
@@ -1194,13 +1239,13 @@ export class FileParseValidateService {
           );
 
           // Save the created GUIDs to aqi_inserted_elements
-          // console.log(visitInfo);
-          // console.log(activityInfo);
-          // console.log(specimenInfo);
-
-          // console.log(visitInfo.length);
-          // console.log(activityInfo.length);
-          // console.log(specimenInfo.length);
+          await this.saveAQIInsertedElements(
+            fileName,
+            originalFileName,
+            visitInfo,
+            activityInfo,
+            specimenInfo,
+          );
 
           const file_error_log_data = {
             file_submission_id: file_submission_id,

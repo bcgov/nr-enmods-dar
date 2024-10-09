@@ -69,7 +69,7 @@ values (
         (now() at time zone 'utc'),
         'VMANAWAT',
         (now() at time zone 'utc')
-    )
+    ),
     (
         'DELETED',
         'Deleted',

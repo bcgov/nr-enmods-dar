@@ -24,7 +24,9 @@ export class AqiApiService {
   async fieldVisits(body: any) {
     try {
       const response = await this.axiosInstance.post("/v1/fieldvisits", body);
-      this.logger.log(`API call to POST Field Visits succeeded: ${response.status}`);
+      this.logger.log(
+        `API call to POST Field Visits succeeded: ${response.status}`,
+      );
       return response.data.id;
     } catch (err) {
       console.error(
@@ -35,11 +37,16 @@ export class AqiApiService {
   }
 
   async putFieldVisits(GUID: string, body: any) {
-    try{
-      const response = await this.axiosInstance.put(`/v1/fieldvisits/${GUID}`, body);
-      this.logger.log(`API call to PUT Field Visits succeeded: ${response.status}`);
+    try {
+      const response = await this.axiosInstance.put(
+        `/v1/fieldvisits/${GUID}`,
+        body,
+      );
+      this.logger.log(
+        `API call to PUT Field Visits succeeded: ${response.status}`,
+      );
       return response.data.id;
-    }catch (err){
+    } catch (err) {
       console.error(
         "API CALL TO PUT Field Visits failed: ",
         err.response.data.message,
@@ -50,7 +57,9 @@ export class AqiApiService {
   async fieldActivities(body: any) {
     try {
       const response = await this.axiosInstance.post("/v1/activities", body);
-      this.logger.log(`API call to POST Activities succeeded: ${response.status}`);
+      this.logger.log(
+        `API call to POST Activities succeeded: ${response.status}`,
+      );
       return response.data.id;
     } catch (err) {
       console.error(
@@ -61,11 +70,16 @@ export class AqiApiService {
   }
 
   async putFieldActivities(GUID: string, body: any) {
-    try{
-      const response = await this.axiosInstance.put(`/v1/activities/${GUID}`, body);
-      this.logger.log(`API call to PUT Field Activities succeeded: ${response.status}`);
+    try {
+      const response = await this.axiosInstance.put(
+        `/v1/activities/${GUID}`,
+        body,
+      );
+      this.logger.log(
+        `API call to PUT Field Activities succeeded: ${response.status}`,
+      );
       return response.data.id;
-    }catch (err){
+    } catch (err) {
       console.error(
         "API CALL TO PUT Field Activities failed: ",
         err.response.data.message,
@@ -76,7 +90,9 @@ export class AqiApiService {
   async fieldSpecimens(body: any) {
     try {
       const response = await this.axiosInstance.post("/v1/specimens", body);
-      this.logger.log(`API call to POST Specimens succeeded: ${response.status}`);
+      this.logger.log(
+        `API call to POST Specimens succeeded: ${response.status}`,
+      );
       return response.data.id;
     } catch (err) {
       console.error(
@@ -87,15 +103,37 @@ export class AqiApiService {
   }
 
   async putSpecimens(GUID: string, body: any) {
-    try{
-      const response = await this.axiosInstance.put(`/v1/specimens/${GUID}`, body);
-      this.logger.log(`API call to PUT Specimens succeeded: ${response.status}`);
+    try {
+      const response = await this.axiosInstance.put(
+        `/v1/specimens/${GUID}`,
+        body,
+      );
+      this.logger.log(
+        `API call to PUT Specimens succeeded: ${response.status}`,
+      );
       return response.data.id;
-    }catch (err){
+    } catch (err) {
       console.error(
         "API CALL TO PUT Specimens failed: ",
         err.response.data.message,
       );
+    }
+  }
+
+  async getObservationsFromFile(fileName: string) {
+    try {
+      let observations = (
+        await this.axiosInstance.get("/v2/observations?limit=1000")
+      ).data.domainObjects;
+
+      const relatedData = observations.filter((observation) =>
+        observation.extendedAttributes
+          .some((attribute) => attribute.text === fileName)
+      )
+      .map((observation) => observation.id);
+      return relatedData;
+    } catch (err) {
+      console.error("API CALL TO GET Observations from File failed: ", err);
     }
   }
 
@@ -145,7 +183,6 @@ export class AqiApiService {
         const obsStatus = await this.getObservationsStatusResult(statusURL);
 
         const errorMessages = this.parseObsResultResponse(obsStatus);
-
         return errorMessages;
       }
     } catch (err) {
@@ -169,7 +206,7 @@ export class AqiApiService {
         },
       });
 
-      await wait(5000);
+      await wait(7000);
 
       const obsResultResponse = await axios.get(
         `${process.env.AQI_BASE_URL}/v2/observationimports/${response.data.id}/result`,
@@ -244,7 +281,7 @@ export class AqiApiService {
             aqi_field_visit_start_time: queryParam[1],
           },
         });
-        if (result.length > 0){
+        if (result.length > 0) {
           return result[0].aqi_field_visits_id;
         } else {
           return null;
@@ -397,7 +434,7 @@ export class AqiApiService {
       if (uniqueObservations.length > 0) {
         try {
           let deletion = await axios.delete(
-            `${process.env.AQI_BASE_URL}/v2/observations?specimentIds=${uniqueSpecimens}`,
+            `${process.env.AQI_BASE_URL}/v2/observations?specimenIds=${uniqueSpecimens}`,
             {
               headers: {
                 Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
