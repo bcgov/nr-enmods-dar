@@ -3,16 +3,18 @@ import { CreateFileSubmissionDto } from "./dto/create-file_submission.dto";
 import { UpdateFileSubmissionDto } from "./dto/update-file_submission.dto";
 import { PrismaService } from "nestjs-prisma";
 import { FileResultsWithCount } from "src/interface/fileResultsWithCount";
-import { file_submission, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { FileInfo } from "src/types/types";
 import { randomUUID } from "crypto";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
+import { AqiApiService } from "src/aqi_api/aqi_api.service";
 
 @Injectable()
 export class FileSubmissionsService {
   constructor(
     private prisma: PrismaService,
     private readonly objectStore: ObjectStoreService,
+    private readonly aqiService: AqiApiService,
   ) {}
 
   async create(body: any, file: Express.Multer.File) {
@@ -113,6 +115,7 @@ export class FileSubmissionsService {
       submitter_user_id: {},
       submitter_agency_name: {},
       submission_status_code: {},
+      active_ind: true,
     };
 
     if (body.fileName) {
@@ -185,13 +188,15 @@ export class FileSubmissionsService {
   }
 
   async updateFileStatus(submission_id: string, status: string) {
-    await this.prisma.file_submission.update({
-      where: {
-        submission_id: submission_id,
-      },
-      data: {
-        submission_status_code: status,
-      },
+    await this.prisma.$transaction(async (prisma) => {
+      const updateStatus = await this.prisma.file_submission.update({
+        where: {
+          submission_id: submission_id,
+        },
+        data: {
+          submission_status_code: status,
+        },
+      });
     });
   }
 
@@ -199,8 +204,24 @@ export class FileSubmissionsService {
     return `This action updates a #${id} fileSubmission`;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} fileSubmission`;
+  async remove(file_name: string, id: string) {
+    try {
+      await this.aqiService.deleteRelatedData(file_name);
+      await this.prisma.$transaction(async (prisma) => {
+        const updateFileStatus = await this.prisma.file_submission.update({
+          where: {
+            submission_id: id,
+          },
+          data: {
+            submission_status_code: "DELETED",
+          },
+        });
+      });
+      return true;
+    } catch (err) {
+      console.error(`Error deleting file: ${err.message}`);
+      return false;
+    }
   }
 
   async getFromS3(fileName: string) {

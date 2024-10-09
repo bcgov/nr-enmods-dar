@@ -263,3 +263,11 @@ model aqi_data_classifications {
   update_user_id              String   @db.VarChar(200)
   update_utc_timestamp        DateTime @db.Timestamp(6)
 }
+
+model aqi_imported_data {
+  aqi_imported_data_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  file_name            String?  @db.VarChar(200)
+  original_file_name   String?  @db.VarChar(200)
+  imported_guids       Json?
+  create_utc_timestamp DateTime @db.Timestamp(6)
+}
