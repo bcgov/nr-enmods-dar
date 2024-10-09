@@ -115,6 +115,21 @@ backend:
   pdb:
     enabled: false # enable it in PRODUCTION for having pod disruption budget.
     minAvailable: 1 # the minimum number of pods that must be available during the disruption budget.
+  # Mount Persistent Volume Claim for the backend to store files
+  persistence:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 150Mi
+    storageClassName: netapp-file-standard
+
+  volumeMounts:
+    - name: obs-temp-files
+      mountPath: /app/src/tempObsFiles
+
+  volumes:
+    - name: obs-temp-files
+      persistentVolumeClaim:
+        claimName: obs-temp-files-pvc
 
 frontend:
   # -- enable or disable a component deployment.
