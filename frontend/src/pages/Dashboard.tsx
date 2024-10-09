@@ -115,6 +115,7 @@ export default function Dashboard() {
                 handleOpen(
                   params.row.original_file_name,
                   params.row.submission_id,
+                  params.row.file_name
                 )
               }
             >
@@ -130,6 +131,7 @@ export default function Dashboard() {
                 handleOpen(
                   params.row.original_file_name,
                   params.row.submission_id,
+                  params.row.file_name
                 )
               }
             >
@@ -275,7 +277,6 @@ export default function Dashboard() {
   };
 
   const handleCloseAndSubmit = async () => {
-    console.log("here");
     handleClose();
     await handleSearch(undefined);
   };
@@ -514,7 +515,7 @@ export default function Dashboard() {
           <DialogContent sx={{ paddingTop: "24px" }}>
             <Typography>
               Are you sure you want to delete{" "}
-              {currentItem ? currentItem.file_name : ""} ?
+              {currentItem ? currentItem.original_file_name : ""} ?
             </Typography>
           </DialogContent>
           <DialogActions sx={{ paddingBottom: "24px" }}>
@@ -554,8 +555,8 @@ function useHandleOpen() {
   const [open, setOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState({});
 
-  const handleOpen = (file_name: string, submission_id: string) => {
-    setCurrentItem({ file_name, submission_id });
+  const handleOpen = (original_file_name: string, submission_id: string, file_name: string) => {
+    setCurrentItem({ original_file_name, submission_id, file_name });
     setOpen(true);
   };
   const handleClose = () => {
