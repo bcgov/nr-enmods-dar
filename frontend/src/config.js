@@ -5,17 +5,14 @@
 // templates directive to easily handle runtime variables
 
 const config = {
-  KEYCLOAK_CLIENT_ID: window.VITE_APP_KEYCLOAK_CLIENT_ID || import.meta.env.VITE_APP_KEYCLOAK_CLIENT_ID,
+  KEYCLOAK_CLIENT_ID: "enmods-5391",
+  API_BASE_URL: "api",
+  KEYCLOAK_URL: "https://dev.loginproxy.gov.bc.ca/auth",
+  KEYCLOAK_REALM: "standard",
 
-  API_BASE_URL: window.VITE_APP_API_URL || import.meta.env.VITE_APP_API_URL,
+  COMS_URL: window.REACT_APP_COMS_URL || process.env.REACT_APP_COMS_URL,
 
-  KEYCLOAK_URL: window.VITE_APP_KEYCLOAK_URL || import.meta.env.VITE_APP_KEYCLOAK_URL,
-
-  KEYCLOAK_REALM: window.VITE_APP_KEYCLOAK_REALM || import.meta.env.VITE_APP_KEYCLOAK_REALM,
-
-  COMS_URL: window.VITE_APP_COMS_URL || import.meta.env.VITE_APP_COMS_URL,
-
-  COMS_BUCKET: window.VITE_APP_COMS_BUCKET || import.meta.env.VITE_APP_COMS_BUCKET,
+  COMS_BUCKET: window.REACT_APP_COMS_BUCKET || process.env.REACT_APP_COMS_BUCKET,
 }
 
 export default config
