@@ -15,6 +15,7 @@ export class CreateFileSubmissionDto extends PickType(FileSubmissionDto, [
   'active_ind',
   'error_log',
   'organization_guid',
+  'data_submitter_email',
   'create_user_id',
   'create_utc_timestamp',
   'update_user_id',

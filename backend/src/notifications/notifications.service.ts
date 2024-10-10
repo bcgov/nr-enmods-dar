@@ -150,38 +150,73 @@ export class NotificationsService {
   }
 
   /**
-   * Sends an email to the data submitter. Does not check if notifications are filtered.
+   * Uses a file submission id to gather information on the completed/rejected submission 
+   * and sends an email to the data submitter. Does not check if notifications are filtered.
    *
-   * @param email
-   * @param emailTemplate
-   * @param variables
+   * @param file_submission_id
    * @returns
    */
   async sendDataSubmitterNotification(
     file_submission_id: string,
   ): Promise<String> {
-    // let body = `
-    // <p>Status: {{file_status}}</p>
-    // <p>Files Original Name: {{file_name}}</p>
-    // <p>Date and Time of Upload: {{sys_time}}</p>
-    // <p>Locations ID(s): ${variables.location_ids.join(", ")}</p>
-    // `;
-
-    // const warningString =
-    //   variables.warnings?.length > 0 ? variables.warnings.join("\n") : "";
-    // const errorString =
-    //   variables.errors?.length > 0 ? variables.errors.join("\n") : "";
-    // if (warningString !== "") {
-    //   body += `<p>Warnings: {{warnings}}</p>`;
-    // }
-    // if (errorString !== "") {
-    //   body += `<p>Errors: {{errors}}</p>`;
-    // }
     const file_submission =
       await this.fileSubmissionsService.findBySubmissionId(file_submission_id);
     const body = await this.fileErrorLogsService.findOne(file_submission_id);
-    const {original_file_name, submitter_user_id,submission_status_code}
-    await this.findEmailByUserId
+    const email = file_submission.data_submitter_email;
+    if (!this.isValidEmail(email)) { return 'Invalid email'}
+    const {submitter_user_id,submission_status_code} = file_submission;
+
+    const emailTemplate: EmailTemplate = {
+      from: "enmodshelp@gov.bc.ca",
+      subject: "EnMoDS Data {{submission_status_code}} from {{submitter_user_id}}",
+      body: body,
+    };
+    const date = new Date();
+    const options: Intl.DateTimeFormatOptions = {
+      timeZone: "America/Los_Angeles",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      second: "numeric",
+    };
+    const sys_time = date.toLocaleString("en-US", options);
+
+    return this.sendEmail([email], emailTemplate, {
+      submitter_user_id: submitter_user_id,
+      submission_status_code: submission_status_code,
+      sys_time,
+    });
+  }
+
+  /**
+   * Sends an email to the contact(s) specified inside of a submitted file.
+   *
+   * @param emails
+   * @param emailTemplate
+   * @param variables
+   * @returns
+   */
+  async sendContactNotification(
+    file_submission_id: string
+  ): Promise<String> {
+    const file_submission =
+      await this.fileSubmissionsService.findBySubmissionId(file_submission_id);
+      const email = file_submission.data_submitter_email;
+      if (!this.isValidEmail(email)) { return 'Invalid email'}
+      const {submitter_user_id,submission_status_code} = file_submission;
+
+    const errorLogs = await this.fileErrorLogsService.findOne(file_submission_id);
+
+    const notificationInfo = await this.getNotificationStatus(
+      email,
+      submitter_user_id,
+    );
+    const unsubscribeLink =
+    process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
+
+    let body = errorLogs.concat(`<p><a href="${unsubscribeLink}">Unsubscribe</a></p>`)
 
     const emailTemplate = {
       from: "enmodshelp@gov.bc.ca",
@@ -199,159 +234,11 @@ export class NotificationsService {
       second: "numeric",
     };
     const sys_time = date.toLocaleString("en-US", options);
-    // let status_string = "Imported";
-    // if (errorString !== "") {
-    //   status_string = "Failed";
-    // } else if (warningString !== "") {
-    //   status_string = "Imported with Warnings";
-    // }
+
     return this.sendEmail([email], emailTemplate, {
       submitter_user_id: submitter_user_id,
       submission_status_code: submission_status_code,
       sys_time,
-    });
-  }
-
-  async sendDataSubmitterNotification2(
-    email: string,
-    variables: {
-      file_name: string;
-      user_account_name: string;
-      location_ids: string[];
-      file_status: string;
-      errors: string[];
-      warnings: string[];
-    },
-  ): Promise<String> {
-    let body = `
-    <p>Status: {{file_status}}</p>
-    <p>Files Original Name: {{file_name}}</p>
-    <p>Date and Time of Upload: {{sys_time}}</p>
-    <p>Locations ID(s): ${variables.location_ids.join(", ")}</p>
-    `;
-
-    const warningString =
-      variables.warnings?.length > 0 ? variables.warnings.join("\n") : "";
-    const errorString =
-      variables.errors?.length > 0 ? variables.errors.join("\n") : "";
-    if (warningString !== "") {
-      body += `<p>Warnings: {{warnings}}</p>`;
-    }
-    if (errorString !== "") {
-      body += `<p>Errors: {{errors}}</p>`;
-    }
-
-    const emailTemplate = {
-      from: "enmodshelp@gov.bc.ca",
-      subject: "EnMoDS Data {{status_string}} from {{user_account_name}}",
-      body: body,
-    };
-    const date = new Date();
-    const options: Intl.DateTimeFormatOptions = {
-      timeZone: "America/Los_Angeles",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-      second: "numeric",
-    };
-    const sys_time = date.toLocaleString("en-US", options);
-    let status_string = "Imported";
-    if (errorString !== "") {
-      status_string = "Failed";
-    } else if (warningString !== "") {
-      status_string = "Imported with Warnings";
-    }
-    return this.sendEmail([email], emailTemplate, {
-      file_name: variables.file_name,
-      user_account_name: variables.user_account_name,
-      file_status: variables.file_status,
-      errors: errorString,
-      warnings: warningString,
-      sys_time,
-      status_string,
-    });
-  }
-
-  /**
-   * Sends an email to the contact(s) specified inside of a submitted file.
-   *
-   * @param emails
-   * @param emailTemplate
-   * @param variables
-   * @returns
-   */
-  async sendContactNotification(
-    email: string,
-    variables: {
-      file_name: string;
-      user_account_name: string;
-      file_status: string;
-      warnings: string[];
-      errors: string[];
-    },
-  ): Promise<String> {
-    const notificationInfo = await this.getNotificationStatus(
-      email,
-      variables.user_account_name,
-    );
-    // check that notifications are enabled before continuing
-    if (notificationInfo.enabled === false) {
-      return;
-    }
-    const unsubscribeLink =
-      process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
-    let body = `
-    <p>Status: {{file_status}}</p>
-    <p>Files Original Name: {{file_name}}</p>
-    <p>Date and Time of Upload: {{sys_time}}</p>
-    <p>Locations ID(s): E123445, E464353, E232524</p>
-    `;
-
-    const warningString =
-      variables.warnings.length > 0 ? variables.warnings.join("\n") : "";
-    const errorString =
-      variables.errors.length > 0 ? variables.errors.join("\n") : "";
-    if (warningString !== "") {
-      body += `<p>Warnings: {{warnings}}</p>`;
-    }
-    if (errorString !== "") {
-      body += `<p>Errors: {{errors}}</p>`;
-    }
-
-    body += `<p><a href="${unsubscribeLink}">Unsubscribe</a></p>`;
-
-    const emailTemplate = {
-      from: "enmodshelp@gov.bc.ca",
-      subject: "EnMoDS Data {{status_string}} from {{user_account_name}}",
-      body: body,
-    };
-    const date = new Date();
-    const options: Intl.DateTimeFormatOptions = {
-      timeZone: "America/Los_Angeles",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-      second: "numeric",
-    };
-    const sys_time = date.toLocaleString("en-US", options);
-    let status_string = "Imported";
-    if (errorString !== "") {
-      status_string = "Failed";
-    } else if (warningString !== "") {
-      status_string = "Imported with Warnings";
-    }
-    return this.sendEmail([email], emailTemplate, {
-      file_name: variables.file_name,
-      user_account_name: variables.user_account_name,
-      file_status: variables.file_status,
-      errors: errorString,
-      warnings: warningString,
-      sys_time,
-      status_string,
     });
   }
 
@@ -369,16 +256,13 @@ export class NotificationsService {
     emails: string[],
     emailTemplate: EmailTemplate,
     variables: {
-      file_name: string;
-      user_account_name: string;
-      file_status: string;
-      errors: string;
-      warnings: string;
+      submitter_user_id: string;
+      submission_status_code: string;
       sys_time: string;
-      status_string: string;
     },
   ): Promise<string> {
     const chesToken = await this.getChesToken();
+    console.log('sending email')
 
     const data = JSON.stringify({
       attachments: [],
@@ -402,7 +286,7 @@ export class NotificationsService {
 
     const config = {
       method: "post",
-      url: `${process.env.ches_email_url}`,
+      url: `${process.env.CHES_EMAIL_URL}`,
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${chesToken}`,
@@ -446,29 +330,13 @@ export class NotificationsService {
    * @param ministryContact
    */
   async notifyUserOfError(
-    email: string,
-    username: string,
-    fileName: string,
-    errors: string[],
-    ministryContact: string,
+    file_submission_id: string
   ) {
-    const notificationVars = {
-      file_name: fileName,
-      user_account_name: username,
-      location_ids: [],
-      file_status: "FAILED",
-      errors: errors,
-      warnings: [],
-    };
-
     // Notify the Data Submitter
-    if (this.isValidEmail(email)) {
-      await this.sendDataSubmitterNotification(email, notificationVars);
-    }
+    await this.sendDataSubmitterNotification(file_submission_id);
+
     // Notify the Ministry Contact (if they have not disabled notifications)
-    if (this.isValidEmail(ministryContact)) {
-      await this.sendContactNotification(ministryContact, notificationVars);
-    }
+    await this.sendContactNotification(file_submission_id);
   }
 
   /**
@@ -484,16 +352,18 @@ export class NotificationsService {
     errors: string[],
     ministryContact: string,
   ) {
-    const ftpUser = await this.prisma.ftp_users.findUnique({
-      where: { username: username },
-    });
-    await this.notifyUserOfError(
-      ftpUser.email,
-      username,
-      fileName,
-      errors,
-      ministryContact,
-    );
+    // const ftpUser = await this.prisma.ftp_users.findUnique({
+    //   where: { username: username },
+    // });
+    // await this.notifyUserOfError(
+    //   ftpUser.email,
+    //   username,
+    //   fileName,
+    //   errors,
+    //   ministryContact,
+    // );
+
+    
   }
 
   isValidEmail(email: string): boolean {
@@ -536,9 +406,9 @@ export class NotificationsService {
    * @returns
    */
   async getChesToken(): Promise<string> {
-    const url = process.env.ches_token_url;
+    const url = process.env.CHES_TOKEN_URL;
     const encodedToken = Buffer.from(
-      `${process.env.ches_client_id}:${process.env.ches_client_secret}`,
+      `${process.env.CHES_CLIENT_ID}:${process.env.CHES_CLIENT_SECRET}`,
     ).toString("base64");
 
     const headers = {

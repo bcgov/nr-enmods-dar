@@ -39,6 +39,7 @@ model file_submission {
   create_utc_timestamp   DateTime               @db.Timestamp(6)
   update_user_id         String                 @db.VarChar(200)
   update_utc_timestamp   DateTime               @db.Timestamp(6)
+  data_submitter_email   String?                @db.VarChar(200)
   file_error_logs        file_error_logs[]
   file_operation_codes   file_operation_codes   @relation(fields: [file_operation_code], references: [file_operation_code], onDelete: NoAction, onUpdate: NoAction, map: "file_operation_code_fk")
   submission_status      submission_status_code @relation(fields: [submission_status_code], references: [submission_status_code], onDelete: NoAction, onUpdate: NoAction, map: "submission_status_code_fk")

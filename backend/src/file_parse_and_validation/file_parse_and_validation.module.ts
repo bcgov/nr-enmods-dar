@@ -5,6 +5,7 @@ import { AqiApiService } from "src/aqi_api/aqi_api.service";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
 import { NotificationsService } from "src/notifications/notifications.service";
 import { ObjectStoreModule } from "src/objectStore/objectStore.module";
+import { FileErrorLogsModule } from "src/file_error_logs/file_error_logs.module";
 
 @Module({
   providers: [
@@ -14,6 +15,6 @@ import { ObjectStoreModule } from "src/objectStore/objectStore.module";
     NotificationsService,
   ],
   exports: [FileParseValidateService],
-  imports: [HttpModule, ObjectStoreModule],
+  imports: [HttpModule, ObjectStoreModule, FileErrorLogsModule],
 })
 export class FileParseValidateModule {}

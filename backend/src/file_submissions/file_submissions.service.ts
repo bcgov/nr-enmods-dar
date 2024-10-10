@@ -45,6 +45,7 @@ export class FileSubmissionsService {
     createFileSubmissionDto.sample_count = 0;
     createFileSubmissionDto.result_count = 0;
     createFileSubmissionDto.organization_guid = body.orgGUID; // TODO: change this once BCeID is set up
+    createFileSubmissionDto.data_submitter_email = body.dataSubmitterEmail;
     createFileSubmissionDto.create_user_id = body.userID;
     createFileSubmissionDto.create_utc_timestamp = new Date();
     createFileSubmissionDto.update_user_id = body.userID;
@@ -68,6 +69,7 @@ export class FileSubmissionsService {
       active_ind: createFileSubmissionDto.active_ind,
       error_log: createFileSubmissionDto.error_log,
       organization_guid: createFileSubmissionDto.organization_guid,
+      data_submitter_email: createFileSubmissionDto.data_submitter_email,
       create_user_id: createFileSubmissionDto.create_user_id,
       create_utc_timestamp: createFileSubmissionDto.create_utc_timestamp,
       update_user_id: createFileSubmissionDto.update_user_id,
