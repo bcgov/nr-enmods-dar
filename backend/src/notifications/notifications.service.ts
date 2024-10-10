@@ -150,7 +150,7 @@ export class NotificationsService {
   }
 
   /**
-   * Uses a file submission id to gather information on the completed/rejected submission 
+   * Uses a file submission id to gather information on the completed/rejected submission
    * and sends an email to the data submitter. Does not check if notifications are filtered.
    *
    * @param file_submission_id
@@ -161,15 +161,21 @@ export class NotificationsService {
   ): Promise<String> {
     const file_submission =
       await this.fileSubmissionsService.findBySubmissionId(file_submission_id);
-    const body = await this.fileErrorLogsService.findOne(file_submission_id);
+    const errorLogs =
+      await this.fileErrorLogsService.findOne(file_submission_id);
+    const fileName = `${file_submission.original_file_name}-error_log.txt`;
+
     const email = file_submission.data_submitter_email;
-    if (!this.isValidEmail(email)) { return 'Invalid email'}
-    const {submitter_user_id,submission_status_code} = file_submission;
+    if (!this.isValidEmail(email)) {
+      return "Invalid email";
+    }
+    const { submitter_user_id, submission_status_code } = file_submission;
 
     const emailTemplate: EmailTemplate = {
       from: "enmodshelp@gov.bc.ca",
-      subject: "EnMoDS Data {{submission_status_code}} from {{submitter_user_id}}",
-      body: body,
+      subject:
+        "EnMoDS Data {{submission_status_code}} from {{submitter_user_id}}",
+      body: "<p>Error Notification</p>",
     };
     const date = new Date();
     const options: Intl.DateTimeFormatOptions = {
@@ -186,6 +192,8 @@ export class NotificationsService {
     return this.sendEmail([email], emailTemplate, {
       submitter_user_id: submitter_user_id,
       submission_status_code: submission_status_code,
+      file_error_log: errorLogs,
+      file_name: fileName,
       sys_time,
     });
   }
@@ -198,29 +206,34 @@ export class NotificationsService {
    * @param variables
    * @returns
    */
-  async sendContactNotification(
-    file_submission_id: string
-  ): Promise<String> {
+  async sendContactNotification(file_submission_id: string): Promise<String> {
     const file_submission =
       await this.fileSubmissionsService.findBySubmissionId(file_submission_id);
-      const email = file_submission.data_submitter_email;
-      if (!this.isValidEmail(email)) { return 'Invalid email'}
-      const {submitter_user_id,submission_status_code} = file_submission;
+    const email = file_submission.data_submitter_email;
+    if (!this.isValidEmail(email)) {
+      return "Invalid email";
+    }
+    const { submitter_user_id, submission_status_code } = file_submission;
 
-    const errorLogs = await this.fileErrorLogsService.findOne(file_submission_id);
+    const errorLogs =
+      await this.fileErrorLogsService.findOne(file_submission_id);
+    const fileName = `${file_submission.original_file_name}-error_log.txt`;
 
     const notificationInfo = await this.getNotificationStatus(
       email,
       submitter_user_id,
     );
     const unsubscribeLink =
-    process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
+      process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
 
-    let body = errorLogs.concat(`<p><a href="${unsubscribeLink}">Unsubscribe</a></p>`)
+    let body = errorLogs.concat(
+      `<p>Error Notification</p><p><a href="${unsubscribeLink}">Unsubscribe</a></p>`,
+    );
 
     const emailTemplate = {
       from: "enmodshelp@gov.bc.ca",
-      subject: "EnMoDS Data {{submission_status_code}} from {{submitter_user_id}}",
+      subject:
+        "EnMoDS Data {{submission_status_code}} from {{submitter_user_id}}",
       body: body,
     };
     const date = new Date();
@@ -238,6 +251,8 @@ export class NotificationsService {
     return this.sendEmail([email], emailTemplate, {
       submitter_user_id: submitter_user_id,
       submission_status_code: submission_status_code,
+      file_error_log: errorLogs,
+      file_name: fileName,
       sys_time,
     });
   }
@@ -258,14 +273,25 @@ export class NotificationsService {
     variables: {
       submitter_user_id: string;
       submission_status_code: string;
+      file_error_log: string;
+      file_name: string;
       sys_time: string;
     },
   ): Promise<string> {
     const chesToken = await this.getChesToken();
-    console.log('sending email')
+    console.log("sending email");
+    // file_error_log is a string, convert it to base64
+    const base64ErrorLog = btoa(variables.file_error_log);
 
     const data = JSON.stringify({
-      attachments: [],
+      attachments: [
+        {
+          content: base64ErrorLog,
+          contentType: "string",
+          encoding: "base64",
+          filename: variables.file_name,
+        },
+      ],
       bodyType: "html",
       body: emailTemplate.body,
       contexts: [
@@ -329,9 +355,7 @@ export class NotificationsService {
    * @param errors
    * @param ministryContact
    */
-  async notifyUserOfError(
-    file_submission_id: string
-  ) {
+  async notifyUserOfError(file_submission_id: string) {
     // Notify the Data Submitter
     await this.sendDataSubmitterNotification(file_submission_id);
 
@@ -362,8 +386,6 @@ export class NotificationsService {
     //   errors,
     //   ministryContact,
     // );
-
-    
   }
 
   isValidEmail(email: string): boolean {
