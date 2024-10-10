@@ -75,6 +75,7 @@ function FileUpload() {
       formData.append("operation", "VALIDATE");
       formData.append("userID", JWT.idir_username); // TODO: This will need to be updated based on BCeID
       formData.append("orgGUID", JWT.idir_user_guid); // TODO: This will need to be updated based on BCeID and company GUID
+      formData.append('dataSubmitterEmail', JWT.email);
       formData.append("token", UserService.getToken()?.toString());
 
       await insertFile(formData).then((response) => {
@@ -96,6 +97,7 @@ function FileUpload() {
         formData.append("operation", "VALIDATE");
         formData.append("userID", JWT.idir_username); // TODO: This will need to be updated based on BCeID
         formData.append("orgGUID", JWT.idir_user_guid); // TODO: This will need to be updated based on BCeID and company GUID
+        formData.append('dataSubmitterEmail', JWT.email);
         formData.append("token", UserService.getToken()?.toString());
 
         await insertFile(formData).then(async (response) => {
@@ -117,6 +119,7 @@ function FileUpload() {
       formData.append("operation", "IMPORT");
       formData.append("userID", JWT.idir_username); // TODO: This will need to be updated based on BCeID
       formData.append("orgGUID", JWT.idir_user_guid); // TODO: This will need to be updated based on BCeID and company GUID
+      formData.append('dataSubmitterEmail', JWT.email);
       formData.append("token", UserService.getToken()?.toString());
 
       await insertFile(formData).then((response) => {
@@ -138,6 +141,7 @@ function FileUpload() {
         formData.append("operation", "IMPORT");
         formData.append("userID", JWT.idir_username); // TODO: This will need to be updated based on BCeID
         formData.append("orgGUID", JWT.idir_user_guid); // TODO: This will need to be updated based on BCeID and company GUID
+        formData.append('dataSubmitterEmail', JWT.email);
         formData.append("token", UserService.getToken()?.toString());
 
         await insertFile(formData).then(async (response) => {

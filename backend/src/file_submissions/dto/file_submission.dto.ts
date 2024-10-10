@@ -74,6 +74,11 @@ export class FileSubmissionDto {
   organization_guid: string;
 
   @ApiProperty({
+    description: 'The data submitter\'s email'
+  })
+  data_submitter_email: string;
+
+  @ApiProperty({
     description: 'The id of the user that created the record',
   })
   create_user_id: string;

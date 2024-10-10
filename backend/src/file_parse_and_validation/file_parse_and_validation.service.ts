@@ -14,6 +14,7 @@ import * as path from "path";
 import * as csvWriter from "csv-writer";
 import fs from "fs";
 import { PrismaService } from "nestjs-prisma";
+import { NotificationsService } from "src/notifications/notifications.service";
 
 const visits: FieldVisits = {
   MinistryContact: "",
@@ -146,6 +147,7 @@ export class FileParseValidateService {
     private prisma: PrismaService,
     private readonly fileSubmissionsService: FileSubmissionsService,
     private readonly aqiService: AqiApiService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getQueuedFiles() {
@@ -599,7 +601,7 @@ export class FileParseValidateService {
     return dupeCount;
   }
 
-  async localValidation(allRecords, observaionFilePath) {
+  async localValidation(allRecords, observationFilePath) {
     let errorLogs = [];
     for (const [index, record] of allRecords.entries()) {
       const isoDateTimeRegex =
@@ -861,7 +863,7 @@ export class FileParseValidateService {
 
     // Do a dry run of the observations
     const observationsErrors = await this.aqiService.importObservations(
-      observaionFilePath,
+      observationFilePath,
       "dryrun",
     );
 
@@ -944,7 +946,9 @@ export class FileParseValidateService {
         fileName,
       );
 
-      const uniqueMinistryContacts = Array.from(new Set(allRecords.map(rec => rec.MinistryContact)))
+      const uniqueMinistryContacts = Array.from(
+        new Set(allRecords.map((rec) => rec.MinistryContact)),
+      );
       /*
        * Do the local validation for each section here - if passed then go to the API calls - else create the message/file/email for the errors
        */
@@ -975,7 +979,7 @@ export class FileParseValidateService {
           file_name: fileName,
           original_file_name: originalFileName,
           file_operation_code: file_operation_code,
-          ministry_contact: uniqueMinistryContacts.join(', '),
+          ministry_contact: uniqueMinistryContacts.join(", "),
           error_log: localValidationResults,
           create_utc_timestamp: new Date(),
         };
@@ -983,6 +987,11 @@ export class FileParseValidateService {
         await this.prisma.file_error_logs.create({
           data: file_error_log_data,
         });
+
+        await this.notificationsService.sendDataSubmitterNotification(
+          file_submission_id,
+        );
+
         return;
       } else if (!(await localValidationResults).includes("ERROR")) {
         await this.fileSubmissionsService.updateFileStatus(
