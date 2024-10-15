@@ -20,6 +20,9 @@ export class FileErrorLogsService {
       where: {
         file_submission_id: file_submission_id,
       },
+      orderBy: {
+        create_utc_timestamp: "desc",
+      }
     });
 
     const formattedMessage = formulateErrorFile(fileLogs);

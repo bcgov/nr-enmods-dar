@@ -360,13 +360,12 @@ export class FileParseValidateService {
       Object.assign(postData, { notes: row.rec.FieldVisitComments });
       Object.assign(postData, { planningStatus: row.rec.PlanningStatus });
 
+      let currentVisitAndLoc: any = {};
+      Object.assign(currentVisitAndLoc, {
+        samplingLocation: postData.samplingLocation,
+      });
+
       if (apiType === "post") {
-        let currentVisitAndLoc: any = {};
-
-        Object.assign(currentVisitAndLoc, {
-          samplingLocation: postData.samplingLocation,
-        });
-
         Object.assign(currentVisitAndLoc, {
           fieldVisit: await this.aqiService.fieldVisits(postData),
         });
@@ -378,6 +377,14 @@ export class FileParseValidateService {
       } else if (apiType === "put") {
         const GUIDtoUpdate = row.rec.id;
         await this.aqiService.putFieldVisits(GUIDtoUpdate, postData);
+        Object.assign(currentVisitAndLoc, {
+          fieldVisit: GUIDtoUpdate,
+        });
+        visitAndLocId.push({
+          rec: currentVisitAndLoc,
+          count: row.count,
+          positions: row.positions,
+        });
       }
     }
 
@@ -461,8 +468,9 @@ export class FileParseValidateService {
       });
       Object.assign(postData, { customId: row.rec.ActivityName });
 
+      let currentActivity: any = {};
+
       if (apiType === "post") {
-        let currentActivity = {};
         Object.assign(currentActivity, {
           activity: {
             id: await this.aqiService.fieldActivities(postData),
@@ -478,6 +486,18 @@ export class FileParseValidateService {
       } else {
         const GUIDtoUpdate = row.rec.id;
         await this.aqiService.putFieldActivities(GUIDtoUpdate, postData);
+        Object.assign(currentActivity, {
+          activity: {
+            id: GUIDtoUpdate,
+            customId: row.rec.ActivityName,
+            startTime: row.rec.ObservedDateTime,
+          },
+        });
+        activityId.push({
+          rec: currentActivity,
+          count: row.count,
+          positions: row.positions,
+        });
       }
     }
     return activityId;
@@ -547,8 +567,9 @@ export class FileParseValidateService {
       Object.assign(postData, { activity: row.rec.activity });
       Object.assign(postData, extendedAttribs);
 
+      let currentSpecimen: any = {};
+
       if (apiType === "post") {
-        let currentSpecimen = {};
         Object.assign(currentSpecimen, {
           specimen: {
             id: await this.aqiService.fieldSpecimens(postData),
@@ -564,6 +585,18 @@ export class FileParseValidateService {
       } else if (apiType === "put") {
         const GUIDtoUpdate = row.rec.id;
         await this.aqiService.putSpecimens(GUIDtoUpdate, postData);
+        Object.assign(currentSpecimen, {
+          specimen: {
+            id: GUIDtoUpdate,
+            customId: row.rec.SpecimenName,
+            startTime: row.rec.ObservedDateTime,
+          }
+        });
+        specimenIds.push({
+          rec: currentSpecimen,
+          count: row.count,
+          positions: row.positions,
+        });
       }
     }
     return specimenIds;
@@ -1158,7 +1191,8 @@ export class FileParseValidateService {
 
           const uniqueVisitsWithIDsAndCounts =
             this.getUniqueWithCounts(allVisitsWithGUIDS);
-          await this.fieldVisitJson(uniqueVisitsWithIDsAndCounts, "put");
+          visitInfo = await this.fieldVisitJson(uniqueVisitsWithIDsAndCounts, "put");
+          expandedVisitInfo = this.expandList(visitInfo);
         } else {
           // Do a POST to insert a new visit record. Keep track of the newly inserted GUIDs for potential activity insertions
           const uniqueVisitsWithCounts =
@@ -1181,7 +1215,8 @@ export class FileParseValidateService {
           const uniqueActivitiesWithIDsAndCounts = this.getUniqueWithCounts(
             allActivitiesWithGUIDS,
           );
-          await this.fieldActivityJson(uniqueActivitiesWithIDsAndCounts, "put");
+          activityInfo = await this.fieldActivityJson(uniqueActivitiesWithIDsAndCounts, "put");
+          expandedActivityInfo = this.expandList(activityInfo);
         } else {
           // Do a POST to insert a new activity record. Keep track of the newly inserted GUIDs for potential specimen insertions
           allFieldActivities = allFieldActivities.map((obj2, index) => {
@@ -1210,7 +1245,7 @@ export class FileParseValidateService {
           const uniqueSpecimensWithIDsAndCounts = this.getUniqueWithCounts(
             allSpecimensWithGUIDS,
           );
-          await this.specimensJson(uniqueSpecimensWithIDsAndCounts, "put");
+          specimenInfo = await this.specimensJson(uniqueSpecimensWithIDsAndCounts, "put");
         } else {
           // Do a POST to insert a new specimen record. Keep track of the newly inserted GUIDs for potential observation insertions
           allSpecimens = allSpecimens.map((obj2, index) => {

@@ -397,7 +397,7 @@ export class AqiApiService {
         file_name: fileName,
       },
     });
-
+    
     // Delete all the observations from the list of imported guids
     if (guidsToDelete[0].imported_guids.observations.length > 0) {
       try {
@@ -430,21 +430,20 @@ export class AqiApiService {
             },
           );
           console.log("AQI SPECIMEN DELETION: " + aqiDeletion.data);
+
+          try {
+            const dbDeletion = await this.prisma.aqi_specimens.delete({
+              where: {
+                aqi_specimens_id: specimen,
+              },
+            });
+            console.log("DB SPECIMEN DELETION: " + dbDeletion);
+          } catch (err) {
+            console.error(`API call to delete DB specimen failed: `, err);
+          }
         } catch (err) {
           console.error(`API call to delete AQI specimen failed: `, err);
         }
-      }
-      try {
-        const dbDeletion = await this.prisma.aqi_specimens.deleteMany({
-          where: {
-            aqi_specimens_id: {
-              in: guidsToDelete[0].imported_guids.specimens,
-            },
-          },
-        });
-        console.log("DB SPECIMEN DELETION: " + dbDeletion);
-      } catch (err) {
-        console.error(`API call to delete DB specimen failed: `, err);
       }
     }
 
@@ -461,21 +460,21 @@ export class AqiApiService {
           },
         );
         console.log("AQI ACTIVITY DELETION: " + deletion.data);
+
+        try {
+          const dbDeletion = await this.prisma.aqi_field_activities.deleteMany({
+            where: {
+              aqi_field_activities_id: {
+                in: guidsToDelete[0].imported_guids.activities,
+              },
+            },
+          });
+          console.log("DB ACTIVITY DELETION: " + dbDeletion);
+        } catch (err) {
+          console.error(`API call to delete DB activities failed: `, err);
+        }
       } catch (err) {
         console.error(`API call to delete DB activity failed: `, err);
-      }
-
-      try {
-        const dbDeletion = await this.prisma.aqi_field_activities.deleteMany({
-          where: {
-            aqi_field_activities_id: {
-              in: guidsToDelete[0].imported_guids.activities,
-            },
-          },
-        });
-        console.log("DB ACTIVITY DELETION: " + dbDeletion);
-      } catch (err) {
-        console.error(`API call to delete DB activities failed: `, err);
       }
     }
 
@@ -492,21 +491,21 @@ export class AqiApiService {
           },
         );
         console.log("AQI VISIT DELETION: " + deletion.data);
+
+        try {
+          const dbDeletion = await this.prisma.aqi_field_visits.deleteMany({
+            where: {
+              aqi_field_visits_id: {
+                in: guidsToDelete[0].imported_guids.visits,
+              },
+            },
+          });
+          console.log("DB VISIT DELETION: " + dbDeletion);
+        } catch (err) {
+          console.error(`API call to delete DB visits failed: `, err);
+        }
       } catch (err) {
         console.error(`API call to delete AQI visit failed: `, err);
-      }
-
-      try {
-        const dbDeletion = await this.prisma.aqi_field_visits.deleteMany({
-          where: {
-            aqi_field_visits_id: {
-              in: guidsToDelete[0].imported_guids.visits,
-            },
-          },
-        });
-        console.log("DB VISIT DELETION: " + dbDeletion);
-      } catch (err) {
-        console.error(`API call to delete DB visits failed: `, err);
       }
     }
 
