@@ -45,3 +45,10 @@ export const downloadFileLogs = async (fileID: String) => {
   const response = await api.get(getParameters);
   return response;
 };
+
+export const deleteFile = async (fileName: string, submissionId: string) => {
+  const url = `${config.API_BASE_URL}/v1/file_submissions/${fileName}/${submissionId}`;
+  const getParameters = api.generateApiParameters(url);
+  const response = await api.deleteMethod(getParameters);
+  return response;
+}

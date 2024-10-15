@@ -1,15 +1,10 @@
-import apiService from "@/service/api-service";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableRow from "@mui/material/TableRow";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
-import { useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import { DeleteRounded, Description } from "@mui/icons-material";
 import _kc from "@/keycloak";
 import {
@@ -23,114 +18,179 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { FileStatusCode } from "@/types/types";
 import { getFileStatusCodes } from "@/common/manage-dropdowns";
 import {
+  deleteFile,
   downloadFile,
   downloadFileLogs,
   searchFiles,
 } from "@/common/manage-files";
 
-const columns = [
-  {
-    field: "file_name",
-    headerName: "File Name",
-    sortable: true,
-    filterable: true,
-    flex: 1.5,
-    renderCell: (params) => (
-      <FormControl
-        style={{
-          cursor: "pointer",
-          textDecoration: "underline",
-          color: "blue",
-        }}
-        onClick={() =>
-          handleDownload(params.row.file_name, params.row.original_file_name)
-        }
-      >
-        {params.row.original_file_name}
-      </FormControl>
-    ),
-  },
-  {
-    field: "submission_date",
-    headerName: "Submission Date",
-    sortable: true,
-    filterable: true,
-    flex: 2,
-  },
-  {
-    field: "submitter_user_id",
-    headerName: "Submitter Username",
-    sortable: true,
-    filterable: true,
-    flex: 2,
-  },
-  {
-    field: "submitter_agency_name",
-    headerName: "Submitter Agency",
-    sortable: true,
-    filterable: true,
-    flex: 2,
-  },
-  {
-    field: "submission_status_code",
-    headerName: "Status",
-    sortable: true,
-    filterable: true,
-    flex: 1.5,
-  },
-  {
-    field: "sample_count",
-    headerName: "# Samples",
-    sortable: true,
-    filterable: true,
-    flex: 1,
-  },
-  {
-    field: "results_count",
-    headerName: "# Results",
-    sortable: true,
-    filterable: true,
-    flex: 1,
-  },
-  {
-    field: "delete",
-    headerName: "Delete",
-    flex: 0.75,
-    renderCell: (params) => (
-      <IconButton
-        color="primary"
-        onClick={() =>
-          handleDelete(params.row.file_name, params.row.submission_id)
-        }
-      >
-        <DeleteRounded />
-      </IconButton>
-    ),
-  },
-  {
-    field: "messages",
-    headerName: "Messages",
-    flex: 1,
-    renderCell: (params) => (
-      <IconButton
-        color="primary"
-        onClick={() =>
-          handleMessages(
-            params.row.submission_id,
-            params.row.original_file_name,
-          )
-        }
-      >
-        <Description />
-      </IconButton>
-    ),
-  },
-];
-
 export default function Dashboard() {
+  const { open, currentItem, handleOpen, handleClose } = useHandleOpen();
+
+  const columns = [
+    {
+      field: "file_name",
+      headerName: "File Name",
+      sortable: true,
+      filterable: true,
+      flex: 1.5,
+      renderCell: (params: {
+        row: { file_name: string; original_file_name: string };
+      }) => (
+        <FormControl
+          style={{
+            cursor: "pointer",
+            textDecoration: "underline",
+            color: "blue",
+          }}
+          onClick={() =>
+            handleDownload(params.row.file_name, params.row.original_file_name)
+          }
+        >
+          {params.row.original_file_name}
+        </FormControl>
+      ),
+    },
+    {
+      field: "submission_date",
+      headerName: "Submission Date",
+      sortable: true,
+      filterable: true,
+      flex: 2,
+    },
+    {
+      field: "submitter_user_id",
+      headerName: "Submitter Username",
+      sortable: true,
+      filterable: true,
+      flex: 2,
+    },
+    {
+      field: "submitter_agency_name",
+      headerName: "Submitter Agency",
+      sortable: true,
+      filterable: true,
+      flex: 2,
+    },
+    {
+      field: "submission_status_code",
+      headerName: "Status",
+      sortable: true,
+      filterable: true,
+      flex: 1.5,
+    },
+    {
+      field: "sample_count",
+      headerName: "# Samples",
+      sortable: true,
+      filterable: true,
+      flex: 1,
+    },
+    {
+      field: "results_count",
+      headerName: "# Results",
+      sortable: true,
+      filterable: true,
+      flex: 1,
+    },
+    {
+      field: "delete",
+      headerName: "Delete",
+      flex: 0.75,
+      renderCell: (params: {
+        row: {
+          file_name: string;
+          original_file_name: string;
+          submission_id: string;
+          submission_status_code: string;
+        };
+      }) => {
+        if (params.row.submission_status_code === "SUBMITTED") {
+          return (
+            <IconButton
+              color="primary"
+              onClick={() =>
+                handleOpen(
+                  params.row.original_file_name,
+                  params.row.submission_id,
+                  params.row.file_name
+                )
+              }
+            >
+              <DeleteRounded />
+            </IconButton>
+          );
+        } else {
+          return (
+            <IconButton
+              color="primary"
+              disabled
+              onClick={() =>
+                handleOpen(
+                  params.row.original_file_name,
+                  params.row.submission_id,
+                  params.row.file_name
+                )
+              }
+            >
+              <DeleteRounded />
+            </IconButton>
+          );
+        }
+      },
+    },
+    {
+      field: "messages",
+      headerName: "Messages",
+      flex: 1,
+      renderCell: (params: {
+        row: {
+          file_name: string;
+          original_file_name: string;
+          submission_id: string;
+          submission_status_code: string;
+        };
+      }) => {
+        if (
+          params.row.submission_status_code === "VALIDATED" ||
+          params.row.submission_status_code === "REJECTED" ||
+          params.row.submission_status_code === "SUBMITTED"
+        ) {
+          return (
+            <IconButton
+              color="primary"
+              onClick={() =>
+                handleMessages(
+                  params.row.submission_id,
+                  params.row.original_file_name,
+                )
+              }
+            >
+              <Description />
+            </IconButton>
+          );
+        } else {
+          return (
+            <IconButton
+              color="primary"
+              disabled
+              onClick={() =>
+                handleMessages(
+                  params.row.submission_id,
+                  params.row.original_file_name,
+                )
+              }
+            >
+              <Description />
+            </IconButton>
+          );
+        }
+      },
+    },
+  ];
+
   const [formData, setFormData] = useState({
     fileName: "",
     submissionDateTo: "",
@@ -140,7 +200,7 @@ export default function Dashboard() {
     fileStatus: "",
   });
 
-  const handleFormInputChange = (key, event) => {
+  const handleFormInputChange = (key:string, event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({
       ...formData,
       [key]: event.target.value,
@@ -157,7 +217,7 @@ export default function Dashboard() {
     pageSize: 10,
   });
 
-  const handlePaginationChange = (params) => {
+  const handlePaginationChange = (params: {pageSize: number, page: number}) => {
     setTimeout(() => {
       if (params.pageSize != paginationModel.pageSize) {
         setPaginationModel({ page: 0, pageSize: params.pageSize });
@@ -216,10 +276,15 @@ export default function Dashboard() {
     handleFormInputChange("submitterAgency", event);
   };
 
+  const handleCloseAndSubmit = async () => {
+    handleClose();
+    await handleSearch(undefined);
+  };
+
   useEffect(() => {
     async function fetchFileStatusCodes() {
-      await getFileStatusCodes().then((response) => {
-        const newSubmissionCodes = submissionStatusCodes.items;
+      await getFileStatusCodes().then((response: any) => {
+        const newSubmissionCodes: any = submissionStatusCodes.items;
         Object.keys(response).map((key) => {
           newSubmissionCodes[key] = response[key];
         });
@@ -237,12 +302,6 @@ export default function Dashboard() {
       handleSearch(null);
     }
   }, [paginationModel]);
-
-  const [selectedRow, setSelectedRow] = useState<null | any[]>(null);
-
-  const handleClose = () => {
-    setSelectedRow(null);
-  };
 
   return (
     <>
@@ -393,7 +452,7 @@ export default function Dashboard() {
                         ALL
                       </MenuItem>
                       {submissionStatusCodes
-                        ? submissionStatusCodes.items.map((option) => (
+                        ? submissionStatusCodes.items.map((option: any) => (
                             <MenuItem
                               key={option.submission_status_code}
                               value={option.submission_status_code}
@@ -448,24 +507,42 @@ export default function Dashboard() {
           // onRowClick={(params) => setSelectedRow(params.row)}
           sx={{ width: "1400px", height: `${paginationModel.pageSize * 100}` }}
         />
-        <Dialog open={!!selectedRow} onClose={handleClose}>
-          <DialogTitle>Row Details</DialogTitle>
-          <DialogContent>
-            <Table>
-              <TableBody>
-                {selectedRow &&
-                  Object.entries(selectedRow).map(([key, value]) => (
-                    <TableRow key={key}>
-                      <TableCell>{key}</TableCell>
-                      <TableCell>{value}</TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
+      </div>
+
+      <div>
+        <Dialog open={open} onClose={handleClose}>
+          <DialogTitle>Delete File </DialogTitle>
+          <DialogContent sx={{ paddingTop: "24px" }}>
+            <Typography>
+              Are you sure you want to delete{" "}
+              {currentItem ? currentItem.original_file_name : ""} ?
+            </Typography>
           </DialogContent>
-          <DialogActions>
-            <Button variant="contained" color="secondary" onClick={handleClose}>
-              Close
+          <DialogActions sx={{ paddingBottom: "24px" }}>
+            <Button
+              onClick={handleClose}
+              variant="contained"
+              color="primary"
+              sx={{
+                backgroundColor: "gray",
+                color: "white",
+                "&:hover": {
+                  backgroundColor: "darkgray",
+                },
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="secondary"
+              onClick={() => {
+                handleDelete(currentItem.file_name, currentItem.submission_id);
+                handleCloseAndSubmit();
+              }}
+              variant="contained"
+              autoFocus
+            >
+              Confirm
             </Button>
           </DialogActions>
         </Dialog>
@@ -474,12 +551,28 @@ export default function Dashboard() {
   );
 }
 
+function useHandleOpen() {
+  const [open, setOpen] = useState(false);
+  const [currentItem, setCurrentItem] = useState({});
+
+  const handleOpen = (original_file_name: string, submission_id: string, file_name: string) => {
+    setCurrentItem({ original_file_name, submission_id, file_name });
+    setOpen(true);
+  };
+  const handleClose = () => {
+    setOpen(false);
+    setCurrentItem(null);
+  };
+
+  return { open, currentItem, handleOpen, handleClose };
+}
+
 async function handleDownload(
   fileName: string,
   originalFileName: string,
 ): Promise<void> {
   const fileMimeType = getMimeType(fileName);
-  await downloadFile(fileName).then((response) => {
+  await downloadFile(fileName).then((response: any) => {
     const fileBuffer = new Uint8Array(response.data);
     const blob = new Blob([fileBuffer], { type: fileMimeType });
     const link = document.createElement("a");
@@ -501,7 +594,7 @@ async function handleMessages(
       ? fileNameParts.slice(0, -1).join(".")
       : original_file_name;
 
-  const errorMessages = await downloadFileLogs(submission_id);
+  const errorMessages: any = await downloadFileLogs(submission_id);
   const blob = new Blob([errorMessages], { type: "text/plain" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
@@ -511,9 +604,12 @@ async function handleMessages(
   document.body.removeChild(link); // Clean up
 }
 
-function handleDelete(fileName: string, submission_id: string): void {
-  console.log(fileName);
-  console.log(submission_id);
+async function handleDelete(
+  fileName: string,
+  submission_id: string,
+): Promise<void> {
+  let deleted = false;
+  await deleteFile(fileName, submission_id);
 }
 
 function getMimeType(fileName: string) {
