@@ -590,7 +590,7 @@ export class FileParseValidateService {
             id: GUIDtoUpdate,
             customId: row.rec.SpecimenName,
             startTime: row.rec.ObservedDateTime,
-          }
+          },
         });
         specimenIds.push({
           rec: currentSpecimen,
@@ -1003,6 +1003,7 @@ export class FileParseValidateService {
   }
 
   async saveAQIInsertedElements(
+    file_submission_id: string,
     fileName: string,
     originalFileName: string,
     visitInfo: any[],
@@ -1037,6 +1038,19 @@ export class FileParseValidateService {
     await this.prisma.$transaction(async (prisma) => {
       await prisma.aqi_imported_data.create({
         data: imported_guids_data,
+      });
+    });
+
+    //Update the number of samples and results imported from the file
+    await this.prisma.$transaction(async (prisma) => {
+      const updateStatus = await this.prisma.file_submission.update({
+        where: {
+          submission_id: file_submission_id,
+        },
+        data: {
+          sample_count: activityGUIDS.length,
+          results_count: observationGUIDS.length,
+        },
       });
     });
   }
@@ -1191,7 +1205,10 @@ export class FileParseValidateService {
 
           const uniqueVisitsWithIDsAndCounts =
             this.getUniqueWithCounts(allVisitsWithGUIDS);
-          visitInfo = await this.fieldVisitJson(uniqueVisitsWithIDsAndCounts, "put");
+          visitInfo = await this.fieldVisitJson(
+            uniqueVisitsWithIDsAndCounts,
+            "put",
+          );
           expandedVisitInfo = this.expandList(visitInfo);
         } else {
           // Do a POST to insert a new visit record. Keep track of the newly inserted GUIDs for potential activity insertions
@@ -1215,7 +1232,10 @@ export class FileParseValidateService {
           const uniqueActivitiesWithIDsAndCounts = this.getUniqueWithCounts(
             allActivitiesWithGUIDS,
           );
-          activityInfo = await this.fieldActivityJson(uniqueActivitiesWithIDsAndCounts, "put");
+          activityInfo = await this.fieldActivityJson(
+            uniqueActivitiesWithIDsAndCounts,
+            "put",
+          );
           expandedActivityInfo = this.expandList(activityInfo);
         } else {
           // Do a POST to insert a new activity record. Keep track of the newly inserted GUIDs for potential specimen insertions
@@ -1245,7 +1265,10 @@ export class FileParseValidateService {
           const uniqueSpecimensWithIDsAndCounts = this.getUniqueWithCounts(
             allSpecimensWithGUIDS,
           );
-          specimenInfo = await this.specimensJson(uniqueSpecimensWithIDsAndCounts, "put");
+          specimenInfo = await this.specimensJson(
+            uniqueSpecimensWithIDsAndCounts,
+            "put",
+          );
         } else {
           // Do a POST to insert a new specimen record. Keep track of the newly inserted GUIDs for potential observation insertions
           allSpecimens = allSpecimens.map((obj2, index) => {
@@ -1269,6 +1292,7 @@ export class FileParseValidateService {
 
         // Save the created GUIDs to aqi_inserted_elements
         await this.saveAQIInsertedElements(
+          file_submission_id,
           fileName,
           originalFileName,
           visitInfo,
@@ -1360,6 +1384,7 @@ export class FileParseValidateService {
 
           // Save the created GUIDs to aqi_inserted_elements
           await this.saveAQIInsertedElements(
+            file_submission_id,
             fileName,
             originalFileName,
             visitInfo,
