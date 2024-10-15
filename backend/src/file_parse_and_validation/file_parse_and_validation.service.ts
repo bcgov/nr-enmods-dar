@@ -1146,6 +1146,7 @@ export class FileParseValidateService {
 
       if (localValidationResults[0].some((item) => item.type === "ERROR")) {
         /*
+         * If there are any errors then
          * Set the file status to 'REJECTED'
          * Save the error logs to the database table
          * Send the an email to the submitter and the ministry contact that is inside the file
@@ -1159,224 +1160,156 @@ export class FileParseValidateService {
           localValidationResults[0],
         );
         return;
-      } else if (
-        localValidationResults[0].some((item) => item.type === "WARN")
-      ) {
-        let visitInfo = [],
-          expandedVisitInfo = [];
-        let activityInfo = [],
-          expandedActivityInfo = [];
-        let specimenInfo = [];
+      } else {
+        /*
+         * If there are no errors then
+         * Check to see if there are any WARNINGS
+         * If WARNINGS
+         * Proceed with the PATCH logic
+         */
+        if (localValidationResults[0].some((item) => item.type === "WARN")) {
+          let visitInfo = [],
+            expandedVisitInfo = [];
+          let activityInfo = [],
+            expandedActivityInfo = [];
+          let specimenInfo = [];
 
-        const {
-          existingVisitGUIDS,
-          existingActivityGUIDS,
-          existingSpecimenGUIDS,
-        } = localValidationResults[1].reduce(
-          (acc, { existingGUIDS }) => {
-            if (existingGUIDS.visit != null) {
-              acc.existingVisitGUIDS.push(existingGUIDS.visit);
-            }
 
-            if (existingGUIDS.activity != null) {
-              acc.existingActivityGUIDS.push(existingGUIDS.activity);
-            }
+          // Get three seprated lists for the existing GUIDS for visits, acticities and specimens
+          const {
+            existingVisitGUIDS,
+            existingActivityGUIDS,
+            existingSpecimenGUIDS,
+          } = localValidationResults[1].reduce(
+            (acc, { existingGUIDS }) => {
+              if (existingGUIDS.visit != null) {
+                acc.existingVisitGUIDS.push(existingGUIDS.visit);
+              }
 
-            if (existingGUIDS.specimen != null) {
-              acc.existingSpecimenGUIDS.push(existingGUIDS.specimen);
-            }
-            return acc;
-          },
-          {
-            existingVisitGUIDS: [] as string[],
-            existingActivityGUIDS: [] as string[],
-            existingSpecimenGUIDS: [] as string[],
-          },
-        );
+              if (existingGUIDS.activity != null) {
+                acc.existingActivityGUIDS.push(existingGUIDS.activity);
+              }
 
-        if (existingVisitGUIDS.length > 0) {
-          // Do a PUT to update the existing visit record
-          const allVisitsWithGUIDS = allFieldVisits.map((visit, index) => {
-            return {
-              id: existingVisitGUIDS[index],
-              ...visit,
-            };
-          });
-
-          const uniqueVisitsWithIDsAndCounts =
-            this.getUniqueWithCounts(allVisitsWithGUIDS);
-          visitInfo = await this.fieldVisitJson(
-            uniqueVisitsWithIDsAndCounts,
-            "put",
-          );
-          expandedVisitInfo = this.expandList(visitInfo);
-        } else {
-          // Do a POST to insert a new visit record. Keep track of the newly inserted GUIDs for potential activity insertions
-          const uniqueVisitsWithCounts =
-            this.getUniqueWithCounts(allFieldVisits);
-          visitInfo = await this.fieldVisitJson(uniqueVisitsWithCounts, "post");
-          expandedVisitInfo = this.expandList(visitInfo);
-        }
-
-        if (existingActivityGUIDS.length > 0) {
-          // Do a PUT to update the existing activity record
-          const allActivitiesWithGUIDS = allFieldActivities.map(
-            (activity, index) => {
-              return {
-                id: existingActivityGUIDS[index],
-                ...activity,
-              };
+              if (existingGUIDS.specimen != null) {
+                acc.existingSpecimenGUIDS.push(existingGUIDS.specimen);
+              }
+              return acc;
+            },
+            {
+              existingVisitGUIDS: [] as string[],
+              existingActivityGUIDS: [] as string[],
+              existingSpecimenGUIDS: [] as string[],
             },
           );
 
-          const uniqueActivitiesWithIDsAndCounts = this.getUniqueWithCounts(
-            allActivitiesWithGUIDS,
-          );
-          activityInfo = await this.fieldActivityJson(
-            uniqueActivitiesWithIDsAndCounts,
-            "put",
-          );
-          expandedActivityInfo = this.expandList(activityInfo);
-        } else {
-          // Do a POST to insert a new activity record. Keep track of the newly inserted GUIDs for potential specimen insertions
-          allFieldActivities = allFieldActivities.map((obj2, index) => {
-            const obj1 = expandedVisitInfo[index];
-            return { ...obj2, ...obj1 };
-          });
+          // If the visit to import already exists, add the corresponding GUID to each record object
+          if (existingVisitGUIDS.length > 0) {
+            // Do a PUT to update the existing visit record
+            const allVisitsWithGUIDS = allFieldVisits.map((visit, index) => {
+              return {
+                id: existingVisitGUIDS[index],
+                ...visit,
+              };
+            });
 
-          const uniqueActivitiesWithCounts =
-            this.getUniqueWithCounts(allFieldActivities);
-          activityInfo = await this.fieldActivityJson(
-            uniqueActivitiesWithCounts,
-            "post",
-          );
-          expandedActivityInfo = this.expandList(activityInfo);
-        }
+            // Find the unique records with the visit GUIDS and send a PUT request with that data
+            const uniqueVisitsWithIDsAndCounts =
+              this.getUniqueWithCounts(allVisitsWithGUIDS);
+            visitInfo = await this.fieldVisitJson(
+              uniqueVisitsWithIDsAndCounts,
+              "put",
+            );
+            // Expand the returned list for potential relational computation for activities
+            expandedVisitInfo = this.expandList(visitInfo);
+          } else {
+            // If visits don't already exist --> Do a POST to insert a new visit record. Keep track of the newly inserted GUIDs for potential activity insertions
+            const uniqueVisitsWithCounts =
+              this.getUniqueWithCounts(allFieldVisits);
+            visitInfo = await this.fieldVisitJson(
+              uniqueVisitsWithCounts,
+              "post",
+            );
+            // Expand the returned list for potential relational computation for activities
+            expandedVisitInfo = this.expandList(visitInfo);
+          }
 
-        if (existingSpecimenGUIDS.length > 0) {
-          // Do a PUT to update the existing specimen record
-          const allSpecimensWithGUIDS = allSpecimens.map((specimen, index) => {
-            return {
-              id: existingSpecimenGUIDS[index],
-              ...specimen,
-            };
-          });
+          // If the activity to import already exists, add the corresponding GUID to each record object
+          if (existingActivityGUIDS.length > 0) {
+            // Do a PUT to update the existing activity record
+            const allActivitiesWithGUIDS = allFieldActivities.map(
+              (activity, index) => {
+                return {
+                  id: existingActivityGUIDS[index],
+                  ...activity,
+                };
+              },
+            );
 
-          const uniqueSpecimensWithIDsAndCounts = this.getUniqueWithCounts(
-            allSpecimensWithGUIDS,
-          );
-          specimenInfo = await this.specimensJson(
-            uniqueSpecimensWithIDsAndCounts,
-            "put",
-          );
-        } else {
-          // Do a POST to insert a new specimen record. Keep track of the newly inserted GUIDs for potential observation insertions
-          allSpecimens = allSpecimens.map((obj2, index) => {
-            const obj1 = expandedActivityInfo[index];
-            return { ...obj2, ...obj1 };
-          });
-          const uniqueSpecimensWithCounts =
-            this.getUniqueWithCounts(allSpecimens);
-          specimenInfo = await this.specimensJson(
-            uniqueSpecimensWithCounts,
-            "post",
-          );
-        }
+            // Find the unique records with the activity GUIDS and send a PUT request with that data
+            const uniqueActivitiesWithIDsAndCounts = this.getUniqueWithCounts(
+              allActivitiesWithGUIDS,
+            );
+            activityInfo = await this.fieldActivityJson(
+              uniqueActivitiesWithIDsAndCounts,
+              "put",
+            );
+            // Expand the returned list for potential relational computation for specimen
+            expandedActivityInfo = this.expandList(activityInfo);
+          } else {
+            // If the activities don't already exist --> Do a POST to insert a new activity record. Keep track of the newly inserted GUIDs for potential specimen insertions
+            allFieldActivities = allFieldActivities.map((obj2, index) => {
+              const obj1 = expandedVisitInfo[index];
+              return { ...obj2, ...obj1 };
+            });
 
-        await this.aqiService.importObservations(ObsFilePath, "import");
+            const uniqueActivitiesWithCounts =
+              this.getUniqueWithCounts(allFieldActivities);
+            activityInfo = await this.fieldActivityJson(
+              uniqueActivitiesWithCounts,
+              "post",
+            );
+            // Expand the returned list for potential relational computation for specimen
+            expandedActivityInfo = this.expandList(activityInfo);
+          }
 
-        await this.fileSubmissionsService.updateFileStatus(
-          file_submission_id,
-          "SUBMITTED",
-        );
+          // If the specimen to import already exists, add the corresponding GUID to each record object
+          if (existingSpecimenGUIDS.length > 0) {
+            // Do a PUT to update the existing specimen record
+            const allSpecimensWithGUIDS = allSpecimens.map(
+              (specimen, index) => {
+                return {
+                  id: existingSpecimenGUIDS[index],
+                  ...specimen,
+                };
+              },
+            );
 
-        // Save the created GUIDs to aqi_inserted_elements
-        await this.saveAQIInsertedElements(
-          file_submission_id,
-          fileName,
-          originalFileName,
-          visitInfo,
-          activityInfo,
-          specimenInfo,
-        );
+            // Find the unique records with the specimen GUIDS and send a PUT request with that data
+            const uniqueSpecimensWithIDsAndCounts = this.getUniqueWithCounts(
+              allSpecimensWithGUIDS,
+            );
+            specimenInfo = await this.specimensJson(
+              uniqueSpecimensWithIDsAndCounts,
+              "put",
+            );
+          } else {
+            //If the specimens don't already exist --> Do a POST to insert a new specimen record. Keep track of the newly inserted GUIDs for potential observation insertions
+            allSpecimens = allSpecimens.map((obj2, index) => {
+              const obj1 = expandedActivityInfo[index];
+              return { ...obj2, ...obj1 };
+            });
+            const uniqueSpecimensWithCounts =
+              this.getUniqueWithCounts(allSpecimens);
+            specimenInfo = await this.specimensJson(
+              uniqueSpecimensWithCounts,
+              "post",
+            );
+          }
 
-        const file_error_log_data = {
-          file_submission_id: file_submission_id,
-          file_name: fileName,
-          original_file_name: originalFileName,
-          file_operation_code: file_operation_code,
-          ministry_contact: uniqueMinistryContacts.join(", "),
-          error_log: localValidationResults[0],
-          create_utc_timestamp: new Date(),
-        };
-
-        await this.prisma.file_error_logs.create({
-          data: file_error_log_data,
-        });
-      } else if (
-        !(await localValidationResults[0]).includes("ERROR") &&
-        !(await localValidationResults[0]).includes("WARN")
-      ) {
-        await this.fileSubmissionsService.updateFileStatus(
-          file_submission_id,
-          "VALIDATED",
-        );
-
-        if (file_operation_code === "VALIDATE") {
-          return;
-        } else {
-          /*
-           * If the local validation passed then split the file into 4 and process with the AQI API calls
-           * Get unique records to prevent redundant API calls
-           * Post the unique records to the API
-           * Expand the returned list of object - this will be used for finding unique activities
-           */
-          const uniqueVisitsWithCounts =
-            this.getUniqueWithCounts(allFieldVisits);
-          let visitInfo = await this.fieldVisitJson(
-            uniqueVisitsWithCounts,
-            "post",
-          );
-          let expandedVisitInfo = this.expandList(visitInfo);
-
-          /*
-           * Merge the expanded visitInfo with allFieldActivities
-           * Collapse allFieldActivities with a dupe count
-           * Post the unique records to the API
-           * Expand the returned list of object - this will be used for finding unique specimens
-           */
-
-          allFieldActivities = allFieldActivities.map((obj2, index) => {
-            const obj1 = expandedVisitInfo[index];
-            return { ...obj2, ...obj1 };
-          });
-
-          const uniqueActivitiesWithCounts =
-            this.getUniqueWithCounts(allFieldActivities);
-          let activityInfo = await this.fieldActivityJson(
-            uniqueActivitiesWithCounts,
-            "post",
-          );
-          let expandedActivityInfo = this.expandList(activityInfo);
-
-          /*
-           * Merge the expanded activityInfo with allSpecimens
-           * Collapse allSpecimens with a dupe count
-           * Post the unique records to the API
-           */
-          allSpecimens = allSpecimens.map((obj2, index) => {
-            const obj1 = expandedActivityInfo[index];
-            return { ...obj2, ...obj1 };
-          });
-          const uniqueSpecimensWithCounts =
-            this.getUniqueWithCounts(allSpecimens);
-          let specimenInfo = await this.specimensJson(
-            uniqueSpecimensWithCounts,
-            "post",
-          );
-
+          // Import the observations
           await this.aqiService.importObservations(ObsFilePath, "import");
 
+          // Update file submission status
           await this.fileSubmissionsService.updateFileStatus(
             file_submission_id,
             "SUBMITTED",
@@ -1392,6 +1325,7 @@ export class FileParseValidateService {
             specimenInfo,
           );
 
+          // Create a record for the file log 
           const file_error_log_data = {
             file_submission_id: file_submission_id,
             file_name: fileName,
@@ -1405,7 +1339,98 @@ export class FileParseValidateService {
           await this.prisma.file_error_logs.create({
             data: file_error_log_data,
           });
-          return;
+        } else {
+          // If there are no errors or warnings
+          await this.fileSubmissionsService.updateFileStatus(
+            file_submission_id,
+            "VALIDATED",
+          );
+
+          if (file_operation_code === "VALIDATE") {
+            return;
+          } else {
+            /*
+             * If the local validation passed then split the file into 4 and process with the AQI API calls
+             * Get unique records to prevent redundant API calls
+             * Post the unique records to the API
+             * Expand the returned list of object - this will be used for finding unique activities
+             */
+            const uniqueVisitsWithCounts =
+              this.getUniqueWithCounts(allFieldVisits);
+            let visitInfo = await this.fieldVisitJson(
+              uniqueVisitsWithCounts,
+              "post",
+            );
+            let expandedVisitInfo = this.expandList(visitInfo);
+
+            /*
+             * Merge the expanded visitInfo with allFieldActivities
+             * Collapse allFieldActivities with a dupe count
+             * Post the unique records to the API
+             * Expand the returned list of object - this will be used for finding unique specimens
+             */
+
+            allFieldActivities = allFieldActivities.map((obj2, index) => {
+              const obj1 = expandedVisitInfo[index];
+              return { ...obj2, ...obj1 };
+            });
+
+            const uniqueActivitiesWithCounts =
+              this.getUniqueWithCounts(allFieldActivities);
+            let activityInfo = await this.fieldActivityJson(
+              uniqueActivitiesWithCounts,
+              "post",
+            );
+            let expandedActivityInfo = this.expandList(activityInfo);
+
+            /*
+             * Merge the expanded activityInfo with allSpecimens
+             * Collapse allSpecimens with a dupe count
+             * Post the unique records to the API
+             */
+            allSpecimens = allSpecimens.map((obj2, index) => {
+              const obj1 = expandedActivityInfo[index];
+              return { ...obj2, ...obj1 };
+            });
+            const uniqueSpecimensWithCounts =
+              this.getUniqueWithCounts(allSpecimens);
+            let specimenInfo = await this.specimensJson(
+              uniqueSpecimensWithCounts,
+              "post",
+            );
+
+            await this.aqiService.importObservations(ObsFilePath, "import");
+
+            await this.fileSubmissionsService.updateFileStatus(
+              file_submission_id,
+              "SUBMITTED",
+            );
+
+            // Save the created GUIDs to aqi_inserted_elements
+            await this.saveAQIInsertedElements(
+              file_submission_id,
+              fileName,
+              originalFileName,
+              visitInfo,
+              activityInfo,
+              specimenInfo,
+            );
+
+            const file_error_log_data = {
+              file_submission_id: file_submission_id,
+              file_name: fileName,
+              original_file_name: originalFileName,
+              file_operation_code: file_operation_code,
+              ministry_contact: uniqueMinistryContacts.join(", "),
+              error_log: localValidationResults[0],
+              create_utc_timestamp: new Date(),
+            };
+
+            await this.prisma.file_error_logs.create({
+              data: file_error_log_data,
+            });
+            return;
+          }
         }
       }
     }
