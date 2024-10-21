@@ -44,7 +44,7 @@ export class ObjectStoreService {
   
       return response.data;
     } catch (error) {
-      console.error('Error fetching the file:', error.message);
+      this.logger.error('Error fetching the file:', error.message);
       throw error;
     }
   }
