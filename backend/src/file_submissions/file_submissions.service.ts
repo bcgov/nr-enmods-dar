@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { CreateFileSubmissionDto } from "./dto/create-file_submission.dto";
 import { UpdateFileSubmissionDto } from "./dto/update-file_submission.dto";
 import { PrismaService } from "nestjs-prisma";
@@ -15,6 +15,8 @@ export class FileSubmissionsService {
     private prisma: PrismaService,
     private readonly objectStore: ObjectStoreService,
     private readonly aqiService: AqiApiService,
+    private readonly logger = new Logger(FileSubmissionsService.name),
+
   ) {}
 
   async create(body: any, file: Express.Multer.File) {
@@ -219,7 +221,7 @@ export class FileSubmissionsService {
       });
       return true;
     } catch (err) {
-      console.error(`Error deleting file: ${err.message}`);
+      this.logger.error(`Error deleting file: ${err.message}`);
       return false;
     }
   }
@@ -229,7 +231,7 @@ export class FileSubmissionsService {
       const fileBinary = await this.objectStore.getFileData(fileName);
       return fileBinary;
     } catch (err) {
-      console.error(`Error fetching file from S3: ${err.message}`);
+      this.logger.error(`Error fetching file from S3: ${err.message}`);
       throw err;
     }
   }

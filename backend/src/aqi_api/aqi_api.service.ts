@@ -30,7 +30,7 @@ export class AqiApiService {
       );
       return response.data.id;
     } catch (err) {
-      console.error(
+      this.logger.error(
         "API CALL TO POST Field Visits failed: ",
         err.response.data.message,
       );
@@ -48,7 +48,7 @@ export class AqiApiService {
       );
       return response.data.id;
     } catch (err) {
-      console.error(
+      this.logger.error(
         "API CALL TO PUT Field Visits failed: ",
         err.response.data.message,
       );
@@ -63,7 +63,7 @@ export class AqiApiService {
       );
       return response.data.id;
     } catch (err) {
-      console.error(
+      this.logger.error(
         "API CALL TO POST Activities failed: ",
         err.response.data.message,
       );
@@ -81,7 +81,7 @@ export class AqiApiService {
       );
       return response.data.id;
     } catch (err) {
-      console.error(
+      this.logger.error(
         "API CALL TO PUT Field Activities failed: ",
         err.response.data.message,
       );
@@ -96,7 +96,7 @@ export class AqiApiService {
       );
       return response.data.id;
     } catch (err) {
-      console.error(
+      this.logger.error(
         "API CALL TO POST Specimens failed: ",
         err.response.data.message,
       );
@@ -114,7 +114,7 @@ export class AqiApiService {
       );
       return response.data.id;
     } catch (err) {
-      console.error(
+      this.logger.error(
         "API CALL TO PUT Specimens failed: ",
         err.response.data.message,
       );
@@ -136,7 +136,7 @@ export class AqiApiService {
         .map((observation) => observation.id);
       return relatedData;
     } catch (err) {
-      console.error("API CALL TO GET Observations from File failed: ", err);
+      this.logger.error("API CALL TO GET Observations from File failed: ", err);
     }
   }
 
@@ -189,7 +189,7 @@ export class AqiApiService {
         return errorMessages;
       }
     } catch (err) {
-      console.error("API call to Observation Import failed: ", err);
+      this.logger.error("API call to Observation Import failed: ", err);
     }
   }
 
@@ -232,7 +232,7 @@ export class AqiApiService {
           console.warn("409 Conflict: Continuing without failing");
           return axiosError.response.data;
         } else {
-          console.error(
+          this.logger.error(
             "API CALL TO Observations Status failed: ",
             err.response,
           );
@@ -270,7 +270,7 @@ export class AqiApiService {
         return false;
       }
     } catch (err) {
-      console.error(`API CALL TO ${dbTable} failed: `, err);
+      this.logger.error(`API CALL TO ${dbTable} failed: `, err);
     }
   }
 
@@ -290,7 +290,7 @@ export class AqiApiService {
           return null;
         }
       } catch (err) {
-        console.error(`API CALL TO ${dbTable} failed: `, err);
+        this.logger.error(`API CALL TO ${dbTable} failed: `, err);
       }
     } else if (dbTable == "aqi_field_activities") {
       try {
@@ -307,7 +307,7 @@ export class AqiApiService {
           return null;
         }
       } catch (err) {
-        console.error(`API CALL TO ${dbTable} failed: `, err);
+        this.logger.error(`API CALL TO ${dbTable} failed: `, err);
       }
     } else if (dbTable == "aqi_specimens") {
       try {
@@ -325,7 +325,7 @@ export class AqiApiService {
           return null;
         }
       } catch (err) {
-        console.error(`API CALL TO ${dbTable} failed: `, err);
+        this.logger.error(`API CALL TO ${dbTable} failed: `, err);
       }
     }
   }
@@ -412,7 +412,7 @@ export class AqiApiService {
         );
         console.log("AQI OBS DELETION: " + deletion.data);
       } catch (err) {
-        console.error(`API call to delete AQI observation failed: `, err);
+        this.logger.error(`API call to delete AQI observation failed: `, err);
       }
     }
 
@@ -439,10 +439,10 @@ export class AqiApiService {
             });
             console.log("DB SPECIMEN DELETION: " + dbDeletion);
           } catch (err) {
-            console.error(`API call to delete DB specimen failed: `, err);
+            this.logger.error(`API call to delete DB specimen failed: `, err);
           }
         } catch (err) {
-          console.error(`API call to delete AQI specimen failed: `, err);
+          this.logger.error(`API call to delete AQI specimen failed: `, err);
         }
       }
     }
@@ -471,10 +471,10 @@ export class AqiApiService {
           });
           console.log("DB ACTIVITY DELETION: " + dbDeletion);
         } catch (err) {
-          console.error(`API call to delete DB activities failed: `, err);
+          this.logger.error(`API call to delete DB activities failed: `, err);
         }
       } catch (err) {
-        console.error(`API call to delete DB activity failed: `, err);
+        this.logger.error(`API call to delete DB activity failed: `, err);
       }
     }
 
@@ -502,10 +502,10 @@ export class AqiApiService {
           });
           console.log("DB VISIT DELETION: " + dbDeletion);
         } catch (err) {
-          console.error(`API call to delete DB visits failed: `, err);
+          this.logger.error(`API call to delete DB visits failed: `, err);
         }
       } catch (err) {
-        console.error(`API call to delete AQI visit failed: `, err);
+        this.logger.error(`API call to delete AQI visit failed: `, err);
       }
     }
 

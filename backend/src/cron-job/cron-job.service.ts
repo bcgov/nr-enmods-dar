@@ -256,7 +256,7 @@ export class CronJobService {
       this.logger.log(`-`);
       return;
     } catch (err) {
-      console.error(`Error updating #### ${dbTable} #### table`, error);
+      this.logger.error(`Error updating #### ${dbTable} #### table`, error);
     }
   }
 
@@ -305,7 +305,7 @@ export class CronJobService {
         this.dataPullDownComplete = true;
       } catch (error) {
         this.dataPullDownComplete = false;
-        console.error(`Error updating database for ${api.endpoint}`, error);
+        this.logger.error(`Error updating database for ${api.endpoint}`, error);
       }
     }
 
