@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import axios, { AxiosInstance } from "axios";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
 import {
@@ -144,7 +144,9 @@ export class FileParseValidateService {
 
   constructor(
     private prisma: PrismaService,
+    @Inject(forwardRef(() => FileSubmissionsService))
     private readonly fileSubmissionsService: FileSubmissionsService,
+    @Inject(forwardRef(() => AqiApiService))
     private readonly aqiService: AqiApiService,
   ) {}
 

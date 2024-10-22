@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import axios from "axios";
 import { error } from "winston";
 import { Cron, CronExpression } from "@nestjs/schedule";
@@ -20,6 +20,7 @@ export class CronJobService {
   private dataPullDownComplete: boolean = false;
   constructor(
     private prisma: PrismaService,
+    @Inject(forwardRef(() => FileParseValidateService))
     private readonly fileParser: FileParseValidateService,
     private readonly objectStore: ObjectStoreService,
   ) {
@@ -432,10 +433,10 @@ export class CronJobService {
       grab all the files from the DB and S3 bucket that have a status of QUEUED
       for each file returned, change the status to INPROGRESS and go to the parser
     */
-    // if (!this.dataPullDownComplete) {
-    //   this.logger.warn("Data pull down from AQSS did not complete");
-    //   return;
-    // }
+    if (!this.dataPullDownComplete) {
+      this.logger.warn("Data pull down from AQSS did not complete");
+      return;
+    }
 
     let filesToValidate = await this.fileParser.getQueuedFiles();
 
