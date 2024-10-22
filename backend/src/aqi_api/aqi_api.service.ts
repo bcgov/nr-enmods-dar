@@ -3,16 +3,16 @@ import axios, { AxiosError, AxiosInstance } from "axios";
 import * as fs from "fs";
 import FormData from "form-data";
 import { PrismaService } from "nestjs-prisma";
-import { CronJobService } from "src/cron-job/cron-job.service";
+import { CronJobService } from "../cron-job/cron-job.service";
 import path from "path";
 
 @Injectable()
 export class AqiApiService {
   private readonly logger = new Logger(AqiApiService.name);
   private axiosInstance: AxiosInstance;
-  private cronJobService: CronJobService
 
   constructor(
+    private cronJobService: CronJobService,
     private prisma: PrismaService,
   ) {
     this.axiosInstance = axios.create({
