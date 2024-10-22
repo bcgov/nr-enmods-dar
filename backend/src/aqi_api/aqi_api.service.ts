@@ -1,17 +1,20 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import axios, { AxiosError, AxiosInstance } from "axios";
 import * as fs from "fs";
 import FormData from "form-data";
 import { PrismaService } from "nestjs-prisma";
+import { CronJobService } from "src/cron-job/cron-job.service";
 import path from "path";
-import { JsonValue } from "@prisma/client/runtime/library";
 
 @Injectable()
 export class AqiApiService {
   private readonly logger = new Logger(AqiApiService.name);
   private axiosInstance: AxiosInstance;
+  private cronJobService: CronJobService
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+  ) {
     this.axiosInstance = axios.create({
       baseURL: process.env.AQI_BASE_URL,
       headers: {
@@ -140,7 +143,11 @@ export class AqiApiService {
     }
   }
 
-  async importObservations(fileName: any, method: string) {
+  async importObservations(
+    fileName: any,
+    method: string,
+    fileSubmissionId: string,
+  ) {
     const formData = new FormData();
     formData.append("file", fs.createReadStream(fileName));
     try {
@@ -162,67 +169,65 @@ export class AqiApiService {
         );
 
         const statusURL = response.headers.location;
-        const obsStatus = await this.getObservationsStatusResult(statusURL);
+        const obs_status_data = {
+          file_submission_id: fileSubmissionId,
+          file_name: fileName,
+          status_url: statusURL,
+          create_utc_timestamp: new Date(),
+        };
+
+        await this.prisma.aqi_obs_status.create({
+          data: obs_status_data,
+        });
+        this.logger.log("CREATED OBS STATUS REC FOR DRY RUN");
+
+        const resultURL = await this.cronJobService.waitForObsStatus();
+
+        const obsStatus = await this.getObsResult(resultURL);
 
         const errorMessages = this.parseObsResultResponse(obsStatus);
         return errorMessages;
       } else {
-        const response = await axios.post(
-          `${process.env.AQI_BASE_URL}/v2/observationimports?fileType=SIMPLE_CSV&timeZoneOffset=-08:00&linkFieldVisitsForNewObservations=true`,
-          formData,
-          {
-            headers: {
-              Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
-              Accept: "application/json; text/plain",
-              "x-api-key": process.env.AQI_ACCESS_TOKEN,
-              ...formData.getHeaders(),
-            },
-          },
-        );
-        this.logger.log(
-          `API call to Observation Import succeeded: ${response.status}`,
-        );
-        const statusURL = response.headers.location;
-        const obsStatus = await this.getObservationsStatusResult(statusURL);
-
-        const errorMessages = this.parseObsResultResponse(obsStatus);
-        return errorMessages;
+        // const response = await axios.post(
+        //   `${process.env.AQI_BASE_URL}/v2/observationimports?fileType=SIMPLE_CSV&timeZoneOffset=-08:00&linkFieldVisitsForNewObservations=true`,
+        //   formData,
+        //   {
+        //     headers: {
+        //       Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+        //       Accept: "application/json; text/plain",
+        //       "x-api-key": process.env.AQI_ACCESS_TOKEN,
+        //       ...formData.getHeaders(),
+        //     },
+        //   },
+        // );
+        // this.logger.log(
+        //   `API call to Observation Import succeeded: ${response.status}`,
+        // );
+        // const statusURL = response.headers.location;
+        // const obsStatus = await this.getObservationsStatus(
+        //   fileName,
+        //   fileSubmissionId,
+        //   statusURL,
+        // );
+        // const errorMessages = this.parseObsResultResponse(obsStatus);
+        // return errorMessages;
       }
     } catch (err) {
       this.logger.error("API call to Observation Import failed: ", err);
     }
   }
 
-  async getObservationsStatusResult(statusURL: string) {
-    const wait = async (ms: number) => {
-      const seconds = ms / 1000;
-      for (let i = 1; i <= seconds; i++) {
-        await new Promise((resolve) => setTimeout(resolve, ms)); // wait 1 second
-      }
-    };
-
+  async getObsResult(resultURL: string) {
     try {
-      const response = await axios.get(statusURL, {
+      const obsResultResponse = await axios.get(resultURL, {
         headers: {
           Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
           "x-api-key": process.env.AQI_ACCESS_TOKEN,
         },
       });
 
-      await wait(7000);
-
-      const obsResultResponse = await axios.get(
-        `${process.env.AQI_BASE_URL}/v2/observationimports/${response.data.id}/result`,
-        {
-          headers: {
-            Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
-            "x-api-key": process.env.AQI_ACCESS_TOKEN,
-          },
-        },
-      );
-
       this.logger.log(
-        `API call to Observations Status succeeded: ${response.status}`,
+        `API call to Observations Result succeeded: ${obsResultResponse.status}`,
       );
       return obsResultResponse;
     } catch (err) {
@@ -233,13 +238,61 @@ export class AqiApiService {
           return axiosError.response.data;
         } else {
           this.logger.error(
-            "API CALL TO Observations Status failed: ",
+            "API CALL TO Observations Result failed: ",
             err.response,
           );
         }
       }
     }
   }
+
+  // async getObservationsStatusResult(statusURL: string) {
+  //   const wait = async (ms: number) => {
+  //     const seconds = ms / 1000;
+  //     for (let i = 1; i <= seconds; i++) {
+  //       await new Promise((resolve) => setTimeout(resolve, ms)); // wait 1 second
+  //     }
+  //   };
+
+  //   try {
+  //     const response = await axios.get(statusURL, {
+  //       headers: {
+  //         Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+  //         "x-api-key": process.env.AQI_ACCESS_TOKEN,
+  //       },
+  //     });
+
+  //     await wait(7000);
+
+  //     const obsResultResponse = await axios.get(
+  //       `${process.env.AQI_BASE_URL}/v2/observationimports/${response.data.id}/result`,
+  //       {
+  //         headers: {
+  //           Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+  //           "x-api-key": process.env.AQI_ACCESS_TOKEN,
+  //         },
+  //       },
+  //     );
+
+  //     this.logger.log(
+  //       `API call to Observations Status succeeded: ${response.status}`,
+  //     );
+  //     return obsResultResponse;
+  //   } catch (err) {
+  //     if (axios.isAxiosError(err)) {
+  //       const axiosError = err as AxiosError;
+  //       if (axiosError.response?.status === 409) {
+  //         console.warn("409 Conflict: Continuing without failing");
+  //         return axiosError.response.data;
+  //       } else {
+  //         this.logger.error(
+  //           "API CALL TO Observations Status failed: ",
+  //           err.response,
+  //         );
+  //       }
+  //     }
+  //   }
+  // }
 
   parseObsResultResponse(obsResults: any) {
     let errorMessages = [];
@@ -397,7 +450,7 @@ export class AqiApiService {
         file_name: fileName,
       },
     });
-    
+
     // Delete all the observations from the list of imported guids
     if (guidsToDelete[0].imported_guids.observations.length > 0) {
       try {

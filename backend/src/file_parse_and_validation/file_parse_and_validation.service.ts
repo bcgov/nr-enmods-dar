@@ -690,7 +690,7 @@ export class FileParseValidateService {
     return expandedList;
   }
 
-  async localValidation(allRecords, observaionFilePath) {
+  async localValidation(allRecords, observaionFilePath, fileSubmissionId) {
     let errorLogs = [];
     let existingRecords = [];
     for (const [index, record] of allRecords.entries()) {
@@ -963,6 +963,7 @@ export class FileParseValidateService {
     const observationsErrors = await this.aqiService.importObservations(
       observaionFilePath,
       "dryrun",
+      fileSubmissionId,
     );
 
     const finalErrorLog = this.aqiService.mergeErrorMessages(
@@ -1142,6 +1143,7 @@ export class FileParseValidateService {
       const localValidationResults = await this.localValidation(
         allRecords,
         ObsFilePath,
+        file_submission_id,
       );
 
       if (localValidationResults[0].some((item) => item.type === "ERROR")) {
@@ -1173,7 +1175,6 @@ export class FileParseValidateService {
           let activityInfo = [],
             expandedActivityInfo = [];
           let specimenInfo = [];
-
 
           // Get three seprated lists for the existing GUIDS for visits, acticities and specimens
           const {
@@ -1307,7 +1308,11 @@ export class FileParseValidateService {
           }
 
           // Import the observations
-          await this.aqiService.importObservations(ObsFilePath, "import");
+          await this.aqiService.importObservations(
+            ObsFilePath,
+            "import",
+            file_submission_id,
+          );
 
           // Update file submission status
           await this.fileSubmissionsService.updateFileStatus(
@@ -1325,7 +1330,7 @@ export class FileParseValidateService {
             specimenInfo,
           );
 
-          // Create a record for the file log 
+          // Create a record for the file log
           const file_error_log_data = {
             file_submission_id: file_submission_id,
             file_name: fileName,
@@ -1399,7 +1404,11 @@ export class FileParseValidateService {
               "post",
             );
 
-            await this.aqiService.importObservations(ObsFilePath, "import");
+            await this.aqiService.importObservations(
+              ObsFilePath,
+              "import",
+              file_submission_id,
+            );
 
             await this.fileSubmissionsService.updateFileStatus(
               file_submission_id,
