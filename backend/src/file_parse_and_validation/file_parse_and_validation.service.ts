@@ -144,9 +144,7 @@ export class FileParseValidateService {
 
   constructor(
     private prisma: PrismaService,
-    @Inject(forwardRef(() => FileSubmissionsService))
     private readonly fileSubmissionsService: FileSubmissionsService,
-    @Inject(forwardRef(() => AqiApiService))
     private readonly aqiService: AqiApiService,
   ) {}
 
@@ -692,7 +690,7 @@ export class FileParseValidateService {
     return expandedList;
   }
 
-  async localValidation(allRecords, observaionFilePath, fileSubmissionId) {
+  async localValidation(allRecords, observaionFilePath, fileSubmissionId, fileOperationCode) {
     let errorLogs = [];
     let existingRecords = [];
     for (const [index, record] of allRecords.entries()) {
@@ -966,6 +964,7 @@ export class FileParseValidateService {
       observaionFilePath,
       "dryrun",
       fileSubmissionId,
+      fileOperationCode
     );
 
     const finalErrorLog = this.aqiService.mergeErrorMessages(
@@ -1146,6 +1145,7 @@ export class FileParseValidateService {
         allRecords,
         ObsFilePath,
         file_submission_id,
+        file_operation_code
       );
 
       if (localValidationResults[0].some((item) => item.type === "ERROR")) {
@@ -1314,6 +1314,7 @@ export class FileParseValidateService {
             ObsFilePath,
             "import",
             file_submission_id,
+            file_operation_code
           );
 
           // Update file submission status
@@ -1410,6 +1411,7 @@ export class FileParseValidateService {
               ObsFilePath,
               "import",
               file_submission_id,
+              file_operation_code
             );
 
             await this.fileSubmissionsService.updateFileStatus(

@@ -4,7 +4,7 @@ import { AqiApiService } from './aqi_api.service';
 import { CronJobModule } from '../cron-job/cron-job.module';
 
 @Module({
-  imports: [HttpModule, CronJobModule],
+  imports: [HttpModule],
   providers: [AqiApiService],
   exports: [AqiApiService],
 })

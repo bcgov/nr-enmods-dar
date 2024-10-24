@@ -1,20 +1,18 @@
-import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import axios, { AxiosError, AxiosInstance } from "axios";
 import * as fs from "fs";
 import FormData from "form-data";
 import { PrismaService } from "nestjs-prisma";
-import { CronJobService } from "../cron-job/cron-job.service";
 import path from "path";
+import { Cron, CronExpression } from "@nestjs/schedule";
 
 @Injectable()
 export class AqiApiService {
   private readonly logger = new Logger(AqiApiService.name);
   private axiosInstance: AxiosInstance;
+  private goodObservationImporStatus: boolean = false;
 
-  constructor(
-    private cronJobService: CronJobService,
-    private prisma: PrismaService,
-  ) {
+  constructor(private prisma: PrismaService) {
     this.axiosInstance = axios.create({
       baseURL: process.env.AQI_BASE_URL,
       headers: {
@@ -142,11 +140,11 @@ export class AqiApiService {
       this.logger.error("API CALL TO GET Observations from File failed: ", err);
     }
   }
-
   async importObservations(
     fileName: any,
     method: string,
     fileSubmissionId: string,
+    fileOperationCode: string
   ) {
     const formData = new FormData();
     formData.append("file", fs.createReadStream(fileName));
@@ -172,6 +170,7 @@ export class AqiApiService {
         const obs_status_data = {
           file_submission_id: fileSubmissionId,
           file_name: fileName,
+          file_operation: fileOperationCode, 
           status_url: statusURL,
           create_utc_timestamp: new Date(),
         };
@@ -179,42 +178,115 @@ export class AqiApiService {
         await this.prisma.aqi_obs_status.create({
           data: obs_status_data,
         });
-        this.logger.log("CREATED OBS STATUS REC FOR DRY RUN");
 
-        const resultURL = await this.cronJobService.waitForObsStatus();
+        const resultURL = await this.waitForObsStatus();
 
         const obsStatus = await this.getObsResult(resultURL);
 
         const errorMessages = this.parseObsResultResponse(obsStatus);
         return errorMessages;
       } else {
-        // const response = await axios.post(
-        //   `${process.env.AQI_BASE_URL}/v2/observationimports?fileType=SIMPLE_CSV&timeZoneOffset=-08:00&linkFieldVisitsForNewObservations=true`,
-        //   formData,
-        //   {
-        //     headers: {
-        //       Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
-        //       Accept: "application/json; text/plain",
-        //       "x-api-key": process.env.AQI_ACCESS_TOKEN,
-        //       ...formData.getHeaders(),
-        //     },
-        //   },
-        // );
-        // this.logger.log(
-        //   `API call to Observation Import succeeded: ${response.status}`,
-        // );
-        // const statusURL = response.headers.location;
-        // const obsStatus = await this.getObservationsStatus(
-        //   fileName,
-        //   fileSubmissionId,
-        //   statusURL,
-        // );
-        // const errorMessages = this.parseObsResultResponse(obsStatus);
-        // return errorMessages;
+        const response = await axios.post(
+          `${process.env.AQI_BASE_URL}/v2/observationimports?fileType=SIMPLE_CSV&timeZoneOffset=-08:00&linkFieldVisitsForNewObservations=true`,
+          formData,
+          {
+            headers: {
+              Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+              Accept: "application/json; text/plain",
+              "x-api-key": process.env.AQI_ACCESS_TOKEN,
+              ...formData.getHeaders(),
+            },
+          },
+        );
+        this.logger.log(
+          `API call to Observation Import succeeded: ${response.status}`,
+        );
+        const statusURL = response.headers.location;
+        const obs_status_data = {
+          file_submission_id: fileSubmissionId,
+          file_name: fileName,
+          file_operation: fileOperationCode, 
+          status_url: statusURL,
+          create_utc_timestamp: new Date(),
+        };
+
+        await this.prisma.aqi_obs_status.create({
+          data: obs_status_data,
+        });
+
+        const resultURL = await this.waitForObsStatus();
+
+        const obsStatus = await this.getObsResult(resultURL);
+
+        const errorMessages = this.parseObsResultResponse(obsStatus);
+        return errorMessages;
       }
     } catch (err) {
       this.logger.error("API call to Observation Import failed: ", err);
     }
+  }
+
+  @Cron(CronExpression.EVERY_30_SECONDS)
+  async getObservationImportStatus() {
+    axios.defaults.method = "GET";
+    axios.defaults.headers.common["Authorization"] =
+      "token " + process.env.AQI_ACCESS_TOKEN;
+    axios.defaults.headers.common["x-api-key"] = process.env.AQI_ACCESS_TOKEN;
+
+    const statusURL = await this.prisma.aqi_obs_status.findFirst({
+      select: {
+        aqi_obs_status_id: true,
+        status_url: true,
+      },
+      orderBy: {
+        create_utc_timestamp: "desc",
+      },
+    });
+
+    if (statusURL != null || statusURL != undefined) {
+      const response = await axios.get(statusURL.status_url, {
+        headers: {
+          Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+          "x-api-key": process.env.AQI_ACCESS_TOKEN,
+        },
+      });
+
+      if (!response.data.hasOwnProperty("importProcessorTransactionStatus")) {
+        const resultURL = statusURL.status_url.replace("status", "result");
+
+        await this.prisma.$transaction(async (prisma) => {
+          const updateStatus = await this.prisma.aqi_obs_status.update({
+            where: {
+              aqi_obs_status_id: statusURL.aqi_obs_status_id,
+            },
+            data: {
+              result_url: resultURL,
+            },
+          });
+        });
+
+        this.goodObservationImporStatus = true;
+      }
+    }
+  }
+
+  async waitForObsStatus() {
+    while (!this.goodObservationImporStatus) {
+      this.logger.log("WAITING TO CHECK OBSERVATION STATUS");
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+
+    const resultURL = await this.prisma.aqi_obs_status.findFirst({
+      select: {
+        result_url: true,
+      },
+      orderBy: {
+        create_utc_timestamp: "desc",
+      },
+    });
+
+    this.goodObservationImporStatus = false;
+    return resultURL.result_url;
   }
 
   async getObsResult(resultURL: string) {
@@ -234,7 +306,7 @@ export class AqiApiService {
       if (axios.isAxiosError(err)) {
         const axiosError = err as AxiosError;
         if (axiosError.response?.status === 409) {
-          console.warn("409 Conflict: Continuing without failing");
+          this.logger.warn("409 Conflict: Continuing without failing");
           return axiosError.response.data;
         } else {
           this.logger.error(
@@ -245,54 +317,6 @@ export class AqiApiService {
       }
     }
   }
-
-  // async getObservationsStatusResult(statusURL: string) {
-  //   const wait = async (ms: number) => {
-  //     const seconds = ms / 1000;
-  //     for (let i = 1; i <= seconds; i++) {
-  //       await new Promise((resolve) => setTimeout(resolve, ms)); // wait 1 second
-  //     }
-  //   };
-
-  //   try {
-  //     const response = await axios.get(statusURL, {
-  //       headers: {
-  //         Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
-  //         "x-api-key": process.env.AQI_ACCESS_TOKEN,
-  //       },
-  //     });
-
-  //     await wait(7000);
-
-  //     const obsResultResponse = await axios.get(
-  //       `${process.env.AQI_BASE_URL}/v2/observationimports/${response.data.id}/result`,
-  //       {
-  //         headers: {
-  //           Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
-  //           "x-api-key": process.env.AQI_ACCESS_TOKEN,
-  //         },
-  //       },
-  //     );
-
-  //     this.logger.log(
-  //       `API call to Observations Status succeeded: ${response.status}`,
-  //     );
-  //     return obsResultResponse;
-  //   } catch (err) {
-  //     if (axios.isAxiosError(err)) {
-  //       const axiosError = err as AxiosError;
-  //       if (axiosError.response?.status === 409) {
-  //         console.warn("409 Conflict: Continuing without failing");
-  //         return axiosError.response.data;
-  //       } else {
-  //         this.logger.error(
-  //           "API CALL TO Observations Status failed: ",
-  //           err.response,
-  //         );
-  //       }
-  //     }
-  //   }
-  // }
 
   parseObsResultResponse(obsResults: any) {
     let errorMessages = [];
@@ -463,7 +487,7 @@ export class AqiApiService {
             },
           },
         );
-        console.log("AQI OBS DELETION: " + deletion.data);
+        this.logger.log("AQI OBS DELETION: " + deletion.data);
       } catch (err) {
         this.logger.error(`API call to delete AQI observation failed: `, err);
       }
@@ -482,7 +506,7 @@ export class AqiApiService {
               },
             },
           );
-          console.log("AQI SPECIMEN DELETION: " + aqiDeletion.data);
+          this.logger.log("AQI SPECIMEN DELETION: " + aqiDeletion.data);
 
           try {
             const dbDeletion = await this.prisma.aqi_specimens.delete({
@@ -490,7 +514,7 @@ export class AqiApiService {
                 aqi_specimens_id: specimen,
               },
             });
-            console.log("DB SPECIMEN DELETION: " + dbDeletion);
+            this.logger.log("DB SPECIMEN DELETION: " + dbDeletion);
           } catch (err) {
             this.logger.error(`API call to delete DB specimen failed: `, err);
           }
@@ -512,7 +536,7 @@ export class AqiApiService {
             },
           },
         );
-        console.log("AQI ACTIVITY DELETION: " + deletion.data);
+        this.logger.log("AQI ACTIVITY DELETION: " + deletion.data);
 
         try {
           const dbDeletion = await this.prisma.aqi_field_activities.deleteMany({
@@ -522,7 +546,7 @@ export class AqiApiService {
               },
             },
           });
-          console.log("DB ACTIVITY DELETION: " + dbDeletion);
+          this.logger.log("DB ACTIVITY DELETION: " + dbDeletion);
         } catch (err) {
           this.logger.error(`API call to delete DB activities failed: `, err);
         }
@@ -543,7 +567,7 @@ export class AqiApiService {
             },
           },
         );
-        console.log("AQI VISIT DELETION: " + deletion.data);
+        this.logger.log("AQI VISIT DELETION: " + deletion.data);
 
         try {
           const dbDeletion = await this.prisma.aqi_field_visits.deleteMany({
@@ -553,7 +577,7 @@ export class AqiApiService {
               },
             },
           });
-          console.log("DB VISIT DELETION: " + dbDeletion);
+          this.logger.log("DB VISIT DELETION: " + dbDeletion);
         } catch (err) {
           this.logger.error(`API call to delete DB visits failed: `, err);
         }

@@ -8,6 +8,6 @@ import { FileSubmissionsModule } from '../file_submissions/file_submissions.modu
 @Module({
   providers: [FileParseValidateService, ],
   exports: [FileParseValidateService],
-  imports: [HttpModule, forwardRef(() => FileSubmissionsModule), ObjectStoreModule, forwardRef(() => AqiApiModule)]
+  imports: [HttpModule, FileSubmissionsModule, ObjectStoreModule, AqiApiModule]
 })
 export class FileParseValidateModule {}

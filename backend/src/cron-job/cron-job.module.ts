@@ -7,6 +7,6 @@ import { ObjectStoreModule } from '../objectStore/objectStore.module';
 @Module({
   providers: [CronJobService],
   exports: [CronJobService],
-  imports: [forwardRef(() => FileParseValidateModule), ObjectStoreModule],
+  imports: [FileParseValidateModule, ObjectStoreModule],
 })
 export class CronJobModule {}

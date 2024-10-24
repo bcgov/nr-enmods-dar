@@ -13,14 +13,12 @@ import { resolve } from "path";
 @Injectable()
 export class CronJobService {
   private readonly logger = new Logger(CronJobService.name);
-  private goodObservationImporStatus: boolean = false;
 
   private tableModels;
 
   private dataPullDownComplete: boolean = false;
   constructor(
     private prisma: PrismaService,
-    @Inject(forwardRef(() => FileParseValidateService))
     private readonly fileParser: FileParseValidateService,
     private readonly objectStore: ObjectStoreService,
   ) {
@@ -433,10 +431,10 @@ export class CronJobService {
       grab all the files from the DB and S3 bucket that have a status of QUEUED
       for each file returned, change the status to INPROGRESS and go to the parser
     */
-    if (!this.dataPullDownComplete) {
-      this.logger.warn("Data pull down from AQSS did not complete");
-      return;
-    }
+    // if (!this.dataPullDownComplete) {
+    //   this.logger.warn("Data pull down from AQSS did not complete");
+    //   return;
+    // }
 
     let filesToValidate = await this.fileParser.getQueuedFiles();
 
@@ -470,54 +468,5 @@ export class CronJobService {
     }
     this.dataPullDownComplete = false;
     return;
-  }
-
-  @Cron(CronExpression.EVERY_30_SECONDS)
-  async getObservationImportStatus() {
-    axios.defaults.method = "GET";
-    axios.defaults.headers.common["Authorization"] =
-      "token " + process.env.AQI_ACCESS_TOKEN;
-    axios.defaults.headers.common["x-api-key"] = process.env.AQI_ACCESS_TOKEN;
-
-    const statusURL = await this.prisma.aqi_obs_status.findFirst({
-      select:{
-        status_url: true
-      },
-      orderBy: {
-        create_utc_timestamp: "asc",
-      }
-    });
-
-    if (statusURL !== null || statusURL !== undefined) {
-      // const response = await axios.get(statusURL, {
-      //   headers: {
-      //     Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
-      //     "x-api-key": process.env.AQI_ACCESS_TOKEN,
-      //   },
-      // });
-      this.goodObservationImporStatus = true
-    }
-  }
-
-  async waitForObsStatus() {
-    this.logger.log("I AM HERE!!!!")
-    while (!this.goodObservationImporStatus) {
-      this.logger.log("WAITING TO CHECK OBSERVATION STATUS");
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-
-    const resultURL = await this.prisma.aqi_obs_status.findFirst({
-      select:{
-        result_url: true
-      },
-      orderBy: {
-        create_utc_timestamp: "asc",
-      }
-    });
-
-    this.logger.log(resultURL)
-
-    this.goodObservationImporStatus = false;
-    return "resultURL"
   }
 }
