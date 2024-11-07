@@ -44,13 +44,13 @@ global:
     port: "3000"
     apiName: ~
     baseUrl: ~
-    viteAppApiUrl: "/api"
-    viteAppKeycloakUrl: ~
-    viteAppKeycloakUrl2: ~
-    viteAppKeycloakRealm: ~
-    viteAppKeycloakClientId: ~
-    viteAppKeycloakUser: ~
-    viteAppKeycloakPassword: ~
+    reactAppApiUrl: "/api"
+    reactAppKeycloakUrl: ~
+    reactAppKeycloakUrl2: ~
+    reactAppKeycloakRealm: ~
+    reactAppKeycloakClientId: ~
+    reactAppKeycloakUser: ~
+    reactAppKeycloakPassword: ~
     #-- backup
     backupDir: ~
     backupStrategy: ~
