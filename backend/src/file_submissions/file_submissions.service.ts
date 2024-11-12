@@ -11,11 +11,11 @@ import { AqiApiService } from "src/aqi_api/aqi_api.service";
 
 @Injectable()
 export class FileSubmissionsService {
+  private readonly logger = new Logger(FileSubmissionsService.name);
   constructor(
     private prisma: PrismaService,
     private readonly objectStore: ObjectStoreService,
-    private readonly aqiService: AqiApiService,
-    private readonly logger = new Logger(FileSubmissionsService.name),
+    private readonly aqiService: AqiApiService,   
 
   ) {}
 
