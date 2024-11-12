@@ -16,7 +16,6 @@ export class CronJobService {
   private tableModels;
 
   private dataPullDownComplete: boolean = false;
-
   constructor(
     private prisma: PrismaService,
     private readonly fileParser: FileParseValidateService,
@@ -257,7 +256,7 @@ export class CronJobService {
       this.logger.log(`-`);
       return;
     } catch (err) {
-      console.error(`Error updating #### ${dbTable} #### table`, error);
+      this.logger.error(`Error updating #### ${dbTable} #### table`, error);
     }
   }
 
@@ -306,7 +305,7 @@ export class CronJobService {
         this.dataPullDownComplete = true;
       } catch (error) {
         this.dataPullDownComplete = false;
-        console.error(`Error updating database for ${api.endpoint}`, error);
+        this.logger.error(`Error updating database for ${api.endpoint}`, error);
       }
     }
 
@@ -442,19 +441,31 @@ export class CronJobService {
       console.log("************** NO FILES TO VALIDATE **************");
       return;
     } else {
-      for (const file of filesToValidate) {
-        const fileBinary = await this.objectStore.getFileData(file.file_name);
-
-        this.fileParser.parseFile(
-          fileBinary,
-          file.file_name,
-          file.original_file_name,
-          file.submission_id,
-          file.file_operation_code,
-        );
-      }
-      this.dataPullDownComplete = false;
-      return;
+      this.processFiles(filesToValidate).then(() => {
+        this.logger.log("All files processed.");
+      });
     }
+  }
+
+  async processFiles(files) {
+    const wait = (ms: number) =>
+      new Promise((resolve) => setTimeout(resolve, ms));
+    for (const file of files) {
+      const fileBinary = await this.objectStore.getFileData(file.file_name);
+      this.logger.log(`SENT FILE: ${file.file_name}`);
+
+      await this.fileParser.parseFile(
+        fileBinary,
+        file.file_name,
+        file.original_file_name,
+        file.submission_id,
+        file.file_operation_code,
+      );
+      
+      this.logger.log(`WAITING FOR PREVIOUS FILE`);
+      this.logger.log("GOING TO NEXT FILE");
+    }
+    this.dataPullDownComplete = false;
+    return;
   }
 }

@@ -79,8 +79,8 @@ export class FileSubmissionsController {
     return this.fileSubmissionsService.update(+id, updateFileSubmissionDto);
   }
 
-  @Delete(":id")
-  remove(@Param("id") id: string) {
-    return this.fileSubmissionsService.remove(+id);
+  @Delete(":file_name/:id")
+  remove(@Param("file_name") file_name: string, @Param("id") id: string) {
+    return this.fileSubmissionsService.remove(file_name, id);
   }
 }

@@ -1,18 +1,22 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { CreateFileSubmissionDto } from "./dto/create-file_submission.dto";
 import { UpdateFileSubmissionDto } from "./dto/update-file_submission.dto";
 import { PrismaService } from "nestjs-prisma";
 import { FileResultsWithCount } from "src/interface/fileResultsWithCount";
-import { file_submission, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { FileInfo } from "src/types/types";
 import { randomUUID } from "crypto";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
+import { AqiApiService } from "src/aqi_api/aqi_api.service";
 
 @Injectable()
 export class FileSubmissionsService {
   constructor(
     private prisma: PrismaService,
     private readonly objectStore: ObjectStoreService,
+    private readonly aqiService: AqiApiService,
+    private readonly logger = new Logger(FileSubmissionsService.name),
+
   ) {}
 
   async create(body: any, file: Express.Multer.File) {
@@ -113,6 +117,7 @@ export class FileSubmissionsService {
       submitter_user_id: {},
       submitter_agency_name: {},
       submission_status_code: {},
+      active_ind: true,
     };
 
     if (body.fileName) {
@@ -185,13 +190,15 @@ export class FileSubmissionsService {
   }
 
   async updateFileStatus(submission_id: string, status: string) {
-    await this.prisma.file_submission.update({
-      where: {
-        submission_id: submission_id,
-      },
-      data: {
-        submission_status_code: status,
-      },
+    await this.prisma.$transaction(async (prisma) => {
+      const updateStatus = await this.prisma.file_submission.update({
+        where: {
+          submission_id: submission_id,
+        },
+        data: {
+          submission_status_code: status,
+        },
+      });
     });
   }
 
@@ -199,8 +206,24 @@ export class FileSubmissionsService {
     return `This action updates a #${id} fileSubmission`;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} fileSubmission`;
+  async remove(file_name: string, id: string) {
+    try {
+      await this.aqiService.deleteRelatedData(file_name);
+      await this.prisma.$transaction(async (prisma) => {
+        const updateFileStatus = await this.prisma.file_submission.update({
+          where: {
+            submission_id: id,
+          },
+          data: {
+            submission_status_code: "DELETED",
+          },
+        });
+      });
+      return true;
+    } catch (err) {
+      this.logger.error(`Error deleting file: ${err.message}`);
+      return false;
+    }
   }
 
   async getFromS3(fileName: string) {
@@ -208,10 +231,45 @@ export class FileSubmissionsService {
       const fileBinary = await this.objectStore.getFileData(fileName);
       return fileBinary;
     } catch (err) {
-      console.error(`Error fetching file from S3: ${err.message}`);
+      this.logger.error(`Error fetching file from S3: ${err.message}`);
       throw err;
     }
   }
+}
+
+/**
+ * Grants the current IDIR user the ability to upload files to the S3 bucket
+ * @param token
+ */
+async function grantBucketAccess(token: string) {
+  const axios = require("axios");
+
+  let config = {
+    method: "put",
+    url: `${process.env.COMS_URI}/v1/bucket`,
+    headers: {
+      Authorization: "Bearer " + token,
+      "Content-Type": "application/json",
+    },
+    data: {
+      accessKeyId: process.env.OBJECTSTORE_ACCESS_KEY,
+      bucket: process.env.OBJECTSTORE_BUCKET,
+      bucketName: process.env.OBJECTSTORE_BUCKET_NAME,
+      endpoint: process.env.OBJECTSTORE_URL,
+      secretAccessKey: process.env.OBJECTSTORE_SECRET_KEY,
+      active: true,
+      key: "/",
+      permCodes: ["CREATE"],
+    },
+  };
+
+  await axios
+    .request(config)
+    .then((res) => console.log(res))
+    .catch((err) => {
+      console.log("create bucket failed");
+      console.log(err);
+    });
 }
 
 async function saveToS3(token: any, file: Express.Multer.File) {
@@ -224,6 +282,8 @@ async function saveToS3(token: any, file: Express.Multer.File) {
   const newFileName = `${baseName}-${guid}${extention}`;
 
   const axios = require("axios");
+
+  await grantBucketAccess(token);
 
   let config = {
     method: "put",
