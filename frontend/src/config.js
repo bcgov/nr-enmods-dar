@@ -5,13 +5,13 @@
 // templates directive to easily handle runtime variables
 
 const config = {
-  KEYCLOAK_CLIENT_ID: window.KEYCLOAK_CLIENT_ID || process.env.KEYCLOAK_CLIENT_ID,
+  KEYCLOAK_CLIENT_ID: window.REACT_APP_KEYCLOAK_CLIENT_ID || process.env.REACT_APP_KEYCLOAK_CLIENT_ID,
 
-  API_BASE_URL: window.API_URL || process.env.API_URL,
+  API_BASE_URL: window.REACT_APP_API_URL || process.env.REACT_APP_API_URL,
 
-  KEYCLOAK_URL: window.KEYCLOAK_URL || process.env.KEYCLOAK_URL,
+  KEYCLOAK_URL: window.REACT_APP_KEYCLOAK_URL || process.env.REACT_APP_KEYCLOAK_URL,
 
-  KEYCLOAK_REALM: window.KEYCLOAK_REALM || process.env.KEYCLOAK_REALM,
+  KEYCLOAK_REALM: window.REACT_APP_KEYCLOAK_REALM || process.env.REACT_APP_KEYCLOAK_REALM,
 
   COMS_URL: window.REACT_APP_COMS_URL || process.env.REACT_APP_COMS_URL,
 
