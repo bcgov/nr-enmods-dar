@@ -13,7 +13,7 @@ const initKeycloak = (
 ) => {
   _kc
     .init({
-      onLoad: 'check-sso',
+      onLoad: 'login-required',
       pkceMethod: 'S256',
       checkLoginIframe: false,
     })
