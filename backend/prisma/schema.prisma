@@ -277,6 +277,7 @@ model aqi_obs_status {
   aqi_obs_status_id    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   file_submission_id   String?          @db.Uuid
   file_name            String?          @db.VarChar(200)
+  file_operation       String?          @db.VarChar(200)
   status_url           String?          @db.VarChar(750)
   result_url           String?          @db.VarChar(750)
   create_utc_timestamp DateTime         @db.Timestamp(6)
