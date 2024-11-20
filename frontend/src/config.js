@@ -5,13 +5,11 @@
 // templates directive to easily handle runtime variables
 
 const config = {
-  KEYCLOAK_CLIENT_ID: window.KEYCLOAK_CLIENT_ID || process.env.KEYCLOAK_CLIENT_ID,
+  KEYCLOAK_CLIENT_ID: "enmods-5391",
+  API_BASE_URL: "api",
+  KEYCLOAK_URL: "https://dev.loginproxy.gov.bc.ca/auth",
+  KEYCLOAK_REALM: "standard",
 
-  API_BASE_URL: window.API_URL || process.env.API_URL,
-
-  KEYCLOAK_URL: window.KEYCLOAK_URL || process.env.KEYCLOAK_URL,
-
-  KEYCLOAK_REALM: window.KEYCLOAK_REALM || process.env.KEYCLOAK_REALM,
 
   COMS_URL: window.REACT_APP_COMS_URL || process.env.REACT_APP_COMS_URL,
 
