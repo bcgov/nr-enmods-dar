@@ -7,7 +7,7 @@
 const config = {
   KEYCLOAK_CLIENT_ID: "enmods-5391",
   API_BASE_URL: "api",
-  KEYCLOAK_URL: "https://dev.loginproxy.gov.bc.ca/auth",
+  KEYCLOAK_URL:  window.REACT_APP_COMS_URL || process.env.REACT_APP_COMS_URL,
   KEYCLOAK_REALM: "standard",
 
 
