@@ -45,10 +45,10 @@ global:
     apiName: ~
     baseUrl: ~
     reactAppApiUrl: "/api"
-    reactAppKeycloakUrl: ~
+    reactAppKeycloakUrl: "https://dev.loginproxy.gov.bc.ca/auth"
     # reactAppKeycloakUrl2: ~
-    reactAppKeycloakRealm: ~
-    reactAppKeycloakClientId: ~
+    reactAppKeycloakRealm: "standard"
+    reactAppKeycloakClientId: "enmods-5391"
     # reactAppKeycloakUser: ~
     # reactAppKeycloakPassword: ~
     #-- backup
