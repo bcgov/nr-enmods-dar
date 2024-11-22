@@ -353,7 +353,7 @@ export class AqiApiService {
         for (const [key, errors] of Object.entries(errorList)) {
           if (errors[0].errorMessage){
             let errorLog = `{"rowNum": ${rowId}, "type": "ERROR", "message": {"Observation File": "${errors[0].errorMessage}"}}`;
-            errorMessages.push(JSON.parse(errorLog));
+            errorMessages.push(JSON.parse(errorLog)); //// need to fix this!!!!!!!!
           }
         } 
       })
