@@ -9,10 +9,7 @@ const config = {
   API_BASE_URL: "api",
   KEYCLOAK_URL: window.KEYCLOAK_URL || process.env.KEYCLOAK_URL,
   KEYCLOAK_REALM: "standard",
-
-
   COMS_URL: window.REACT_APP_COMS_URL || process.env.REACT_APP_COMS_URL,
-
   COMS_BUCKET: window.REACT_APP_COMS_BUCKET || process.env.REACT_APP_COMS_BUCKET,
 }
 
