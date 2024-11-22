@@ -20,18 +20,18 @@
 		}
 		respond `
 				# window.REACT_APP_KEYCLOAK_URL="https://dev.loginproxy.gov.bc.ca/auth"
-				window.REACT_APP_KEYCLOAK_URL={$KEYCLOAK_URL};
-                window.REACT_APP_KEYCLOAK_REALM={$KEYCLOAK_REALM};
-                window.REACT_APP_KEYCLOAK_CLIENT_ID={$KEYCLOAK_CLIENT_ID};
-                window.REACT_APP_API_URL={$BACKEND_URL};
-                window.REACT_APP_COMS_URL={$COMS_URL};
-                window.REACT_APP_COMS_BUCKET={$COMS_BUCKET};`
+				window.REACT_APP_KEYCLOAK_URL="{$KEYCLOAK_URL}";
+				window.REACT_APP_KEYCLOAK_REALM="standard";
+				window.REACT_APP_KEYCLOAK_CLIENT_ID="enmods-5391";
+				window.REACT_APP_API_URL="{$BACKEND_URL}";
+				window.REACT_APP_COMS_URL="{$COMS_URL}";
+				window.REACT_APP_COMS_BUCKET="{$COMS_BUCKET};"`
   	}
 	root * /srv
 	encode zstd gzip
 	file_server
 	@spa_router {
-		not path /api/*
+		not path /api/* /static/js/config.js
 		file {
 			try_files {path} /index.html
 		}
