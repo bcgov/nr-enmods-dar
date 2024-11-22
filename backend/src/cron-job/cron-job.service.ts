@@ -430,7 +430,7 @@ export class CronJobService {
     TODO:
       grab all the files from the DB and S3 bucket that have a status of QUEUED
       for each file returned, change the status to INPROGRESS and go to the parser
-    */
+    // */
     // if (!this.dataPullDownComplete) {
     //   this.logger.warn("Data pull down from AQSS did not complete");
     //   return;

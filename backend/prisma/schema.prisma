@@ -280,6 +280,7 @@ model aqi_obs_status {
   file_operation       String?          @db.VarChar(200)
   status_url           String?          @db.VarChar(750)
   result_url           String?          @db.VarChar(750)
+  active_ind           Boolean          @default(true)
   create_utc_timestamp DateTime         @db.Timestamp(6)
   file_submission      file_submission? @relation(fields: [file_submission_id], references: [submission_id], onDelete: NoAction, onUpdate: NoAction, map: "file_submission_id_fk")
 }

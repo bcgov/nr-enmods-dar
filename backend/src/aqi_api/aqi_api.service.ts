@@ -144,7 +144,7 @@ export class AqiApiService {
     fileName: any,
     method: string,
     fileSubmissionId: string,
-    fileOperationCode: string
+    fileOperationCode: string,
   ) {
     const formData = new FormData();
     formData.append("file", fs.createReadStream(fileName));
@@ -170,7 +170,7 @@ export class AqiApiService {
         const obs_status_data = {
           file_submission_id: fileSubmissionId,
           file_name: fileName,
-          file_operation: fileOperationCode, 
+          file_operation: fileOperationCode,
           status_url: statusURL,
           create_utc_timestamp: new Date(),
         };
@@ -205,7 +205,7 @@ export class AqiApiService {
         const obs_status_data = {
           file_submission_id: fileSubmissionId,
           file_name: fileName,
-          file_operation: fileOperationCode, 
+          file_operation: fileOperationCode,
           status_url: statusURL,
           create_utc_timestamp: new Date(),
         };
@@ -244,28 +244,58 @@ export class AqiApiService {
     });
 
     if (statusURL != null || statusURL != undefined) {
-      const response = await axios.get(statusURL.status_url, {
-        headers: {
-          Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
-          "x-api-key": process.env.AQI_ACCESS_TOKEN,
-        },
-      });
-
-      if (!response.data.hasOwnProperty("importProcessorTransactionStatus")) {
-        const resultURL = statusURL.status_url.replace("status", "result");
-
-        await this.prisma.$transaction(async (prisma) => {
-          const updateStatus = await this.prisma.aqi_obs_status.update({
-            where: {
-              aqi_obs_status_id: statusURL.aqi_obs_status_id,
-            },
-            data: {
-              result_url: resultURL,
-            },
-          });
+      try {
+        const response = await axios.get(statusURL.status_url, {
+          headers: {
+            Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+            "x-api-key": process.env.AQI_ACCESS_TOKEN,
+          },
         });
 
-        this.goodObservationImporStatus = true;
+        if (!response.data.hasOwnProperty("importProcessorTransactionStatus")) {
+          const resultURL = statusURL.status_url.replace("status", "result");
+
+          await this.prisma.$transaction(async (prisma) => {
+            const updateStatus = await this.prisma.aqi_obs_status.update({
+              where: {
+                aqi_obs_status_id: statusURL.aqi_obs_status_id,
+              },
+              data: {
+                result_url: resultURL,
+              },
+            });
+          });
+
+          this.goodObservationImporStatus = true;
+          this.logger.log("CHECKED OBSERVATION STATUS");
+        }
+      } catch (err) {
+        if (axios.isAxiosError(err)) {
+          const axiosError = err as AxiosError;
+          if (axiosError.response?.status === 409) {
+            this.logger.warn("409 Conflict: Errors found in observation file");
+            const resultURL = statusURL.status_url.replace(/(.*?)(\/api.*)/, (_, base) => base + err.request.path);
+
+            await this.prisma.$transaction(async (prisma) => {
+              const updateStatus = await this.prisma.aqi_obs_status.update({
+                where: {
+                  aqi_obs_status_id: statusURL.aqi_obs_status_id,
+                },
+                data: {
+                  result_url: resultURL,
+                },
+              });
+            });
+
+            this.goodObservationImporStatus = true;
+            this.logger.log("CHECKED OBSERVATION STATUS");
+          } else {
+            this.logger.error(
+              "API CALL TO Observations Result failed: ",
+              err.response,
+            );
+          }
+        }
       }
     }
   }
@@ -308,12 +338,7 @@ export class AqiApiService {
         if (axiosError.response?.status === 409) {
           this.logger.warn("409 Conflict: Continuing without failing");
           return axiosError.response.data;
-        } else {
-          this.logger.error(
-            "API CALL TO Observations Result failed: ",
-            err.response,
-          );
-        }
+        } 
       }
     }
   }
@@ -322,14 +347,16 @@ export class AqiApiService {
     let errorMessages = [];
     if (obsResults.errorCount > 0) {
       obsResults.importItems.forEach((item) => {
-        const rowId = item.rowId;
-        const errors = item.errors;
+        const rowId = item.rowId
+        const errorList = item.errors;
 
-        Object.entries(errors).forEach((error) => {
-          let errorLog = `{"rowNum": ${rowId}, "type": "ERROR", "message": {"Observation File": "${error[1][0].errorMessage}"}}`;
-          errorMessages.push(JSON.parse(errorLog));
-        });
-      });
+        for (const [key, errors] of Object.entries(errorList)) {
+          if (errors[0].errorMessage){
+            let errorLog = `{"rowNum": ${rowId}, "type": "ERROR", "message": {"Observation File": "${errors[0].errorMessage}"}}`;
+            errorMessages.push(JSON.parse(errorLog));
+          }
+        } 
+      })
     }
     return errorMessages;
   }

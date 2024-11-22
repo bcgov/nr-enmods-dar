@@ -78,7 +78,7 @@ const observations: Observations = {
   CollectionMethod: "",
   FieldDeviceID: "",
   FieldDeviceType: "",
-  FieldVisitComments: "",
+  FieldComment: "",
   SpecimenName: "",
   AnalysisMethod: "",
   DetectionCondition: "",
@@ -616,13 +616,15 @@ export class FileParseValidateService {
 
       const newObs = {} as ObservationFile;
 
+
       sourceKeys.forEach((sourceKey, i) => {
         const targetKey = targetKeys[i];
+
         if (targetKey !== undefined) {
           newObs[targetKey] = source[sourceKey];
         }
       });
-      newObs["EA_FileID"] = originalFileName;
+      // newObs["EA_FileID"] = originalFileName;
       obsToWrite.push(newObs);
     });
 
@@ -707,6 +709,8 @@ export class FileParseValidateService {
         "ObservedDateTime",
         "ObservedDateTimeEnd",
         "AnalyzedDateTime",
+        "LabArrivalDateandTime",
+        "LabPreparedDateTime"
       ];
 
       const numericalFields = [
@@ -1136,8 +1140,6 @@ export class FileParseValidateService {
       /*
        * Do the local validation for each section here - if passed then go to the API calls - else create the message/file/email for the errors
        */
-
-      console.log(allFieldActivities)
 
       await this.fileSubmissionsService.updateFileStatus(
         file_submission_id,

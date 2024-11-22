@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS enmods.aqi_obs_status (
   file_operation varchar(200) NULL,
   status_url varchar(750) NULL,
   result_url varchar(750) NULL,
+  active_ind boolean NOT NULL DEFAULT true,
   create_utc_timestamp timestamp NOT NULL,
   CONSTRAINT file_submission_id_fk FOREIGN KEY(file_submission_id) REFERENCES enmods.file_submission(submission_id)
 );
