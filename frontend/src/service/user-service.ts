@@ -15,7 +15,6 @@ const initKeycloak = (
     .init({
       onLoad: 'check-sso',
       pkceMethod: 'S256',
-      checkLoginIframe: false,
     })
     .then((authenticated) => {
       if (!authenticated) {
@@ -23,7 +22,7 @@ const initKeycloak = (
         if (route.startsWith('/unsubscribe/')) {
           onAuthenticatedCallback(true)
         } else {
-          window.location.href = _kc.createLoginUrl()
+          console.log("User is not authenticated");
         }
       } else {
         localStorage.setItem(AUTH_TOKEN, `${_kc.token}`)
