@@ -21,6 +21,7 @@ class APIService {
   constructor() {
     this.client = axios.create({
       baseURL: '/api',
+      maxRedirects: 5,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem(AUTH_TOKEN)}`
