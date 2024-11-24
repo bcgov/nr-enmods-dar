@@ -19,7 +19,7 @@
 		Content-Type text/javascript
 		}
 		respond `
-				# window.REACT_APP_KEYCLOAK_URL="https://dev.loginproxy.gov.bc.ca/auth"
+			  window.REACT_APP_KEYCLOAK_URL="https://dev.loginproxy.gov.bc.ca/auth"
 				window.REACT_APP_KEYCLOAK_URL="{$KEYCLOAK_URL}";
 				window.REACT_APP_KEYCLOAK_REALM="standard";
 				window.REACT_APP_KEYCLOAK_CLIENT_ID="enmods-5391";
