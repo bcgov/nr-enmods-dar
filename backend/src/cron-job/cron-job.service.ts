@@ -1,10 +1,11 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import axios from "axios";
 import { error } from "winston";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "nestjs-prisma";
 import { FileParseValidateService } from "src/file_parse_and_validation/file_parse_and_validation.service";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
+import { resolve } from "path";
 
 /**
  * Cron Job service for filling code tables with data from AQI API
@@ -429,16 +430,16 @@ export class CronJobService {
     TODO:
       grab all the files from the DB and S3 bucket that have a status of QUEUED
       for each file returned, change the status to INPROGRESS and go to the parser
-    */
-    if (!this.dataPullDownComplete) {
-      this.logger.warn("Data pull down from AQSS did not complete");
-      return;
-    }
+    // */
+    // if (!this.dataPullDownComplete) {
+    //   this.logger.warn("Data pull down from AQSS did not complete");
+    //   return;
+    // }
 
     let filesToValidate = await this.fileParser.getQueuedFiles();
 
     if (filesToValidate.length < 1) {
-      console.log("************** NO FILES TO VALIDATE **************");
+      this.logger.log("************** NO FILES TO VALIDATE **************");
       return;
     } else {
       this.processFiles(filesToValidate).then(() => {
@@ -461,7 +462,7 @@ export class CronJobService {
         file.submission_id,
         file.file_operation_code,
       );
-      
+
       this.logger.log(`WAITING FOR PREVIOUS FILE`);
       this.logger.log("GOING TO NEXT FILE");
     }

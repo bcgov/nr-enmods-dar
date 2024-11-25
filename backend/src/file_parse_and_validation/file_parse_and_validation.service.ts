@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
 import axios, { AxiosInstance } from "axios";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
 import {
@@ -38,6 +38,7 @@ const activities: FieldActivities = {
   ObservedDateTimeEnd: "",
   ActivityType: "SAMPLE_ROUTINE",
   ActivityName: "",
+  ActivityComments: "",
   SamplingContextTag: "",
 };
 
@@ -77,7 +78,7 @@ const observations: Observations = {
   CollectionMethod: "",
   FieldDeviceID: "",
   FieldDeviceType: "",
-  FieldVisitComments: "",
+  FieldComment: "",
   SpecimenName: "",
   AnalysisMethod: "",
   DetectionCondition: "",
@@ -617,11 +618,12 @@ export class FileParseValidateService {
 
       sourceKeys.forEach((sourceKey, i) => {
         const targetKey = targetKeys[i];
+
         if (targetKey !== undefined) {
           newObs[targetKey] = source[sourceKey];
         }
       });
-      newObs["EA_FileID"] = originalFileName;
+      // newObs["EA_FileID"] = originalFileName;
       obsToWrite.push(newObs);
     });
 
@@ -690,7 +692,12 @@ export class FileParseValidateService {
     return expandedList;
   }
 
-  async localValidation(allRecords, observaionFilePath) {
+  async localValidation(
+    allRecords,
+    observaionFilePath,
+    fileSubmissionId,
+    fileOperationCode,
+  ) {
     let errorLogs = [];
     let existingRecords = [];
     for (const [index, record] of allRecords.entries()) {
@@ -706,6 +713,8 @@ export class FileParseValidateService {
         "ObservedDateTime",
         "ObservedDateTimeEnd",
         "AnalyzedDateTime",
+        "LabArrivalDateandTime",
+        "LabPreparedDateTime",
       ];
 
       const numericalFields = [
@@ -963,6 +972,8 @@ export class FileParseValidateService {
     const observationsErrors = await this.aqiService.importObservations(
       observaionFilePath,
       "dryrun",
+      fileSubmissionId,
+      fileOperationCode,
     );
 
     const finalErrorLog = this.aqiService.mergeErrorMessages(
@@ -999,6 +1010,17 @@ export class FileParseValidateService {
     await this.prisma.file_error_logs.create({
       data: file_error_log_data,
     });
+
+    // set the aqi_obs_status record for that file submission id to false
+    const aqi_obs_status = await this.prisma.aqi_obs_status.updateMany({
+      where: {
+        file_submission_id: file_submission_id,
+      },
+      data: {
+        active_ind: false,
+      },
+    });
+
     return;
   }
 
@@ -1142,6 +1164,8 @@ export class FileParseValidateService {
       const localValidationResults = await this.localValidation(
         allRecords,
         ObsFilePath,
+        file_submission_id,
+        file_operation_code,
       );
 
       if (localValidationResults[0].some((item) => item.type === "ERROR")) {
@@ -1173,7 +1197,6 @@ export class FileParseValidateService {
           let activityInfo = [],
             expandedActivityInfo = [];
           let specimenInfo = [];
-
 
           // Get three seprated lists for the existing GUIDS for visits, acticities and specimens
           const {
@@ -1307,7 +1330,12 @@ export class FileParseValidateService {
           }
 
           // Import the observations
-          await this.aqiService.importObservations(ObsFilePath, "import");
+          await this.aqiService.importObservations(
+            ObsFilePath,
+            "import",
+            file_submission_id,
+            file_operation_code,
+          );
 
           // Update file submission status
           await this.fileSubmissionsService.updateFileStatus(
@@ -1325,7 +1353,7 @@ export class FileParseValidateService {
             specimenInfo,
           );
 
-          // Create a record for the file log 
+          // Create a record for the file log
           const file_error_log_data = {
             file_submission_id: file_submission_id,
             file_name: fileName,
@@ -1338,6 +1366,16 @@ export class FileParseValidateService {
 
           await this.prisma.file_error_logs.create({
             data: file_error_log_data,
+          });
+
+          // set the aqi_obs_status record for that file submission id to false
+          const aqi_obs_status = await this.prisma.aqi_obs_status.updateMany({
+            where: {
+              file_submission_id: file_submission_id,
+            },
+            data: {
+              active_ind: false,
+            },
           });
         } else {
           // If there are no errors or warnings
@@ -1399,7 +1437,12 @@ export class FileParseValidateService {
               "post",
             );
 
-            await this.aqiService.importObservations(ObsFilePath, "import");
+            await this.aqiService.importObservations(
+              ObsFilePath,
+              "import",
+              file_submission_id,
+              file_operation_code,
+            );
 
             await this.fileSubmissionsService.updateFileStatus(
               file_submission_id,
@@ -1429,6 +1472,17 @@ export class FileParseValidateService {
             await this.prisma.file_error_logs.create({
               data: file_error_log_data,
             });
+
+            // set the aqi_obs_status record for that file submission id to false
+            const aqi_obs_status = await this.prisma.aqi_obs_status.updateMany({
+              where: {
+                file_submission_id: file_submission_id,
+              },
+              data: {
+                active_ind: false,
+              },
+            });
+
             return;
           }
         }

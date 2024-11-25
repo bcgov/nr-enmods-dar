@@ -39,6 +39,7 @@ model file_submission {
   create_utc_timestamp   DateTime               @db.Timestamp(6)
   update_user_id         String                 @db.VarChar(200)
   update_utc_timestamp   DateTime               @db.Timestamp(6)
+  aqi_obs_status         aqi_obs_status[]
   file_error_logs        file_error_logs[]
   file_operation_codes   file_operation_codes   @relation(fields: [file_operation_code], references: [file_operation_code], onDelete: NoAction, onUpdate: NoAction, map: "file_operation_code_fk")
   submission_status      submission_status_code @relation(fields: [submission_status_code], references: [submission_status_code], onDelete: NoAction, onUpdate: NoAction, map: "submission_status_code_fk")
@@ -270,4 +271,16 @@ model aqi_imported_data {
   original_file_name   String?  @db.VarChar(200)
   imported_guids       Json?
   create_utc_timestamp DateTime @db.Timestamp(6)
+}
+
+model aqi_obs_status {
+  aqi_obs_status_id    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  file_submission_id   String?          @db.Uuid
+  file_name            String?          @db.VarChar(200)
+  file_operation       String?          @db.VarChar(200)
+  status_url           String?          @db.VarChar(750)
+  result_url           String?          @db.VarChar(750)
+  active_ind           Boolean          @default(true)
+  create_utc_timestamp DateTime         @db.Timestamp(6)
+  file_submission      file_submission? @relation(fields: [file_submission_id], references: [submission_id], onDelete: NoAction, onUpdate: NoAction, map: "file_submission_id_fk")
 }

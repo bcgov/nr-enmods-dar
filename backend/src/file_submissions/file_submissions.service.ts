@@ -265,10 +265,10 @@ async function grantBucketAccess(token: string) {
 
   await axios
     .request(config)
-    .then((res) => console.log(res))
+    .then((res) => res)
     .catch((err) => {
-      console.log("create bucket failed");
-      console.log(err);
+      this.logger.log("create bucket failed");
+      this.logger.log(err);
     });
 }
 
