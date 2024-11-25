@@ -238,6 +238,9 @@ export class AqiApiService {
         aqi_obs_status_id: true,
         status_url: true,
       },
+      where:{
+        active_ind: true
+      },
       orderBy: {
         create_utc_timestamp: "desc",
       },
@@ -274,7 +277,10 @@ export class AqiApiService {
           const axiosError = err as AxiosError;
           if (axiosError.response?.status === 409) {
             this.logger.warn("409 Conflict: Errors found in observation file");
-            const resultURL = statusURL.status_url.replace(/(.*?)(\/api.*)/, (_, base) => base + err.request.path);
+            const resultURL = statusURL.status_url.replace(
+              /(.*?)(\/api.*)/,
+              (_, base) => base + err.request.path,
+            );
 
             await this.prisma.$transaction(async (prisma) => {
               const updateStatus = await this.prisma.aqi_obs_status.update({
@@ -338,7 +344,7 @@ export class AqiApiService {
         if (axiosError.response?.status === 409) {
           this.logger.warn("409 Conflict: Continuing without failing");
           return axiosError.response.data;
-        } 
+        }
       }
     }
   }
@@ -347,16 +353,24 @@ export class AqiApiService {
     let errorMessages = [];
     if (obsResults.errorCount > 0) {
       obsResults.importItems.forEach((item) => {
-        const rowId = item.rowId
+        const rowId = item.rowId;
         const errorList = item.errors;
 
         for (const [key, errors] of Object.entries(errorList)) {
-          if (errors[0].errorMessage){
-            let errorLog = `{"rowNum": ${rowId}, "type": "ERROR", "message": {"Observation File": "${errors[0].errorMessage}"}}`;
-            errorMessages.push(JSON.parse(errorLog)); //// need to fix this!!!!!!!!
+          if (errors[0].errorMessage) {
+            let ObservationFile = errors[0]?.errorFieldValue
+              ? `${errors[0].errorMessage} (${errors[0].errorFieldValue})`
+              : `${errors[0].errorMessage}`;
+            errorMessages.push({
+              rowNum: parseInt(rowId),
+              type: "ERROR",
+              message: {
+                ObservationFile,
+              },
+            });
           }
-        } 
-      })
+        }
+      });
     }
     return errorMessages;
   }

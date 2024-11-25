@@ -439,7 +439,7 @@ export class CronJobService {
     let filesToValidate = await this.fileParser.getQueuedFiles();
 
     if (filesToValidate.length < 1) {
-      console.log("************** NO FILES TO VALIDATE **************");
+      this.logger.log("************** NO FILES TO VALIDATE **************");
       return;
     } else {
       this.processFiles(filesToValidate).then(() => {
