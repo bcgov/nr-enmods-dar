@@ -1472,7 +1472,6 @@ export class FileParseValidateService {
             await this.prisma.file_error_logs.create({
               data: file_error_log_data,
             });
-            return;
 
             // set the aqi_obs_status record for that file submission id to false
             const aqi_obs_status = await this.prisma.aqi_obs_status.updateMany({
@@ -1483,6 +1482,8 @@ export class FileParseValidateService {
                 active_ind: false,
               },
             });
+
+            return;
           }
         }
       }
