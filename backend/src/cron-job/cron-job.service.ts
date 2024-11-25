@@ -134,130 +134,139 @@ export class CronJobService {
     },
   ];
 
-  private async updateDatabase(dbTable: string, data: any) {
+  private async updateDatabase(dbTable: string, data: any, batchSize = 1000) {
     const startTime = new Date().getTime();
     try {
       const model = this.tableModels.get(dbTable);
       if (!model) throw new Error(`Unknown dbTable: ${dbTable}`);
-      this.logger.log(`Upserting ${data.length} entries into ${dbTable}...`);
+      this.logger.log(
+        `Upserting ${data.length} entries into ${dbTable} in batches of ${batchSize}...`,
+      );
 
-      if (dbTable == "aqi_field_visits") {
+      // Process data in batches
+      for (let i = 0; i < data.length; i += batchSize) {
+        const batch = data.slice(i, i + batchSize);
+
         await this.prisma.$transaction(
-          data.map((record) =>
+          batch.map((record) =>
             model.upsert({
-              where: { [dbTable + "_id"]: record.id },
-              update: {
-                aqi_field_visit_start_time: new Date(record.startTime),
-                aqi_location_custom_id: record.locationCustomID,
-              },
-              create: {
-                [dbTable + "_id"]: record.id,
-                aqi_field_visit_start_time: new Date(record.startTime),
-                aqi_location_custom_id: record.locationCustomID,
-              },
+              where: { [`${dbTable}_id`]: record.id },
+              update: this.getUpdatePayload(dbTable, record),
+              create: this.getCreatePayload(dbTable, record),
             }),
           ),
         );
-      } else if (dbTable == "aqi_field_activities") {
-        await this.prisma.$transaction(
-          data.map((record) =>
-            model.upsert({
-              where: { [dbTable + "_id"]: record.id },
-              update: {
-                aqi_field_activities_start_time: new Date(record.startTime),
-                aqi_field_activities_custom_id: record.customId,
-                aqi_field_visit_start_time: new Date(record.visitStartTime),
-                aqi_location_custom_id: record.locationCustomID,
-                create_user_id: record.creationUserProfileId,
-                create_utc_timestamp: record.creationTime
-                  ? new Date(record.creationTime)
-                  : null,
-                update_user_id: record.modificationUserProfileId,
-                update_utc_timestamp: record.modificationTime
-                  ? new Date(record.modificationTime)
-                  : null,
-              },
-              create: {
-                [dbTable + "_id"]: record.id,
-                aqi_field_activities_start_time: new Date(record.startTime),
-                aqi_field_activities_custom_id: record.customId,
-                aqi_field_visit_start_time: new Date(record.visitStartTime),
-                aqi_location_custom_id: record.locationCustomID,
-                create_user_id: record.creationUserProfileId,
-                create_utc_timestamp: record.creationTime
-                  ? new Date(record.creationTime)
-                  : null,
-                update_user_id: record.modificationUserProfileId,
-                update_utc_timestamp: record.modificationTime
-                  ? new Date(record.modificationTime)
-                  : null,
-              },
-            }),
-          ),
-        );
-      } else if (dbTable == "aqi_specimens") {
-        await this.prisma.$transaction(
-          data.map((record) =>
-            model.upsert({
-              where: { [dbTable + "_id"]: record.id },
-              update: {
-                aqi_specimens_custom_id: record.name,
-                aqi_field_activities_start_time: record.activityStartTime,
-                aqi_field_activities_custom_id: record.activityCustomId,
-                aqi_location_custom_id: record.locationCustomID,
-              },
-              create: {
-                [dbTable + "_id"]: record.id,
-                aqi_specimens_custom_id: record.name,
-                aqi_field_activities_start_time: record.activityStartTime,
-                aqi_field_activities_custom_id: record.activityCustomId,
-                aqi_location_custom_id: record.locationCustomID,
-              },
-            }),
-          ),
-        );
-      } else {
-        await this.prisma.$transaction(
-          data.map((record) =>
-            model.upsert({
-              where: { [dbTable + "_id"]: record.id },
-              update: {
-                custom_id: record.customId || record.name,
-                description: record.description,
-                create_user_id: record.creationUserProfileId,
-                create_utc_timestamp: record.creationTime
-                  ? new Date(record.creationTime)
-                  : null,
-                update_user_id: record.modificationUserProfileId,
-                update_utc_timestamp: record.modificationTime
-                  ? new Date(record.modificationTime)
-                  : null,
-              },
-              create: {
-                [dbTable + "_id"]: record.id,
-                custom_id: record.customId || record.name,
-                description: record.description,
-                create_user_id: record.creationUserProfileId,
-                create_utc_timestamp: record.creationTime
-                  ? new Date(record.creationTime)
-                  : null,
-                update_user_id: record.modificationUserProfileId,
-                update_utc_timestamp: record.modificationTime
-                  ? new Date(record.modificationTime)
-                  : null,
-              },
-            }),
-          ),
+
+        this.logger.log(
+          `Processed batch ${Math.ceil((i + 1) / batchSize)}/${Math.ceil(data.length / batchSize)} for ${dbTable}`,
         );
       }
 
       this.logger.log(
-        `Upserted ${data.length} entries into ${dbTable} - ${(new Date().getTime() - startTime) / 1000} seconds`,
+        `Successfully upserted ${data.length} entries into ${dbTable} in ${(new Date().getTime() - startTime) / 1000} seconds`,
       );
-      this.logger.log(`-`);
-      return;
     } catch (err) {
-      this.logger.error(`Error updating #### ${dbTable} #### table`, error);
+      this.logger.error(`Error updating #### ${dbTable} #### table`, err);
+    }
+  }
+
+  /**
+   * Returns the payload for the `update` operation based on the table.
+   */
+  private getUpdatePayload(dbTable: string, record: any): any {
+    switch (dbTable) {
+      case "aqi_field_visits":
+        return {
+          aqi_field_visit_start_time: new Date(record.startTime),
+          aqi_location_custom_id: record.locationCustomID,
+        };
+      case "aqi_field_activities":
+        return {
+          aqi_field_activities_start_time: new Date(record.startTime),
+          aqi_field_activities_custom_id: record.customId,
+          aqi_field_visit_start_time: new Date(record.visitStartTime),
+          aqi_location_custom_id: record.locationCustomID,
+          create_user_id: record.creationUserProfileId,
+          create_utc_timestamp: record.creationTime
+            ? new Date(record.creationTime)
+            : null,
+          update_user_id: record.modificationUserProfileId,
+          update_utc_timestamp: record.modificationTime
+            ? new Date(record.modificationTime)
+            : null,
+        };
+      case "aqi_specimens":
+        return {
+          aqi_specimens_custom_id: record.name,
+          aqi_field_activities_start_time: record.activityStartTime,
+          aqi_field_activities_custom_id: record.activityCustomId,
+          aqi_location_custom_id: record.locationCustomID,
+        };
+      default:
+        return {
+          custom_id: record.customId || record.name,
+          description: record.description,
+          create_user_id: record.creationUserProfileId,
+          create_utc_timestamp: record.creationTime
+            ? new Date(record.creationTime)
+            : null,
+          update_user_id: record.modificationUserProfileId,
+          update_utc_timestamp: record.modificationTime
+            ? new Date(record.modificationTime)
+            : null,
+        };
+    }
+  }
+
+  /**
+   * Returns the payload for the `create` operation based on the table.
+   */
+  private getCreatePayload(dbTable: string, record: any): any {
+    switch (dbTable) {
+      case "aqi_field_visits":
+        return {
+          [`${dbTable}_id`]: record.id,
+          aqi_field_visit_start_time: new Date(record.startTime),
+          aqi_location_custom_id: record.locationCustomID,
+        };
+      case "aqi_field_activities":
+        return {
+          [`${dbTable}_id`]: record.id,
+          aqi_field_activities_start_time: new Date(record.startTime),
+          aqi_field_activities_custom_id: record.customId,
+          aqi_field_visit_start_time: new Date(record.visitStartTime),
+          aqi_location_custom_id: record.locationCustomID,
+          create_user_id: record.creationUserProfileId,
+          create_utc_timestamp: record.creationTime
+            ? new Date(record.creationTime)
+            : null,
+          update_user_id: record.modificationUserProfileId,
+          update_utc_timestamp: record.modificationTime
+            ? new Date(record.modificationTime)
+            : null,
+        };
+      case "aqi_specimens":
+        return {
+          [`${dbTable}_id`]: record.id,
+          aqi_specimens_custom_id: record.name,
+          aqi_field_activities_start_time: record.activityStartTime,
+          aqi_field_activities_custom_id: record.activityCustomId,
+          aqi_location_custom_id: record.locationCustomID,
+        };
+      default:
+        return {
+          [`${dbTable}_id`]: record.id,
+          custom_id: record.customId || record.name,
+          description: record.description,
+          create_user_id: record.creationUserProfileId,
+          create_utc_timestamp: record.creationTime
+            ? new Date(record.creationTime)
+            : null,
+          update_user_id: record.modificationUserProfileId,
+          update_utc_timestamp: record.modificationTime
+            ? new Date(record.modificationTime)
+            : null,
+        };
     }
   }
 
