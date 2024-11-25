@@ -284,28 +284,51 @@ export class CronJobService {
       this.logger.log(`Getting data from ${api.endpoint}`);
       let cursor = "";
       let total = 0;
+      let processedCount = 0;
       let loopCount = 0;
 
       do {
         const url = `${baseUrl + api.endpoint}${api.paramsEnabled ? (cursor ? `?limit=1000&cursor=${cursor}` : "?limit=1000") : ""}`;
         const response = await axios.get(url);
-        const entries = response.data.domainObjects;
-        cursor = response.data.cursor;
-        total = response.data.totalCount;
+
+        // Extract response data
+        const entries = response.data.domainObjects || [];
+        cursor = response.data.cursor || null;
+        total = response.data.totalCount || 0;
 
         this.logger.log(
-          `Processing ${entries.length} entries from ${api.endpoint}`,
+          `Fetched ${entries.length} entries from ${api.endpoint}. Processed: ${processedCount}/${total}`,
         );
+
+        // Process and filter the data
         const filteredData = await this.filterData(api.endpoint, entries);
 
-        // Stream data into the database
-        await this.updateDatabase(api.dbTable, filteredData, 100); // Stream in small batches
+        // Stream data into the database in small batches
+        await this.updateDatabase(api.dbTable, filteredData, 100);
 
+        // Increment counters
+        processedCount += entries.length;
         loopCount++;
-        if (loopCount % 5 === 0 || total <= entries.length) {
-          this.logger.log(`Progress: ${entries.length}/${total}`);
+
+        // Log progress periodically
+        if (loopCount % 5 === 0 || processedCount >= total) {
+          this.logger.log(`Progress: ${processedCount}/${total}`);
         }
-      } while (total > 0 && cursor);
+
+        // Break if we've processed all expected entries
+        if (processedCount >= total) {
+          this.logger.log(`Completed fetching data for ${api.endpoint}`);
+          break;
+        }
+
+        // Edge case: Break if no entries are returned but the cursor is still valid
+        if (entries.length === 0 && cursor) {
+          this.logger.warn(
+            `Empty response for ${api.endpoint} with cursor ${cursor}. Terminating early.`,
+          );
+          break;
+        }
+      } while (cursor); // Continue only if a cursor is provided
     }
 
     this.logger.log(`Cron Job completed.`);
