@@ -263,7 +263,6 @@ export class CronJobService {
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   private async fetchAQSSData() {
-    this.logger.log(`#######################################################`);
     this.logger.log(`Starting Code Table Cron Job`);
     axios.defaults.method = "GET";
     axios.defaults.headers.common["Authorization"] =
@@ -271,50 +270,36 @@ export class CronJobService {
     axios.defaults.headers.common["x-api-key"] = process.env.AQI_ACCESS_TOKEN;
 
     const baseUrl = process.env.AQI_BASE_URL;
-    const startTime = new Date().getTime();
 
     for (const api of this.apisToCall) {
       this.logger.log(`Getting data from ${api.endpoint}`);
       let cursor = "";
       let total = 0;
-      let entries = [];
       let loopCount = 0;
+
       do {
         const url = `${baseUrl + api.endpoint}${api.paramsEnabled ? (cursor ? `?limit=1000&cursor=${cursor}` : "?limit=1000") : ""}`;
-        let response = await axios.get(url);
-        total = response.data.totalCount;
+        const response = await axios.get(url);
+        const entries = response.data.domainObjects;
         cursor = response.data.cursor;
+        total = response.data.totalCount;
 
-        if (total <= entries.length + response.data.domainObjects.length) {
-          // At this point, cursor has fully looped. Check for duplicate entries and remove them
-          const newEntries = response.data.domainObjects.filter(
-            (entry) => !entries.some((e) => e.id === entry.id),
-          );
-          entries = entries.concat(newEntries);
-        } else {
-          entries = entries.concat(response.data.domainObjects);
-        }
+        this.logger.log(
+          `Processing ${entries.length} entries from ${api.endpoint}`,
+        );
+        const filteredData = await this.filterData(api.endpoint, entries);
+
+        // Stream data into the database
+        await this.updateDatabase(api.dbTable, filteredData, 100); // Stream in small batches
+
         loopCount++;
-        if (loopCount === 1 || loopCount % 5 === 0 || total <= entries.length) {
-          this.logger.log(`Fetching entries: ${entries.length}/${total}`);
+        if (loopCount % 5 === 0 || total <= entries.length) {
+          this.logger.log(`Progress: ${entries.length}/${total}`);
         }
-      } while (total > entries.length && api.paramsEnabled);
-
-      const filteredData = await this.filterData(api.endpoint, entries);
-      try {
-        await this.updateDatabase(api.dbTable, filteredData);
-        this.dataPullDownComplete = true;
-      } catch (error) {
-        this.dataPullDownComplete = false;
-        this.logger.error(`Error updating database for ${api.endpoint}`, error);
-      }
+      } while (total > 0 && cursor);
     }
 
-    this.logger.log(
-      `Cron Job Time Taken: ${(new Date().getTime() - startTime) / 1000} seconds`,
-    );
-
-    this.logger.log(`#######################################################`);
+    this.logger.log(`Cron Job completed.`);
   }
 
   private async filterData(endpoint: string, entries: any) {
