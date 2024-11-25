@@ -11,11 +11,12 @@ import { AqiApiService } from "src/aqi_api/aqi_api.service";
 
 @Injectable()
 export class FileSubmissionsService {
+  private readonly logger = new Logger(FileSubmissionsService.name)
+
   constructor(
     private prisma: PrismaService,
     private readonly objectStore: ObjectStoreService,
     private readonly aqiService: AqiApiService,
-    private readonly logger = new Logger(FileSubmissionsService.name),
 
   ) {}
 
@@ -265,10 +266,10 @@ async function grantBucketAccess(token: string) {
 
   await axios
     .request(config)
-    .then((res) => console.log(res))
+    .then((res) => res)
     .catch((err) => {
-      console.log("create bucket failed");
-      console.log(err);
+      this.logger.log("create bucket failed");
+      this.logger.log(err);
     });
 }
 
