@@ -40,6 +40,7 @@ global:
     ftpPort: ~
     ftpUser: ~
     ftpPassword: ~
+    objectstoreBucketName: ~
     #-- frontend
     port: "3000"
     apiName: ~
