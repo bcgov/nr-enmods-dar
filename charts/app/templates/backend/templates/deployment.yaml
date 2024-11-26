@@ -24,6 +24,10 @@ spec:
       labels:
         {{- include "backend.labels" . | nindent 8 }}
     spec:
+      volumes:
+        {{- if .Values.backend.volumes }}
+        {{- toYaml .Values.backend.volumes | nindent 8 }}
+        {{- end }}
       {{- if .Values.backend.podSecurityContext }}
       securityContext:
         {{- toYaml .Values.backend.podSecurityContext | nindent 12 }}
@@ -94,6 +98,10 @@ spec:
             requests:
               cpu: 100m
               memory: 200Mi
+          volumeMounts:
+            {{- if .Values.backend.volumeMounts }}
+            {{- toYaml .Values.backend.volumeMounts | nindent 12 }}
+            {{- end }}
       {{- with .Values.backend.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
