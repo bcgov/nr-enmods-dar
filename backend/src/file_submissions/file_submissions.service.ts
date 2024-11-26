@@ -244,11 +244,11 @@ export class FileSubmissionsService {
 async function grantBucketAccess(token: string) {
   const axios = require("axios");
 
-  this.logger.log(process.env.OBJECTSTORE_ACCESS_KEY)
-  this.logger.log(process.env.OBJECTSTORE_BUCKET)
-  this.logger.log(process.env.OBJECTSTORE_BUCKET_NAME)
-  this.logger.log(process.env.OBJECTSTORE_URL)
-  this.logger.log(process.env.OBJECTSTORE_SECRET_KEY)
+  console.log(process.env.OBJECTSTORE_ACCESS_KEY)
+  console.log(process.env.OBJECTSTORE_BUCKET)
+  console.log(process.env.OBJECTSTORE_BUCKET_NAME)
+  console.log(process.env.OBJECTSTORE_URL)
+  console.log(process.env.OBJECTSTORE_SECRET_KEY)
 
   let config = {
     method: "put",
