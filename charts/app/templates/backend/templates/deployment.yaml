@@ -25,9 +25,9 @@ spec:
         {{- include "backend.labels" . | nindent 8 }}
     spec:
       volumes:
-        {{- if .Values.backend.volumes }}
-        {{- toYaml .Values.backend.volumes | nindent 8 }}
-        {{- end }}
+        - name: obs-temp-files
+          persistentVolumeClaim:
+          claimName: {{ .Release.Name }}-obs-temp-files-pvc
       {{- if .Values.backend.podSecurityContext }}
       securityContext:
         {{- toYaml .Values.backend.podSecurityContext | nindent 12 }}
@@ -99,9 +99,8 @@ spec:
               cpu: 100m
               memory: 200Mi
           volumeMounts:
-            {{- if .Values.backend.volumeMounts }}
-            {{- toYaml .Values.backend.volumeMounts | nindent 12 }}
-            {{- end }}
+            - name: obs-temp-files
+              mountPath: /app/src/tempObsFiles
       {{- with .Values.backend.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
