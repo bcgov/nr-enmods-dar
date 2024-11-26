@@ -628,10 +628,7 @@ export class FileParseValidateService {
     });
 
     const baseFileName = path.basename(fileName, path.extname(fileName));
-    const filePath = path.join(
-      "/app/src/tempObsFiles/",
-      `obs-${baseFileName}.csv`,
-    );
+    const filePath = path.join("src/tempObsFiles/", `obs-${baseFileName}.csv`);
     const headers = Object.keys(obsToWrite[0]).map((key) => ({
       id: key,
       title: key,
