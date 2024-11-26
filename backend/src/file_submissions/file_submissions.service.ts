@@ -254,7 +254,7 @@ async function grantBucketAccess(token: string) {
     data: {
       accessKeyId: process.env.OBJECTSTORE_ACCESS_KEY,
       bucket: process.env.OBJECTSTORE_BUCKET,
-      bucketName: process.env.OBJECTSTORE_BUCKET_NAME,
+      bucketName: process.env.OBJECTSTORE_BUCKET,
       endpoint: process.env.OBJECTSTORE_URL,
       secretAccessKey: process.env.OBJECTSTORE_SECRET_KEY,
       active: true,

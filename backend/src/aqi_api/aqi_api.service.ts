@@ -238,8 +238,8 @@ export class AqiApiService {
         aqi_obs_status_id: true,
         status_url: true,
       },
-      where:{
-        active_ind: true
+      where: {
+        active_ind: true,
       },
       orderBy: {
         create_utc_timestamp: "desc",
@@ -295,11 +295,36 @@ export class AqiApiService {
 
             this.goodObservationImporStatus = true;
             this.logger.log("CHECKED OBSERVATION STATUS");
+          } else if (axiosError.response.status === 400) {
+            this.logger.warn(
+              `Error with observation subfile: ${axiosError.response.data as { message: string }}`,
+            );
+            await this.prisma.$transaction(async (prisma) => {
+              const updateStatus = await this.prisma.aqi_obs_status.update({
+                where: {
+                  aqi_obs_status_id: statusURL.aqi_obs_status_id,
+                },
+                data: {
+                  active_ind: false,
+                },
+              });
+            });
           } else {
             this.logger.error(
-              "API CALL TO Observations Result failed: ",
+              "API CALL TO Observations Status failed: ",
               err.response,
             );
+
+            await this.prisma.$transaction(async (prisma) => {
+              const updateStatus = await this.prisma.aqi_obs_status.update({
+                where: {
+                  aqi_obs_status_id: statusURL.aqi_obs_status_id,
+                },
+                data: {
+                  active_ind: false,
+                },
+              });
+            });
           }
         }
       }
