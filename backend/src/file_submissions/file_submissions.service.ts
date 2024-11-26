@@ -15,8 +15,7 @@ export class FileSubmissionsService {
   constructor(
     private prisma: PrismaService,
     private readonly objectStore: ObjectStoreService,
-    private readonly aqiService: AqiApiService,   
-
+    private readonly aqiService: AqiApiService,
   ) {}
 
   async create(body: any, file: Express.Multer.File) {
@@ -243,12 +242,6 @@ export class FileSubmissionsService {
  */
 async function grantBucketAccess(token: string) {
   const axios = require("axios");
-
-  console.log(process.env.OBJECTSTORE_ACCESS_KEY)
-  console.log(process.env.OBJECTSTORE_BUCKET)
-  console.log(process.env.OBJECTSTORE_BUCKET_NAME)
-  console.log(process.env.OBJECTSTORE_URL)
-  console.log(process.env.OBJECTSTORE_SECRET_KEY)
 
   let config = {
     method: "put",
