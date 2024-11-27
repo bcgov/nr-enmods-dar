@@ -93,8 +93,10 @@ const observations: Observations = {
   LabSampleID: "",
   LabDilutionFactor: "",
   LabComment: "",
+  LabBatchID: "",
   QCType: "",
   QCSourceActivityName: "",
+  CompositeStat: ""
 };
 
 const obsFile: ObservationFile = {
@@ -136,6 +138,8 @@ const obsFile: ObservationFile = {
   "Lab: Comment": "",
   "QC: Type": "",
   "QC: Source Sample ID": "",
+  "EA_Lab Batch ID": "",
+  "EA_Observation Composite Stat": ""
 };
 
 @Injectable()
@@ -610,6 +614,7 @@ export class FileParseValidateService {
   ) {
     const obsToWrite: ObservationFile[] = [];
 
+
     observationData.map((source) => {
       const sourceKeys = Object.keys(source);
       const targetKeys = Object.keys(obsFile);
@@ -992,7 +997,7 @@ export class FileParseValidateService {
     fileName: string,
     originalFileName: string,
     file_operation_code: string,
-    ministryContacts: string,
+    ministryContacts: any[],
     localValidationResults: any[],
   ) {
     await this.fileSubmissionsService.updateFileStatus(
@@ -1183,7 +1188,7 @@ export class FileParseValidateService {
           fileName,
           originalFileName,
           file_operation_code,
-          uniqueMinistryContacts.join(", "),
+          uniqueMinistryContacts,
           localValidationResults[0],
         );
         return;
@@ -1362,7 +1367,7 @@ export class FileParseValidateService {
             file_name: fileName,
             original_file_name: originalFileName,
             file_operation_code: file_operation_code,
-            ministry_contact: uniqueMinistryContacts.join(", "),
+            ministry_contact: uniqueMinistryContacts,
             error_log: localValidationResults[0],
             create_utc_timestamp: new Date(),
           };
@@ -1467,7 +1472,7 @@ export class FileParseValidateService {
               file_name: fileName,
               original_file_name: originalFileName,
               file_operation_code: file_operation_code,
-              ministry_contact: uniqueMinistryContacts.join(", "),
+              ministry_contact: uniqueMinistryContacts,
               error_log: localValidationResults[0],
               create_utc_timestamp: new Date(),
             };
