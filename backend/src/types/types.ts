@@ -122,8 +122,10 @@ export type Observations = {
   LabSampleID: string;
   LabDilutionFactor: string;
   LabComment: string;
+  LabBatchID: string;
   QCType: string;
   QCSourceActivityName: string;
+  CompositeStat: string;
 };
 
 export type ObservationFile = {
@@ -163,8 +165,10 @@ export type ObservationFile = {
   "Lab: Sample ID": string;
   "Lab: Dilution Factor": string;
   "Lab: Comment": string;
+  "EA_Lab Batch ID": string;
   "QC: Type": string;
   "QC: Source Sample ID": string;
+  "EA_Observation Composite Stat": string;
 };
 
 export type EmailTemplate = {

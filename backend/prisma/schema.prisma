@@ -249,7 +249,7 @@ model file_error_logs {
   file_name            String?          @db.VarChar(200)
   original_file_name   String?          @db.VarChar(200)
   file_operation_code  String?          @db.VarChar(200)
-  ministry_contact     String?          @db.VarChar(200)
+  ministry_contact     Json?
   error_log            Json?
   create_utc_timestamp DateTime         @db.Timestamp(6)
   file_submission      file_submission? @relation(fields: [file_submission_id], references: [submission_id], onDelete: NoAction, onUpdate: NoAction, map: "file_submission_id_fk")
