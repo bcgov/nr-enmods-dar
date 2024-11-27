@@ -332,6 +332,7 @@ export class CronJobService {
     }
 
     this.logger.log(`Cron Job completed.`);
+    this.dataPullDownComplete = true;
   }
 
   private async filterData(endpoint: string, entries: any) {
