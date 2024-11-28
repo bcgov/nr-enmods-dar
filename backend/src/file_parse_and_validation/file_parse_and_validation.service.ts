@@ -96,7 +96,7 @@ const observations: Observations = {
   LabBatchID: "",
   QCType: "",
   QCSourceActivityName: "",
-  CompositeStat: ""
+  CompositeStat: "",
 };
 
 const obsFile: ObservationFile = {
@@ -139,7 +139,7 @@ const obsFile: ObservationFile = {
   "QC: Type": "",
   "QC: Source Sample ID": "",
   "EA_Lab Batch ID": "",
-  "EA_Observation Composite Stat": ""
+  "EA_Observation Composite Stat": "",
 };
 
 @Injectable()
@@ -614,23 +614,43 @@ export class FileParseValidateService {
   ) {
     const obsToWrite: ObservationFile[] = [];
 
+    for (const source of observationData) {
+      const sourceKeys = Object.keys(source)
+      const targetKeys = Object.keys(obsFile)
 
-    observationData.map((source) => {
-      const sourceKeys = Object.keys(source);
-      const targetKeys = Object.keys(obsFile);
+      const newObs = {} as ObservationFile
 
-      const newObs = {} as ObservationFile;
+      for (let i=0; i< sourceKeys.length; i++) {   
+        const sourceKey = sourceKeys[i]
+        const targetKey = targetKeys[i]
 
-      sourceKeys.forEach((sourceKey, i) => {
-        const targetKey = targetKeys[i];
-
-        if (targetKey !== undefined) {
+        if (targetKey !== undefined){
           newObs[targetKey] = source[sourceKey];
         }
-      });
-      // newObs["EA_FileID"] = originalFileName;
+      }
+
+      const lookupAnalysisMethod = newObs['Lab: Analysis Method']
+      if (lookupAnalysisMethod){
+        const lookupResult = await this.prisma.aqi_analysis_methods.findFirst({
+          where: {
+            method_id: {
+              equals: lookupAnalysisMethod
+            }
+          },
+          select: {
+            method_id: true,
+            method_context: true,
+            method_name: true,
+          },
+        })
+
+        if (lookupResult){
+          const newAnalysisMethod = `${lookupResult.method_id};${lookupResult.method_name};${lookupResult.method_context}`;
+          newObs["Lab: Analysis Method"] = newAnalysisMethod.replace(/^"|"$/g, '').replace(/"/g, '');
+        }
+      }
       obsToWrite.push(newObs);
-    });
+    }
 
     const baseFileName = path.basename(fileName, path.extname(fileName));
     const filePath = path.join("src/tempObsFiles/", `obs-${baseFileName}.csv`);
@@ -642,6 +662,7 @@ export class FileParseValidateService {
     const writer = csvWriter.createObjectCsvWriter({
       path: filePath,
       header: headers,
+      alwaysQuote: false,
     });
 
     await writer.writeRecords(obsToWrite);

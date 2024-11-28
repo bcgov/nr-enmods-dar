@@ -384,7 +384,7 @@ export class AqiApiService {
         for (const [key, errors] of Object.entries(errorList)) {
           if (errors[0].errorMessage) {
             let ObservationFile = errors[0]?.errorFieldValue
-              ? `${errors[0].errorMessage} (${errors[0].errorFieldValue})`
+              ? `${errors[0].errorMessage} : ${errors[0].errorFieldValue}`
               : `${errors[0].errorMessage}`;
             errorMessages.push({
               rowNum: parseInt(rowId),
