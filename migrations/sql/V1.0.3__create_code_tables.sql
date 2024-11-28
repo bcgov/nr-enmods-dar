@@ -34,6 +34,16 @@ CREATE TABLE IF NOT EXISTS enmods.aqi_collection_methods (
   update_user_id varchar(200) NOT NULL,
   update_utc_timestamp timestamp NOT NULL
 );
+CREATE TABLE IF NOT EXISTS enmods.aqi_analysis_methods (
+  aqi_analysis_methods_id UUID PRIMARY KEY NOT NULL,
+  method_id varchar(200) NOT NULL,
+  method_name varchar(2000) NULL,
+  method_context varchar(2000) NULL,
+  create_user_id varchar(200) NOT NULL,
+  create_utc_timestamp timestamp NOT NULL,
+  update_user_id varchar(200) NOT NULL,
+  update_utc_timestamp timestamp NOT NULL
+);
 CREATE TABLE IF NOT EXISTS enmods.aqi_extended_attributes (
   aqi_extended_attributes_id UUID PRIMARY KEY NOT NULL,
   custom_id varchar(200) NOT NULL,

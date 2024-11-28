@@ -284,3 +284,14 @@ model aqi_obs_status {
   create_utc_timestamp DateTime         @db.Timestamp(6)
   file_submission      file_submission? @relation(fields: [file_submission_id], references: [submission_id], onDelete: NoAction, onUpdate: NoAction, map: "file_submission_id_fk")
 }
+
+model aqi_analysis_methods {
+  aqi_analysis_methods_id String   @id @db.Uuid
+  method_id               String   @db.VarChar(200)
+  method_name             String?  @db.VarChar(2000)
+  method_context          String?  @db.VarChar(2000)
+  create_user_id          String   @db.VarChar(200)
+  create_utc_timestamp    DateTime @db.Timestamp(6)
+  update_user_id          String   @db.VarChar(200)
+  update_utc_timestamp    DateTime @db.Timestamp(6)
+}

@@ -1,5 +1,5 @@
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
-import axios from "axios";
+import axios, { create } from "axios";
 import { error } from "winston";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "nestjs-prisma";
@@ -27,6 +27,7 @@ export class CronJobService {
       ["aqi_mediums", this.prisma.aqi_mediums],
       ["aqi_units", this.prisma.aqi_units],
       ["aqi_collection_methods", this.prisma.aqi_collection_methods],
+      ["aqi_analysis_methods", this.prisma.aqi_analysis_methods],
       ["aqi_extended_attributes", this.prisma.aqi_extended_attributes],
       ["aqi_context_tags", this.prisma.aqi_context_tags],
       ["aqi_laboratories", this.prisma.aqi_laboratories],
@@ -64,6 +65,12 @@ export class CronJobService {
       endpoint: "/v1/collectionmethods",
       method: "GET",
       dbTable: "aqi_collection_methods",
+      paramsEnabled: false,
+    },
+    {
+      endpoint: "/v1/analysismethods",
+      method: "GET",
+      dbTable: "aqi_analysis_methods",
       paramsEnabled: false,
     },
     {
@@ -202,6 +209,20 @@ export class CronJobService {
           aqi_field_activities_custom_id: record.activityCustomId,
           aqi_location_custom_id: record.locationCustomID,
         };
+      case "aqi_analysis_methods":
+        return {
+          method_id: record.methodId,
+          method_name: record.name,
+          method_context: record.context,
+          create_user_id: record.creationUserProfileId,
+          create_utc_timestamp: record.creationTime
+            ? new Date(record.creationTime)
+            : null,
+          update_user_id: record.modificationUserProfileId,
+          update_utc_timestamp: record.modificationTime
+            ? new Date(record.modificationTime)
+            : null,
+        };
       default:
         return {
           custom_id: record.customId || record.name,
@@ -252,6 +273,21 @@ export class CronJobService {
           aqi_field_activities_start_time: record.activityStartTime,
           aqi_field_activities_custom_id: record.activityCustomId,
           aqi_location_custom_id: record.locationCustomID,
+        };
+      case "aqi_analysis_methods":
+        return {
+          [`${dbTable}_id`]: record.id,
+          method_id: record.methodId,
+          method_name: record.name,
+          method_context: record.context,
+          create_user_id: record.creationUserProfileId,
+          create_utc_timestamp: record.creationTime
+            ? new Date(record.creationTime)
+            : null,
+          update_user_id: record.modificationUserProfileId,
+          update_utc_timestamp: record.modificationTime
+            ? new Date(record.modificationTime)
+            : null,
         };
       default:
         return {
@@ -426,6 +462,25 @@ export class CronJobService {
         locationCustomID,
       };
     };
+    const filerAnalysisMethodAttributes = (obj: any): any => {
+      const { id, methodId, name, context, auditAttributes } = obj;
+      const creationUserProfileId = auditAttributes.creationUserProfileId;
+      const creationTime = auditAttributes.creationTime;
+      const modificationUserProfileId =
+        auditAttributes.modificationUserProfileId;
+      const modificationTime = auditAttributes.modificationTime;
+
+      return {
+        id,
+        methodId,
+        name,
+        context,
+        creationUserProfileId,
+        creationTime,
+        modificationUserProfileId,
+        modificationTime,
+      };
+    };
     const filterArray = (array: any): any => {
       if (endpoint == "/v1/tags") {
         return array.map(filterNameAttributes);
@@ -435,6 +490,8 @@ export class CronJobService {
         return array.map(filterActivityAttributes);
       } else if (endpoint == "/v1/specimens") {
         return array.map(filterSpecimenAttributes);
+      } else if (endpoint == "/v1/analysismethods") {
+        return array.map(filerAnalysisMethodAttributes);
       } else {
         return array.map(filterAttributes);
       }
