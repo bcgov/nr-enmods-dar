@@ -93,9 +93,9 @@ const observations: Observations = {
   LabSampleID: "",
   LabDilutionFactor: "",
   LabComment: "",
-  LabBatchID: "",
   QCType: "",
   QCSourceActivityName: "",
+  LabBatchID: "",
   CompositeStat: "",
 };
 
@@ -219,37 +219,37 @@ export class FileParseValidateService {
           },
         });
         return { medium: { id: mediumID[0].aqi_mediums_id, customId: param } };
-      case "DEPTH_UNIT":
-        if (
-          param[0] == "m" ||
-          param[0] == "Metre" ||
-          param[0] == "metre" ||
-          param[0] == "Meter" ||
-          param[0] == "meter"
-        ) {
-          param[0] = "metre";
-        }
+      // case "DEPTH_UNIT":
+      //   if (
+      //     param[0] == "m" ||
+      //     param[0] == "Metre" ||
+      //     param[0] == "metre" ||
+      //     param[0] == "Meter" ||
+      //     param[0] == "meter"
+      //   ) {
+      //     param[0] = "metre";
+      //   }
 
-        if (param[0] == "ft" || param[0] == "Feet" || param[0] == "feet") {
-          param[0] = "feet";
-        }
+      //   if (param[0] == "ft" || param[0] == "Feet" || param[0] == "feet") {
+      //     param[0] = "feet";
+      //   }
 
-        let duID = await this.prisma.aqi_units.findMany({
-          where: {
-            custom_id: {
-              equals: param[0],
-            },
-          },
-          select: {
-            aqi_units_id: true,
-          },
-        });
-        return {
-          depth: {
-            value: param[1],
-            unit: { id: duID[0].aqi_units_id, customId: param[0] },
-          },
-        };
+      //   let duID = await this.prisma.aqi_units.findMany({
+      //     where: {
+      //       custom_id: {
+      //         equals: param[0],
+      //       },
+      //     },
+      //     select: {
+      //       aqi_units_id: true,
+      //     },
+      //   });
+      //   return {
+      //     depth: {
+      //       value: param[1],
+      //       unit: { id: duID[0].aqi_units_id, customId: param[0] },
+      //     },
+      //   };
       case "LABS":
         let labID = await this.prisma.aqi_laboratories.findMany({
           where: {
@@ -431,16 +431,17 @@ export class FileParseValidateService {
         postData,
         await this.queryCodeTables("MEDIUM", mediumCustomID),
       );
-      // get the depth unit custom id from object and find depth unit GUID
-      if (depthUnitCustomID != null || depthUnitValue != "") {
-        Object.assign(
-          postData,
-          await this.queryCodeTables("DEPTH_UNIT", [
-            depthUnitCustomID,
-            depthUnitValue,
-          ]),
-        );
-      }
+
+      // // get the depth unit custom id from object and find depth unit GUID
+      // if (depthUnitCustomID != null || depthUnitValue != "") {
+      //   Object.assign(
+      //     postData,
+      //     await this.queryCodeTables("DEPTH_UNIT", [
+      //       depthUnitCustomID,
+      //       depthUnitValue,
+      //     ]),
+      //   );
+      // }
 
       if (sampleContextTagCustomIds != null) {
         let tagsToLookup = sampleContextTagCustomIds.split(", ");
@@ -615,40 +616,62 @@ export class FileParseValidateService {
     const obsToWrite: ObservationFile[] = [];
 
     for (const source of observationData) {
-      const sourceKeys = Object.keys(source)
-      const targetKeys = Object.keys(obsFile)
+      const sourceKeys = Object.keys(source);
+      const targetKeys = Object.keys(obsFile);
 
-      const newObs = {} as ObservationFile
+      const newObs = {} as ObservationFile;
 
-      for (let i=0; i< sourceKeys.length; i++) {   
-        const sourceKey = sourceKeys[i]
-        const targetKey = targetKeys[i]
+      for (let i = 0; i < sourceKeys.length; i++) {
+        const sourceKey = sourceKeys[i];
+        const targetKey = targetKeys[i];
 
-        if (targetKey !== undefined){
+        if (targetKey !== undefined) {
           newObs[targetKey] = source[sourceKey];
         }
       }
 
-      const lookupAnalysisMethod = newObs['Lab: Analysis Method']
-      if (lookupAnalysisMethod){
+      const lookupAnalysisMethod = newObs["Lab: Analysis Method"];
+      if (lookupAnalysisMethod) {
         const lookupResult = await this.prisma.aqi_analysis_methods.findFirst({
           where: {
             method_id: {
-              equals: lookupAnalysisMethod
-            }
+              equals: lookupAnalysisMethod,
+            },
           },
           select: {
             method_id: true,
             method_context: true,
             method_name: true,
           },
-        })
+        });
 
-        if (lookupResult){
+        if (lookupResult) {
           const newAnalysisMethod = `${lookupResult.method_id};${lookupResult.method_name};${lookupResult.method_context}`;
-          newObs["Lab: Analysis Method"] = newAnalysisMethod.replace(/^"|"$/g, '').replace(/"/g, '');
+          newObs["Lab: Analysis Method"] = newAnalysisMethod
+            .replace(/^"|"$/g, "")
+            .replace(/"/g, "");
         }
       }
+
+      const resultUnitLookup = newObs["Result Unit"];
+      if (resultUnitLookup) {
+        const resultLookUpResult = await this.prisma.aqi_units.findFirst({
+          where: {
+            edt_unit_xref: {
+              equals: resultUnitLookup,
+            },
+          },
+          select: {
+            aqi_units_code: true,
+          },
+        });
+
+        if (resultLookUpResult) {
+          const newResultUnit = resultLookUpResult;
+          newObs["Result Unit"] = newResultUnit.aqi_units_code;
+        }
+      }
+
       obsToWrite.push(newObs);
     }
 
@@ -751,7 +774,7 @@ export class FileParseValidateService {
         "MethodReportingLimit",
       ];
 
-      const unitFields = ["DepthUnit", "ResultUnit"];
+      const unitFields = ["ResultUnit"];
 
       // check all datetimes
       dateTimeFields.forEach((field) => {

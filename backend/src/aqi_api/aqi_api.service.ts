@@ -401,19 +401,41 @@ export class AqiApiService {
   }
 
   async databaseLookup(dbTable: string, queryParam: string) {
-    try {
-      let result = await this.prisma[dbTable].findMany({
-        where: {
-          custom_id: queryParam,
-        },
-      });
-      if (result.length > 0) {
-        return true;
-      } else {
-        return false;
-      }
-    } catch (err) {
-      this.logger.error(`API CALL TO ${dbTable} failed: `, err);
+    switch (dbTable) {
+      case "aqi_units":
+        try {
+          let result = await this.prisma.aqi_units.findMany({
+            where: {
+              edt_unit_xref: queryParam,
+            },
+            select: {
+              aqi_units_code: true,
+            },
+          });
+          if (result.length > 0) {
+            return result[0];
+          } else {
+            return null;
+          }
+        } catch (err) {
+          this.logger.error(`API CALL TO ${dbTable} failed: `, err);
+        }
+
+      default:
+        try {
+          let result = await this.prisma[dbTable].findMany({
+            where: {
+              custom_id: queryParam,
+            },
+          });
+          if (result.length > 0) {
+            return true;
+          } else {
+            return false;
+          }
+        } catch (err) {
+          this.logger.error(`API CALL TO ${dbTable} failed: `, err);
+        }
     }
   }
 

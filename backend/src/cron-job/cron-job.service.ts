@@ -25,7 +25,6 @@ export class CronJobService {
     this.tableModels = new Map<string, any>([
       ["aqi_projects", this.prisma.aqi_projects],
       ["aqi_mediums", this.prisma.aqi_mediums],
-      ["aqi_units", this.prisma.aqi_units],
       ["aqi_collection_methods", this.prisma.aqi_collection_methods],
       ["aqi_analysis_methods", this.prisma.aqi_analysis_methods],
       ["aqi_extended_attributes", this.prisma.aqi_extended_attributes],
@@ -53,12 +52,6 @@ export class CronJobService {
       endpoint: "/v1/mediums",
       method: "GET",
       dbTable: "aqi_mediums",
-      paramsEnabled: false,
-    },
-    {
-      endpoint: "/v1/units",
-      method: "GET",
-      dbTable: "aqi_units",
       paramsEnabled: false,
     },
     {

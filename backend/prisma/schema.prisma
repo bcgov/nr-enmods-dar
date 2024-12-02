@@ -66,9 +66,10 @@ model aqi_mediums {
 }
 
 model aqi_units {
-  aqi_units_id         String   @id @db.Uuid
-  custom_id            String   @db.VarChar(200)
-  description          String?  @db.VarChar(2000)
+  edt_unit_guid        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ems_code             Int?
+  edt_unit_xref        String   @db.VarChar(255)
+  aqi_units_code       String   @db.VarChar(255)
   create_user_id       String   @db.VarChar(200)
   create_utc_timestamp DateTime @db.Timestamp(6)
   update_user_id       String   @db.VarChar(200)
