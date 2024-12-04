@@ -31,6 +31,7 @@ export class AqiApiService {
       );
       return response.data.id;
     } catch (err) {
+      console.log(body)
       this.logger.error(
         "API CALL TO POST Field Visits failed: ",
         err.response.data.message,
@@ -269,6 +270,17 @@ export class AqiApiService {
             });
           });
 
+          await this.prisma.$transaction(async (prisma) => {
+            const updateStatus = await this.prisma.aqi_obs_status.update({
+              where: {
+                aqi_obs_status_id: statusURL.aqi_obs_status_id,
+              },
+              data: {
+                active_ind: false,
+              },
+            });
+          });
+
           this.goodObservationImporStatus = true;
           this.logger.log("CHECKED OBSERVATION STATUS");
         }
@@ -402,9 +414,9 @@ export class AqiApiService {
 
   async databaseLookup(dbTable: string, queryParam: string) {
     switch (dbTable) {
-      case "aqi_units":
+      case "aqi_units_xref":
         try {
-          let result = await this.prisma.aqi_units.findMany({
+          let result = await this.prisma.aqi_units_xref.findMany({
             where: {
               edt_unit_xref: queryParam,
             },

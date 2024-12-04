@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS enmods.aqi_units (
+CREATE TABLE IF NOT EXISTS enmods.aqi_units_xref (
   edt_unit_guid UUID PRIMARY KEY NOT NULL DEFAULT gen_random_uuid(),
   ems_code INTEGER NULL,
   edt_unit_xref varchar(255) NOT NULL,
@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS enmods.aqi_units (
   update_utc_timestamp timestamp NOT NULL
 );
 
-INSERT INTO enmods.aqi_units(
+INSERT INTO enmods.aqi_units_xref(
         ems_code,
         edt_unit_xref,
         aqi_units_code,

@@ -13,6 +13,7 @@ import * as XLSX from "xlsx";
 import * as path from "path";
 import * as csvWriter from "csv-writer";
 import fs from "fs";
+import csv from "csv-parser";
 import { PrismaService } from "nestjs-prisma";
 
 const visits: FieldVisits = {
@@ -655,7 +656,7 @@ export class FileParseValidateService {
 
       const resultUnitLookup = newObs["Result Unit"];
       if (resultUnitLookup) {
-        const resultLookUpResult = await this.prisma.aqi_units.findFirst({
+        const resultLookUpResult = await this.prisma.aqi_units_xref.findFirst({
           where: {
             edt_unit_xref: {
               equals: resultUnitLookup,
@@ -670,6 +671,11 @@ export class FileParseValidateService {
           const newResultUnit = resultLookUpResult;
           newObs["Result Unit"] = newResultUnit.aqi_units_code;
         }
+      }
+
+      const dataClassification = newObs["Data Classification"];
+      if (dataClassification == "FIELD_RESULT") {
+        newObs["Activity Name"] = "";
       }
 
       obsToWrite.push(newObs);
@@ -710,23 +716,45 @@ export class FileParseValidateService {
   }
 
   getUniqueWithCounts(data: any[]) {
-    const map = new Map<
-      string,
-      { rec: any; count: number; positions: number[] }
-    >();
+    // const map = new Map<
+    //   string,
+    //   { rec: any; count: number; positions: number[] }
+    // >();
+
+    // data.forEach((obj, index) => {
+    //   const key = JSON.stringify(obj);
+    //   if (map.has(key)) {
+    //     const entry = map.get(key)!;
+    //     entry.count++;
+    //     entry.positions.push(index);
+    //   } else {
+    //     map.set(key, { rec: obj, count: 1, positions: [index] });
+    //   }
+    // });
+    // const dupeCount = Array.from(map.values());
+    // return dupeCount;
+    const seen = new Map();
+    const duplicateDetails = [];
 
     data.forEach((obj, index) => {
-      const key = JSON.stringify(obj);
-      if (map.has(key)) {
-        const entry = map.get(key)!;
-        entry.count++;
-        entry.positions.push(index);
+      const item = JSON.stringify(obj);
+
+      if (seen.has(item)) {
+        const existingEntry = seen.get(item);
+        existingEntry.positions.push(index);
+        existingEntry.count++;
       } else {
-        map.set(key, { rec: obj, count: 1, positions: [index] });
+        seen.set(item, { rec: obj, count: 1, positions: [index] });
       }
     });
-    const dupeCount = Array.from(map.values());
-    return dupeCount;
+
+    seen.forEach((value) => {
+      if (value.count >= 1) {
+        duplicateDetails.push(value);
+      }
+    });
+
+    return duplicateDetails;
   }
 
   expandList(data: any[]) {
@@ -816,7 +844,7 @@ export class FileParseValidateService {
       unitFields.forEach(async (field) => {
         if (record.hasOwnProperty(field) && record[field]) {
           const present = await this.aqiService.databaseLookup(
-            "aqi_units",
+            "aqi_units_xref",
             record[field],
           );
           if (!present) {
@@ -1017,7 +1045,31 @@ export class FileParseValidateService {
       }
     }
 
-    // Do a dry run of the observations
+    /*
+     * Do an initial validation on the observation file. This will check the file has the right number of columns, the header names are correct and the order of the headers are right
+     * Do a dry run of the observations
+     */
+
+    fs.createReadStream(observaionFilePath)
+      .pipe(csv())
+      .on("headers", (headers) => {
+        // First check: if the number of columns is correct
+        if (headers.length !== Object.keys(obsFile).length) {
+          let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": "Invalid number of columns. Expected 40, got ${headers.length}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+
+        // Second-Third check:
+        if (
+          !Object.keys(obsFile).every(
+            (header, index) => header === headers[index],
+          )
+        ) {
+          let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": "Headers do not match expected names or order. You can find the expected format here: https://bcenv-enmods-test.aqsamples.ca/import"`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+      });
+
     const observationsErrors = await this.aqiService.importObservations(
       observaionFilePath,
       "dryrun",
@@ -1434,80 +1486,6 @@ export class FileParseValidateService {
           );
 
           if (file_operation_code === "VALIDATE") {
-            return;
-          } else {
-            /*
-             * If the local validation passed then split the file into 4 and process with the AQI API calls
-             * Get unique records to prevent redundant API calls
-             * Post the unique records to the API
-             * Expand the returned list of object - this will be used for finding unique activities
-             */
-            const uniqueVisitsWithCounts =
-              this.getUniqueWithCounts(allFieldVisits);
-            let visitInfo = await this.fieldVisitJson(
-              uniqueVisitsWithCounts,
-              "post",
-            );
-            let expandedVisitInfo = this.expandList(visitInfo);
-
-            /*
-             * Merge the expanded visitInfo with allFieldActivities
-             * Collapse allFieldActivities with a dupe count
-             * Post the unique records to the API
-             * Expand the returned list of object - this will be used for finding unique specimens
-             */
-
-            allFieldActivities = allFieldActivities.map((obj2, index) => {
-              const obj1 = expandedVisitInfo[index];
-              return { ...obj2, ...obj1 };
-            });
-
-            const uniqueActivitiesWithCounts =
-              this.getUniqueWithCounts(allFieldActivities);
-            let activityInfo = await this.fieldActivityJson(
-              uniqueActivitiesWithCounts,
-              "post",
-            );
-            let expandedActivityInfo = this.expandList(activityInfo);
-
-            /*
-             * Merge the expanded activityInfo with allSpecimens
-             * Collapse allSpecimens with a dupe count
-             * Post the unique records to the API
-             */
-            allSpecimens = allSpecimens.map((obj2, index) => {
-              const obj1 = expandedActivityInfo[index];
-              return { ...obj2, ...obj1 };
-            });
-            const uniqueSpecimensWithCounts =
-              this.getUniqueWithCounts(allSpecimens);
-            let specimenInfo = await this.specimensJson(
-              uniqueSpecimensWithCounts,
-              "post",
-            );
-
-            await this.aqiService.importObservations(
-              ObsFilePath,
-              "import",
-              file_submission_id,
-              file_operation_code,
-            );
-
-            await this.fileSubmissionsService.updateFileStatus(
-              file_submission_id,
-              "SUBMITTED",
-            );
-
-            // Save the created GUIDs to aqi_inserted_elements
-            await this.saveAQIInsertedElements(
-              file_submission_id,
-              fileName,
-              originalFileName,
-              visitInfo,
-              activityInfo,
-              specimenInfo,
-            );
-
             const file_error_log_data = {
               file_submission_id: file_submission_id,
               file_name: fileName,
@@ -1522,15 +1500,103 @@ export class FileParseValidateService {
               data: file_error_log_data,
             });
 
-            // set the aqi_obs_status record for that file submission id to false
-            const aqi_obs_status = await this.prisma.aqi_obs_status.updateMany({
-              where: {
-                file_submission_id: file_submission_id,
-              },
-              data: {
-                active_ind: false,
-              },
-            });
+            return;
+          } else {
+            /*
+             * If the local validation passed then split the file into 4 and process with the AQI API calls
+             * Get unique records to prevent redundant API calls
+             * Post the unique records to the API
+             * Expand the returned list of object - this will be used for finding unique activities
+             */
+            const uniqueVisitsWithCounts =
+              this.getUniqueWithCounts(allFieldVisits);
+            let visitInfo = await this.fieldVisitJson(
+              uniqueVisitsWithCounts,
+              "post",
+            );
+            // let expandedVisitInfo = this.expandList(visitInfo);
+
+            // /*
+            //  * Merge the expanded visitInfo with allFieldActivities
+            //  * Collapse allFieldActivities with a dupe count
+            //  * Post the unique records to the API
+            //  * Expand the returned list of object - this will be used for finding unique specimens
+            //  */
+
+            // allFieldActivities = allFieldActivities.map((obj2, index) => {
+            //   const obj1 = expandedVisitInfo[index];
+            //   return { ...obj2, ...obj1 };
+            // });
+
+            // const uniqueActivitiesWithCounts =
+            //   this.getUniqueWithCounts(allFieldActivities);
+            // let activityInfo = await this.fieldActivityJson(
+            //   uniqueActivitiesWithCounts,
+            //   "post",
+            // );
+            // let expandedActivityInfo = this.expandList(activityInfo);
+
+            // /*
+            //  * Merge the expanded activityInfo with allSpecimens
+            //  * Collapse allSpecimens with a dupe count
+            //  * Post the unique records to the API
+            //  */
+            // allSpecimens = allSpecimens.map((obj2, index) => {
+            //   const obj1 = expandedActivityInfo[index];
+            //   return { ...obj2, ...obj1 };
+            // });
+            // const uniqueSpecimensWithCounts =
+            //   this.getUniqueWithCounts(allSpecimens);
+            // let specimenInfo = await this.specimensJson(
+            //   uniqueSpecimensWithCounts,
+            //   "post",
+            // );
+
+            // await this.aqiService.importObservations(
+            //   ObsFilePath,
+            //   "import",
+            //   file_submission_id,
+            //   file_operation_code,
+            // );
+
+            // await this.fileSubmissionsService.updateFileStatus(
+            //   file_submission_id,
+            //   "SUBMITTED",
+            // );
+
+            // // Save the created GUIDs to aqi_inserted_elements
+            // await this.saveAQIInsertedElements(
+            //   file_submission_id,
+            //   fileName,
+            //   originalFileName,
+            //   visitInfo,
+            //   activityInfo,
+            //   specimenInfo,
+            // );
+
+            // const file_error_log_data = {
+            //   file_submission_id: file_submission_id,
+            //   file_name: fileName,
+            //   original_file_name: originalFileName,
+            //   file_operation_code: file_operation_code,
+            //   ministry_contact: uniqueMinistryContacts,
+            //   error_log: localValidationResults[0],
+            //   create_utc_timestamp: new Date(),
+            // };
+
+            // await this.prisma.file_error_logs.create({
+            //   data: file_error_log_data,
+            // });
+
+            // // set the aqi_obs_status record for that file submission id to false
+            // const aqi_obs_status = await this.prisma.aqi_obs_status.updateMany({
+            //   where: {
+            //     file_submission_id: file_submission_id,
+            //   },
+            //   data: {
+            //     active_ind: false,
+            //   },
+            // });
 
             return;
           }
