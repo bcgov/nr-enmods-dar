@@ -1514,89 +1514,89 @@ export class FileParseValidateService {
               uniqueVisitsWithCounts,
               "post",
             );
-            // let expandedVisitInfo = this.expandList(visitInfo);
+            let expandedVisitInfo = this.expandList(visitInfo);
 
-            // /*
-            //  * Merge the expanded visitInfo with allFieldActivities
-            //  * Collapse allFieldActivities with a dupe count
-            //  * Post the unique records to the API
-            //  * Expand the returned list of object - this will be used for finding unique specimens
-            //  */
+            /*
+             * Merge the expanded visitInfo with allFieldActivities
+             * Collapse allFieldActivities with a dupe count
+             * Post the unique records to the API
+             * Expand the returned list of object - this will be used for finding unique specimens
+             */
 
-            // allFieldActivities = allFieldActivities.map((obj2, index) => {
-            //   const obj1 = expandedVisitInfo[index];
-            //   return { ...obj2, ...obj1 };
-            // });
+            allFieldActivities = allFieldActivities.map((obj2, index) => {
+              const obj1 = expandedVisitInfo[index];
+              return { ...obj2, ...obj1 };
+            });
 
-            // const uniqueActivitiesWithCounts =
-            //   this.getUniqueWithCounts(allFieldActivities);
-            // let activityInfo = await this.fieldActivityJson(
-            //   uniqueActivitiesWithCounts,
-            //   "post",
-            // );
-            // let expandedActivityInfo = this.expandList(activityInfo);
+            const uniqueActivitiesWithCounts =
+              this.getUniqueWithCounts(allFieldActivities);
+            let activityInfo = await this.fieldActivityJson(
+              uniqueActivitiesWithCounts,
+              "post",
+            );
+            let expandedActivityInfo = this.expandList(activityInfo);
 
-            // /*
-            //  * Merge the expanded activityInfo with allSpecimens
-            //  * Collapse allSpecimens with a dupe count
-            //  * Post the unique records to the API
-            //  */
-            // allSpecimens = allSpecimens.map((obj2, index) => {
-            //   const obj1 = expandedActivityInfo[index];
-            //   return { ...obj2, ...obj1 };
-            // });
-            // const uniqueSpecimensWithCounts =
-            //   this.getUniqueWithCounts(allSpecimens);
-            // let specimenInfo = await this.specimensJson(
-            //   uniqueSpecimensWithCounts,
-            //   "post",
-            // );
+            /*
+             * Merge the expanded activityInfo with allSpecimens
+             * Collapse allSpecimens with a dupe count
+             * Post the unique records to the API
+             */
+            allSpecimens = allSpecimens.map((obj2, index) => {
+              const obj1 = expandedActivityInfo[index];
+              return { ...obj2, ...obj1 };
+            });
+            const uniqueSpecimensWithCounts =
+              this.getUniqueWithCounts(allSpecimens);
+            let specimenInfo = await this.specimensJson(
+              uniqueSpecimensWithCounts,
+              "post",
+            );
 
-            // await this.aqiService.importObservations(
-            //   ObsFilePath,
-            //   "import",
-            //   file_submission_id,
-            //   file_operation_code,
-            // );
+            await this.aqiService.importObservations(
+              ObsFilePath,
+              "import",
+              file_submission_id,
+              file_operation_code,
+            );
 
-            // await this.fileSubmissionsService.updateFileStatus(
-            //   file_submission_id,
-            //   "SUBMITTED",
-            // );
+            await this.fileSubmissionsService.updateFileStatus(
+              file_submission_id,
+              "SUBMITTED",
+            );
 
-            // // Save the created GUIDs to aqi_inserted_elements
-            // await this.saveAQIInsertedElements(
-            //   file_submission_id,
-            //   fileName,
-            //   originalFileName,
-            //   visitInfo,
-            //   activityInfo,
-            //   specimenInfo,
-            // );
+            // Save the created GUIDs to aqi_inserted_elements
+            await this.saveAQIInsertedElements(
+              file_submission_id,
+              fileName,
+              originalFileName,
+              visitInfo,
+              activityInfo,
+              specimenInfo,
+            );
 
-            // const file_error_log_data = {
-            //   file_submission_id: file_submission_id,
-            //   file_name: fileName,
-            //   original_file_name: originalFileName,
-            //   file_operation_code: file_operation_code,
-            //   ministry_contact: uniqueMinistryContacts,
-            //   error_log: localValidationResults[0],
-            //   create_utc_timestamp: new Date(),
-            // };
+            const file_error_log_data = {
+              file_submission_id: file_submission_id,
+              file_name: fileName,
+              original_file_name: originalFileName,
+              file_operation_code: file_operation_code,
+              ministry_contact: uniqueMinistryContacts,
+              error_log: localValidationResults[0],
+              create_utc_timestamp: new Date(),
+            };
 
-            // await this.prisma.file_error_logs.create({
-            //   data: file_error_log_data,
-            // });
+            await this.prisma.file_error_logs.create({
+              data: file_error_log_data,
+            });
 
-            // // set the aqi_obs_status record for that file submission id to false
-            // const aqi_obs_status = await this.prisma.aqi_obs_status.updateMany({
-            //   where: {
-            //     file_submission_id: file_submission_id,
-            //   },
-            //   data: {
-            //     active_ind: false,
-            //   },
-            // });
+            // set the aqi_obs_status record for that file submission id to false
+            const aqi_obs_status = await this.prisma.aqi_obs_status.updateMany({
+              where: {
+                file_submission_id: file_submission_id,
+              },
+              data: {
+                active_ind: false,
+              },
+            });
 
             return;
           }
