@@ -85,11 +85,14 @@ function formulateErrorFile(logs: any) {
     const time = timeWithZ.replace("Z", "");
     let formattedMessages = "";
     let fileOperation = ""
+    let fileAction = ""
 
     if (logs[0].file_operation_code === 'VALIDATE'){
       fileOperation = "True";
+      fileAction = "validated";
     }else{
       fileOperation = "False";
+      fileAction = "imported";
     }
     formattedMessages =
       `User's Original File: ${logs[0].original_file_name}\n` +
@@ -102,7 +105,7 @@ function formulateErrorFile(logs: any) {
       `Ministry Contact: ${logs[0].ministry_contact}\n` +
       `-----------------------------------------------------------------------\n\n` +
       `No errors were found during the validation/import of the data.\n\n` +
-      `The file was successfully imported.\n\n`;
+      `The file was successfully ${fileAction}.\n\n`;
     
     return formattedMessages;
   }

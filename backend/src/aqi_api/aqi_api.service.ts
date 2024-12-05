@@ -31,6 +31,7 @@ export class AqiApiService {
       );
       return response.data.id;
     } catch (err) {
+      console.log(body)
       this.logger.error(
         "API CALL TO POST Field Visits failed: ",
         err.response.data.message,
@@ -269,6 +270,17 @@ export class AqiApiService {
             });
           });
 
+          await this.prisma.$transaction(async (prisma) => {
+            const updateStatus = await this.prisma.aqi_obs_status.update({
+              where: {
+                aqi_obs_status_id: statusURL.aqi_obs_status_id,
+              },
+              data: {
+                active_ind: false,
+              },
+            });
+          });
+
           this.goodObservationImporStatus = true;
           this.logger.log("CHECKED OBSERVATION STATUS");
         }
@@ -384,7 +396,7 @@ export class AqiApiService {
         for (const [key, errors] of Object.entries(errorList)) {
           if (errors[0].errorMessage) {
             let ObservationFile = errors[0]?.errorFieldValue
-              ? `${errors[0].errorMessage} (${errors[0].errorFieldValue})`
+              ? `${errors[0].errorMessage} : ${errors[0].errorFieldValue}`
               : `${errors[0].errorMessage}`;
             errorMessages.push({
               rowNum: parseInt(rowId),
@@ -401,19 +413,41 @@ export class AqiApiService {
   }
 
   async databaseLookup(dbTable: string, queryParam: string) {
-    try {
-      let result = await this.prisma[dbTable].findMany({
-        where: {
-          custom_id: queryParam,
-        },
-      });
-      if (result.length > 0) {
-        return true;
-      } else {
-        return false;
-      }
-    } catch (err) {
-      this.logger.error(`API CALL TO ${dbTable} failed: `, err);
+    switch (dbTable) {
+      case "aqi_units_xref":
+        try {
+          let result = await this.prisma.aqi_units_xref.findMany({
+            where: {
+              edt_unit_xref: queryParam,
+            },
+            select: {
+              aqi_units_code: true,
+            },
+          });
+          if (result.length > 0) {
+            return result[0];
+          } else {
+            return null;
+          }
+        } catch (err) {
+          this.logger.error(`API CALL TO ${dbTable} failed: `, err);
+        }
+
+      default:
+        try {
+          let result = await this.prisma[dbTable].findMany({
+            where: {
+              custom_id: queryParam,
+            },
+          });
+          if (result.length > 0) {
+            return true;
+          } else {
+            return false;
+          }
+        } catch (err) {
+          this.logger.error(`API CALL TO ${dbTable} failed: `, err);
+        }
     }
   }
 
