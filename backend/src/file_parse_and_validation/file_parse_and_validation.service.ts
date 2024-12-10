@@ -678,6 +678,7 @@ export class FileParseValidateService {
         newObs["Activity Name"] = "";
       }
 
+      newObs["EA_Upload File Name"] = originalFileName; // this is needed for deletion purposes
       obsToWrite.push(newObs);
     }
 
@@ -1054,8 +1055,8 @@ export class FileParseValidateService {
       .pipe(csv())
       .on("headers", (headers) => {
         // First check: if the number of columns is correct
-        if (headers.length !== Object.keys(obsFile).length) {
-          let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": "Invalid number of columns. Expected 40, got ${headers.length}`;
+        if (headers.length !== Object.keys(obsFile).length + 1) {
+          let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Invalid number of columns. Expected 40, got ${headers.length}"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
 
@@ -1065,7 +1066,7 @@ export class FileParseValidateService {
             (header, index) => header === headers[index],
           )
         ) {
-          let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": "Headers do not match expected names or order. You can find the expected format here: https://bcenv-enmods-test.aqsamples.ca/import"`;
+          let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Headers do not match expected names or order. You can find the expected format here: https://bcenv-enmods-test.aqsamples.ca/import"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       });
@@ -1546,7 +1547,8 @@ export class FileParseValidateService {
               return { ...obj2, ...obj1 };
             });
             const uniqueSpecimensWithCounts =
-              this.getUniqueWithCounts(allSpecimens);
+              this.getUniqueWithCounts(allSpecimens).filter(item => item.rec.SpecimenName !== "");
+
             let specimenInfo = await this.specimensJson(
               uniqueSpecimensWithCounts,
               "post",
