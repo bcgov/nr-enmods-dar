@@ -31,6 +31,7 @@ export class AqiApiService {
       );
       return response.data.id;
     } catch (err) {
+      console.log(body);
       this.logger.error(
         "API CALL TO POST Field Visits failed: ",
         err.response.data.message,
@@ -269,6 +270,17 @@ export class AqiApiService {
             });
           });
 
+          await this.prisma.$transaction(async (prisma) => {
+            const updateStatus = await this.prisma.aqi_obs_status.update({
+              where: {
+                aqi_obs_status_id: statusURL.aqi_obs_status_id,
+              },
+              data: {
+                active_ind: false,
+              },
+            });
+          });
+
           this.goodObservationImporStatus = true;
           this.logger.log("CHECKED OBSERVATION STATUS");
         }
@@ -309,6 +321,7 @@ export class AqiApiService {
                 },
               });
             });
+            this.goodObservationImporStatus = true;
           } else {
             this.logger.error(
               "API CALL TO Observations Status failed: ",
@@ -325,6 +338,7 @@ export class AqiApiService {
                 },
               });
             });
+            this.goodObservationImporStatus = true;
           }
         }
       }
@@ -384,7 +398,7 @@ export class AqiApiService {
         for (const [key, errors] of Object.entries(errorList)) {
           if (errors[0].errorMessage) {
             let ObservationFile = errors[0]?.errorFieldValue
-              ? `${errors[0].errorMessage} (${errors[0].errorFieldValue})`
+              ? `${errors[0].errorMessage} : ${errors[0].errorFieldValue}`
               : `${errors[0].errorMessage}`;
             errorMessages.push({
               rowNum: parseInt(rowId),
@@ -401,19 +415,41 @@ export class AqiApiService {
   }
 
   async databaseLookup(dbTable: string, queryParam: string) {
-    try {
-      let result = await this.prisma[dbTable].findMany({
-        where: {
-          custom_id: queryParam,
-        },
-      });
-      if (result.length > 0) {
-        return true;
-      } else {
-        return false;
-      }
-    } catch (err) {
-      this.logger.error(`API CALL TO ${dbTable} failed: `, err);
+    switch (dbTable) {
+      case "aqi_units_xref":
+        try {
+          let result = await this.prisma.aqi_units_xref.findMany({
+            where: {
+              edt_unit_xref: queryParam,
+            },
+            select: {
+              aqi_units_code: true,
+            },
+          });
+          if (result.length > 0) {
+            return result[0];
+          } else {
+            return null;
+          }
+        } catch (err) {
+          this.logger.error(`API CALL TO ${dbTable} failed: `, err);
+        }
+
+      default:
+        try {
+          let result = await this.prisma[dbTable].findMany({
+            where: {
+              custom_id: queryParam,
+            },
+          });
+          if (result.length > 0) {
+            return true;
+          } else {
+            return false;
+          }
+        } catch (err) {
+          this.logger.error(`API CALL TO ${dbTable} failed: `, err);
+        }
     }
   }
 
@@ -541,6 +577,8 @@ export class AqiApiService {
       },
     });
 
+    console.log(guidsToDelete)
+
     // Delete all the observations from the list of imported guids
     if (guidsToDelete[0].imported_guids.observations.length > 0) {
       try {
@@ -592,32 +630,32 @@ export class AqiApiService {
 
     // Delete all the activities for the visits imported
     if (guidsToDelete[0].imported_guids.activities.length > 0) {
-      try {
-        let deletion = await axios.delete(
-          `${process.env.AQI_BASE_URL}/v1/activities?ids=${guidsToDelete[0].imported_guids.activities}`,
-          {
-            headers: {
-              Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
-              "x-api-key": process.env.AQ,
-            },
-          },
-        );
-        this.logger.log("AQI ACTIVITY DELETION: " + deletion.data);
-
+      for (const activity of guidsToDelete[0].imported_guids.activities) {
         try {
-          const dbDeletion = await this.prisma.aqi_field_activities.deleteMany({
-            where: {
-              aqi_field_activities_id: {
-                in: guidsToDelete[0].imported_guids.activities,
+          let aqiDeletion = await axios.delete(
+            `${process.env.AQI_BASE_URL}/v1/activities/${activity}`,
+            {
+              headers: {
+                Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+                "x-api-key": process.env.AQI_ACCESS_TOKEN,
               },
             },
-          });
-          this.logger.log("DB ACTIVITY DELETION: " + dbDeletion);
+          );
+          this.logger.log("AQI ACTIVITY DELETION: " + aqiDeletion.data);
+
+          try {
+            const dbDeletion = await this.prisma.aqi_field_activities.delete({
+              where: {
+                aqi_field_activities_id: activity,
+              },
+            });
+            this.logger.log("DB ACTIVITY DELETION: " + dbDeletion);
+          } catch (err) {
+            this.logger.error(`API call to delete DB activity failed: `, err);
+          }
         } catch (err) {
-          this.logger.error(`API call to delete DB activities failed: `, err);
+          this.logger.error(`API call to delete AQI activity failed: `, err);
         }
-      } catch (err) {
-        this.logger.error(`API call to delete DB activity failed: `, err);
       }
     }
 

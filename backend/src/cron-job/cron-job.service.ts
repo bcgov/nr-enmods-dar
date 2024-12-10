@@ -1,5 +1,5 @@
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
-import axios from "axios";
+import axios, { create } from "axios";
 import { error } from "winston";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "nestjs-prisma";
@@ -25,8 +25,8 @@ export class CronJobService {
     this.tableModels = new Map<string, any>([
       ["aqi_projects", this.prisma.aqi_projects],
       ["aqi_mediums", this.prisma.aqi_mediums],
-      ["aqi_units", this.prisma.aqi_units],
       ["aqi_collection_methods", this.prisma.aqi_collection_methods],
+      ["aqi_analysis_methods", this.prisma.aqi_analysis_methods],
       ["aqi_extended_attributes", this.prisma.aqi_extended_attributes],
       ["aqi_context_tags", this.prisma.aqi_context_tags],
       ["aqi_laboratories", this.prisma.aqi_laboratories],
@@ -55,15 +55,15 @@ export class CronJobService {
       paramsEnabled: false,
     },
     {
-      endpoint: "/v1/units",
-      method: "GET",
-      dbTable: "aqi_units",
-      paramsEnabled: false,
-    },
-    {
       endpoint: "/v1/collectionmethods",
       method: "GET",
       dbTable: "aqi_collection_methods",
+      paramsEnabled: false,
+    },
+    {
+      endpoint: "/v1/analysismethods",
+      method: "GET",
+      dbTable: "aqi_analysis_methods",
       paramsEnabled: false,
     },
     {
@@ -134,136 +134,173 @@ export class CronJobService {
     },
   ];
 
-  private async updateDatabase(dbTable: string, data: any) {
+  private async updateDatabase(dbTable: string, data: any, batchSize = 1000) {
     const startTime = new Date().getTime();
     try {
       const model = this.tableModels.get(dbTable);
       if (!model) throw new Error(`Unknown dbTable: ${dbTable}`);
-      this.logger.log(`Upserting ${data.length} entries into ${dbTable}...`);
+      this.logger.log(
+        `Upserting ${data.length} entries into ${dbTable} in batches of ${batchSize}...`,
+      );
 
-      if (dbTable == "aqi_field_visits") {
+      // Process data in batches
+      for (let i = 0; i < data.length; i += batchSize) {
+        const batch = data.slice(i, i + batchSize);
+
         await this.prisma.$transaction(
-          data.map((record) =>
+          batch.map((record) =>
             model.upsert({
-              where: { [dbTable + "_id"]: record.id },
-              update: {
-                aqi_field_visit_start_time: new Date(record.startTime),
-                aqi_location_custom_id: record.locationCustomID,
-              },
-              create: {
-                [dbTable + "_id"]: record.id,
-                aqi_field_visit_start_time: new Date(record.startTime),
-                aqi_location_custom_id: record.locationCustomID,
-              },
+              where: { [`${dbTable}_id`]: record.id },
+              update: this.getUpdatePayload(dbTable, record),
+              create: this.getCreatePayload(dbTable, record),
             }),
           ),
         );
-      } else if (dbTable == "aqi_field_activities") {
-        await this.prisma.$transaction(
-          data.map((record) =>
-            model.upsert({
-              where: { [dbTable + "_id"]: record.id },
-              update: {
-                aqi_field_activities_start_time: new Date(record.startTime),
-                aqi_field_activities_custom_id: record.customId,
-                aqi_field_visit_start_time: new Date(record.visitStartTime),
-                aqi_location_custom_id: record.locationCustomID,
-                create_user_id: record.creationUserProfileId,
-                create_utc_timestamp: record.creationTime
-                  ? new Date(record.creationTime)
-                  : null,
-                update_user_id: record.modificationUserProfileId,
-                update_utc_timestamp: record.modificationTime
-                  ? new Date(record.modificationTime)
-                  : null,
-              },
-              create: {
-                [dbTable + "_id"]: record.id,
-                aqi_field_activities_start_time: new Date(record.startTime),
-                aqi_field_activities_custom_id: record.customId,
-                aqi_field_visit_start_time: new Date(record.visitStartTime),
-                aqi_location_custom_id: record.locationCustomID,
-                create_user_id: record.creationUserProfileId,
-                create_utc_timestamp: record.creationTime
-                  ? new Date(record.creationTime)
-                  : null,
-                update_user_id: record.modificationUserProfileId,
-                update_utc_timestamp: record.modificationTime
-                  ? new Date(record.modificationTime)
-                  : null,
-              },
-            }),
-          ),
-        );
-      } else if (dbTable == "aqi_specimens") {
-        await this.prisma.$transaction(
-          data.map((record) =>
-            model.upsert({
-              where: { [dbTable + "_id"]: record.id },
-              update: {
-                aqi_specimens_custom_id: record.name,
-                aqi_field_activities_start_time: record.activityStartTime,
-                aqi_field_activities_custom_id: record.activityCustomId,
-                aqi_location_custom_id: record.locationCustomID,
-              },
-              create: {
-                [dbTable + "_id"]: record.id,
-                aqi_specimens_custom_id: record.name,
-                aqi_field_activities_start_time: record.activityStartTime,
-                aqi_field_activities_custom_id: record.activityCustomId,
-                aqi_location_custom_id: record.locationCustomID,
-              },
-            }),
-          ),
-        );
-      } else {
-        await this.prisma.$transaction(
-          data.map((record) =>
-            model.upsert({
-              where: { [dbTable + "_id"]: record.id },
-              update: {
-                custom_id: record.customId || record.name,
-                description: record.description,
-                create_user_id: record.creationUserProfileId,
-                create_utc_timestamp: record.creationTime
-                  ? new Date(record.creationTime)
-                  : null,
-                update_user_id: record.modificationUserProfileId,
-                update_utc_timestamp: record.modificationTime
-                  ? new Date(record.modificationTime)
-                  : null,
-              },
-              create: {
-                [dbTable + "_id"]: record.id,
-                custom_id: record.customId || record.name,
-                description: record.description,
-                create_user_id: record.creationUserProfileId,
-                create_utc_timestamp: record.creationTime
-                  ? new Date(record.creationTime)
-                  : null,
-                update_user_id: record.modificationUserProfileId,
-                update_utc_timestamp: record.modificationTime
-                  ? new Date(record.modificationTime)
-                  : null,
-              },
-            }),
-          ),
+
+        this.logger.log(
+          `Processed batch ${Math.ceil((i + 1) / batchSize)}/${Math.ceil(data.length / batchSize)} for ${dbTable}`,
         );
       }
 
       this.logger.log(
-        `Upserted ${data.length} entries into ${dbTable} - ${(new Date().getTime() - startTime) / 1000} seconds`,
+        `Successfully upserted ${data.length} entries into ${dbTable} in ${(new Date().getTime() - startTime) / 1000} seconds`,
       );
-      this.logger.log(`-`);
-      return;
     } catch (err) {
-      this.logger.error(`Error updating #### ${dbTable} #### table`, error);
+      this.logger.error(`Error updating #### ${dbTable} #### table`, err);
+    }
+  }
+
+  /**
+   * Returns the payload for the `update` operation based on the table.
+   */
+  private getUpdatePayload(dbTable: string, record: any): any {
+    switch (dbTable) {
+      case "aqi_field_visits":
+        return {
+          aqi_field_visit_start_time: new Date(record.startTime),
+          aqi_location_custom_id: record.locationCustomID,
+        };
+      case "aqi_field_activities":
+        return {
+          aqi_field_activities_start_time: new Date(record.startTime),
+          aqi_field_activities_custom_id: record.customId,
+          aqi_field_visit_start_time: new Date(record.visitStartTime),
+          aqi_location_custom_id: record.locationCustomID,
+          create_user_id: record.creationUserProfileId,
+          create_utc_timestamp: record.creationTime
+            ? new Date(record.creationTime)
+            : null,
+          update_user_id: record.modificationUserProfileId,
+          update_utc_timestamp: record.modificationTime
+            ? new Date(record.modificationTime)
+            : null,
+        };
+      case "aqi_specimens":
+        return {
+          aqi_specimens_custom_id: record.name,
+          aqi_field_activities_start_time: record.activityStartTime,
+          aqi_field_activities_custom_id: record.activityCustomId,
+          aqi_location_custom_id: record.locationCustomID,
+        };
+      case "aqi_analysis_methods":
+        return {
+          method_id: record.methodId,
+          method_name: record.name,
+          method_context: record.context,
+          create_user_id: record.creationUserProfileId,
+          create_utc_timestamp: record.creationTime
+            ? new Date(record.creationTime)
+            : null,
+          update_user_id: record.modificationUserProfileId,
+          update_utc_timestamp: record.modificationTime
+            ? new Date(record.modificationTime)
+            : null,
+        };
+      default:
+        return {
+          custom_id: record.customId || record.name,
+          description: record.description,
+          create_user_id: record.creationUserProfileId,
+          create_utc_timestamp: record.creationTime
+            ? new Date(record.creationTime)
+            : null,
+          update_user_id: record.modificationUserProfileId,
+          update_utc_timestamp: record.modificationTime
+            ? new Date(record.modificationTime)
+            : null,
+        };
+    }
+  }
+
+  /**
+   * Returns the payload for the `create` operation based on the table.
+   */
+  private getCreatePayload(dbTable: string, record: any): any {
+    switch (dbTable) {
+      case "aqi_field_visits":
+        return {
+          [`${dbTable}_id`]: record.id,
+          aqi_field_visit_start_time: new Date(record.startTime),
+          aqi_location_custom_id: record.locationCustomID,
+        };
+      case "aqi_field_activities":
+        return {
+          [`${dbTable}_id`]: record.id,
+          aqi_field_activities_start_time: new Date(record.startTime),
+          aqi_field_activities_custom_id: record.customId,
+          aqi_field_visit_start_time: new Date(record.visitStartTime),
+          aqi_location_custom_id: record.locationCustomID,
+          create_user_id: record.creationUserProfileId,
+          create_utc_timestamp: record.creationTime
+            ? new Date(record.creationTime)
+            : null,
+          update_user_id: record.modificationUserProfileId,
+          update_utc_timestamp: record.modificationTime
+            ? new Date(record.modificationTime)
+            : null,
+        };
+      case "aqi_specimens":
+        return {
+          [`${dbTable}_id`]: record.id,
+          aqi_specimens_custom_id: record.name,
+          aqi_field_activities_start_time: record.activityStartTime,
+          aqi_field_activities_custom_id: record.activityCustomId,
+          aqi_location_custom_id: record.locationCustomID,
+        };
+      case "aqi_analysis_methods":
+        return {
+          [`${dbTable}_id`]: record.id,
+          method_id: record.methodId,
+          method_name: record.name,
+          method_context: record.context,
+          create_user_id: record.creationUserProfileId,
+          create_utc_timestamp: record.creationTime
+            ? new Date(record.creationTime)
+            : null,
+          update_user_id: record.modificationUserProfileId,
+          update_utc_timestamp: record.modificationTime
+            ? new Date(record.modificationTime)
+            : null,
+        };
+      default:
+        return {
+          [`${dbTable}_id`]: record.id,
+          custom_id: record.customId || record.name,
+          description: record.description,
+          create_user_id: record.creationUserProfileId,
+          create_utc_timestamp: record.creationTime
+            ? new Date(record.creationTime)
+            : null,
+          update_user_id: record.modificationUserProfileId,
+          update_utc_timestamp: record.modificationTime
+            ? new Date(record.modificationTime)
+            : null,
+        };
     }
   }
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   private async fetchAQSSData() {
-    this.logger.log(`#######################################################`);
     this.logger.log(`Starting Code Table Cron Job`);
     axios.defaults.method = "GET";
     axios.defaults.headers.common["Authorization"] =
@@ -271,50 +308,60 @@ export class CronJobService {
     axios.defaults.headers.common["x-api-key"] = process.env.AQI_ACCESS_TOKEN;
 
     const baseUrl = process.env.AQI_BASE_URL;
-    const startTime = new Date().getTime();
 
     for (const api of this.apisToCall) {
       this.logger.log(`Getting data from ${api.endpoint}`);
       let cursor = "";
       let total = 0;
-      let entries = [];
+      let processedCount = 0;
       let loopCount = 0;
+
       do {
         const url = `${baseUrl + api.endpoint}${api.paramsEnabled ? (cursor ? `?limit=1000&cursor=${cursor}` : "?limit=1000") : ""}`;
-        let response = await axios.get(url);
-        total = response.data.totalCount;
-        cursor = response.data.cursor;
+        const response = await axios.get(url);
 
-        if (total <= entries.length + response.data.domainObjects.length) {
-          // At this point, cursor has fully looped. Check for duplicate entries and remove them
-          const newEntries = response.data.domainObjects.filter(
-            (entry) => !entries.some((e) => e.id === entry.id),
-          );
-          entries = entries.concat(newEntries);
-        } else {
-          entries = entries.concat(response.data.domainObjects);
-        }
+        // Extract response data
+        const entries = response.data.domainObjects || [];
+        cursor = response.data.cursor || null;
+        total = response.data.totalCount || 0;
+
+        this.logger.log(
+          `Fetched ${entries.length} entries from ${api.endpoint}. Processed: ${processedCount}/${total}`,
+        );
+
+        // Process and filter the data
+        const filteredData = await this.filterData(api.endpoint, entries);
+
+        // Stream data into the database in small batches
+        await this.updateDatabase(api.dbTable, filteredData, 100);
+
+        // Increment counters
+        processedCount += entries.length;
         loopCount++;
-        if (loopCount === 1 || loopCount % 5 === 0 || total <= entries.length) {
-          this.logger.log(`Fetching entries: ${entries.length}/${total}`);
-        }
-      } while (total > entries.length && api.paramsEnabled);
 
-      const filteredData = await this.filterData(api.endpoint, entries);
-      try {
-        await this.updateDatabase(api.dbTable, filteredData);
-        this.dataPullDownComplete = true;
-      } catch (error) {
-        this.dataPullDownComplete = false;
-        this.logger.error(`Error updating database for ${api.endpoint}`, error);
-      }
+        // Log progress periodically
+        if (loopCount % 5 === 0 || processedCount >= total) {
+          this.logger.log(`Progress: ${processedCount}/${total}`);
+        }
+
+        // Break if we've processed all expected entries
+        if (processedCount >= total) {
+          this.logger.log(`Completed fetching data for ${api.endpoint}`);
+          break;
+        }
+
+        // Edge case: Break if no entries are returned but the cursor is still valid
+        if (entries.length === 0 && cursor) {
+          this.logger.warn(
+            `Empty response for ${api.endpoint} with cursor ${cursor}. Terminating early.`,
+          );
+          break;
+        }
+      } while (cursor); // Continue only if a cursor is provided
     }
 
-    this.logger.log(
-      `Cron Job Time Taken: ${(new Date().getTime() - startTime) / 1000} seconds`,
-    );
-
-    this.logger.log(`#######################################################`);
+    this.logger.log(`Cron Job completed.`);
+    this.dataPullDownComplete = true;
   }
 
   private async filterData(endpoint: string, entries: any) {
@@ -408,6 +455,25 @@ export class CronJobService {
         locationCustomID,
       };
     };
+    const filerAnalysisMethodAttributes = (obj: any): any => {
+      const { id, methodId, name, context, auditAttributes } = obj;
+      const creationUserProfileId = auditAttributes.creationUserProfileId;
+      const creationTime = auditAttributes.creationTime;
+      const modificationUserProfileId =
+        auditAttributes.modificationUserProfileId;
+      const modificationTime = auditAttributes.modificationTime;
+
+      return {
+        id,
+        methodId,
+        name,
+        context,
+        creationUserProfileId,
+        creationTime,
+        modificationUserProfileId,
+        modificationTime,
+      };
+    };
     const filterArray = (array: any): any => {
       if (endpoint == "/v1/tags") {
         return array.map(filterNameAttributes);
@@ -417,6 +483,8 @@ export class CronJobService {
         return array.map(filterActivityAttributes);
       } else if (endpoint == "/v1/specimens") {
         return array.map(filterSpecimenAttributes);
+      } else if (endpoint == "/v1/analysismethods") {
+        return array.map(filerAnalysisMethodAttributes);
       } else {
         return array.map(filterAttributes);
       }
@@ -431,10 +499,10 @@ export class CronJobService {
       grab all the files from the DB and S3 bucket that have a status of QUEUED
       for each file returned, change the status to INPROGRESS and go to the parser
     // */
-    if (!this.dataPullDownComplete) {
-      this.logger.warn("Data pull down from AQSS did not complete");
-      return;
-    }
+    // if (!this.dataPullDownComplete) {
+    //   this.logger.warn("Data pull down from AQSS did not complete");
+    //   return;
+    // }
 
     let filesToValidate = await this.fileParser.getQueuedFiles();
 
