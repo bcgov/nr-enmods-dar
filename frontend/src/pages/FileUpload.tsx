@@ -292,28 +292,43 @@ function FileUpload() {
                         </Grid>
                         <Grid item xs={3}>
                           <ButtonGroup
+                            variant="text"
                             sx={{ float: "right", paddingTop: "10px" }}
                           >
                             {fileStatusCodes.items[index] == "ACCEPTED" ? (
-                              <Button style={{ color: "green" }}>
-                                <CheckCircle />
+                              <Button>
+                                <Typography color={"black"}>
+                                  Accepted
+                                </Typography>
                               </Button>
                             ) : fileStatusCodes.items[index] == "REJECTED" ? (
-                              <Button style={{ color: "orange" }}>
-                                <Error />
+                              <Button>
+                                <Typography color={"black"}>
+                                  Rejected
+                                </Typography>
                               </Button>
-                            ) : fileStatusCodes.items[index] == "INPROGRESS" ||
-                              fileStatusCodes.items[index] == "QUEUED" ? (
+                            ) : fileStatusCodes.items[index] == "QUEUED" ? (
+                              <Button>
+                                <Typography color={"black"}>Queued</Typography>
+                              </Button>
+                            ) : fileStatusCodes.items[index] == "INPROGRESS" ? (
+                              <Button>
+                                <Typography color={"black"}>
+                                  In Progress
+                                </Typography>
+                              </Button>
+                            ) : (
                               <Button style={{ color: "orange" }}>
                                 <CircularProgress color="secondary" />
                               </Button>
-                            ) : (
-                              ""
                             )}
 
                             <Button
                               id={"delete-file-" + index}
-                              style={{ color: "black" }}
+                              style={{
+                                color: "black",
+                                outline: "none !important",
+                              }}
                               onClick={() => {
                                 handleOpen(index);
                               }}

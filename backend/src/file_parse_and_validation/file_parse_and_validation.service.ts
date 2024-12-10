@@ -13,6 +13,7 @@ import * as XLSX from "xlsx";
 import * as path from "path";
 import * as csvWriter from "csv-writer";
 import fs from "fs";
+import csv from "csv-parser";
 import { PrismaService } from "nestjs-prisma";
 
 const visits: FieldVisits = {
@@ -93,10 +94,10 @@ const observations: Observations = {
   LabSampleID: "",
   LabDilutionFactor: "",
   LabComment: "",
-  LabBatchID: "",
   QCType: "",
   QCSourceActivityName: "",
-  CompositeStat: ""
+  LabBatchID: "",
+  CompositeStat: "",
 };
 
 const obsFile: ObservationFile = {
@@ -139,7 +140,7 @@ const obsFile: ObservationFile = {
   "QC: Type": "",
   "QC: Source Sample ID": "",
   "EA_Lab Batch ID": "",
-  "EA_Observation Composite Stat": ""
+  "EA_Observation Composite Stat": "",
 };
 
 @Injectable()
@@ -219,37 +220,37 @@ export class FileParseValidateService {
           },
         });
         return { medium: { id: mediumID[0].aqi_mediums_id, customId: param } };
-      case "DEPTH_UNIT":
-        if (
-          param[0] == "m" ||
-          param[0] == "Metre" ||
-          param[0] == "metre" ||
-          param[0] == "Meter" ||
-          param[0] == "meter"
-        ) {
-          param[0] = "metre";
-        }
+      // case "DEPTH_UNIT":
+      //   if (
+      //     param[0] == "m" ||
+      //     param[0] == "Metre" ||
+      //     param[0] == "metre" ||
+      //     param[0] == "Meter" ||
+      //     param[0] == "meter"
+      //   ) {
+      //     param[0] = "metre";
+      //   }
 
-        if (param[0] == "ft" || param[0] == "Feet" || param[0] == "feet") {
-          param[0] = "feet";
-        }
+      //   if (param[0] == "ft" || param[0] == "Feet" || param[0] == "feet") {
+      //     param[0] = "feet";
+      //   }
 
-        let duID = await this.prisma.aqi_units.findMany({
-          where: {
-            custom_id: {
-              equals: param[0],
-            },
-          },
-          select: {
-            aqi_units_id: true,
-          },
-        });
-        return {
-          depth: {
-            value: param[1],
-            unit: { id: duID[0].aqi_units_id, customId: param[0] },
-          },
-        };
+      //   let duID = await this.prisma.aqi_units.findMany({
+      //     where: {
+      //       custom_id: {
+      //         equals: param[0],
+      //       },
+      //     },
+      //     select: {
+      //       aqi_units_id: true,
+      //     },
+      //   });
+      //   return {
+      //     depth: {
+      //       value: param[1],
+      //       unit: { id: duID[0].aqi_units_id, customId: param[0] },
+      //     },
+      //   };
       case "LABS":
         let labID = await this.prisma.aqi_laboratories.findMany({
           where: {
@@ -431,16 +432,17 @@ export class FileParseValidateService {
         postData,
         await this.queryCodeTables("MEDIUM", mediumCustomID),
       );
-      // get the depth unit custom id from object and find depth unit GUID
-      if (depthUnitCustomID != null || depthUnitValue != "") {
-        Object.assign(
-          postData,
-          await this.queryCodeTables("DEPTH_UNIT", [
-            depthUnitCustomID,
-            depthUnitValue,
-          ]),
-        );
-      }
+
+      // // get the depth unit custom id from object and find depth unit GUID
+      // if (depthUnitCustomID != null || depthUnitValue != "") {
+      //   Object.assign(
+      //     postData,
+      //     await this.queryCodeTables("DEPTH_UNIT", [
+      //       depthUnitCustomID,
+      //       depthUnitValue,
+      //     ]),
+      //   );
+      // }
 
       if (sampleContextTagCustomIds != null) {
         let tagsToLookup = sampleContextTagCustomIds.split(", ");
@@ -614,23 +616,71 @@ export class FileParseValidateService {
   ) {
     const obsToWrite: ObservationFile[] = [];
 
-
-    observationData.map((source) => {
+    for (const source of observationData) {
       const sourceKeys = Object.keys(source);
       const targetKeys = Object.keys(obsFile);
 
       const newObs = {} as ObservationFile;
 
-      sourceKeys.forEach((sourceKey, i) => {
+      for (let i = 0; i < sourceKeys.length; i++) {
+        const sourceKey = sourceKeys[i];
         const targetKey = targetKeys[i];
 
         if (targetKey !== undefined) {
           newObs[targetKey] = source[sourceKey];
         }
-      });
-      // newObs["EA_FileID"] = originalFileName;
+      }
+
+      const lookupAnalysisMethod = newObs["Lab: Analysis Method"];
+      if (lookupAnalysisMethod) {
+        const lookupResult = await this.prisma.aqi_analysis_methods.findFirst({
+          where: {
+            method_id: {
+              equals: lookupAnalysisMethod,
+            },
+          },
+          select: {
+            method_id: true,
+            method_context: true,
+            method_name: true,
+          },
+        });
+
+        if (lookupResult) {
+          const newAnalysisMethod = `${lookupResult.method_id};${lookupResult.method_name};${lookupResult.method_context}`;
+          newObs["Lab: Analysis Method"] = newAnalysisMethod
+            .replace(/^"|"$/g, "")
+            .replace(/"/g, "");
+        }
+      }
+
+      const resultUnitLookup = newObs["Result Unit"];
+      if (resultUnitLookup) {
+        const resultLookUpResult = await this.prisma.aqi_units_xref.findFirst({
+          where: {
+            edt_unit_xref: {
+              equals: resultUnitLookup,
+            },
+          },
+          select: {
+            aqi_units_code: true,
+          },
+        });
+
+        if (resultLookUpResult) {
+          const newResultUnit = resultLookUpResult;
+          newObs["Result Unit"] = newResultUnit.aqi_units_code;
+        }
+      }
+
+      const dataClassification = newObs["Data Classification"];
+      if (dataClassification == "FIELD_RESULT") {
+        newObs["Activity Name"] = "";
+      }
+
+      newObs["EA_Upload File Name"] = originalFileName; // this is needed for deletion purposes
       obsToWrite.push(newObs);
-    });
+    }
 
     const baseFileName = path.basename(fileName, path.extname(fileName));
     const filePath = path.join("src/tempObsFiles/", `obs-${baseFileName}.csv`);
@@ -642,6 +692,7 @@ export class FileParseValidateService {
     const writer = csvWriter.createObjectCsvWriter({
       path: filePath,
       header: headers,
+      alwaysQuote: false,
     });
 
     await writer.writeRecords(obsToWrite);
@@ -666,23 +717,45 @@ export class FileParseValidateService {
   }
 
   getUniqueWithCounts(data: any[]) {
-    const map = new Map<
-      string,
-      { rec: any; count: number; positions: number[] }
-    >();
+    // const map = new Map<
+    //   string,
+    //   { rec: any; count: number; positions: number[] }
+    // >();
+
+    // data.forEach((obj, index) => {
+    //   const key = JSON.stringify(obj);
+    //   if (map.has(key)) {
+    //     const entry = map.get(key)!;
+    //     entry.count++;
+    //     entry.positions.push(index);
+    //   } else {
+    //     map.set(key, { rec: obj, count: 1, positions: [index] });
+    //   }
+    // });
+    // const dupeCount = Array.from(map.values());
+    // return dupeCount;
+    const seen = new Map();
+    const duplicateDetails = [];
 
     data.forEach((obj, index) => {
-      const key = JSON.stringify(obj);
-      if (map.has(key)) {
-        const entry = map.get(key)!;
-        entry.count++;
-        entry.positions.push(index);
+      const item = JSON.stringify(obj);
+
+      if (seen.has(item)) {
+        const existingEntry = seen.get(item);
+        existingEntry.positions.push(index);
+        existingEntry.count++;
       } else {
-        map.set(key, { rec: obj, count: 1, positions: [index] });
+        seen.set(item, { rec: obj, count: 1, positions: [index] });
       }
     });
-    const dupeCount = Array.from(map.values());
-    return dupeCount;
+
+    seen.forEach((value) => {
+      if (value.count >= 1) {
+        duplicateDetails.push(value);
+      }
+    });
+
+    return duplicateDetails;
   }
 
   expandList(data: any[]) {
@@ -730,7 +803,7 @@ export class FileParseValidateService {
         "MethodReportingLimit",
       ];
 
-      const unitFields = ["DepthUnit", "ResultUnit"];
+      const unitFields = ["ResultUnit"];
 
       // check all datetimes
       dateTimeFields.forEach((field) => {
@@ -772,7 +845,7 @@ export class FileParseValidateService {
       unitFields.forEach(async (field) => {
         if (record.hasOwnProperty(field) && record[field]) {
           const present = await this.aqiService.databaseLookup(
-            "aqi_units",
+            "aqi_units_xref",
             record[field],
           );
           if (!present) {
@@ -973,7 +1046,31 @@ export class FileParseValidateService {
       }
     }
 
-    // Do a dry run of the observations
+    /*
+     * Do an initial validation on the observation file. This will check the file has the right number of columns, the header names are correct and the order of the headers are right
+     * Do a dry run of the observations
+     */
+
+    fs.createReadStream(observaionFilePath)
+      .pipe(csv())
+      .on("headers", (headers) => {
+        // First check: if the number of columns is correct
+        if (headers.length !== Object.keys(obsFile).length + 1) {
+          let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Invalid number of columns. Expected 40, got ${headers.length}"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+
+        // Second-Third check:
+        if (
+          !Object.keys(obsFile).every(
+            (header, index) => header === headers[index],
+          )
+        ) {
+          let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Headers do not match expected names or order. You can find the expected format here: https://bcenv-enmods-test.aqsamples.ca/import"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+      });
+
     const observationsErrors = await this.aqiService.importObservations(
       observaionFilePath,
       "dryrun",
@@ -1390,6 +1487,20 @@ export class FileParseValidateService {
           );
 
           if (file_operation_code === "VALIDATE") {
+            const file_error_log_data = {
+              file_submission_id: file_submission_id,
+              file_name: fileName,
+              original_file_name: originalFileName,
+              file_operation_code: file_operation_code,
+              ministry_contact: uniqueMinistryContacts,
+              error_log: localValidationResults[0],
+              create_utc_timestamp: new Date(),
+            };
+
+            await this.prisma.file_error_logs.create({
+              data: file_error_log_data,
+            });
+
             return;
           } else {
             /*
@@ -1436,7 +1547,8 @@ export class FileParseValidateService {
               return { ...obj2, ...obj1 };
             });
             const uniqueSpecimensWithCounts =
-              this.getUniqueWithCounts(allSpecimens);
+              this.getUniqueWithCounts(allSpecimens).filter(item => item.rec.SpecimenName !== "");
+
             let specimenInfo = await this.specimensJson(
               uniqueSpecimensWithCounts,
               "post",
