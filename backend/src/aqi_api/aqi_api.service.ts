@@ -31,7 +31,6 @@ export class AqiApiService {
       );
       return response.data.id;
     } catch (err) {
-      console.log(body);
       this.logger.error(
         "API CALL TO POST Field Visits failed: ",
         err.response.data.message,
@@ -510,12 +509,13 @@ export class AqiApiService {
   }
 
   mergeErrorMessages(localErrors: any[], remoteErrors: any[]) {
-    const map = new Map<number, any>();
+    const map = new Map<string, any>();
 
     const mergeItem = (item: any) => {
-      const exists = map.get(item.rowNum);
+      const key = `${item.rowNum}-${item.type}`
+      const exists = map.get(key);
       map.set(
-        item.rowNum,
+        key,
         exists
           ? { ...exists, message: { ...exists.message, ...item.message } }
           : item,
@@ -577,27 +577,45 @@ export class AqiApiService {
       },
     });
 
-    console.log(guidsToDelete)
-
-    // Delete all the observations from the list of imported guids
+    // Delete all the observations in AQI that are in the list of imported guids
     if (guidsToDelete[0].imported_guids.observations.length > 0) {
-      try {
-        let deletion = await axios.delete(
-          `${process.env.AQI_BASE_URL}/v2/observations?ids=${guidsToDelete[0].imported_guids.observations}`,
-          {
-            headers: {
-              Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
-              "x-api-key": process.env.AQI_ACCESS_TOKEN,
-            },
-          },
+      const batchSize = 50;
+      const observationBatches = [];
+      for (
+        let i = 0;
+        i < guidsToDelete[0].imported_guids.observations.length;
+        i += batchSize
+      ) {
+        observationBatches.push(
+          guidsToDelete[0].imported_guids.observations.slice(
+            i,
+            i + batchSize,
+          ),
         );
-        this.logger.log("AQI OBS DELETION: " + deletion.data);
-      } catch (err) {
-        this.logger.error(`API call to delete AQI observation failed: `, err);
       }
+
+      observationBatches.forEach(async (batch) => {
+        try {
+          let deletion = await axios.delete(
+            `${process.env.AQI_BASE_URL}/v2/observations?ids=${batch}`,
+            {
+              headers: {
+                Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+                "x-api-key": process.env.AQI_ACCESS_TOKEN,
+              },
+            },
+          );
+          this.logger.log("AQI OBS DELETION: " + deletion);
+        } catch (err) {
+          this.logger.error(
+            `API call to delete AQI observation failed: `,
+            err,
+          );
+        }
+      });
     }
 
-    // Delete all the specimens for the activities imported from AQI and the PSQL db
+    // Delete all the specimens that were imported for the file from AQI and the PSQL db
     if (guidsToDelete[0].imported_guids.specimens.length > 0) {
       for (const specimen of guidsToDelete[0].imported_guids.specimens) {
         try {
@@ -620,7 +638,11 @@ export class AqiApiService {
             });
             this.logger.log("DB SPECIMEN DELETION: " + dbDeletion);
           } catch (err) {
-            this.logger.error(`API call to delete DB specimen failed: `, err);
+            if (err.code === 'P2025'){
+              this.logger.log(`Record with ID ${specimen} not found in DB. Record was deleted in AQI but skipping deletion from DB.`);
+            }else{
+              this.logger.error(`API call to delete DB specimen failed: `, err);
+            }
           }
         } catch (err) {
           this.logger.error(`API call to delete AQI specimen failed: `, err);
@@ -651,7 +673,11 @@ export class AqiApiService {
             });
             this.logger.log("DB ACTIVITY DELETION: " + dbDeletion);
           } catch (err) {
-            this.logger.error(`API call to delete DB activity failed: `, err);
+            if (err.code === 'P2025'){
+              this.logger.log(`Record with ID ${activity} not found in DB. Record was deleted in AQI but skipping deletion from DB.`);
+            } else{
+              this.logger.error(`API call to delete DB activity failed: `, err);
+            }
           }
         } catch (err) {
           this.logger.error(`API call to delete AQI activity failed: `, err);
@@ -683,7 +709,11 @@ export class AqiApiService {
           });
           this.logger.log("DB VISIT DELETION: " + dbDeletion);
         } catch (err) {
-          this.logger.error(`API call to delete DB visits failed: `, err);
+          if (err.code === 'P2025'){
+            this.logger.log(`Records with IDs ${guidsToDelete[0].imported_guids.visits} not found in DB. Records were deleted in AQI but skipping deletion from DB.`);
+          } else{
+            this.logger.error(`API call to delete DB visits failed: `, err);
+          }
         }
       } catch (err) {
         this.logger.error(`API call to delete AQI visit failed: `, err);
