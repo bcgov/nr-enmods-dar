@@ -717,23 +717,6 @@ export class FileParseValidateService {
   }
 
   getUniqueWithCounts(data: any[]) {
-    // const map = new Map<
-    //   string,
-    //   { rec: any; count: number; positions: number[] }
-    // >();
-
-    // data.forEach((obj, index) => {
-    //   const key = JSON.stringify(obj);
-    //   if (map.has(key)) {
-    //     const entry = map.get(key)!;
-    //     entry.count++;
-    //     entry.positions.push(index);
-    //   } else {
-    //     map.set(key, { rec: obj, count: 1, positions: [index] });
-    //   }
-    // });
-    // const dupeCount = Array.from(map.values());
-    // return dupeCount;
     const seen = new Map();
     const duplicateDetails = [];
 
@@ -857,6 +840,15 @@ export class FileParseValidateService {
           errorLogs.push(JSON.parse(errorLog));
         }
       });
+
+      if (record.hasOwnProperty("Depth Unit")){
+        if (record["Depth Upper"]){
+          if (record["Depth Unit"] != "metre"){
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Depth_Unit": "${record["Depth Unit"]} is not valid unit for Depth. Only 'Metre' is allowed"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+        }
+      }
 
       if (record.hasOwnProperty("Project")) {
         const present = await this.aqiService.databaseLookup(
@@ -1024,7 +1016,7 @@ export class FileParseValidateService {
       );
       if (activityExists !== null && activityExists !== undefined) {
         existingGUIDS["activity"] = activityExists;
-        let errorLog = `{"rowNum": ${index + 2}, "type": "WARN", "message": {"Activity": "Activity Name ${record.ActivityName} for Field Visit at Start Time ${record.FieldVisitStartTime} already exists in AQI Activities"}}`;
+        let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Activity": "Activity Name ${record.ActivityName} for Field Visit at Start Time ${record.FieldVisitStartTime} already exists in AQI Activities"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
 
@@ -1037,7 +1029,7 @@ export class FileParseValidateService {
       ]);
       if (specimenExists !== null && specimenExists !== undefined) {
         existingGUIDS["specimen"] = specimenExists;
-        let errorLog = `{"rowNum": ${index + 2}, "type": "WARN", "message": {"Specimen": "Specimen Name ${record.SpecimenName} for that Acitivity at Start Time ${record.ObservedDateTime} already exists in AQI Specimen"}}`;
+        let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Specimen": "Specimen Name ${record.SpecimenName} for that Acitivity at Start Time ${record.ObservedDateTime} already exists in AQI Specimen"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
 
@@ -1270,7 +1262,11 @@ export class FileParseValidateService {
         file_operation_code,
       );
 
-      if (localValidationResults[0].some((item) => item.type === "ERROR")) {
+      const hasError = localValidationResults[0].some((item) => item.type === "ERROR")
+      const hasWarn = localValidationResults[0].some((item) => item.type === "WARN")
+
+
+      if (hasError) {
         /*
          * If there are any errors then
          * Set the file status to 'REJECTED'
@@ -1291,9 +1287,9 @@ export class FileParseValidateService {
          * If there are no errors then
          * Check to see if there are any WARNINGS
          * If WARNINGS
-         * Proceed with the PATCH logic
+         * Proceed with the PUT logic
          */
-        if (localValidationResults[0].some((item) => item.type === "WARN")) {
+        if (hasWarn) {
           let visitInfo = [],
             expandedVisitInfo = [];
           let activityInfo = [],
@@ -1413,6 +1409,7 @@ export class FileParseValidateService {
             const uniqueSpecimensWithIDsAndCounts = this.getUniqueWithCounts(
               allSpecimensWithGUIDS,
             );
+            
             specimenInfo = await this.specimensJson(
               uniqueSpecimensWithIDsAndCounts,
               "put",
@@ -1424,7 +1421,7 @@ export class FileParseValidateService {
               return { ...obj2, ...obj1 };
             });
             const uniqueSpecimensWithCounts =
-              this.getUniqueWithCounts(allSpecimens);
+              this.getUniqueWithCounts(allSpecimens).filter(item => item.rec.SpecimenName !== "");
             specimenInfo = await this.specimensJson(
               uniqueSpecimensWithCounts,
               "post",
@@ -1479,7 +1476,7 @@ export class FileParseValidateService {
               active_ind: false,
             },
           });
-        } else {
+        } else if (!hasError && !hasWarn) {
           // If there are no errors or warnings
           await this.fileSubmissionsService.updateFileStatus(
             file_submission_id,
