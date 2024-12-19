@@ -572,7 +572,7 @@ export class AqiApiService {
 
   async ObservationDelete(obsData: any[]) {
     if (obsData.length > 0) {
-      const batchSize = 200;
+      const batchSize = 50;
       const observationBatches = [];
       for (let i = 0; i < obsData.length; i += batchSize) {
         observationBatches.push(obsData.slice(i, i + batchSize));
@@ -581,7 +581,7 @@ export class AqiApiService {
       observationBatches.forEach(async (batch) => {
         try {
           let deletion = await axios.delete(
-            `${process.env.AQI_BASE_URL}/v2/observations?ids=${batch}?limit=1000`,
+            `${process.env.AQI_BASE_URL}/v2/observations?ids=${batch}`,
             {
               headers: {
                 Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
@@ -727,27 +727,35 @@ export class AqiApiService {
     this.logger.log(
       `Starting observation delete for file ${fileName}..............`,
     );
-    await this.ObservationDelete(guidsToDelete[0].imported_guids.observations);
-    this.logger.log(`Finished observation delete for file ${fileName}.`);
+    await this.ObservationDelete(
+      guidsToDelete[0].imported_guids.observations,
+    ).then(() => {
+      this.logger.log(`Finished observation delete for file ${fileName}.`);
+    });
 
     // Delete all the specimens that were imported for the file from AQI and the PSQL db
     this.logger.log(
       `Starting specimen delete for file ${fileName}..............`,
     );
-    await this.SpecimenDelete(guidsToDelete[0].imported_guids.specimen);
-    this.logger.log(`Finished specimen delete for file ${fileName}.`);
+    await this.SpecimenDelete(guidsToDelete[0].imported_guids.specimens).then(
+      () => {
+        this.logger.log(`Finished specimen delete for file ${fileName}.`);
+      },
+    );
 
     // Delete all the activities for the visits imported
     this.logger.log(
       `Starting activity delete for file ${fileName}..............`,
     );
-    await this.ActivityDelete(guidsToDelete[0].imported_guids.activities);
-    this.logger.log(`Finished activity delete for file ${fileName}.`);
+    await this.ActivityDelete(guidsToDelete[0].imported_guids.activities).then(() => {
+      this.logger.log(`Finished activity delete for file ${fileName}.`);
+    });
 
     // Delete all the visits for the visits imported
     this.logger.log(`Starting visit delete for file ${fileName}..............`);
-    await this.VisitDelete(guidsToDelete[0].imported_guids.visits);
-    this.logger.log(`Finished visit delete for file ${fileName}.`);
+    await this.VisitDelete(guidsToDelete[0].imported_guids.visits).then(() => {
+      this.logger.log(`Finished visit delete for file ${fileName}.`);
+    });
 
     await this.prisma.aqi_imported_data.deleteMany({
       where: {

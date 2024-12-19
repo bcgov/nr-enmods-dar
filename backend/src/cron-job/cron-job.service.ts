@@ -517,23 +517,39 @@ export class CronJobService {
   }
 
   async processFiles(files) {
-    const wait = (ms: number) =>
-      new Promise((resolve) => setTimeout(resolve, ms));
     for (const file of files) {
+      // Flag to indicate that the file has been processed completely
+      let fileProcessed = false;
+
       const fileBinary = await this.objectStore.getFileData(file.file_name);
       this.logger.log(`SENT FILE: ${file.file_name}`);
 
-      await this.fileParser.parseFile(
-        fileBinary,
-        file.file_name,
-        file.original_file_name,
-        file.submission_id,
-        file.file_operation_code,
-      );
+      await this.fileParser
+        .parseFile(
+          fileBinary,
+          file.file_name,
+          file.original_file_name,
+          file.submission_id,
+          file.file_operation_code,
+        )
+        .then(() => {
+          fileProcessed = true;
+          this.logger.log(`File ${file.file_name} processed successfully.`);
+        })
+        .catch((error) => {
+          this.logger.error(
+            `Error processing file ${file.file_name}: ${error}`,
+          );
+        });
+      
+      while (!fileProcessed) {
+        this.logger.log(`WAITING FOR FILE TO COMPLETE: ${file.file_name}`)
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
 
-      this.logger.log(`WAITING FOR PREVIOUS FILE`);
-      this.logger.log("GOING TO NEXT FILE");
+      this.logger.log("GOING TO NEXT FILE")
     }
+
     this.dataPullDownComplete = false;
     return;
   }
