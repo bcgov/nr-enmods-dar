@@ -34,6 +34,7 @@ export class CronJobService {
       ["aqi_detection_conditions", this.prisma.aqi_detection_conditions],
       ["aqi_result_status", this.prisma.aqi_result_status],
       ["aqi_result_grade", this.prisma.aqi_result_grade],
+      ["aqi_tissue_types", this.prisma.aqi_tissue_types],
       ["aqi_locations", this.prisma.aqi_locations],
       ["aqi_field_visits", this.prisma.aqi_field_visits],
       ["aqi_field_activities", this.prisma.aqi_field_activities],
@@ -109,6 +110,13 @@ export class CronJobService {
       paramsEnabled: false,
     },
     {
+      endpoint:
+        "/v1/extendedattributes/6f7d5be0-f91a-4353-9d31-13983205cbe0/dropdownlistitems",
+      method: "GET",
+      dbTable: "aqi_tissue_types",
+      paramsEnabled: false,
+    },
+    {
       endpoint: "/v1/samplinglocations",
       method: "GET",
       dbTable: "aqi_locations",
@@ -175,6 +183,15 @@ export class CronJobService {
    */
   private getUpdatePayload(dbTable: string, record: any): any {
     switch (dbTable) {
+      case "aqi_tissue_types":
+        return {
+          aqi_tissue_types_id: record.id,
+          custom_id: record.customId,
+          create_user_id: "EnMoDS",
+          create_utc_timestamp: new Date(),
+          update_user_id: "EnMoDS",
+          update_utc_timestamp: new Date(),
+        };
       case "aqi_field_visits":
         return {
           aqi_field_visit_start_time: new Date(record.startTime),
@@ -237,6 +254,15 @@ export class CronJobService {
    */
   private getCreatePayload(dbTable: string, record: any): any {
     switch (dbTable) {
+      case "aqi_tissue_types":
+        return {
+          aqi_tissue_types_id: record.id,
+          custom_id: record.customId,
+          create_user_id: "EnMoDS",
+          create_utc_timestamp: new Date(),
+          update_user_id: "EnMoDS",
+          update_utc_timestamp: new Date(),
+        };
       case "aqi_field_visits":
         return {
           [`${dbTable}_id`]: record.id,
@@ -474,6 +500,23 @@ export class CronJobService {
         modificationTime,
       };
     };
+    const filterTissueTypes = (obj: any): any => {
+      const { id, customId } = obj;
+      const create_user_id = "EnMoDs";
+      const create_utc_timestamp = new Date().toISOString();
+      const update_user_id = "EnMoDs";
+      const update_utc_timestamp = new Date().toISOString();
+
+      return {
+        id,
+        customId,
+        create_user_id,
+        create_utc_timestamp,
+        update_user_id,
+        update_utc_timestamp,
+      };
+    }
+
     const filterArray = (array: any): any => {
       if (endpoint == "/v1/tags") {
         return array.map(filterNameAttributes);
@@ -485,7 +528,9 @@ export class CronJobService {
         return array.map(filterSpecimenAttributes);
       } else if (endpoint == "/v1/analysismethods") {
         return array.map(filerAnalysisMethodAttributes);
-      } else {
+      } else if (endpoint == "/v1/extendedattributes/6f7d5be0-f91a-4353-9d31-13983205cbe0/dropdownlistitems"){
+        return array.map(filterTissueTypes)
+      }else {
         return array.map(filterAttributes);
       }
     };
@@ -541,13 +586,13 @@ export class CronJobService {
             `Error processing file ${file.file_name}: ${error}`,
           );
         });
-      
+
       while (!fileProcessed) {
-        this.logger.log(`WAITING FOR FILE TO COMPLETE: ${file.file_name}`)
+        this.logger.log(`WAITING FOR FILE TO COMPLETE: ${file.file_name}`);
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
 
-      this.logger.log("GOING TO NEXT FILE")
+      this.logger.log("GOING TO NEXT FILE");
     }
 
     this.dataPullDownComplete = false;

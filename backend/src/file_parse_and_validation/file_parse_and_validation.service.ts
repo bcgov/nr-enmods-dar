@@ -1073,6 +1073,22 @@ export class FileParseValidateService {
         }
       }
 
+      if (record.hasOwnProperty("TissueType")){
+        if (record["Medium"] == "Animal - Fish" && record["TissueType"] == ""){
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Tissue Type": "Cannot be empty when Medium is Animal - Fish"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }else if (record["TissueType"]) {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_tissue_types",
+            record.TissueType,
+          );
+          if (!present) {
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Tissue Type": "${record.TissueType} not found in EnMoDS Tissue Types"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+        }
+      }
+
       if (record.hasOwnProperty("SpecimenName")) {
         if (record["CompositeStat"] != "" && record["SpecimenName"] == "") {
           let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Specimen Name": "Cannot be empty when Composite Stat is present."}}`;
