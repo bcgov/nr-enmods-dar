@@ -723,6 +723,11 @@ export class AqiApiService {
       },
     });
 
+    let successfulObs = false
+    let successfulSpecimen = false
+    let successfulActivity = false
+    let successfulVisit = false
+
     // Delete all the observations in AQI that are in the list of imported guids
     this.logger.log(
       `Starting observation delete for file ${fileName}..............`,
@@ -730,37 +735,51 @@ export class AqiApiService {
     await this.ObservationDelete(
       guidsToDelete[0].imported_guids.observations,
     ).then(() => {
+      successfulObs = true;
       this.logger.log(`Finished observation delete for file ${fileName}.`);
     });
 
-    // Delete all the specimens that were imported for the file from AQI and the PSQL db
-    this.logger.log(
-      `Starting specimen delete for file ${fileName}..............`,
-    );
-    await this.SpecimenDelete(guidsToDelete[0].imported_guids.specimens).then(
-      () => {
-        this.logger.log(`Finished specimen delete for file ${fileName}.`);
-      },
-    );
 
-    // Delete all the activities for the visits imported
-    this.logger.log(
-      `Starting activity delete for file ${fileName}..............`,
-    );
-    await this.ActivityDelete(guidsToDelete[0].imported_guids.activities).then(() => {
-      this.logger.log(`Finished activity delete for file ${fileName}.`);
-    });
+    if (successfulObs){
+      // Delete all the specimens that were imported for the file from AQI and the PSQL db
+      this.logger.log(
+        `Starting specimen delete for file ${fileName}..............`,
+      );
+      await this.SpecimenDelete(guidsToDelete[0].imported_guids.specimens).then(
+        () => {
+          successfulSpecimen = true;
+          this.logger.log(`Finished specimen delete for file ${fileName}.`);
+        },
+      );
+    }
 
-    // Delete all the visits for the visits imported
-    this.logger.log(`Starting visit delete for file ${fileName}..............`);
-    await this.VisitDelete(guidsToDelete[0].imported_guids.visits).then(() => {
-      this.logger.log(`Finished visit delete for file ${fileName}.`);
-    });
+    if (successfulSpecimen){
+      // Delete all the activities for the visits imported
+      this.logger.log(
+        `Starting activity delete for file ${fileName}..............`,
+      );
+      await this.ActivityDelete(guidsToDelete[0].imported_guids.activities).then(() => {
+        successfulActivity = true;
+        this.logger.log(`Finished activity delete for file ${fileName}.`);
+      });
+    }
 
-    await this.prisma.aqi_imported_data.deleteMany({
-      where: {
-        file_name: fileName,
-      },
-    });
+    if (successfulActivity){
+      // Delete all the visits for the visits imported
+      this.logger.log(`Starting visit delete for file ${fileName}..............`);
+      await this.VisitDelete(guidsToDelete[0].imported_guids.visits).then(() => {
+        this.logger.log(`Finished visit delete for file ${fileName}.`);
+      });
+    }
+
+    if (successfulObs && successfulSpecimen && successfulActivity && successfulVisit){
+      await this.prisma.aqi_imported_data.deleteMany({
+        where: {
+          file_name: fileName,
+        },
+      });
+    }else{
+      this.logger.error(`Error deleting related data for file ${fileName}.`);
+    }
   }
 }
