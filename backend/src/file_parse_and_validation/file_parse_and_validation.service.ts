@@ -37,7 +37,7 @@ const activities: FieldActivities = {
   LocationID: "",
   ObservedDateTime: "",
   ObservedDateTimeEnd: "",
-  ActivityType: "SAMPLE_ROUTINE",
+  ActivityType: "",
   ActivityName: "",
   ActivityComments: "",
   SamplingContextTag: "",
@@ -709,7 +709,19 @@ export class FileParseValidateService {
       });
 
       if (customAttributes) {
-        Object.assign(filteredObj, customAttributes);
+        if (customAttributes.hasOwnProperty('ActivityType')){
+          if (row["DataClassification"] == "VERTICAL_PROFILE"){
+            Object.assign(filteredObj, {"ActivityType": "SAMPLE_INTEGRATED_VERTICAL_PROFILE"})
+          }else if (row["DataClassification"] == "LAB" || row["DataClassification"] == "FIELD_RESULT"){
+            if (row["QCType"] == ""){
+              Object.assign(filteredObj, {"ActivityType": "SAMPLE_ROUTINE"})
+            }else{
+              Object.assign(filteredObj, {"ActivityType": `${row['QCType']}`})
+            }
+          }
+        }else{
+          Object.assign(filteredObj, customAttributes)
+        }
       }
 
       return filteredObj;
@@ -1313,7 +1325,7 @@ export class FileParseValidateService {
       };
 
       const fieldActivityCustomAttrib: Partial<FieldActivities> = {
-        ActivityType: "SAMPLE_ROUTINE",
+        ActivityType: "",
       };
 
       /*
@@ -1330,13 +1342,14 @@ export class FileParseValidateService {
         Object.keys(activities),
         fieldActivityCustomAttrib,
       );
+
       let allSpecimens = this.filterFile<FieldSpecimens>(
         allRecords,
         Object.keys(specimens),
         null,
       );
 
-      const allObservations = this.filterFile<Observations>(
+      let allObservations = this.filterFile<Observations>(
         allRecords,
         Object.keys(observations),
         null,
@@ -1351,6 +1364,7 @@ export class FileParseValidateService {
       const uniqueMinistryContacts = Array.from(
         new Set(allRecords.map((rec) => rec.MinistryContact)),
       );
+
       /*
        * Do the local validation for each section here - if passed then go to the API calls - else create the message/file/email for the errors
        */

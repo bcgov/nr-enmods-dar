@@ -589,7 +589,7 @@ export class AqiApiService {
               },
             },
           );
-          this.logger.log("AQI OBS DELETION: " + deletion);
+          this.logger.log("AQI OBS DELETION: " + deletion.status);
         } catch (err) {
           this.logger.error(`API call to delete AQI observation failed: `, err);
         }
@@ -732,13 +732,13 @@ export class AqiApiService {
     this.logger.log(
       `Starting observation delete for file ${fileName}..............`,
     );
+    
     await this.ObservationDelete(
       guidsToDelete[0].imported_guids.observations,
     ).then(() => {
-      successfulObs = true;
-      this.logger.log(`Finished observation delete for file ${fileName}.`);
-    });
-
+      successfulObs = true
+      this.logger.log(`Finished observation delete for file ${fileName}`)
+    })
 
     if (successfulObs){
       // Delete all the specimens that were imported for the file from AQI and the PSQL db
@@ -768,6 +768,7 @@ export class AqiApiService {
       // Delete all the visits for the visits imported
       this.logger.log(`Starting visit delete for file ${fileName}..............`);
       await this.VisitDelete(guidsToDelete[0].imported_guids.visits).then(() => {
+        successfulVisit = true
         this.logger.log(`Finished visit delete for file ${fileName}.`);
       });
     }
