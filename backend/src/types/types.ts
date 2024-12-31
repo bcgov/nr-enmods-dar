@@ -65,7 +65,7 @@ export type FieldActivities = {
   LocationID: string;
   ObservedDateTime: string;
   ObservedDateTimeEnd: string;
-  ActivityType: "SAMPLE_ROUTINE";
+  ActivityType: string;
   ActivityName: string;
   ActivityComments: string;
   SamplingContextTag: string;

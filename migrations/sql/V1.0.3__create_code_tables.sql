@@ -107,6 +107,14 @@ CREATE TABLE IF NOT EXISTS enmods.aqi_result_grade (
   update_user_id varchar(200) NOT NULL,
   update_utc_timestamp timestamp NOT NULL
 );
+CREATE TABLE IF NOT EXISTS enmods.aqi_tissue_types(
+  aqi_tissue_types_id UUID PRIMARY KEY NOT NULL,
+  custom_id varchar(200) NOT NULL,
+  create_user_id varchar(200) NOT NULL,
+  create_utc_timestamp timestamp NOT NULL,
+  update_user_id varchar(200) NOT NULL,
+  update_utc_timestamp timestamp NOT NULL
+);
 CREATE TABLE IF NOT EXISTS enmods.aqi_field_visits(
   aqi_field_visits_id UUID PRIMARY KEY NOT NULL,
   aqi_field_visit_start_time timestamptz NOT NULL,

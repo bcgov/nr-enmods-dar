@@ -318,23 +318,28 @@ function FileUpload() {
                                 </Typography>
                               </Button>
                             ) : (
-                              <Button style={{ color: "orange" }}>
-                                <CircularProgress color="secondary" />
-                              </Button>
+                              ""
                             )}
 
-                            <Button
-                              id={"delete-file-" + index}
-                              style={{
-                                color: "black",
-                                outline: "none !important",
-                              }}
-                              onClick={() => {
-                                handleOpen(index);
-                              }}
-                            >
-                              <DeleteRounded />
-                            </Button>
+                            {fileStatusCodes.items[index] == "ACCEPTED" ||
+                            fileStatusCodes.items[index] == "REJECTED" ||
+                            fileStatusCodes.items[index] == "INPROGRESS" ||
+                            fileStatusCodes.items[index] == "QUEUED" ? (
+                              ""
+                            ) : (
+                              <Button
+                                id={"delete-file-" + index}
+                                style={{
+                                  color: "black",
+                                  outline: "none !important",
+                                }}
+                                onClick={() => {
+                                  handleOpen(index);
+                                }}
+                              >
+                                <DeleteRounded />
+                              </Button>
+                            )}
                           </ButtonGroup>
                         </Grid>
                         <Grid item xs={4}>
