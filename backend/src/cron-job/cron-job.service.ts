@@ -15,6 +15,7 @@ export class CronJobService {
   private readonly logger = new Logger(CronJobService.name);
 
   private tableModels;
+  private isProcessing = false;
 
   private dataPullDownComplete: boolean = false;
   constructor(
@@ -515,7 +516,7 @@ export class CronJobService {
         update_user_id,
         update_utc_timestamp,
       };
-    }
+    };
 
     const filterArray = (array: any): any => {
       if (endpoint == "/v1/tags") {
@@ -528,9 +529,12 @@ export class CronJobService {
         return array.map(filterSpecimenAttributes);
       } else if (endpoint == "/v1/analysismethods") {
         return array.map(filerAnalysisMethodAttributes);
-      } else if (endpoint == "/v1/extendedattributes/6f7d5be0-f91a-4353-9d31-13983205cbe0/dropdownlistitems"){
-        return array.map(filterTissueTypes)
-      }else {
+      } else if (
+        endpoint ==
+        "/v1/extendedattributes/6f7d5be0-f91a-4353-9d31-13983205cbe0/dropdownlistitems"
+      ) {
+        return array.map(filterTissueTypes);
+      } else {
         return array.map(filterAttributes);
       }
     };
@@ -562,40 +566,39 @@ export class CronJobService {
   }
 
   async processFiles(files) {
-    for (const file of files) {
-      // Flag to indicate that the file has been processed completely
-      let fileProcessed = false;
-
-      const fileBinary = await this.objectStore.getFileData(file.file_name);
-      this.logger.log(`SENT FILE: ${file.file_name}`);
-
-      await this.fileParser
-        .parseFile(
-          fileBinary,
-          file.file_name,
-          file.original_file_name,
-          file.submission_id,
-          file.file_operation_code,
-        )
-        .then(() => {
-          fileProcessed = true;
-          this.logger.log(`File ${file.file_name} processed successfully.`);
-        })
-        .catch((error) => {
-          this.logger.error(
-            `Error processing file ${file.file_name}: ${error}`,
-          );
-        });
-
-      while (!fileProcessed) {
-        this.logger.log(`WAITING FOR FILE TO COMPLETE: ${file.file_name}`);
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
-
-      this.logger.log("GOING TO NEXT FILE");
+    if (this.isProcessing){
+      this.logger.log("Skipping cron execution: Already processing files.");
+      return;
     }
 
-    this.dataPullDownComplete = false;
-    return;
+    this.isProcessing = true;
+    this.logger.log("Starting to process queued files...");
+
+    try{
+      for (const file of files) {
+        try {
+          const fileBinary = await this.objectStore.getFileData(file.file_name);
+          this.logger.log(`SENT FILE: ${file.file_name}`);
+
+          await this.fileParser.parseFile(
+            fileBinary,
+            file.file_name,
+            file.original_file_name,
+            file.submission_id,
+            file.file_operation_code,
+          );
+
+          this.logger.log(`File ${file.file_name} processed successfully.`);
+        } catch (err) {
+          this.logger.error(`Error processing file ${file.file_name}: ${err}`);
+        }
+
+        this.logger.log("GOING TO NEXT FILE");
+      }
+    }finally{
+      this.isProcessing = false;
+      this.dataPullDownComplete = false;
+      return;
+    }
   }
 }
