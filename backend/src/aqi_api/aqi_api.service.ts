@@ -175,7 +175,6 @@ export class AqiApiService {
           create_utc_timestamp: new Date(),
         };
 
-        console.log("INSERTING AN OBS STATUS HERE - DRY RUN!!!!!!!!!!!")
         await this.prisma.aqi_obs_status.create({
           data: obs_status_data,
         });
@@ -211,7 +210,6 @@ export class AqiApiService {
           create_utc_timestamp: new Date(),
         };
 
-        console.log("INSERTING AN OBS STATUS HERE - IMPORT!!!!!!!!!!!")
         await this.prisma.aqi_obs_status.create({
           data: obs_status_data,
         });

@@ -798,7 +798,7 @@ export class FileParseValidateService {
         "MethodReportingLimit",
       ];
 
-      const unitFields = ["ResultUnit"];
+      const unitFields = "ResultUnit";
 
       // check all datetimes
       dateTimeFields.forEach((field) => {
@@ -839,21 +839,22 @@ export class FileParseValidateService {
       });
 
       // check all unit fields
-      unitFields.forEach(async (field) => {
-        if (record.hasOwnProperty(field) && record[field]) {
+      if (record.hasOwnProperty(unitFields)) {
+        if (record[unitFields]){
           const present = await this.aqiService.databaseLookup(
             "aqi_units_xref",
-            record[field],
+            record[unitFields],
           );
+
           if (!present) {
-            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${field}": "${record[field]} not found in EnMoDS Units"}}`;
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${unitFields}": "${record[unitFields]} not found in EnMoDS Units"}}`;
             errorLogs.push(JSON.parse(errorLog));
           }
-        } else if (record.hasOwnProperty(field) && !record[field]) {
-          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${field}": Cannot be empty"}}`;
-          errorLogs.push(JSON.parse(errorLog));
         }
-      });
+      } else if (record.hasOwnProperty(unitFields)) {
+        let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${unitFields}": Cannot be empty"}}`;
+        errorLogs.push(JSON.parse(errorLog));
+      }
 
       if (record.hasOwnProperty("Depth Unit")) {
         if (record["Depth Upper"]) {
@@ -951,13 +952,15 @@ export class FileParseValidateService {
           let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Collection_Method": "Cannot be empty when Data Classification is ${record["DataClassification"]}"}}`;
           errorLogs.push(JSON.parse(errorLog));
         } else {
-          const present = await this.aqiService.databaseLookup(
-            "aqi_collection_methods",
-            record.CollectionMethod,
-          );
-          if (!present) {
-            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Collection_Method": "${record.CollectionMethod} not found in EnMoDS Collection Methods"}}`;
-            errorLogs.push(JSON.parse(errorLog));
+          if (record["CollectionMethod"] != ""){
+            const present = await this.aqiService.databaseLookup(
+              "aqi_collection_methods",
+              record.CollectionMethod,
+            );
+            if (!present) {
+              let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Collection_Method": "${record.CollectionMethod} not found in EnMoDS Collection Methods"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
           }
         }
       }
