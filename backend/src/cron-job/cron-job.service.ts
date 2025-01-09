@@ -1,5 +1,5 @@
 import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
-import axios from "axios";
+import axios, { create } from "axios";
 import { error } from "winston";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "nestjs-prisma";
@@ -15,6 +15,7 @@ export class CronJobService {
   private readonly logger = new Logger(CronJobService.name);
 
   private tableModels;
+  private isProcessing = false;
 
   private dataPullDownComplete: boolean = false;
   constructor(
@@ -25,8 +26,8 @@ export class CronJobService {
     this.tableModels = new Map<string, any>([
       ["aqi_projects", this.prisma.aqi_projects],
       ["aqi_mediums", this.prisma.aqi_mediums],
-      ["aqi_units", this.prisma.aqi_units],
       ["aqi_collection_methods", this.prisma.aqi_collection_methods],
+      ["aqi_analysis_methods", this.prisma.aqi_analysis_methods],
       ["aqi_extended_attributes", this.prisma.aqi_extended_attributes],
       ["aqi_context_tags", this.prisma.aqi_context_tags],
       ["aqi_laboratories", this.prisma.aqi_laboratories],
@@ -34,6 +35,8 @@ export class CronJobService {
       ["aqi_detection_conditions", this.prisma.aqi_detection_conditions],
       ["aqi_result_status", this.prisma.aqi_result_status],
       ["aqi_result_grade", this.prisma.aqi_result_grade],
+      ["aqi_tissue_types", this.prisma.aqi_tissue_types],
+      ["aqi_sampling_agency", this.prisma.aqi_sampling_agency],
       ["aqi_locations", this.prisma.aqi_locations],
       ["aqi_field_visits", this.prisma.aqi_field_visits],
       ["aqi_field_activities", this.prisma.aqi_field_activities],
@@ -55,15 +58,15 @@ export class CronJobService {
       paramsEnabled: false,
     },
     {
-      endpoint: "/v1/units",
-      method: "GET",
-      dbTable: "aqi_units",
-      paramsEnabled: false,
-    },
-    {
       endpoint: "/v1/collectionmethods",
       method: "GET",
       dbTable: "aqi_collection_methods",
+      paramsEnabled: false,
+    },
+    {
+      endpoint: "/v1/analysismethods",
+      method: "GET",
+      dbTable: "aqi_analysis_methods",
       paramsEnabled: false,
     },
     {
@@ -106,6 +109,19 @@ export class CronJobService {
       endpoint: "/v1/resultgrades",
       method: "GET",
       dbTable: "aqi_result_grade",
+      paramsEnabled: false,
+    },
+    {
+      endpoint:
+        "/v1/extendedattributes/6f7d5be0-f91a-4353-9d31-13983205cbe0/dropdownlistitems",
+      method: "GET",
+      dbTable: "aqi_tissue_types",
+      paramsEnabled: false,
+    },
+    {
+      endpoint: "/v1/extendedattributes/65d94fac-aac5-498f-bc73-b63a322ce350/dropdownlistitems",
+      method: "GET",
+      dbTable: "aqi_sampling_agency",
       paramsEnabled: false,
     },
     {
@@ -175,6 +191,24 @@ export class CronJobService {
    */
   private getUpdatePayload(dbTable: string, record: any): any {
     switch (dbTable) {
+      case "aqi_tissue_types":
+        return {
+          aqi_tissue_types_id: record.id,
+          custom_id: record.customId,
+          create_user_id: "EnMoDS",
+          create_utc_timestamp: new Date(),
+          update_user_id: "EnMoDS",
+          update_utc_timestamp: new Date(),
+        };
+      case "aqi_sampling_agency":
+        return {
+          aqi_sampling_agency_id: record.id,
+          custom_id: record.customId,
+          create_user_id: "EnMoDS",
+          create_utc_timestamp: new Date(),
+          update_user_id: "EnMoDS",
+          update_utc_timestamp: new Date(),
+        };
       case "aqi_field_visits":
         return {
           aqi_field_visit_start_time: new Date(record.startTime),
@@ -201,6 +235,20 @@ export class CronJobService {
           aqi_field_activities_start_time: record.activityStartTime,
           aqi_field_activities_custom_id: record.activityCustomId,
           aqi_location_custom_id: record.locationCustomID,
+        };
+      case "aqi_analysis_methods":
+        return {
+          method_id: record.methodId,
+          method_name: record.name,
+          method_context: record.context,
+          create_user_id: record.creationUserProfileId,
+          create_utc_timestamp: record.creationTime
+            ? new Date(record.creationTime)
+            : null,
+          update_user_id: record.modificationUserProfileId,
+          update_utc_timestamp: record.modificationTime
+            ? new Date(record.modificationTime)
+            : null,
         };
       default:
         return {
@@ -223,6 +271,24 @@ export class CronJobService {
    */
   private getCreatePayload(dbTable: string, record: any): any {
     switch (dbTable) {
+      case "aqi_tissue_types":
+        return {
+          aqi_tissue_types_id: record.id,
+          custom_id: record.customId,
+          create_user_id: "EnMoDS",
+          create_utc_timestamp: new Date(),
+          update_user_id: "EnMoDS",
+          update_utc_timestamp: new Date(),
+        };
+      case "aqi_sampling_agency":
+        return {
+          aqi_sampling_agency_id: record.id,
+          custom_id: record.customId,
+          create_user_id: "EnMoDS",
+          create_utc_timestamp: new Date(),
+          update_user_id: "EnMoDS",
+          update_utc_timestamp: new Date(),
+        };
       case "aqi_field_visits":
         return {
           [`${dbTable}_id`]: record.id,
@@ -252,6 +318,21 @@ export class CronJobService {
           aqi_field_activities_start_time: record.activityStartTime,
           aqi_field_activities_custom_id: record.activityCustomId,
           aqi_location_custom_id: record.locationCustomID,
+        };
+      case "aqi_analysis_methods":
+        return {
+          [`${dbTable}_id`]: record.id,
+          method_id: record.methodId,
+          method_name: record.name,
+          method_context: record.context,
+          create_user_id: record.creationUserProfileId,
+          create_utc_timestamp: record.creationTime
+            ? new Date(record.creationTime)
+            : null,
+          update_user_id: record.modificationUserProfileId,
+          update_utc_timestamp: record.modificationTime
+            ? new Date(record.modificationTime)
+            : null,
         };
       default:
         return {
@@ -426,6 +507,42 @@ export class CronJobService {
         locationCustomID,
       };
     };
+    const filerAnalysisMethodAttributes = (obj: any): any => {
+      const { id, methodId, name, context, auditAttributes } = obj;
+      const creationUserProfileId = auditAttributes.creationUserProfileId;
+      const creationTime = auditAttributes.creationTime;
+      const modificationUserProfileId =
+        auditAttributes.modificationUserProfileId;
+      const modificationTime = auditAttributes.modificationTime;
+
+      return {
+        id,
+        methodId,
+        name,
+        context,
+        creationUserProfileId,
+        creationTime,
+        modificationUserProfileId,
+        modificationTime,
+      };
+    };
+    const filterEELists = (obj: any): any => {
+      const { id, customId } = obj;
+      const create_user_id = "EnMoDs";
+      const create_utc_timestamp = new Date().toISOString();
+      const update_user_id = "EnMoDs";
+      const update_utc_timestamp = new Date().toISOString();
+
+      return {
+        id,
+        customId,
+        create_user_id,
+        create_utc_timestamp,
+        update_user_id,
+        update_utc_timestamp,
+      };
+    };
+
     const filterArray = (array: any): any => {
       if (endpoint == "/v1/tags") {
         return array.map(filterNameAttributes);
@@ -435,6 +552,15 @@ export class CronJobService {
         return array.map(filterActivityAttributes);
       } else if (endpoint == "/v1/specimens") {
         return array.map(filterSpecimenAttributes);
+      } else if (endpoint == "/v1/analysismethods") {
+        return array.map(filerAnalysisMethodAttributes);
+      } else if (
+        endpoint ==
+        "/v1/extendedattributes/6f7d5be0-f91a-4353-9d31-13983205cbe0/dropdownlistitems" ||
+        endpoint ==
+        "/v1/extendedattributes/65d94fac-aac5-498f-bc73-b63a322ce350/dropdownlistitems" 
+      ) {
+        return array.map(filterEELists);
       } else {
         return array.map(filterAttributes);
       }
@@ -467,24 +593,39 @@ export class CronJobService {
   }
 
   async processFiles(files) {
-    const wait = (ms: number) =>
-      new Promise((resolve) => setTimeout(resolve, ms));
-    for (const file of files) {
-      const fileBinary = await this.objectStore.getFileData(file.file_name);
-      this.logger.log(`SENT FILE: ${file.file_name}`);
-
-      await this.fileParser.parseFile(
-        fileBinary,
-        file.file_name,
-        file.original_file_name,
-        file.submission_id,
-        file.file_operation_code,
-      );
-
-      this.logger.log(`WAITING FOR PREVIOUS FILE`);
-      this.logger.log("GOING TO NEXT FILE");
+    if (this.isProcessing){
+      this.logger.log("Skipping cron execution: Already processing files.");
+      return;
     }
-    this.dataPullDownComplete = false;
-    return;
+
+    this.isProcessing = true;
+    this.logger.log("Starting to process queued files...");
+
+    try{
+      for (const file of files) {
+        try {
+          const fileBinary = await this.objectStore.getFileData(file.file_name);
+          this.logger.log(`SENT FILE: ${file.file_name}`);
+
+          await this.fileParser.parseFile(
+            fileBinary,
+            file.file_name,
+            file.original_file_name,
+            file.submission_id,
+            file.file_operation_code,
+          );
+
+          this.logger.log(`File ${file.file_name} processed successfully.`);
+        } catch (err) {
+          this.logger.error(`Error processing file ${file.file_name}: ${err}`);
+        }
+
+        this.logger.log("GOING TO NEXT FILE");
+      }
+    }finally{
+      this.isProcessing = false;
+      this.dataPullDownComplete = false;
+      return;
+    }
   }
 }

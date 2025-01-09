@@ -13,6 +13,7 @@ import * as XLSX from "xlsx";
 import * as path from "path";
 import * as csvWriter from "csv-writer";
 import fs from "fs";
+import csv from "csv-parser";
 import { PrismaService } from "nestjs-prisma";
 
 const visits: FieldVisits = {
@@ -36,7 +37,7 @@ const activities: FieldActivities = {
   LocationID: "",
   ObservedDateTime: "",
   ObservedDateTimeEnd: "",
-  ActivityType: "SAMPLE_ROUTINE",
+  ActivityType: "",
   ActivityName: "",
   ActivityComments: "",
   SamplingContextTag: "",
@@ -93,10 +94,10 @@ const observations: Observations = {
   LabSampleID: "",
   LabDilutionFactor: "",
   LabComment: "",
-  LabBatchID: "",
   QCType: "",
   QCSourceActivityName: "",
-  CompositeStat: ""
+  LabBatchID: "",
+  CompositeStat: "",
 };
 
 const obsFile: ObservationFile = {
@@ -139,7 +140,7 @@ const obsFile: ObservationFile = {
   "QC: Type": "",
   "QC: Source Sample ID": "",
   "EA_Lab Batch ID": "",
-  "EA_Observation Composite Stat": ""
+  "EA_Observation Composite Stat": "",
 };
 
 @Injectable()
@@ -219,37 +220,37 @@ export class FileParseValidateService {
           },
         });
         return { medium: { id: mediumID[0].aqi_mediums_id, customId: param } };
-      case "DEPTH_UNIT":
-        if (
-          param[0] == "m" ||
-          param[0] == "Metre" ||
-          param[0] == "metre" ||
-          param[0] == "Meter" ||
-          param[0] == "meter"
-        ) {
-          param[0] = "metre";
-        }
+      // case "DEPTH_UNIT":
+      //   if (
+      //     param[0] == "m" ||
+      //     param[0] == "Metre" ||
+      //     param[0] == "metre" ||
+      //     param[0] == "Meter" ||
+      //     param[0] == "meter"
+      //   ) {
+      //     param[0] = "metre";
+      //   }
 
-        if (param[0] == "ft" || param[0] == "Feet" || param[0] == "feet") {
-          param[0] = "feet";
-        }
+      //   if (param[0] == "ft" || param[0] == "Feet" || param[0] == "feet") {
+      //     param[0] = "feet";
+      //   }
 
-        let duID = await this.prisma.aqi_units.findMany({
-          where: {
-            custom_id: {
-              equals: param[0],
-            },
-          },
-          select: {
-            aqi_units_id: true,
-          },
-        });
-        return {
-          depth: {
-            value: param[1],
-            unit: { id: duID[0].aqi_units_id, customId: param[0] },
-          },
-        };
+      //   let duID = await this.prisma.aqi_units.findMany({
+      //     where: {
+      //       custom_id: {
+      //         equals: param[0],
+      //       },
+      //     },
+      //     select: {
+      //       aqi_units_id: true,
+      //     },
+      //   });
+      //   return {
+      //     depth: {
+      //       value: param[1],
+      //       unit: { id: duID[0].aqi_units_id, customId: param[0] },
+      //     },
+      //   };
       case "LABS":
         let labID = await this.prisma.aqi_laboratories.findMany({
           where: {
@@ -431,16 +432,17 @@ export class FileParseValidateService {
         postData,
         await this.queryCodeTables("MEDIUM", mediumCustomID),
       );
-      // get the depth unit custom id from object and find depth unit GUID
-      if (depthUnitCustomID != null || depthUnitValue != "") {
-        Object.assign(
-          postData,
-          await this.queryCodeTables("DEPTH_UNIT", [
-            depthUnitCustomID,
-            depthUnitValue,
-          ]),
-        );
-      }
+
+      // // get the depth unit custom id from object and find depth unit GUID
+      // if (depthUnitCustomID != null || depthUnitValue != "") {
+      //   Object.assign(
+      //     postData,
+      //     await this.queryCodeTables("DEPTH_UNIT", [
+      //       depthUnitCustomID,
+      //       depthUnitValue,
+      //     ]),
+      //   );
+      // }
 
       if (sampleContextTagCustomIds != null) {
         let tagsToLookup = sampleContextTagCustomIds.split(", ");
@@ -614,23 +616,71 @@ export class FileParseValidateService {
   ) {
     const obsToWrite: ObservationFile[] = [];
 
-
-    observationData.map((source) => {
+    for (const source of observationData) {
       const sourceKeys = Object.keys(source);
       const targetKeys = Object.keys(obsFile);
 
       const newObs = {} as ObservationFile;
 
-      sourceKeys.forEach((sourceKey, i) => {
+      for (let i = 0; i < sourceKeys.length; i++) {
+        const sourceKey = sourceKeys[i];
         const targetKey = targetKeys[i];
 
         if (targetKey !== undefined) {
           newObs[targetKey] = source[sourceKey];
         }
-      });
-      // newObs["EA_FileID"] = originalFileName;
+      }
+
+      const lookupAnalysisMethod = newObs["Lab: Analysis Method"];
+      if (lookupAnalysisMethod) {
+        const lookupResult = await this.prisma.aqi_analysis_methods.findFirst({
+          where: {
+            method_id: {
+              equals: lookupAnalysisMethod,
+            },
+          },
+          select: {
+            method_id: true,
+            method_context: true,
+            method_name: true,
+          },
+        });
+
+        if (lookupResult) {
+          const newAnalysisMethod = `${lookupResult.method_id};${lookupResult.method_name};${lookupResult.method_context}`;
+          newObs["Lab: Analysis Method"] = newAnalysisMethod
+            .replace(/^"|"$/g, "")
+            .replace(/"/g, "");
+        }
+      }
+
+      const resultUnitLookup = newObs["Result Unit"];
+      if (resultUnitLookup) {
+        const resultLookUpResult = await this.prisma.aqi_units_xref.findFirst({
+          where: {
+            edt_unit_xref: {
+              equals: resultUnitLookup,
+            },
+          },
+          select: {
+            aqi_units_code: true,
+          },
+        });
+
+        if (resultLookUpResult) {
+          const newResultUnit = resultLookUpResult;
+          newObs["Result Unit"] = newResultUnit.aqi_units_code;
+        }
+      }
+
+      const dataClassification = newObs["Data Classification"];
+      if (dataClassification == "FIELD_RESULT") {
+        newObs["Activity Name"] = "";
+      }
+
+      newObs["EA_Upload File Name"] = originalFileName; // this is needed for deletion purposes
       obsToWrite.push(newObs);
-    });
+    }
 
     const baseFileName = path.basename(fileName, path.extname(fileName));
     const filePath = path.join(
@@ -645,6 +695,7 @@ export class FileParseValidateService {
     const writer = csvWriter.createObjectCsvWriter({
       path: filePath,
       header: headers,
+      alwaysQuote: false,
     });
 
     await writer.writeRecords(obsToWrite);
@@ -661,7 +712,19 @@ export class FileParseValidateService {
       });
 
       if (customAttributes) {
-        Object.assign(filteredObj, customAttributes);
+        if (customAttributes.hasOwnProperty('ActivityType')){
+          if (row["DataClassification"] == "VERTICAL_PROFILE"){
+            Object.assign(filteredObj, {"ActivityType": "SAMPLE_INTEGRATED_VERTICAL_PROFILE"})
+          }else if (row["DataClassification"] == "LAB" || row["DataClassification"] == "FIELD_RESULT"){
+            if (row["QCType"] == ""){
+              Object.assign(filteredObj, {"ActivityType": "SAMPLE_ROUTINE"})
+            }else{
+              Object.assign(filteredObj, {"ActivityType": `${row['QCType']}`})
+            }
+          }
+        }else{
+          Object.assign(filteredObj, customAttributes)
+        }
       }
 
       return filteredObj;
@@ -669,23 +732,28 @@ export class FileParseValidateService {
   }
 
   getUniqueWithCounts(data: any[]) {
-    const map = new Map<
-      string,
-      { rec: any; count: number; positions: number[] }
-    >();
+    const seen = new Map();
+    const duplicateDetails = [];
 
     data.forEach((obj, index) => {
-      const key = JSON.stringify(obj);
-      if (map.has(key)) {
-        const entry = map.get(key)!;
-        entry.count++;
-        entry.positions.push(index);
+      const item = JSON.stringify(obj);
+
+      if (seen.has(item)) {
+        const existingEntry = seen.get(item);
+        existingEntry.positions.push(index);
+        existingEntry.count++;
       } else {
-        map.set(key, { rec: obj, count: 1, positions: [index] });
+        seen.set(item, { rec: obj, count: 1, positions: [index] });
       }
     });
-    const dupeCount = Array.from(map.values());
-    return dupeCount;
+
+    seen.forEach((value) => {
+      if (value.count >= 1) {
+        duplicateDetails.push(value);
+      }
+    });
+
+    return duplicateDetails;
   }
 
   expandList(data: any[]) {
@@ -733,7 +801,7 @@ export class FileParseValidateService {
         "MethodReportingLimit",
       ];
 
-      const unitFields = ["DepthUnit", "ResultUnit"];
+      const unitFields = "ResultUnit";
 
       // check all datetimes
       dateTimeFields.forEach((field) => {
@@ -742,17 +810,19 @@ export class FileParseValidateService {
           if (!valid) {
             let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${field}": "${record[field]} is not valid ISO DateTime"}}`;
             errorLogs.push(JSON.parse(errorLog));
-          } else if (record.hasOwnProperty(field) && !record[field]) {
+          }
+        } else if (record.hasOwnProperty(field) && !record[field]) {
+          if (field == "FieldVisitStartTime" || field == "ObservedDateTime") {
             let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${field}": "Cannot be empty"}}`;
             errorLogs.push(JSON.parse(errorLog));
           }
-        } else if (record.hasOwnProperty(field) && !record[field]) {
+
           if (
-            field == "FieldVisitStartTime" ||
-            field == "ObservedDateTime" ||
-            field == "AnalyzedDateTime"
+            (record["DataClassification"] == "LAB_DATA" ||
+              record["DataClassification"] == "SURROGATE_RESULT") &&
+            record["AnalyzedDateTime"] == ""
           ) {
-            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${field}": "Cannot be empty"}}`;
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${field}": "Cannot be empty for data classification ${record["DataClassification"]}"}}`;
             errorLogs.push(JSON.parse(errorLog));
           }
         }
@@ -772,21 +842,47 @@ export class FileParseValidateService {
       });
 
       // check all unit fields
-      unitFields.forEach(async (field) => {
-        if (record.hasOwnProperty(field) && record[field]) {
+      if (record.hasOwnProperty(unitFields)) {
+        if (record[unitFields]){
           const present = await this.aqiService.databaseLookup(
-            "aqi_units",
-            record[field],
+            "aqi_units_xref",
+            record[unitFields],
           );
+
           if (!present) {
-            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${field}": "${record[field]} not found in AQI Units"}}`;
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${unitFields}": "${record[unitFields]} not found in EnMoDS Units"}}`;
             errorLogs.push(JSON.parse(errorLog));
           }
-        } else if (record.hasOwnProperty(field) && !record[field]) {
-          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${field}": Cannot be empty"}}`;
-          errorLogs.push(JSON.parse(errorLog));
         }
-      });
+      } else if (record.hasOwnProperty(unitFields)) {
+        let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"${unitFields}": Cannot be empty"}}`;
+        errorLogs.push(JSON.parse(errorLog));
+      }
+
+      if (record.hasOwnProperty("Depth Unit")) {
+        if (record["Depth Upper"]) {
+          if (record["Depth Unit"] != "metre") {
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Depth_Unit": "${record["Depth Unit"]} is not valid unit for Depth. Only 'Metre' is allowed"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+        }
+      }
+
+      if (record.hasOwnProperty("SamplingAgency")) {
+        if (record["SamplingAgency"] == "") {
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Sampling Agency": "Cannot be empty"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        } else {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_sampling_agency",
+            record.SamplingAgency,
+          );
+          if (!present) {
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Sampling Agency": "${record.SamplingAgency} not found in EnMoDS Sampling Agency"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+        }
+      }
 
       if (record.hasOwnProperty("Project")) {
         const present = await this.aqiService.databaseLookup(
@@ -794,19 +890,24 @@ export class FileParseValidateService {
           record.Project,
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Project": "${record.Project} not found in AQI Projects"}}`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Project": "${record.Project} not found in EnMoDS Projects"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
 
       if (record.hasOwnProperty("LocationID")) {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_locations",
-          record.LocationID,
-        );
-        if (!present) {
-          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Location_ID": "${record.LocationID} not found in AQI Locations"}}`;
+        if (record["LocationID"] == "") {
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Location_ID": "Cannot be empty"}}`;
           errorLogs.push(JSON.parse(errorLog));
+        } else {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_locations",
+            record.LocationID,
+          );
+          if (!present) {
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Location_ID": "${record.LocationID} not found in EnMoDS Locations"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
         }
       }
 
@@ -816,7 +917,20 @@ export class FileParseValidateService {
           record.Preservative,
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Preservative": "${record.Preservative} not found in AQI Preservatives"}}`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Preservative": "${record.Preservative} not found in EnMoDS Preservatives"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+      }
+
+      if (record.hasOwnProperty("FieldDeviceType")) {
+        if (
+          (record["DataClassification"] == "FIELD_RESULT" ||
+            record["DataClassification"] == "ACTIVITY_RESULT" ||
+            record["DataClassification"] == "FIELD_SURVEY" ||
+            record["DataClassification"] == "VERTICAL_PROFILE") &&
+          record["FieldDeviceType"] == ""
+        ) {
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Field Device Type": "Cannot be empty when data classification is ${record["DataClassification"]}"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
@@ -827,42 +941,62 @@ export class FileParseValidateService {
           record.SamplingConextTag,
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Sampling_Context_Tag": "${record.SamplingConextTag} not found in AQI Sampling Context Tags"}}`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Sampling_Context_Tag": "${record.SamplingConextTag} not found in EnMoDS Sampling Context Tags"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
 
       if (record.hasOwnProperty("CollectionMethod")) {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_collection_methods",
-          record.CollectionMethod,
-        );
-        if (!present) {
-          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Collection_Method": "${record.CollectionMethod} not found in AQI Collection Methods"}}`;
+        if (
+          (record["DataClassification"] == "LAB" ||
+            record["DataClassification"] == "SURROGATE_RESULT") &&
+          record["CollectionMethod"] == ""
+        ) {
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Collection_Method": "Cannot be empty when Data Classification is ${record["DataClassification"]}"}}`;
           errorLogs.push(JSON.parse(errorLog));
+        } else {
+          if (record["CollectionMethod"] != ""){
+            const present = await this.aqiService.databaseLookup(
+              "aqi_collection_methods",
+              record.CollectionMethod,
+            );
+            if (!present) {
+              let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Collection_Method": "${record.CollectionMethod} not found in EnMoDS Collection Methods"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
+          }
         }
       }
 
       if (record.hasOwnProperty("Medium")) {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_mediums",
-          record.Medium,
-        );
-        if (!present) {
-          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Medium": "${record.Medium} not found in AQI Mediums"}}`;
+        if (record["Medium"] == "") {
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Medium": "Cannot be empty"}}`;
           errorLogs.push(JSON.parse(errorLog));
+        } else {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_mediums",
+            record.Medium,
+          );
+          if (!present) {
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Medium": "${record.Medium} not found in EnMoDS Mediums"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
         }
       }
 
       if (record.hasOwnProperty("ObservedPropertyID")) {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_observed_properties",
-          record.ObservedPropertyID,
-        );
-        if (!present) {
-          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Observed_Property_ID": "${record.ObservedPropertyID} not found in AQI Observed Properties"}}`;
+        if (record["ObservedPropertyID"] == "") {
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Observed_Property_ID": "Cannot be empty"}}`;
           errorLogs.push(JSON.parse(errorLog));
-          errorLog += `ERROR: Row ${index + 2} Observed Property ID ${record.ObservedPropertyID} not found in AQI Observed Properties\n`;
+        } else {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_observed_properties",
+            record.ObservedPropertyID,
+          );
+          if (!present) {
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Observed_Property_ID": "${record.ObservedPropertyID} not found in EnMoDS Observed Properties"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
         }
       }
 
@@ -875,7 +1009,7 @@ export class FileParseValidateService {
           record.DetectionCondition.toUpperCase().replace(/ /g, "_"),
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Detection_Condition": "${record.DetectionCondition} not found in AQI Detection Conditions"}}`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Detection_Condition": "${record.DetectionCondition} not found in EnMoDS Detection Conditions"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
@@ -886,30 +1020,52 @@ export class FileParseValidateService {
           record.Fraction.toUpperCase(),
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Fraction": "${record.Fraction} not found in AQI Fractions"}}`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Fraction": "${record.Fraction} not found in EnMoDS Fractions"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
 
       if (record.hasOwnProperty("DataClassification")) {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_data_classifications",
-          record.DataClassification,
-        );
-        if (!present) {
-          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Data_Classification": "${record.DataClassification} not found in AQI Data Classesifications"}}`;
+        if (record["DataClassification"] == "") {
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Data Classification": "Cannot be empty"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        } else {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_data_classifications",
+            record.DataClassification,
+          );
+          if (!present) {
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Data_Classification": "${record.DataClassification} not found in EnMoDS Data Classesifications"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+        }
+
+        if (
+          record["CompositeStat"] != "" &&
+          record["DataClassification"] != "LAB"
+        ) {
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Data Classification": "Must be LAB when Composite Stat is porvided."}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
 
       if (record.hasOwnProperty("AnalyzingAgency")) {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_laboratories",
-          record.AnalyzingAgency,
-        );
-        if (!present) {
-          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Analyzing_Agency": "${record.AnalyzingAgency} not found in AQI Agencies"}}`;
+        if (
+          (record["DataClassification"] == "LAB" ||
+            record["DataClassification"] == "SURROGATE_RESULT") &&
+          record["AnalyzingAgency"] == ""
+        ) {
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Analyzing Agency": "Cannot be empty when Data Classification is ${record["DataClassification"]}"}}`;
           errorLogs.push(JSON.parse(errorLog));
+        } else {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_laboratories",
+            record.AnalyzingAgency,
+          );
+          if (!present) {
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Analyzing_Agency": "${record.AnalyzingAgency} not found in EnMoDS Agencies"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
         }
       }
 
@@ -919,7 +1075,7 @@ export class FileParseValidateService {
           record.ResultStatus,
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Result_Status": "${record.ResultStatus} not found in AQI Result Statuses"}}`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Result_Status": "${record.ResultStatus} not found in EnMoDS Result Statuses"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
@@ -930,7 +1086,36 @@ export class FileParseValidateService {
           record.ResultGrade,
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Result_Grade": "${record.ResultGrade} not found in AQI Result Grades"}}`;
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Result_Grade": "${record.ResultGrade} not found in EnMoDS Result Grades"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+      }
+
+      if (record.hasOwnProperty("TissueType")){
+        if (record["Medium"] == "Animal - Fish" && record["TissueType"] == ""){
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Tissue Type": "Cannot be empty when Medium is Animal - Fish"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }else if (record["TissueType"]) {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_tissue_types",
+            record.TissueType,
+          );
+          if (!present) {
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Tissue Type": "${record.TissueType} not found in EnMoDS Tissue Types"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+        }
+      }
+
+      if (record.hasOwnProperty("SpecimenName")) {
+        if (record["CompositeStat"] != "" && record["SpecimenName"] == "") {
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Specimen Name": "Cannot be empty when Composite Stat is present."}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        } else if (
+          record["Medium"] == "Animal - Fish" &&
+          record["SpecimenName"] == ""
+        ) {
+          let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Specimen Name": "Cannot be empty when Medium is Animal - Fish"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
@@ -943,7 +1128,7 @@ export class FileParseValidateService {
       ]);
       if (visitExists !== null && visitExists !== undefined) {
         existingGUIDS["visit"] = visitExists;
-        let errorLog = `{"rowNum": ${index + 2}, "type": "WARN", "message": {"Visit": "Visit for Location ${record.LocationID} at Start Time ${record.FieldVisitStartTime} already exists in AQI Field Visits"}}`;
+        let errorLog = `{"rowNum": ${index + 2}, "type": "WARN", "message": {"Visit": "Visit for Location ${record.LocationID} at Start Time ${record.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
 
@@ -954,7 +1139,7 @@ export class FileParseValidateService {
       );
       if (activityExists !== null && activityExists !== undefined) {
         existingGUIDS["activity"] = activityExists;
-        let errorLog = `{"rowNum": ${index + 2}, "type": "WARN", "message": {"Activity": "Activity Name ${record.ActivityName} for Field Visit at Start Time ${record.FieldVisitStartTime} already exists in AQI Activities"}}`;
+        let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Activity": "Activity Name ${record.ActivityName} for Field Visit at Start Time ${record.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
 
@@ -967,7 +1152,7 @@ export class FileParseValidateService {
       ]);
       if (specimenExists !== null && specimenExists !== undefined) {
         existingGUIDS["specimen"] = specimenExists;
-        let errorLog = `{"rowNum": ${index + 2}, "type": "WARN", "message": {"Specimen": "Specimen Name ${record.SpecimenName} for that Acitivity at Start Time ${record.ObservedDateTime} already exists in AQI Specimen"}}`;
+        let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Specimen": "Specimen Name ${record.SpecimenName} for that Acitivity at Start Time ${record.ObservedDateTime} already exists in EnMoDS Specimen"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
 
@@ -976,7 +1161,31 @@ export class FileParseValidateService {
       }
     }
 
-    // Do a dry run of the observations
+    /*
+     * Do an initial validation on the observation file. This will check the file has the right number of columns, the header names are correct and the order of the headers are right
+     * Do a dry run of the observations
+     */
+
+    fs.createReadStream(observaionFilePath)
+      .pipe(csv())
+      .on("headers", (headers) => {
+        // First check: if the number of columns is correct
+        if (headers.length !== Object.keys(obsFile).length + 1) {
+          let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Invalid number of columns. Expected 40, got ${headers.length}"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+
+        // Second-Third check:
+        if (
+          !Object.keys(obsFile).every(
+            (header, index) => header === headers[index],
+          )
+        ) {
+          let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Headers do not match expected names or order. You can find the expected format here: https://bcenv-enmods-test.aqsamples.ca/import"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+      });
+
     const observationsErrors = await this.aqiService.importObservations(
       observaionFilePath,
       "dryrun",
@@ -1122,7 +1331,7 @@ export class FileParseValidateService {
       };
 
       const fieldActivityCustomAttrib: Partial<FieldActivities> = {
-        ActivityType: "SAMPLE_ROUTINE",
+        ActivityType: "",
       };
 
       /*
@@ -1139,13 +1348,14 @@ export class FileParseValidateService {
         Object.keys(activities),
         fieldActivityCustomAttrib,
       );
+
       let allSpecimens = this.filterFile<FieldSpecimens>(
         allRecords,
         Object.keys(specimens),
         null,
       );
 
-      const allObservations = this.filterFile<Observations>(
+      let allObservations = this.filterFile<Observations>(
         allRecords,
         Object.keys(observations),
         null,
@@ -1160,6 +1370,7 @@ export class FileParseValidateService {
       const uniqueMinistryContacts = Array.from(
         new Set(allRecords.map((rec) => rec.MinistryContact)),
       );
+
       /*
        * Do the local validation for each section here - if passed then go to the API calls - else create the message/file/email for the errors
        */
@@ -1176,7 +1387,14 @@ export class FileParseValidateService {
         file_operation_code,
       );
 
-      if (localValidationResults[0].some((item) => item.type === "ERROR")) {
+      const hasError = localValidationResults[0].some(
+        (item) => item.type === "ERROR",
+      );
+      const hasWarn = localValidationResults[0].some(
+        (item) => item.type === "WARN",
+      );
+
+      if (hasError) {
         /*
          * If there are any errors then
          * Set the file status to 'REJECTED'
@@ -1197,9 +1415,9 @@ export class FileParseValidateService {
          * If there are no errors then
          * Check to see if there are any WARNINGS
          * If WARNINGS
-         * Proceed with the PATCH logic
+         * Proceed with the PUT logic
          */
-        if (localValidationResults[0].some((item) => item.type === "WARN")) {
+        if (hasWarn) {
           let visitInfo = [],
             expandedVisitInfo = [];
           let activityInfo = [],
@@ -1319,6 +1537,7 @@ export class FileParseValidateService {
             const uniqueSpecimensWithIDsAndCounts = this.getUniqueWithCounts(
               allSpecimensWithGUIDS,
             );
+
             specimenInfo = await this.specimensJson(
               uniqueSpecimensWithIDsAndCounts,
               "put",
@@ -1329,8 +1548,9 @@ export class FileParseValidateService {
               const obj1 = expandedActivityInfo[index];
               return { ...obj2, ...obj1 };
             });
-            const uniqueSpecimensWithCounts =
-              this.getUniqueWithCounts(allSpecimens);
+            const uniqueSpecimensWithCounts = this.getUniqueWithCounts(
+              allSpecimens,
+            ).filter((item) => item.rec.SpecimenName !== "");
             specimenInfo = await this.specimensJson(
               uniqueSpecimensWithCounts,
               "post",
@@ -1385,7 +1605,7 @@ export class FileParseValidateService {
               active_ind: false,
             },
           });
-        } else {
+        } else if (!hasError && !hasWarn) {
           // If there are no errors or warnings
           await this.fileSubmissionsService.updateFileStatus(
             file_submission_id,
@@ -1393,6 +1613,20 @@ export class FileParseValidateService {
           );
 
           if (file_operation_code === "VALIDATE") {
+            const file_error_log_data = {
+              file_submission_id: file_submission_id,
+              file_name: fileName,
+              original_file_name: originalFileName,
+              file_operation_code: file_operation_code,
+              ministry_contact: uniqueMinistryContacts,
+              error_log: localValidationResults[0],
+              create_utc_timestamp: new Date(),
+            };
+
+            await this.prisma.file_error_logs.create({
+              data: file_error_log_data,
+            });
+
             return;
           } else {
             /*
@@ -1438,8 +1672,10 @@ export class FileParseValidateService {
               const obj1 = expandedActivityInfo[index];
               return { ...obj2, ...obj1 };
             });
-            const uniqueSpecimensWithCounts =
-              this.getUniqueWithCounts(allSpecimens);
+            const uniqueSpecimensWithCounts = this.getUniqueWithCounts(
+              allSpecimens,
+            ).filter((item) => item.rec.SpecimenName !== "");
+
             let specimenInfo = await this.specimensJson(
               uniqueSpecimensWithCounts,
               "post",

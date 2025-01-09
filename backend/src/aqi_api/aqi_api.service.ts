@@ -269,6 +269,17 @@ export class AqiApiService {
             });
           });
 
+          await this.prisma.$transaction(async (prisma) => {
+            const updateStatus = await this.prisma.aqi_obs_status.update({
+              where: {
+                aqi_obs_status_id: statusURL.aqi_obs_status_id,
+              },
+              data: {
+                active_ind: false,
+              },
+            });
+          });
+
           this.goodObservationImporStatus = true;
           this.logger.log("CHECKED OBSERVATION STATUS");
         }
@@ -309,6 +320,7 @@ export class AqiApiService {
                 },
               });
             });
+            this.goodObservationImporStatus = true;
           } else {
             this.logger.error(
               "API CALL TO Observations Status failed: ",
@@ -325,6 +337,7 @@ export class AqiApiService {
                 },
               });
             });
+            this.goodObservationImporStatus = true;
           }
         }
       }
@@ -384,7 +397,7 @@ export class AqiApiService {
         for (const [key, errors] of Object.entries(errorList)) {
           if (errors[0].errorMessage) {
             let ObservationFile = errors[0]?.errorFieldValue
-              ? `${errors[0].errorMessage} (${errors[0].errorFieldValue})`
+              ? `${errors[0].errorMessage} : ${errors[0].errorFieldValue}`
               : `${errors[0].errorMessage}`;
             errorMessages.push({
               rowNum: parseInt(rowId),
@@ -401,19 +414,41 @@ export class AqiApiService {
   }
 
   async databaseLookup(dbTable: string, queryParam: string) {
-    try {
-      let result = await this.prisma[dbTable].findMany({
-        where: {
-          custom_id: queryParam,
-        },
-      });
-      if (result.length > 0) {
-        return true;
-      } else {
-        return false;
-      }
-    } catch (err) {
-      this.logger.error(`API CALL TO ${dbTable} failed: `, err);
+    switch (dbTable) {
+      case "aqi_units_xref":
+        try {
+          let result = await this.prisma.aqi_units_xref.findMany({
+            where: {
+              edt_unit_xref: queryParam,
+            },
+            select: {
+              aqi_units_code: true,
+            },
+          });
+          if (result.length > 0) {
+            return result[0];
+          } else {
+            return null;
+          }
+        } catch (err) {
+          this.logger.error(`API CALL TO ${dbTable} failed: `, err);
+        }
+
+      default:
+        try {
+          let result = await this.prisma[dbTable].findMany({
+            where: {
+              custom_id: queryParam,
+            },
+          });
+          if (result.length > 0) {
+            return true;
+          } else {
+            return false;
+          }
+        } catch (err) {
+          this.logger.error(`API CALL TO ${dbTable} failed: `, err);
+        }
     }
   }
 
@@ -474,12 +509,13 @@ export class AqiApiService {
   }
 
   mergeErrorMessages(localErrors: any[], remoteErrors: any[]) {
-    const map = new Map<number, any>();
+    const map = new Map<string, any>();
 
     const mergeItem = (item: any) => {
-      const exists = map.get(item.rowNum);
+      const key = `${item.rowNum}-${item.type}`;
+      const exists = map.get(key);
       map.set(
-        item.rowNum,
+        key,
         exists
           ? { ...exists, message: { ...exists.message, ...item.message } }
           : item,
@@ -534,34 +570,38 @@ export class AqiApiService {
     }
   }
 
-  async deleteRelatedData(fileName: string) {
-    const guidsToDelete: any = await this.prisma.aqi_imported_data.findMany({
-      where: {
-        file_name: fileName,
-      },
-    });
-
-    // Delete all the observations from the list of imported guids
-    if (guidsToDelete[0].imported_guids.observations.length > 0) {
-      try {
-        let deletion = await axios.delete(
-          `${process.env.AQI_BASE_URL}/v2/observations?ids=${guidsToDelete[0].imported_guids.observations}`,
-          {
-            headers: {
-              Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
-              "x-api-key": process.env.AQI_ACCESS_TOKEN,
-            },
-          },
-        );
-        this.logger.log("AQI OBS DELETION: " + deletion.data);
-      } catch (err) {
-        this.logger.error(`API call to delete AQI observation failed: `, err);
+  async ObservationDelete(obsData: any[]) {
+    if (obsData.length > 0) {
+      const batchSize = 50;
+      const observationBatches = [];
+      for (let i = 0; i < obsData.length; i += batchSize) {
+        observationBatches.push(obsData.slice(i, i + batchSize));
       }
+
+      observationBatches.forEach(async (batch) => {
+        try {
+          let deletion = await axios.delete(
+            `${process.env.AQI_BASE_URL}/v2/observations?ids=${batch}`,
+            {
+              headers: {
+                Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+                "x-api-key": process.env.AQI_ACCESS_TOKEN,
+              },
+            },
+          );
+          this.logger.log("AQI OBS DELETION: " + deletion.status);
+        } catch (err) {
+          this.logger.error(`API call to delete AQI observation failed: `, err);
+        }
+      });
     }
 
-    // Delete all the specimens for the activities imported from AQI and the PSQL db
-    if (guidsToDelete[0].imported_guids.specimens.length > 0) {
-      for (const specimen of guidsToDelete[0].imported_guids.specimens) {
+    return new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+
+  async SpecimenDelete(specimenData: any[]) {
+    if (specimenData.length > 0) {
+      for (const specimen of specimenData) {
         try {
           let aqiDeletion = await axios.delete(
             `${process.env.AQI_BASE_URL}/v1/specimens/${specimen}`,
@@ -582,50 +622,66 @@ export class AqiApiService {
             });
             this.logger.log("DB SPECIMEN DELETION: " + dbDeletion);
           } catch (err) {
-            this.logger.error(`API call to delete DB specimen failed: `, err);
+            if (err.code === "P2025") {
+              this.logger.log(
+                `Record with ID ${specimen} not found in DB. Record was deleted in AQI but skipping deletion from DB.`,
+              );
+            } else {
+              this.logger.error(`API call to delete DB specimen failed: `, err);
+            }
           }
         } catch (err) {
           this.logger.error(`API call to delete AQI specimen failed: `, err);
         }
       }
     }
+    return new Promise((resolve) => setTimeout(resolve, 1000));
+  }
 
-    // Delete all the activities for the visits imported
-    if (guidsToDelete[0].imported_guids.activities.length > 0) {
-      try {
-        let deletion = await axios.delete(
-          `${process.env.AQI_BASE_URL}/v1/activities?ids=${guidsToDelete[0].imported_guids.activities}`,
-          {
-            headers: {
-              Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
-              "x-api-key": process.env.AQ,
-            },
-          },
-        );
-        this.logger.log("AQI ACTIVITY DELETION: " + deletion.data);
-
+  async ActivityDelete(activityData: any[]) {
+    if (activityData.length > 0) {
+      for (const activity of activityData) {
         try {
-          const dbDeletion = await this.prisma.aqi_field_activities.deleteMany({
-            where: {
-              aqi_field_activities_id: {
-                in: guidsToDelete[0].imported_guids.activities,
+          let aqiDeletion = await axios.delete(
+            `${process.env.AQI_BASE_URL}/v1/activities/${activity}`,
+            {
+              headers: {
+                Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+                "x-api-key": process.env.AQI_ACCESS_TOKEN,
               },
             },
-          });
-          this.logger.log("DB ACTIVITY DELETION: " + dbDeletion);
+          );
+          this.logger.log("AQI ACTIVITY DELETION: " + aqiDeletion.data);
+
+          try {
+            const dbDeletion = await this.prisma.aqi_field_activities.delete({
+              where: {
+                aqi_field_activities_id: activity,
+              },
+            });
+            this.logger.log("DB ACTIVITY DELETION: " + dbDeletion);
+          } catch (err) {
+            if (err.code === "P2025") {
+              this.logger.log(
+                `Record with ID ${activity} not found in DB. Record was deleted in AQI but skipping deletion from DB.`,
+              );
+            } else {
+              this.logger.error(`API call to delete DB activity failed: `, err);
+            }
+          }
         } catch (err) {
-          this.logger.error(`API call to delete DB activities failed: `, err);
+          this.logger.error(`API call to delete AQI activity failed: `, err);
         }
-      } catch (err) {
-        this.logger.error(`API call to delete DB activity failed: `, err);
       }
     }
+    return new Promise((resolve) => setTimeout(resolve, 1000));
+  }
 
-    // Delete all the visits for the visits imported
-    if (guidsToDelete[0].imported_guids.visits.length > 0) {
+  async VisitDelete(visitData: any[]) {
+    if (visitData.length > 0) {
       try {
         let deletion = await axios.delete(
-          `${process.env.AQI_BASE_URL}/v1/fieldvisits?ids=${guidsToDelete[0].imported_guids.visits}`,
+          `${process.env.AQI_BASE_URL}/v1/fieldvisits?ids=${visitData}`,
           {
             headers: {
               Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
@@ -639,23 +695,92 @@ export class AqiApiService {
           const dbDeletion = await this.prisma.aqi_field_visits.deleteMany({
             where: {
               aqi_field_visits_id: {
-                in: guidsToDelete[0].imported_guids.visits,
+                in: visitData,
               },
             },
           });
           this.logger.log("DB VISIT DELETION: " + dbDeletion);
         } catch (err) {
-          this.logger.error(`API call to delete DB visits failed: `, err);
+          if (err.code === "P2025") {
+            this.logger.log(
+              `Records with IDs ${visitData} not found in DB. Records were deleted in AQI but skipping deletion from DB.`,
+            );
+          } else {
+            this.logger.error(`API call to delete DB visits failed: `, err);
+          }
         }
       } catch (err) {
         this.logger.error(`API call to delete AQI visit failed: `, err);
       }
     }
+    return new Promise((resolve) => setTimeout(resolve, 1000));
+  }
 
-    await this.prisma.aqi_imported_data.deleteMany({
+  async deleteRelatedData(fileName: string) {
+    const guidsToDelete: any = await this.prisma.aqi_imported_data.findMany({
       where: {
         file_name: fileName,
       },
     });
+
+    let successfulObs = false
+    let successfulSpecimen = false
+    let successfulActivity = false
+    let successfulVisit = false
+
+    // Delete all the observations in AQI that are in the list of imported guids
+    this.logger.log(
+      `Starting observation delete for file ${fileName}..............`,
+    );
+    
+    await this.ObservationDelete(
+      guidsToDelete[0].imported_guids.observations,
+    ).then(() => {
+      successfulObs = true
+      this.logger.log(`Finished observation delete for file ${fileName}`)
+    })
+
+    if (successfulObs){
+      // Delete all the specimens that were imported for the file from AQI and the PSQL db
+      this.logger.log(
+        `Starting specimen delete for file ${fileName}..............`,
+      );
+      await this.SpecimenDelete(guidsToDelete[0].imported_guids.specimens).then(
+        () => {
+          successfulSpecimen = true;
+          this.logger.log(`Finished specimen delete for file ${fileName}.`);
+        },
+      );
+    }
+
+    if (successfulSpecimen){
+      // Delete all the activities for the visits imported
+      this.logger.log(
+        `Starting activity delete for file ${fileName}..............`,
+      );
+      await this.ActivityDelete(guidsToDelete[0].imported_guids.activities).then(() => {
+        successfulActivity = true;
+        this.logger.log(`Finished activity delete for file ${fileName}.`);
+      });
+    }
+
+    if (successfulActivity){
+      // Delete all the visits for the visits imported
+      this.logger.log(`Starting visit delete for file ${fileName}..............`);
+      await this.VisitDelete(guidsToDelete[0].imported_guids.visits).then(() => {
+        successfulVisit = true
+        this.logger.log(`Finished visit delete for file ${fileName}.`);
+      });
+    }
+
+    if (successfulObs && successfulSpecimen && successfulActivity && successfulVisit){
+      await this.prisma.aqi_imported_data.deleteMany({
+        where: {
+          file_name: fileName,
+        },
+      });
+    }else{
+      this.logger.error(`Error deleting related data for file ${fileName}.`);
+    }
   }
 }

@@ -65,16 +65,6 @@ model aqi_mediums {
   update_utc_timestamp DateTime @db.Timestamp(6)
 }
 
-model aqi_units {
-  aqi_units_id         String   @id @db.Uuid
-  custom_id            String   @db.VarChar(200)
-  description          String?  @db.VarChar(2000)
-  create_user_id       String   @db.VarChar(200)
-  create_utc_timestamp DateTime @db.Timestamp(6)
-  update_user_id       String   @db.VarChar(200)
-  update_utc_timestamp DateTime @db.Timestamp(6)
-}
-
 model aqi_collection_methods {
   aqi_collection_methods_id String   @id @db.Uuid
   custom_id                 String   @db.VarChar(200)
@@ -283,4 +273,44 @@ model aqi_obs_status {
   active_ind           Boolean          @default(true)
   create_utc_timestamp DateTime         @db.Timestamp(6)
   file_submission      file_submission? @relation(fields: [file_submission_id], references: [submission_id], onDelete: NoAction, onUpdate: NoAction, map: "file_submission_id_fk")
+}
+
+model aqi_analysis_methods {
+  aqi_analysis_methods_id String   @id @db.Uuid
+  method_id               String   @db.VarChar(200)
+  method_name             String?  @db.VarChar(2000)
+  method_context          String?  @db.VarChar(2000)
+  create_user_id          String   @db.VarChar(200)
+  create_utc_timestamp    DateTime @db.Timestamp(6)
+  update_user_id          String   @db.VarChar(200)
+  update_utc_timestamp    DateTime @db.Timestamp(6)
+}
+
+model aqi_units_xref {
+  edt_unit_guid        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ems_code             Int?
+  edt_unit_xref        String   @db.VarChar(255)
+  aqi_units_code       String   @db.VarChar(255)
+  create_user_id       String   @db.VarChar(200)
+  create_utc_timestamp DateTime @db.Timestamp(6)
+  update_user_id       String   @db.VarChar(200)
+  update_utc_timestamp DateTime @db.Timestamp(6)
+}
+
+model aqi_tissue_types {
+  aqi_tissue_types_id  String   @id @db.Uuid
+  custom_id            String   @db.VarChar(200)
+  create_user_id       String   @db.VarChar(200)
+  create_utc_timestamp DateTime @db.Timestamp(6)
+  update_user_id       String   @db.VarChar(200)
+  update_utc_timestamp DateTime @db.Timestamp(6)
+}
+
+model aqi_sampling_agency {
+  aqi_sampling_agency_id String   @id @db.Uuid
+  custom_id              String   @db.VarChar(200)
+  create_user_id         String   @db.VarChar(200)
+  create_utc_timestamp   DateTime @db.Timestamp(6)
+  update_user_id         String   @db.VarChar(200)
+  update_utc_timestamp   DateTime @db.Timestamp(6)
 }
