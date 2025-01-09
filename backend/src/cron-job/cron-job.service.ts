@@ -36,6 +36,7 @@ export class CronJobService {
       ["aqi_result_status", this.prisma.aqi_result_status],
       ["aqi_result_grade", this.prisma.aqi_result_grade],
       ["aqi_tissue_types", this.prisma.aqi_tissue_types],
+      ["aqi_sampling_agency", this.prisma.aqi_sampling_agency],
       ["aqi_locations", this.prisma.aqi_locations],
       ["aqi_field_visits", this.prisma.aqi_field_visits],
       ["aqi_field_activities", this.prisma.aqi_field_activities],
@@ -118,6 +119,12 @@ export class CronJobService {
       paramsEnabled: false,
     },
     {
+      endpoint: "/v1/extendedattributes/65d94fac-aac5-498f-bc73-b63a322ce350/dropdownlistitems",
+      method: "GET",
+      dbTable: "aqi_sampling_agency",
+      paramsEnabled: false,
+    },
+    {
       endpoint: "/v1/samplinglocations",
       method: "GET",
       dbTable: "aqi_locations",
@@ -193,6 +200,15 @@ export class CronJobService {
           update_user_id: "EnMoDS",
           update_utc_timestamp: new Date(),
         };
+      case "aqi_sampling_agency":
+        return {
+          aqi_sampling_agency_id: record.id,
+          custom_id: record.customId,
+          create_user_id: "EnMoDS",
+          create_utc_timestamp: new Date(),
+          update_user_id: "EnMoDS",
+          update_utc_timestamp: new Date(),
+        };
       case "aqi_field_visits":
         return {
           aqi_field_visit_start_time: new Date(record.startTime),
@@ -258,6 +274,15 @@ export class CronJobService {
       case "aqi_tissue_types":
         return {
           aqi_tissue_types_id: record.id,
+          custom_id: record.customId,
+          create_user_id: "EnMoDS",
+          create_utc_timestamp: new Date(),
+          update_user_id: "EnMoDS",
+          update_utc_timestamp: new Date(),
+        };
+      case "aqi_sampling_agency":
+        return {
+          aqi_sampling_agency_id: record.id,
           custom_id: record.customId,
           create_user_id: "EnMoDS",
           create_utc_timestamp: new Date(),
@@ -501,7 +526,7 @@ export class CronJobService {
         modificationTime,
       };
     };
-    const filterTissueTypes = (obj: any): any => {
+    const filterEELists = (obj: any): any => {
       const { id, customId } = obj;
       const create_user_id = "EnMoDs";
       const create_utc_timestamp = new Date().toISOString();
@@ -531,9 +556,11 @@ export class CronJobService {
         return array.map(filerAnalysisMethodAttributes);
       } else if (
         endpoint ==
-        "/v1/extendedattributes/6f7d5be0-f91a-4353-9d31-13983205cbe0/dropdownlistitems"
+        "/v1/extendedattributes/6f7d5be0-f91a-4353-9d31-13983205cbe0/dropdownlistitems" ||
+        endpoint ==
+        "/v1/extendedattributes/65d94fac-aac5-498f-bc73-b63a322ce350/dropdownlistitems" 
       ) {
-        return array.map(filterTissueTypes);
+        return array.map(filterEELists);
       } else {
         return array.map(filterAttributes);
       }

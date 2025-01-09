@@ -870,12 +870,12 @@ export class FileParseValidateService {
           let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Sampling Agency": "Cannot be empty"}}`;
           errorLogs.push(JSON.parse(errorLog));
         } else {
-          const present = await this.queryCodeTables("EXTENDED_ATTRIB", [
-            "Sampling Agency",
+          const present = await this.aqiService.databaseLookup(
+            "aqi_sampling_agency",
             record.SamplingAgency,
-          ]);
+          );
           if (!present) {
-            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Sampling Agency": "${record.SamplingAgency} not found in Sampling Agency Code Table"}}`;
+            let errorLog = `{"rowNum": ${index + 2}, "type": "ERROR", "message": {"Sampling Agency": "${record.SamplingAgency} not found in EnMoDS Sampling Agency"}}`;
             errorLogs.push(JSON.parse(errorLog));
           }
         }
