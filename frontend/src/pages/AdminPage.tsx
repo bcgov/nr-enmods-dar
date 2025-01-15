@@ -67,14 +67,14 @@ export default function AdminPage() {
   // mock data for company
   const [companyData] = useState([
     {
-      id: "pqr123",
-      name: "Salus Systems",
-      email: "salus@email.com",
+      id: "1",
+      name: "Not Implemented",
+      email: "Not Implemented",
     },
     {
-      id: "asd321",
-      name: "Test Company",
-      email: "testtester@email.com",
+      id: "2",
+      name: "Not Implemented",
+      email: "Not Implemented",
     },
   ]);
 
