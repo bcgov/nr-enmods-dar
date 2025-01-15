@@ -147,7 +147,8 @@ export class AqiApiService {
     fileOperationCode: string,
   ) {
     const formData = new FormData();
-    formData.append("file", fs.createReadStream(fileName));
+    const fileStream = fs.createReadStream(path.resolve(fileName));
+    formData.append("file", fileStream, path.basename(fileName));
     try {
       if (method == "dryrun") {
         const response = await axios.post(
@@ -352,6 +353,7 @@ export class AqiApiService {
 
     const resultURL = await this.prisma.aqi_obs_status.findFirst({
       select: {
+        aqi_obs_status_id: true,
         result_url: true,
       },
       orderBy: {
@@ -360,12 +362,12 @@ export class AqiApiService {
     });
 
     this.goodObservationImporStatus = false;
-    return resultURL.result_url;
+    return resultURL;
   }
 
-  async getObsResult(resultURL: string) {
+  async getObsResult(resultURL: any) {
     try {
-      const obsResultResponse = await axios.get(resultURL, {
+      const obsResultResponse = await axios.get(resultURL.result_url, {
         headers: {
           Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
           "x-api-key": process.env.AQI_ACCESS_TOKEN,
@@ -379,8 +381,22 @@ export class AqiApiService {
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const axiosError = err as AxiosError;
+
+        await this.prisma.$transaction(async (prisma) => {
+          const updateStatus = await this.prisma.aqi_obs_status.update({
+            where: {
+              aqi_obs_status_id: resultURL.aqi_obs_status_id,
+            },
+            data: {
+              active_ind: false,
+            },
+          });
+        });
+
         if (axiosError.response?.status === 409) {
-          this.logger.warn("409 Conflict: Continuing without failing");
+          this.logger.warn(
+            "409 Conflict: Errors found in observation file",
+          );
           return axiosError.response.data;
         }
       }
@@ -509,6 +525,7 @@ export class AqiApiService {
   }
 
   mergeErrorMessages(localErrors: any[], remoteErrors: any[]) {
+
     const map = new Map<string, any>();
 
     const mergeItem = (item: any) => {
@@ -524,7 +541,7 @@ export class AqiApiService {
 
     [...localErrors, ...remoteErrors].forEach(mergeItem);
 
-    return Array.from(map.values());
+    return Array.from(map.values()).sort((a, b) => a.rowNum - b.rowNum);
   }
 
   getUnique(type: string, data: any[]): any[] {
@@ -723,24 +740,24 @@ export class AqiApiService {
       },
     });
 
-    let successfulObs = false
-    let successfulSpecimen = false
-    let successfulActivity = false
-    let successfulVisit = false
+    let successfulObs = false;
+    let successfulSpecimen = false;
+    let successfulActivity = false;
+    let successfulVisit = false;
 
     // Delete all the observations in AQI that are in the list of imported guids
     this.logger.log(
       `Starting observation delete for file ${fileName}..............`,
     );
-    
+
     await this.ObservationDelete(
       guidsToDelete[0].imported_guids.observations,
     ).then(() => {
-      successfulObs = true
-      this.logger.log(`Finished observation delete for file ${fileName}`)
-    })
+      successfulObs = true;
+      this.logger.log(`Finished observation delete for file ${fileName}`);
+    });
 
-    if (successfulObs){
+    if (successfulObs) {
       // Delete all the specimens that were imported for the file from AQI and the PSQL db
       this.logger.log(
         `Starting specimen delete for file ${fileName}..............`,
@@ -753,33 +770,44 @@ export class AqiApiService {
       );
     }
 
-    if (successfulSpecimen){
+    if (successfulSpecimen) {
       // Delete all the activities for the visits imported
       this.logger.log(
         `Starting activity delete for file ${fileName}..............`,
       );
-      await this.ActivityDelete(guidsToDelete[0].imported_guids.activities).then(() => {
+      await this.ActivityDelete(
+        guidsToDelete[0].imported_guids.activities,
+      ).then(() => {
         successfulActivity = true;
         this.logger.log(`Finished activity delete for file ${fileName}.`);
       });
     }
 
-    if (successfulActivity){
+    if (successfulActivity) {
       // Delete all the visits for the visits imported
-      this.logger.log(`Starting visit delete for file ${fileName}..............`);
-      await this.VisitDelete(guidsToDelete[0].imported_guids.visits).then(() => {
-        successfulVisit = true
-        this.logger.log(`Finished visit delete for file ${fileName}.`);
-      });
+      this.logger.log(
+        `Starting visit delete for file ${fileName}..............`,
+      );
+      await this.VisitDelete(guidsToDelete[0].imported_guids.visits).then(
+        () => {
+          successfulVisit = true;
+          this.logger.log(`Finished visit delete for file ${fileName}.`);
+        },
+      );
     }
 
-    if (successfulObs && successfulSpecimen && successfulActivity && successfulVisit){
+    if (
+      successfulObs &&
+      successfulSpecimen &&
+      successfulActivity &&
+      successfulVisit
+    ) {
       await this.prisma.aqi_imported_data.deleteMany({
         where: {
           file_name: fileName,
         },
       });
-    }else{
+    } else {
       this.logger.error(`Error deleting related data for file ${fileName}.`);
     }
   }
