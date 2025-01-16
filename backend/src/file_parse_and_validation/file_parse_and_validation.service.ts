@@ -1594,7 +1594,6 @@ export class FileParseValidateService {
                 } else {
                   // send POST to AQI
                   specimenInfo = await this.specimensJson(specimen, "post");
-                  console.log(specimenInfo)
 
                   // insert the specimen record in the db table
                   try{
