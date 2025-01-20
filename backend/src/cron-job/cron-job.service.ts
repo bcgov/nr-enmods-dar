@@ -604,11 +604,11 @@ export class CronJobService {
     try{
       for (const file of files) {
         try {
-          const fileBinary = await this.objectStore.getFileData(file.file_name);
+          const fileStream = await this.objectStore.getFileData(file.file_name);
           this.logger.log(`SENT FILE: ${file.file_name}`);
 
           await this.fileParser.parseFile(
-            fileBinary,
+            fileStream,
             file.file_name,
             file.original_file_name,
             file.submission_id,

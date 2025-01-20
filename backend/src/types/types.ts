@@ -169,6 +169,7 @@ export type ObservationFile = {
   "QC: Type": string;
   "QC: Source Sample ID": string;
   "EA_Observation Composite Stat": string;
+  "EA_Upload File Name": string;
 };
 
 export type EmailTemplate = {
