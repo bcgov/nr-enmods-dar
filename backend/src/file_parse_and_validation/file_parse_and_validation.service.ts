@@ -1,5 +1,5 @@
-import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
-import axios, { AxiosInstance, create } from "axios";
+import { Injectable, Logger } from "@nestjs/common";
+import { AxiosInstance } from "axios";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
 import {
   FieldActivities,
@@ -9,10 +9,7 @@ import {
   Observations,
 } from "src/types/types";
 import { AqiApiService } from "src/aqi_api/aqi_api.service";
-import * as XLSX from "xlsx";
 import ExcelJS from "exceljs";
-import * as path from "path";
-import * as csvWriter from "csv-writer";
 import fs from "fs";
 import csv from "csv-parser";
 import { PrismaService } from "nestjs-prisma";
@@ -1071,7 +1068,7 @@ export class FileParseValidateService {
     // check if the activity already exits -- check if the activity name for that given visit and location already exists
     const activityExists = await this.aqiService.AQILookup(
       "aqi_field_activities",
-      [rowData.ActivityName, rowData.FieldVisitStartTime, rowData.LocationID],
+      [rowData.ActivityName, rowData.ObservedDateTime, rowData.LocationID],
     );
     if (activityExists !== null && activityExists !== undefined) {
       existingGUIDS["activity"] = activityExists;
@@ -1187,58 +1184,6 @@ export class FileParseValidateService {
     return;
   }
 
-  async saveAQIInsertedElements(
-    file_submission_id: string,
-    fileName: string,
-    originalFileName: string,
-    visitInfo: any[],
-    activityInfo: any[],
-    specimenInfo: any[],
-  ) {
-    let importedGUIDS = {};
-
-    const visitGUIDS = visitInfo.map((visit) => visit.rec.fieldVisit);
-    const activityGUIDS = activityInfo.map(
-      (activity) => activity.rec.activity.id,
-    );
-    const specimenGUIDS = specimenInfo.map(
-      (specimen) => specimen.rec.specimen.id,
-    );
-
-    const observationGUIDS =
-      await this.aqiService.getObservationsFromFile(originalFileName);
-
-    importedGUIDS["observations"] = observationGUIDS;
-    importedGUIDS["specimens"] = specimenGUIDS;
-    importedGUIDS["activities"] = activityGUIDS;
-    importedGUIDS["visits"] = visitGUIDS;
-
-    const imported_guids_data = {
-      file_name: fileName,
-      original_file_name: originalFileName,
-      imported_guids: importedGUIDS,
-      create_utc_timestamp: new Date(),
-    };
-
-    await this.prisma.$transaction(async (prisma) => {
-      await prisma.aqi_imported_data.create({
-        data: imported_guids_data,
-      });
-    });
-
-    //Update the number of samples and results imported from the file
-    await this.prisma.$transaction(async (prisma) => {
-      const updateStatus = await this.prisma.file_submission.update({
-        where: {
-          submission_id: file_submission_id,
-        },
-        data: {
-          sample_count: activityGUIDS.length,
-          results_count: observationGUIDS.length,
-        },
-      });
-    });
-  }
 
   async parseFile(
     file: Readable,
@@ -1276,6 +1221,23 @@ export class FileParseValidateService {
         "INPROGRESS",
       );
 
+      const imported_guids_data = {
+        file_name: fileName,
+        original_file_name: originalFileName,
+        imported_guids: {
+          visits: [],
+          activities: [],
+          specimens: [],
+          observations: [],
+        },
+        create_utc_timestamp: new Date(),
+      };
+
+      await this.prisma.$transaction(async (prisma) => {
+        await prisma.aqi_imported_data.create({
+          data: imported_guids_data,
+        });
+      });
       const ministryContacts = new Set();
       let isFirstRow = true;
 
@@ -1308,6 +1270,14 @@ export class FileParseValidateService {
         );
 
         ministryContacts.add(fieldVisit.MinistryContact); // getting the ministry contacts (this will result in a unique list at the end of all rows)
+
+        if (
+          rowData.DataClassification == "VERTICAL_PROFILE" ||
+          rowData.DataClassification == "FIELD_RESULT"
+        ) {
+          rowData.SpecimenName = "";
+          rowData.ActivityName = "";
+        }
 
         const observation = this.filterFile<Observations>(
           rowData,
@@ -1412,214 +1382,272 @@ export class FileParseValidateService {
            * Post the unique records to the API
            * Expand the returned list of object - this will be used for finding unique activities
            */
+          for (
+            let rowNumber = 2;
+            rowNumber <= worksheet.rowCount;
+            rowNumber++
+          ) {
+            const row = worksheet.getRow(rowNumber);
+            let GuidsToSave = {
+              visits: [],
+              activities: [],
+              specimens: [],
+              observations: [],
+            };
+            // Get the row values, remove the first empty cell, and map to headers
+            const rowData: Record<string, string> = headers
+              .map((header, colNumber) => {
+                const cellValue = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
+                return {
+                  [header]: String(cellValue ?? ""),
+                };
+              })
+              .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
-          worksheet.eachRow(async (row, rowNumber) => {
-            if (rowNumber === 1) {
-              return; // Skip header row
+            const fieldVisitCustomAttributes: Partial<FieldVisits> = {
+              PlanningStatus: "DONE",
+            };
+
+            const fieldActivityCustomAttrib: Partial<FieldActivities> = {
+              ActivityType: "",
+            };
+
+            /*
+             * From the input file get all the atrributes and values for each sub section - Visits, Activities, Specimens and Observations
+             */
+            const fieldVisit = this.filterFile<FieldVisits>(
+              rowData,
+              Object.keys(visits),
+              fieldVisitCustomAttributes,
+            );
+
+            const fieldActivity = this.filterFile<FieldActivities>(
+              rowData,
+              Object.keys(activities),
+              fieldActivityCustomAttrib,
+            );
+
+            const specimen = this.filterFile<FieldSpecimens>(
+              rowData,
+              Object.keys(specimens),
+              null,
+            );
+
+            if (
+              rowData.DataClassification == "VERTICAL_PROFILE" ||
+              rowData.DataClassification == "FIELD_RESULT"
+            ) {
+              specimen.SpecimenName = "";
+              fieldActivity.ActivityName == "";
             }
 
-            if (rowNumber === 2) {
-              // Get the row values, remove the first empty cell, and map to headers
-              const rowData: Record<string, string> = headers
-                .map((header, colNumber) => {
-                  const cellValue = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
-                  return {
-                    [header]: String(cellValue ?? ""),
-                  };
-                })
-                .reduce((acc, curr) => ({ ...acc, ...curr }), {});
+            /*
+             * for each of the components (visits, activities, specimens):
+             * make a DB call to see if that record already exists
+             * If exists - do a PUT with the respective object to the respective API
+             * Otherwise - do a POST with the respective object to the respective API; save the record into the db table (for future use) and save the GUID to the db table
+             */
 
-              const fieldVisitCustomAttributes: Partial<FieldVisits> = {
-                PlanningStatus: "DONE",
-              };
+            let visitExists = await this.aqiService.AQILookup(
+              "aqi_field_visits",
+              [rowData.LocationID, rowData.FieldVisitStartTime],
+            );
+            let visitInfo: any;
 
-              const fieldActivityCustomAttrib: Partial<FieldActivities> = {
-                ActivityType: "",
-              };
+            if (visitExists !== null && visitExists !== undefined) {
+              // send PUT to AQI and add visit data to activity
+              fieldVisit["id"] = visitExists;
+              await this.fieldVisitJson(fieldVisit, "put");
+              fieldActivity["fieldVisit"] = visitExists;
+              fieldActivity["LocationID"] = rowData.LocationID;
+              GuidsToSave["visits"].push(visitExists);
+            } else {
+              // send POST to AQI and add visit data to activity
+              visitInfo = await this.fieldVisitJson(fieldVisit, "post");
 
-              /*
-               * From the input file get all the atrributes and values for each sub section - Visits, Activities, Specimens and Observations
-               */
-              const fieldVisit = this.filterFile<FieldVisits>(
-                rowData,
-                Object.keys(visits),
-                fieldVisitCustomAttributes,
-              );
-
-              const fieldActivity = this.filterFile<FieldActivities>(
-                rowData,
-                Object.keys(activities),
-                fieldActivityCustomAttrib,
-              );
-
-              const specimen = this.filterFile<FieldSpecimens>(
-                rowData,
-                Object.keys(specimens),
-                null,
-              );
-
-              if (rowData.DataClassification == "FIELD_RESULT"){
-                fieldActivity.ActivityName == ""
-              }
-
-              if (rowData.DataClassification == "VERTICAL_PROFILE" || rowData.DataClassification == "FIELD_RESULT"){
-                specimen.SpecimenName = ""
-              }
-
-              /*
-               * for each of the components (visits, activities, specimens):
-               * make a DB call to see if that record already exists
-               * If exists - do a PUT with the respective object to the respective API
-               * Otherwise - do a POST with the respective object to the respective API; save the record into the db table (for future use) and save the GUID to the db table
-               */
-
-              let visitExists = await this.aqiService.AQILookup(
-                "aqi_field_visits",
-                [rowData.LocationID, rowData.FieldVisitStartTime],
-              );
-              let visitInfo: any;
-
-              if (visitExists !== null && visitExists !== undefined) {
-                // send PUT to AQI and add visit data to activity
-                fieldVisit["id"] = visitExists;
-                await this.fieldVisitJson(fieldVisit, "put");
-                fieldActivity["fieldVisit"] = visitExists;
+              // insert the visit record in the db table
+              try {
+                await this.prisma.$transaction(async (prisma) => {
+                  await prisma.aqi_field_visits.create({
+                    data: {
+                      aqi_field_visits_id: visitInfo.fieldVisit,
+                      aqi_field_visit_start_time: visitInfo.startTime,
+                      aqi_location_custom_id:
+                        visitInfo.samplingLocation.custom_id,
+                    },
+                  });
+                });
+                this.logger.log("Visit record inserted in db successfully.");
+                fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
                 fieldActivity["LocationID"] = rowData.LocationID;
-              } else {
-                // send POST to AQI and add visit data to activity
-                visitInfo = await this.fieldVisitJson(fieldVisit, "post");
+                GuidsToSave["visits"].push(visitInfo.fieldVisit);
+              } catch (err) {
+                this.logger.error(
+                  `Error inserting visit record in db: ${err.message}`,
+                );
+              }
+            }
 
-                // insert the visit record in the db table
+            if (rowData.DataClassification !== "FIELD_RESULT") {
+              let activityExists = await this.aqiService.AQILookup(
+                "aqi_field_activities",
+                [
+                  rowData.ActivityName,
+                  rowData.ObservedDateTime,
+                  rowData.LocationID,
+                ],
+              );
+              let activityInfo: any;
+
+              if (activityExists !== null && activityExists !== undefined) {
+                // send PUT to AQI
+                fieldActivity["id"] = activityExists;
+                await this.fieldActivityJson(fieldActivity, "put");
+                specimen["activity"] = {
+                  id: activityExists,
+                  customId: rowData.ActivityName,
+                  startTime: rowData.ObservedDateTime,
+                };
+                GuidsToSave["activities"].push(activityExists);
+              } else {
+                // send POST to AQI
+                activityInfo = await this.fieldActivityJson(
+                  fieldActivity,
+                  "post",
+                );
+
+                // insert the activity record in the db table
                 try {
                   await this.prisma.$transaction(async (prisma) => {
-                    await prisma.aqi_field_visits.create({
+                    await prisma.aqi_field_activities.create({
                       data: {
-                        aqi_field_visits_id: visitInfo.fieldVisit,
-                        aqi_field_visit_start_time: visitInfo.startTime,
-                        aqi_location_custom_id:
-                          visitInfo.samplingLocation.custom_id,
+                        aqi_field_activities_id: activityInfo.activity.id,
+                        aqi_field_activities_start_time:
+                          activityInfo.activity.startTime,
+                        aqi_field_activities_custom_id:
+                          activityInfo.activity.customId,
+                        aqi_location_custom_id: rowData.LocationID,
+                        aqi_field_visit_start_time:
+                          activityInfo.activity.startTime,
+                        create_user_id: "VMANAWAT", //TODO: need to update this to the user who submitted the file
+                        create_utc_timestamp: new Date(),
+                        update_user_id: "VMANAWAT", // TODO: need to update this to the user who submitted the file
+                        update_utc_timestamp: new Date(),
                       },
                     });
                   });
-                  this.logger.log("Visit record inserted in db successfully.");
-                  fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
-                  fieldActivity["LocationID"] = rowData.LocationID;
+
+                  this.logger.log(
+                    "Activity record inserted in db successfully.",
+                  );
+                  specimen["activity"] = activityInfo.activity;
+                  GuidsToSave["activities"].push(activityInfo.activity.id);
                 } catch (err) {
                   this.logger.error(
-                    `Error inserting visit record in db: ${err.message}`,
+                    `Error inserting activity record in db: ${err.message}`,
                   );
-                }
-
-                // keep track of the GUID in the imported_guids table for deletion purposes
-              }
-
-              if (rowData.DataClassification !== "FIELD_RESULT") {
-                let activityExists = await this.aqiService.AQILookup(
-                  "aqi_field_activities",
-                  [
-                    rowData.ActivityName,
-                    rowData.FieldVisitStartTime,
-                    rowData.LocationID,
-                  ],
-                );
-                let activityInfo: any;
-
-                if (activityExists !== null && activityExists !== undefined) {
-                  // send PUT to AQI
-                  fieldActivity["id"] = activityExists;
-                  await this.fieldActivityJson(fieldActivity, "put");
-                  specimen["activity"] = {
-                    id: activityExists,
-                    customId: rowData.ActivityName,
-                    startTime: rowData.FieldVisitStartTime,
-                  };
-                } else {
-                  // send POST to AQI
-                  activityInfo = await this.fieldActivityJson(
-                    fieldActivity,
-                    "post",
-                  );
-
-                  // insert the activity record in the db table
-                  try {
-                    await this.prisma.$transaction(async (prisma) => {
-                      await prisma.aqi_field_activities.create({
-                        data: {
-                          aqi_field_activities_id: activityInfo.activity.id,
-                          aqi_field_activities_start_time:
-                            activityInfo.activity.startTime,
-                          aqi_field_activities_custom_id:
-                            activityInfo.activity.customId,
-                          aqi_location_custom_id: rowData.LocationID,
-                          aqi_field_visit_start_time:
-                            activityInfo.activity.startTime,
-                          create_user_id: "VMANAWAT", //TODO: need to update this to the user who submitted the file
-                          create_utc_timestamp: new Date(),
-                          update_user_id: "VMANAWAT", // TODO: need to update this to the user who submitted the file
-                          update_utc_timestamp: new Date(),
-                        },
-                      });
-                    });
-
-                    this.logger.log(
-                      "Activity record inserted in db successfully.",
-                    );
-                    specimen["activity"] = activityInfo.activity;
-                  } catch (err) {
-                    this.logger.error(
-                      `Error inserting activity record in db: ${err.message}`,
-                    );
-                  }
-
-                  // keep track of the GUID in the imported_guids table for deletion purposes
-                }
-              }
-
-              if (rowData.DataClassification !== "VERTICAL_PROFILE" && rowData.DataClassification !== "FIELD_RESULT") {
-                let specimenExists = await this.aqiService.AQILookup(
-                  "aqi_specimens",
-                  [
-                    rowData.SpecimenName,
-                    rowData.ObservedDateTime,
-                    rowData.ActivityName,
-                    rowData.LocationID,
-                  ],
-                );
-                let specimenInfo: any;
-
-                if (specimenExists !== null && specimenExists !== undefined) {
-                  // send PUT to AQI
-                  specimen["id"] = specimenExists;
-                  await this.specimensJson(specimen, "put");
-                } else {
-                  // send POST to AQI
-                  specimenInfo = await this.specimensJson(specimen, "post");
-
-                  // insert the specimen record in the db table
-                  try{
-                    await this.prisma.$transaction(async (prisma) => {
-                      await this.prisma.aqi_specimens.create({
-                        data: {
-                          aqi_specimens_id: specimenInfo.specimen.id,
-                          aqi_specimens_custom_id: specimenInfo.specimen.customId,
-                          aqi_field_activities_start_time:
-                            specimenInfo.specimen.startTime,
-                          aqi_field_activities_custom_id: rowData.ActivityName,
-                          aqi_location_custom_id: rowData.LocationID,
-                        }
-                      })
-                    })
-                    this.logger.log("Specimen record inserted in db successfully.");
-                  }catch (err) {
-                    this.logger.error(
-                      `Error inserting specimen record in db: ${err.message}`,
-                    );
-                  }
                 }
               }
             }
-          });
-          
+
+            if (
+              rowData.DataClassification !== "VERTICAL_PROFILE" &&
+              rowData.DataClassification !== "FIELD_RESULT"
+            ) {
+              let specimenExists = await this.aqiService.AQILookup(
+                "aqi_specimens",
+                [
+                  rowData.SpecimenName,
+                  rowData.ObservedDateTime,
+                  rowData.ActivityName,
+                  rowData.LocationID,
+                ],
+              );
+              let specimenInfo: any;
+
+              if (specimenExists !== null && specimenExists !== undefined) {
+                // send PUT to AQI
+                specimen["id"] = specimenExists;
+                await this.specimensJson(specimen, "put");
+                GuidsToSave["specimens"].push(specimenExists);
+              } else {
+                // send POST to AQI
+                specimenInfo = await this.specimensJson(specimen, "post");
+
+                // insert the specimen record in the db table
+                try {
+                  await this.prisma.$transaction(async (prisma) => {
+                    await this.prisma.aqi_specimens.create({
+                      data: {
+                        aqi_specimens_id: specimenInfo.specimen.id,
+                        aqi_specimens_custom_id: specimenInfo.specimen.customId,
+                        aqi_field_activities_start_time:
+                          specimenInfo.specimen.startTime,
+                        aqi_field_activities_custom_id: rowData.ActivityName,
+                        aqi_location_custom_id: rowData.LocationID,
+                      },
+                    });
+                  });
+                  this.logger.log(
+                    "Specimen record inserted in db successfully.",
+                  );
+                  GuidsToSave["specimens"].push(specimenInfo.specimen.id);
+                } catch (err) {
+                  this.logger.error(
+                    `Error inserting specimen record in db: ${err.message}`,
+                  );
+                }
+              }
+            }
+
+            /*
+               Use the object of the imported GUIDs to update the db table (aqi_imported_data) - this table is then used for the deletion of data
+            */
+            const guidsToUpdate = await this.prisma.aqi_imported_data.findMany({
+              where: {
+                file_name: fileName,
+              },
+              select: {
+                aqi_imported_data_id: true,
+                imported_guids: true,
+              },
+            });
+
+            const updatedJson = {
+              visits: Array.from(
+                new Set([
+                  ...(guidsToUpdate[0].imported_guids["visits"] || []),
+                  ...(GuidsToSave["visits"] || []),
+                ]),
+              ),
+              activities: Array.from(
+                new Set([
+                  ...(guidsToUpdate[0].imported_guids["activities"] || []),
+                  ...(GuidsToSave["activities"] || []),
+                ]),
+              ),
+              specimens: Array.from(
+                new Set([
+                  ...(guidsToUpdate[0].imported_guids["specimens"] || []),
+                  ...(GuidsToSave["specimens"] || []),
+                ]),
+              ),
+              observations:
+                guidsToUpdate[0].aqi_imported_data_id["observations"] || [],
+            };
+
+            await this.prisma.$transaction(async (prisma) => {
+              await this.prisma.aqi_imported_data.update({
+                where: {
+                  aqi_imported_data_id: guidsToUpdate[0].aqi_imported_data_id,
+                },
+                data: {
+                  imported_guids: updatedJson,
+                },
+              });
+            });
+          }
+
           // Import Observations file after all the visits, activities and specimens have been inserted
 
           await this.aqiService.importObservations(
@@ -1634,15 +1662,51 @@ export class FileParseValidateService {
             "SUBMITTED",
           );
 
-          // // Save the created GUIDs to aqi_inserted_elements
-          // await this.saveAQIInsertedElements(
-          //   file_submission_id,
-          //   fileName,
-          //   originalFileName,
-          //   visitInfo,
-          //   activityInfo,
-          //   specimenInfo,
-          // );
+          // Save the created observation GUIDs to aqi_imported
+          const observationGUIDS =
+            await this.aqiService.getObservationsFromFile(originalFileName);
+
+          const guidsToUpdate = await this.prisma.aqi_imported_data.findMany({
+            where: {
+              file_name: fileName,
+            },
+            select: {
+              aqi_imported_data_id: true,
+              imported_guids: true,
+            },
+          });
+
+          const importedGuids = guidsToUpdate[0].imported_guids as {
+            [key: string]: any;
+          };
+          const finalImportedJSON = {
+            ...importedGuids,
+            observations: observationGUIDS,
+          };
+
+          await this.prisma.$transaction(async (prisma) => {
+            await this.prisma.aqi_imported_data.update({
+              where: {
+                aqi_imported_data_id: guidsToUpdate[0].aqi_imported_data_id,
+              },
+              data: {
+                imported_guids: finalImportedJSON,
+              },
+            });
+          });
+
+          await this.prisma.$transaction(async (prisma) => {
+            const updateStatus = await this.prisma.file_submission.update({
+              where: {
+                submission_id: file_submission_id,
+              },
+              data: {
+                sample_count:
+                  guidsToUpdate[0].imported_guids["activities"].length,
+                results_count: observationGUIDS.length,
+              },
+            });
+          });
 
           const file_error_log_data = {
             file_submission_id: file_submission_id,

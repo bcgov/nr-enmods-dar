@@ -394,9 +394,7 @@ export class AqiApiService {
         });
 
         if (axiosError.response?.status === 409) {
-          this.logger.warn(
-            "409 Conflict: Errors found in observation file",
-          );
+          this.logger.warn("409 Conflict: Errors found in observation file");
           return axiosError.response.data;
         }
       }
@@ -525,7 +523,6 @@ export class AqiApiService {
   }
 
   mergeErrorMessages(localErrors: any[], remoteErrors: any[]) {
-
     const map = new Map<string, any>();
 
     const mergeItem = (item: any) => {
@@ -589,16 +586,10 @@ export class AqiApiService {
 
   async ObservationDelete(obsData: any[]) {
     if (obsData.length > 0) {
-      const batchSize = 50;
-      const observationBatches = [];
-      for (let i = 0; i < obsData.length; i += batchSize) {
-        observationBatches.push(obsData.slice(i, i + batchSize));
-      }
-
-      observationBatches.forEach(async (batch) => {
+      for (let i = 0; i < obsData.length; i++) {
         try {
           let deletion = await axios.delete(
-            `${process.env.AQI_BASE_URL}/v2/observations?ids=${batch}`,
+            `${process.env.AQI_BASE_URL}/v2/observations/${obsData[i]}`,
             {
               headers: {
                 Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
@@ -610,7 +601,7 @@ export class AqiApiService {
         } catch (err) {
           this.logger.error(`API call to delete AQI observation failed: `, err);
         }
-      });
+      }
     }
 
     return new Promise((resolve) => setTimeout(resolve, 1000));
