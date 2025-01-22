@@ -645,8 +645,6 @@ export class FileParseValidateService {
       }
     });
 
-    console.log(filteredObj);
-
     if (customAttributes) {
       if (customAttributes.hasOwnProperty("ActivityType")) {
         if (row["DataClassification"] == "VERTICAL_PROFILE") {
