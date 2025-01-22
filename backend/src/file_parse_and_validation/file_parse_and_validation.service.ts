@@ -11,9 +11,11 @@ import {
 import { AqiApiService } from "src/aqi_api/aqi_api.service";
 import ExcelJS from "exceljs";
 import fs from "fs";
-import csv from "csv-parser";
 import { PrismaService } from "nestjs-prisma";
-import { Readable } from "stream";
+import { PassThrough, Readable } from "stream";
+import csv from "csv-parser";
+import fastcsv from "fast-csv";
+import csvParser from "csv-parser";
 
 const visits: FieldVisits = {
   MinistryContact: "",
@@ -643,6 +645,8 @@ export class FileParseValidateService {
       }
     });
 
+    console.log(filteredObj);
+
     if (customAttributes) {
       if (customAttributes.hasOwnProperty("ActivityType")) {
         if (row["DataClassification"] == "VERTICAL_PROFILE") {
@@ -1183,7 +1187,6 @@ export class FileParseValidateService {
 
     return;
   }
-
 
   async parseFile(
     file: Readable,
@@ -1735,6 +1738,82 @@ export class FileParseValidateService {
           return;
         }
       }
+    } else if (extention == ".csv") {
+      const headers: string[] = [];
+      let rowNumber = 1;
+
+      // Create a pass-through stream to reuse the same input stream
+      const headerPassThrough = new PassThrough();
+      const rowValidationPassThrough = new PassThrough();
+      const rowImportPassThrough = new PassThrough();
+
+      file.pipe(headerPassThrough);
+      file.pipe(rowValidationPassThrough);
+      file.pipe(rowImportPassThrough);
+
+      headerPassThrough.pipe(csv()).on("headers", (csvHeaders) => {
+        headers.push(...csvHeaders.map((key) => key.replace(/\s+/g, "")));
+      });
+
+      await new Promise((f) => setTimeout(f, 1000));
+
+      // set up the observation csv file for the AQI APIs
+      const baseFileName = path.basename(fileName, path.extname(fileName));
+      const filePath = path.join(
+        "./src/tempObsFiles/",
+        `obs-${baseFileName}.csv`,
+      );
+      const writeStream = fs.createWriteStream(`${filePath}`);
+      const allNonObsErrors: any[] = [];
+      const allExistingRecords: any[] = [];
+
+      writeStream.write(Object.keys(obsFile).join(",") + "\n");
+
+      // await this.fileSubmissionsService.updateFileStatus(
+      //   file_submission_id,
+      //   "INPROGRESS",
+      // );
+
+      // const imported_guids_data = {
+      //   file_name: fileName,
+      //   original_file_name: originalFileName,
+      //   imported_guids: {
+      //     visits: [],
+      //     activities: [],
+      //     specimens: [],
+      //     observations: [],
+      //   },
+      //   create_utc_timestamp: new Date(),
+      // };
+
+      // await this.prisma.$transaction(async (prisma) => {
+      //   await prisma.aqi_imported_data.create({
+      //     data: imported_guids_data,
+      //   });
+      // });
+
+      const ministryContacts = new Set();
+      let isFirstRow = true;
+      console.log(headers);
+
+      rowValidationPassThrough
+        .pipe(csvParser({ headers: true }))
+        .on("data", row => {
+          try {
+            rowNumber++;
+            console.log(rowNumber);
+          } catch (err) {
+            console.error(`Error on row ${rowNumber}:`, err.message);
+          }
+        })
+        .on("end", () => {
+          console.log(`Processing completed.`);
+        })
+        .on("error", (error) => {
+          console.error(`Error Processing:`, error);
+        });
+
+      await new Promise((f) => setTimeout(f, 2000));
     }
   }
 }
