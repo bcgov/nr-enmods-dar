@@ -353,6 +353,11 @@ export class CronJobService {
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   private async fetchAQSSData() {
+    if (this.isProcessing){
+      this.logger.log("Skipping cron procedure of data pull down: File processing underway.");
+      return;
+    }
+
     this.logger.log(`Starting Code Table Cron Job`);
     axios.defaults.method = "GET";
     axios.defaults.headers.common["Authorization"] =
@@ -576,7 +581,7 @@ export class CronJobService {
       for each file returned, change the status to INPROGRESS and go to the parser
     // */
     if (!this.dataPullDownComplete) {
-      this.logger.warn("Data pull down from AQSS did not complete");
+      this.logger.warn("Data pull down from AQI did not complete");
       return;
     }
 
@@ -594,7 +599,7 @@ export class CronJobService {
 
   async processFiles(files) {
     if (this.isProcessing){
-      this.logger.log("Skipping cron execution: Already processing files.");
+      this.logger.log("Skipping cron procedure of file processing: Already processing files.");
       return;
     }
 
