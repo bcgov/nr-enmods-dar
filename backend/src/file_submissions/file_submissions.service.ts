@@ -227,8 +227,14 @@ export class FileSubmissionsService {
 
   async getFromS3(fileName: string) {
     try {
-      const fileBinary = await this.objectStore.getFileData(fileName);
-      return fileBinary;
+      const fileStream = await this.objectStore.getFileData(fileName);
+      const fileBinary: Uint8Array[] = []
+      return new Promise((resolve, reject) => {
+        fileStream.on('data', (chunk: Uint8Array) => fileBinary.push(chunk));
+        fileStream.on('end', () => resolve(Buffer.concat(fileBinary)));
+        fileStream.on('error', (err: Error) => reject(err));
+      });
+
     } catch (err) {
       this.logger.error(`Error fetching file from S3: ${err.message}`);
       throw err;
