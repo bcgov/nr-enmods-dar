@@ -687,38 +687,38 @@ export class AqiApiService {
 
   async VisitDelete(visitData: any[]) {
     if (visitData.length > 0) {
-      try {
-        let deletion = await axios.delete(
-          `${process.env.AQI_BASE_URL}/v1/fieldvisits?ids=${visitData}`,
-          {
-            headers: {
-              Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
-              "x-api-key": process.env.AQI_ACCESS_TOKEN,
-            },
-          },
-        );
-        this.logger.log("AQI VISIT DELETION: " + deletion.data);
-
+      for (const visit of visitData) {
         try {
-          const dbDeletion = await this.prisma.aqi_field_visits.deleteMany({
-            where: {
-              aqi_field_visits_id: {
-                in: visitData,
+          let deletion = await axios.delete(
+            `${process.env.AQI_BASE_URL}/v1/fieldvisits/${visit}`,
+            {
+              headers: {
+                Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
+                "x-api-key": process.env.AQI_ACCESS_TOKEN,
               },
             },
-          });
-          this.logger.log("DB VISIT DELETION: " + dbDeletion);
-        } catch (err) {
-          if (err.code === "P2025") {
-            this.logger.log(
-              `Records with IDs ${visitData} not found in DB. Records were deleted in AQI but skipping deletion from DB.`,
-            );
-          } else {
-            this.logger.error(`API call to delete DB visits failed: `, err);
+          );
+          this.logger.log("AQI VISIT DELETION: " + deletion.data);
+
+          try {
+            const dbDeletion = await this.prisma.aqi_field_visits.delete({
+              where: {
+                aqi_field_visits_id: visit
+              },
+            });
+            this.logger.log("DB VISIT DELETION: " + dbDeletion);
+          } catch (err) {
+            if (err.code === "P2025") {
+              this.logger.log(
+                `Records with IDs ${visitData} not found in DB. Records were deleted in AQI but skipping deletion from DB.`,
+              );
+            } else {
+              this.logger.error(`API call to delete DB visits failed: `, err);
+            }
           }
+        } catch (err) {
+          this.logger.error(`API call to delete AQI visit failed: `, err);
         }
-      } catch (err) {
-        this.logger.error(`API call to delete AQI visit failed: `, err);
       }
     }
     return new Promise((resolve) => setTimeout(resolve, 1000));
