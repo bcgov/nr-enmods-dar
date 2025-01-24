@@ -572,7 +572,7 @@ export class FileParseValidateService {
   async formulateObservationFile(
     observationData: any,
     originalFileName: string,
-    rowNumber: number
+    rowNumber: number,
   ) {
     const obsToWrite: ObservationFile[] = [];
 
@@ -1246,7 +1246,8 @@ export class FileParseValidateService {
       const ministryContacts = new Set();
       let isFirstRow = true;
 
-      worksheet.eachRow(async (row, rowNumber) => {
+      for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
+        const row = worksheet.getRow(rowNumber);
 
         if (rowNumber === 1) {
           return; // Skip header row
@@ -1266,8 +1267,8 @@ export class FileParseValidateService {
               [header]: String(value),
             };
           })
-          .reduce((acc, curr) => ({ ...acc, ...curr }), {})
-        
+          .reduce((acc, curr) => ({ ...acc, ...curr }), {});
+
         await new Promise((f) => setTimeout(f, 1000));
 
         const fieldVisitCustomAttributes: Partial<FieldVisits> = {
@@ -1302,7 +1303,7 @@ export class FileParseValidateService {
         const obsRecord = await this.formulateObservationFile(
           observation,
           originalFileName,
-          rowNumber
+          rowNumber,
         );
 
         if (isFirstRow) {
@@ -1323,7 +1324,7 @@ export class FileParseValidateService {
 
         allNonObsErrors.push(...recordLocalValidationResults[0]);
         allExistingRecords.push(...recordLocalValidationResults[1]);
-      })
+      }
 
       await new Promise((f) => setTimeout(f, 5000));
 
@@ -1775,7 +1776,7 @@ export class FileParseValidateService {
           return;
         }
       }
-    } 
+    }
     // else if (extention == ".csv") {
     //   const headers: string[] = [];
     //   let rowNumber = 0;
