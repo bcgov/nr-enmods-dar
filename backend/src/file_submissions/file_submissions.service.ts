@@ -196,6 +196,7 @@ export class FileSubmissionsService {
         },
         data: {
           submission_status_code: status,
+          update_utc_timestamp: new Date()
         },
       });
     });
@@ -215,6 +216,7 @@ export class FileSubmissionsService {
           },
           data: {
             submission_status_code: "DELETED",
+            update_utc_timestamp: new Date(),
           },
         });
       });
