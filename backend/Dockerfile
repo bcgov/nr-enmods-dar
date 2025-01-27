@@ -27,7 +27,7 @@ RUN npm run build
 
 # Deploy container
 # Distroless has node, but not npm
-FROM gcr.io/distroless/nodejs20-debian11:nonroot
+FROM node:20.12.0-bullseye-slim
 ENV NODE_ENV production
 
 # Copy over app
