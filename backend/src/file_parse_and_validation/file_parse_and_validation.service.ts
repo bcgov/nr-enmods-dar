@@ -609,10 +609,15 @@ export class FileParseValidateService {
         const methodId = lookupResult.method_id;
         const methodContext = lookupResult.method_context;
         const methodName = lookupResult.method_name;
-        
-        const concatAnalysisMethod = String(methodId) + ';' + String(methodName) + ';' + String(methodContext);
+
+        const concatAnalysisMethod =
+          String(methodId) +
+          ";" +
+          String(methodName) +
+          ";" +
+          String(methodContext);
         // Add quotes around the newAnalysisMethod only if it isn't already enclosed in quotes
-        newObs["Lab: Analysis Method"] = concatAnalysisMethod
+        newObs["Lab: Analysis Method"] = concatAnalysisMethod;
       }
     }
 
@@ -1292,12 +1297,13 @@ export class FileParseValidateService {
 
         ministryContacts.add(fieldVisit.MinistryContact); // getting the ministry contacts (this will result in a unique list at the end of all rows)
 
-        if (
-          rowData.DataClassification == "VERTICAL_PROFILE" ||
-          rowData.DataClassification == "FIELD_RESULT"
-        ) {
+        if (rowData.DataClassification == "VERTICAL_PROFILE") {
           rowData.SpecimenName = "";
-          rowData.ActivityName = "";
+        }
+
+        if (rowData.DataClassification == "FIELD_RESULT") { // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this
+          rowData.SpecimenName = "";
+          rowData.ActivityName == "";
         }
 
         const observation = this.filterFile<Observations>(
@@ -1312,12 +1318,11 @@ export class FileParseValidateService {
           rowNumber,
         );
 
-        const csvRow = Object.values(obsRecord)
+        const csvRow = Object.values(obsRecord);
 
-        csvStream.write(csvRow)
+        csvStream.write(csvRow);
 
         this.logger.log(`Created observation object for row ${rowNumber}`);
-
 
         this.logger.log(
           `Wrote observation object to file for row ${rowNumber}`,
@@ -1445,8 +1450,14 @@ export class FileParseValidateService {
             const rowData: Record<string, string> = rowHeaders
               .map((header, colNumber) => {
                 const cellValue = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
+                const value =
+                  typeof cellValue === "object" &&
+                  cellValue != null &&
+                  "result" in cellValue
+                    ? cellValue.result
+                    : cellValue ?? "";
                 return {
-                  [header]: String(cellValue ?? ""),
+                  [header]: String(value),
                 };
               })
               .reduce((acc, curr) => ({ ...acc, ...curr }), {});
@@ -1480,10 +1491,11 @@ export class FileParseValidateService {
               null,
             );
 
-            if (
-              rowData.DataClassification == "VERTICAL_PROFILE" ||
-              rowData.DataClassification == "FIELD_RESULT"
-            ) {
+            if (rowData.DataClassification == "VERTICAL_PROFILE") {
+              specimen.SpecimenName = "";
+            }
+
+            if (rowData.DataClassification == "FIELD_RESULT") { // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this
               specimen.SpecimenName = "";
               fieldActivity.ActivityName == "";
             }
@@ -2055,10 +2067,11 @@ export class FileParseValidateService {
                 null,
               );
 
-              if (
-                rowData.DataClassification == "VERTICAL_PROFILE" ||
-                rowData.DataClassification == "FIELD_RESULT"
-              ) {
+              if (rowData.DataClassification == "VERTICAL_PROFILE") {
+                specimen.SpecimenName = "";
+              }
+
+              if (rowData.DataClassification == "FIELD_RESULT") { // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this
                 specimen.SpecimenName = "";
                 fieldActivity.ActivityName == "";
               }
