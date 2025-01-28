@@ -620,7 +620,7 @@ export class AqiApiService {
               },
             },
           );
-          this.logger.log("AQI SPECIMEN DELETION: " + aqiDeletion.data);
+          this.logger.log("AQI SPECIMEN DELETION: " + aqiDeletion.status);
 
           try {
             const dbDeletion = await this.prisma.aqi_specimens.delete({
@@ -659,7 +659,7 @@ export class AqiApiService {
               },
             },
           );
-          this.logger.log("AQI ACTIVITY DELETION: " + aqiDeletion.data);
+          this.logger.log("AQI ACTIVITY DELETION: " + aqiDeletion.status);
 
           try {
             const dbDeletion = await this.prisma.aqi_field_activities.delete({
@@ -698,7 +698,7 @@ export class AqiApiService {
               },
             },
           );
-          this.logger.log("AQI VISIT DELETION: " + deletion.data);
+          this.logger.log("AQI VISIT DELETION: " + deletion.status);
 
           try {
             const dbDeletion = await this.prisma.aqi_field_visits.delete({
