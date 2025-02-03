@@ -149,7 +149,6 @@ const obsFile: ObservationFile = {
 @Injectable()
 export class FileParseValidateService {
   private readonly logger = new Logger(FileParseValidateService.name);
-  private axiosInstance: AxiosInstance;
 
   constructor(
     private prisma: PrismaService,
@@ -572,10 +571,7 @@ export class FileParseValidateService {
   async formulateObservationFile(
     observationData: any,
     originalFileName: string,
-    rowNumber: number,
   ) {
-    const obsToWrite: ObservationFile[] = [];
-
     const sourceKeys = Object.keys(observationData);
     const targetKeys = Object.keys(obsFile);
 
@@ -684,43 +680,6 @@ export class FileParseValidateService {
     }
 
     return filteredObj;
-  }
-
-  getUniqueWithCounts(data: any[]) {
-    const seen = new Map();
-    const duplicateDetails = [];
-
-    data.forEach((obj, index) => {
-      const item = JSON.stringify(obj);
-
-      if (seen.has(item)) {
-        const existingEntry = seen.get(item);
-        existingEntry.positions.push(index);
-        existingEntry.count++;
-      } else {
-        seen.set(item, { rec: obj, count: 1, positions: [index] });
-      }
-    });
-
-    seen.forEach((value) => {
-      if (value.count >= 1) {
-        duplicateDetails.push(value);
-      }
-    });
-
-    return duplicateDetails;
-  }
-
-  expandList(data: any[]) {
-    const expandedList: any[] = [];
-
-    data.forEach(({ rec, positions }) => {
-      positions.forEach((position) => {
-        expandedList[position] = rec;
-      });
-    });
-
-    return expandedList;
   }
 
   async localValidation(rowNumber: number, rowData: any): Promise<any[]> {
@@ -1199,6 +1158,75 @@ export class FileParseValidateService {
     return;
   }
 
+  async validateRow(
+    rowData: any,
+    ministryContacts: any,
+    csvStream: any,
+    allNonObsErrors: any,
+    allExistingRecords: any,
+    originalFileName: any,
+    rowNumber: any,
+  ) {
+    const fieldVisitCustomAttributes: Partial<FieldVisits> = {
+      PlanningStatus: "DONE",
+    };
+
+    /*
+     * From the input file get all the atrributes and values for each sub section - Visits, Activities, Specimens and Observations
+     */
+    const fieldVisit = this.filterFile<FieldVisits>(
+      rowData,
+      Object.keys(visits),
+      fieldVisitCustomAttributes,
+    );
+
+    ministryContacts.add(fieldVisit.MinistryContact); // getting the ministry contacts (this will result in a unique list at the end of all rows)
+
+    if (rowData.DataClassification == "VERTICAL_PROFILE") {
+      rowData.SpecimenName = "";
+    }
+
+    if (rowData.DataClassification == "FIELD_RESULT") {
+      // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this
+      rowData.SpecimenName = "";
+      rowData.ActivityName == "";
+    }
+
+    const observation = this.filterFile<Observations>(
+      rowData,
+      Object.keys(observations),
+      null,
+    );
+
+    const obsRecord = await this.formulateObservationFile(
+      observation,
+      originalFileName,
+    );
+
+    const csvRow = Object.values(obsRecord);
+
+    this.logger.log(`Created observation object for row ${rowNumber}`);
+
+    csvStream.write(csvRow);
+
+    this.logger.log(`Wrote observation object to file for row ${rowNumber}`);
+
+    /*
+     * Do the local validation for each section here - if passed then go to the API calls - else create the message/file/email for the errors
+     */
+
+    this.logger.log(`Started local validation for row ${rowNumber}`);
+    const recordLocalValidationResults = await this.localValidation(
+      rowNumber,
+      rowData,
+    );
+
+    this.logger.log(`Finished local validation for row ${rowNumber}`);
+
+    allNonObsErrors.push(...recordLocalValidationResults[0]);
+    allExistingRecords.push(...recordLocalValidationResults[1]);
+  }
+
   async parseFile(
     file: Readable,
     fileName: string,
@@ -1301,7 +1329,8 @@ export class FileParseValidateService {
           rowData.SpecimenName = "";
         }
 
-        if (rowData.DataClassification == "FIELD_RESULT") { // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this
+        if (rowData.DataClassification == "FIELD_RESULT") {
+          // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this
           rowData.SpecimenName = "";
           rowData.ActivityName == "";
         }
@@ -1315,14 +1344,13 @@ export class FileParseValidateService {
         const obsRecord = await this.formulateObservationFile(
           observation,
           originalFileName,
-          rowNumber,
         );
 
         const csvRow = Object.values(obsRecord);
 
-        csvStream.write(csvRow);
-
         this.logger.log(`Created observation object for row ${rowNumber}`);
+
+        csvStream.write(csvRow);
 
         this.logger.log(
           `Wrote observation object to file for row ${rowNumber}`,
@@ -1495,7 +1523,8 @@ export class FileParseValidateService {
               specimen.SpecimenName = "";
             }
 
-            if (rowData.DataClassification == "FIELD_RESULT") { // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this
+            if (rowData.DataClassification == "FIELD_RESULT") {
+              // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this
               specimen.SpecimenName = "";
               fieldActivity.ActivityName == "";
             }
@@ -1899,7 +1928,6 @@ export class FileParseValidateService {
           const obsRecord = await this.formulateObservationFile(
             observation,
             originalFileName,
-            rowNumber,
           );
 
           if (isFirstRow) {
@@ -2071,7 +2099,8 @@ export class FileParseValidateService {
                 specimen.SpecimenName = "";
               }
 
-              if (rowData.DataClassification == "FIELD_RESULT") { // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this
+              if (rowData.DataClassification == "FIELD_RESULT") {
+                // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this
                 specimen.SpecimenName = "";
                 fieldActivity.ActivityName == "";
               }
