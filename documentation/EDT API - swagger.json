@@ -1,0 +1,1013 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api": {
+      "get": {
+        "operationId": "AppController_getHello",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/metrics": {
+      "get": {
+        "operationId": "MetricsController_getMetrics",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The Health Check is successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "info": {
+                      "type": "object",
+                      "example": {
+                        "database": {
+                          "status": "up"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "nullable": true
+                    },
+                    "error": {
+                      "type": "object",
+                      "example": {},
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "nullable": true
+                    },
+                    "details": {
+                      "type": "object",
+                      "example": {
+                        "database": {
+                          "status": "up"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The Health Check is not successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "error"
+                    },
+                    "info": {
+                      "type": "object",
+                      "example": {
+                        "database": {
+                          "status": "up"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "nullable": true
+                    },
+                    "error": {
+                      "type": "object",
+                      "example": {
+                        "redis": {
+                          "status": "down",
+                          "message": "Could not connect"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      },
+                      "nullable": true
+                    },
+                    "details": {
+                      "type": "object",
+                      "example": {
+                        "database": {
+                          "status": "up"
+                        },
+                        "redis": {
+                          "status": "down",
+                          "message": "Could not connect"
+                        }
+                      },
+                      "additionalProperties": {
+                        "type": "object",
+                        "required": [
+                          "status"
+                        ],
+                        "properties": {
+                          "status": {
+                            "type": "string"
+                          }
+                        },
+                        "additionalProperties": true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin": {
+      "get": {
+        "operationId": "AdminController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/admin/user-email-search": {
+      "post": {
+        "operationId": "AdminController_userEmailSearch",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/admin/add-roles": {
+      "post": {
+        "operationId": "AdminController_addRoles",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRolesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/admin/remove-roles": {
+      "post": {
+        "operationId": "AdminController_removeRoles",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRolesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/admin/update-roles": {
+      "post": {
+        "operationId": "AdminController_updateRoles",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/file_submissions": {
+      "post": {
+        "operationId": "FileSubmissionsController_create",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "file_submissions"
+        ]
+      },
+      "get": {
+        "operationId": "FileSubmissionsController_findByCode",
+        "parameters": [
+          {
+            "name": "submissionCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "file_submissions"
+        ]
+      }
+    },
+    "/api/v1/file_submissions/search": {
+      "post": {
+        "operationId": "FileSubmissionsController_findByQuery",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "file_submissions"
+        ]
+      }
+    },
+    "/api/v1/file_submissions/{fileName}": {
+      "get": {
+        "operationId": "FileSubmissionsController_getFromS3",
+        "parameters": [
+          {
+            "name": "fileName",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "file_submissions"
+        ]
+      }
+    },
+    "/api/v1/file_submissions/{id}": {
+      "patch": {
+        "operationId": "FileSubmissionsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFileSubmissionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "file_submissions"
+        ]
+      }
+    },
+    "/api/v1/file_submissions/{file_name}/{id}": {
+      "delete": {
+        "operationId": "FileSubmissionsController_remove",
+        "parameters": [
+          {
+            "name": "file_name",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "file_submissions"
+        ]
+      }
+    },
+    "/api/notifications": {
+      "get": {
+        "operationId": "NotificationsController_getNotificationData",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/notifications/send-email/{email}": {
+      "get": {
+        "operationId": "NotificationsController_sendEmail",
+        "parameters": [
+          {
+            "name": "email",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/notifications/update-notification": {
+      "post": {
+        "operationId": "NotificationsController_updateNotification",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/notifications/get-notification-status": {
+      "post": {
+        "operationId": "NotificationsController_getNotificationStatus",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/notifications/subscribe": {
+      "post": {
+        "operationId": "NotificationsController_subscribe",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/notifications/unsubscribe": {
+      "post": {
+        "operationId": "NotificationsController_unsubscribe",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/v1/file_status_codes": {
+      "post": {
+        "operationId": "FileStatusCodesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFileStatusCodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "file_status_codes"
+        ]
+      },
+      "get": {
+        "operationId": "FileStatusCodesController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "file_status_codes"
+        ]
+      }
+    },
+    "/api/v1/file_status_codes/{id}": {
+      "get": {
+        "operationId": "FileStatusCodesController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "file_status_codes"
+        ]
+      },
+      "patch": {
+        "operationId": "FileStatusCodesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFileStatusCodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "file_status_codes"
+        ]
+      },
+      "delete": {
+        "operationId": "FileStatusCodesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "file_status_codes"
+        ]
+      }
+    },
+    "/api/v1/file_error_logs": {
+      "post": {
+        "operationId": "FileErrorLogsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFileErrorLogDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "file_error_logs"
+        ]
+      },
+      "get": {
+        "operationId": "FileErrorLogsController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "file_error_logs"
+        ]
+      }
+    },
+    "/api/v1/file_error_logs/{file_submission_id}": {
+      "get": {
+        "operationId": "FileErrorLogsController_findOne",
+        "parameters": [
+          {
+            "name": "file_submission_id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "file_error_logs"
+        ]
+      }
+    },
+    "/api/v1/file_error_logs/{id}": {
+      "patch": {
+        "operationId": "FileErrorLogsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFileErrorLogDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "file_error_logs"
+        ]
+      },
+      "delete": {
+        "operationId": "FileErrorLogsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "file_error_logs"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "EDT API",
+    "description": "API for EDT",
+    "version": "1.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "EDT",
+      "description": ""
+    }
+  ],
+  "servers": [],
+  "components": {
+    "schemas": {
+      "UserRolesDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "UpdateFileSubmissionDto": {
+        "type": "object",
+        "properties": {
+          "submission_id": {
+            "type": "string",
+            "description": "Submission id for the file"
+          },
+          "filename": {
+            "type": "string",
+            "description": "Name of the file"
+          },
+          "original_filename": {
+            "type": "string",
+            "description": "original filename"
+          },
+          "submission_date": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Submission date"
+          },
+          "submitter_user_id": {
+            "type": "string",
+            "description": "Submitter user id"
+          },
+          "submission_status_code": {
+            "type": "string",
+            "description": "Unique identifies for the submitted file"
+          },
+          "file_operation_code": {
+            "type": "string",
+            "description": "File operation"
+          },
+          "submitter_agency_name": {
+            "type": "string",
+            "description": "Submitter agency name"
+          },
+          "sample_count": {
+            "type": "number",
+            "description": "Sample count"
+          },
+          "result_count": {
+            "type": "number",
+            "description": "Result count"
+          },
+          "active_ind": {
+            "type": "boolean",
+            "description": "True if active, false otherwise",
+            "default": true
+          },
+          "error_log": {
+            "type": "string",
+            "description": "Error Log"
+          },
+          "organization_guid": {
+            "type": "string",
+            "description": "Organization GUID"
+          },
+          "create_user_id": {
+            "type": "string",
+            "description": "The id of the user that created the record"
+          },
+          "create_utc_timestamp": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the user created the record"
+          },
+          "update_user_id": {
+            "type": "string",
+            "description": "The id of the user that last updated the record"
+          },
+          "update_utc_timestamp": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the user last updated the record"
+          }
+        },
+        "required": [
+          "submission_id",
+          "filename",
+          "original_filename",
+          "submission_date",
+          "submitter_user_id",
+          "submission_status_code",
+          "file_operation_code",
+          "submitter_agency_name",
+          "sample_count",
+          "result_count",
+          "active_ind",
+          "error_log",
+          "organization_guid",
+          "create_user_id",
+          "create_utc_timestamp",
+          "update_user_id",
+          "update_utc_timestamp"
+        ]
+      },
+      "CreateFileStatusCodeDto": {
+        "type": "object",
+        "properties": {
+          "submission_status_code": {
+            "type": "string",
+            "description": "File status code"
+          },
+          "description": {
+            "type": "string",
+            "description": "File status code description"
+          },
+          "display_order": {
+            "type": "number",
+            "description": "Display order"
+          },
+          "active_ind": {
+            "type": "boolean",
+            "description": "Active indicator"
+          },
+          "create_user_id": {
+            "type": "string",
+            "description": "Create user id"
+          },
+          "create_utc_timestamp": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Create utc timestamp"
+          },
+          "update_user_id": {
+            "type": "string",
+            "description": "Update user id"
+          },
+          "update_utc_timestamp": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Update utc timestamp"
+          }
+        },
+        "required": [
+          "submission_status_code",
+          "description",
+          "display_order",
+          "active_ind",
+          "create_user_id",
+          "create_utc_timestamp",
+          "update_user_id",
+          "update_utc_timestamp"
+        ]
+      },
+      "UpdateFileStatusCodeDto": {
+        "type": "object",
+        "properties": {
+          "submission_status_code": {
+            "type": "string",
+            "description": "File status code"
+          },
+          "description": {
+            "type": "string",
+            "description": "File status code description"
+          },
+          "display_order": {
+            "type": "number",
+            "description": "Display order"
+          },
+          "active_ind": {
+            "type": "boolean",
+            "description": "Active indicator"
+          },
+          "create_user_id": {
+            "type": "string",
+            "description": "Create user id"
+          },
+          "create_utc_timestamp": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Create utc timestamp"
+          },
+          "update_user_id": {
+            "type": "string",
+            "description": "Update user id"
+          },
+          "update_utc_timestamp": {
+            "format": "date-time",
+            "type": "string",
+            "description": "Update utc timestamp"
+          }
+        },
+        "required": [
+          "submission_status_code",
+          "description",
+          "display_order",
+          "active_ind",
+          "create_user_id",
+          "create_utc_timestamp",
+          "update_user_id",
+          "update_utc_timestamp"
+        ]
+      },
+      "CreateFileErrorLogDto": {
+        "type": "object",
+        "properties": {
+          "file_error_log_id": {
+            "type": "string",
+            "description": "File error log ID"
+          },
+          "file_submission_id": {
+            "type": "string",
+            "description": "File submission ID"
+          },
+          "file_name": {
+            "type": "string",
+            "description": "File name"
+          },
+          "original_file_name": {
+            "type": "string",
+            "description": "original file name"
+          },
+          "error_log": {
+            "type": "string",
+            "description": "Error log data"
+          },
+          "file_operation_code": {
+            "type": "string",
+            "description": "The operation the file was submitted for"
+          },
+          "ministry_contact": {
+            "type": "string",
+            "description": "The ministry contact that needs to be notified"
+          },
+          "create_utc_timestamp": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the user created the record"
+          }
+        },
+        "required": [
+          "file_error_log_id",
+          "file_submission_id",
+          "file_name",
+          "original_file_name",
+          "error_log",
+          "file_operation_code",
+          "ministry_contact",
+          "create_utc_timestamp"
+        ]
+      },
+      "UpdateFileErrorLogDto": {
+        "type": "object",
+        "properties": {
+          "file_error_log_id": {
+            "type": "string",
+            "description": "File error log ID"
+          },
+          "file_submission_id": {
+            "type": "string",
+            "description": "File submission ID"
+          },
+          "file_name": {
+            "type": "string",
+            "description": "File name"
+          },
+          "original_file_name": {
+            "type": "string",
+            "description": "original file name"
+          },
+          "error_log": {
+            "type": "string",
+            "description": "Error log data"
+          },
+          "file_operation_code": {
+            "type": "string",
+            "description": "The operation the file was submitted for"
+          },
+          "ministry_contact": {
+            "type": "string",
+            "description": "The ministry contact that needs to be notified"
+          },
+          "create_utc_timestamp": {
+            "format": "date-time",
+            "type": "string",
+            "description": "When the user created the record"
+          }
+        },
+        "required": [
+          "file_error_log_id",
+          "file_submission_id",
+          "file_name",
+          "original_file_name",
+          "error_log",
+          "file_operation_code",
+          "ministry_contact",
+          "create_utc_timestamp"
+        ]
+      }
+    }
+  }
+}
