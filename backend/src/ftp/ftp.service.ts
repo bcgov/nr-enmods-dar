@@ -18,6 +18,7 @@ export class FtpService {
   private remoteBasePath: string;
 
   constructor(
+    private prisma: PrismaService,
     private fileValidationService: FileValidationService,
     private notificationsService: NotificationsService,
     private fileSubmissionsService: FileSubmissionsService,
@@ -35,7 +36,7 @@ export class FtpService {
         port: parseInt(process.env.FTP_PORT),
         user: process.env.FTP_USER,
         password: process.env.FTP_PASSWORD,
-        secure: true,
+        secure: false,
         secureOptions: { rejectUnauthorized: false },
       });
       // check the base path where user folders should be
@@ -50,7 +51,7 @@ export class FtpService {
   }
 
   async disconnect() {
-    await this.client.close();
+    this.client.close();
     this.logger.log("Disconnected from FTP server");
   }
 
@@ -67,15 +68,12 @@ export class FtpService {
       this.logger.log(`~~~~~`);
       for (const folder of folders) {
         if (folder.isDirectory) {
-          const folderPath: string = path.join(
-            this.remoteBasePath,
-            folder.name,
-          );
+          const folderPath: string = `${this.remoteBasePath}/${folder.name}`;
           const files: ftp.FileInfo[] = await this.client.list(folderPath);
 
           for (const file of files) {
             if (file.isFile) {
-              const filePath: string = path.join(folderPath, file.name);
+              const filePath: string = `${folderPath}/${file.name}`;
               this.logger.log(`Processing file: ${filePath}`);
 
               try {
@@ -104,42 +102,73 @@ export class FtpService {
                   await this.client.downloadTo(writableStream, filePath);
                   // convert chunk array to buffer
                   const fileBuffer = Buffer.concat(dataBuffer);
-                  // pass file buffer to file submission service to be uploaded to comms & have submission entry created
-                  // await this.fileSubmissionsService.parseFileFromFtp(
-                  //   fileBuffer,
-                  //   folder.name,
-                  //   file.name,
-                  //   filePath,
-                  // );
-                  // debug
-                  await this.fileValidationService.processFile(
-                    fileBuffer,
-                    filePath,
-                    folder.name, // username
-                    file.name,
+
+                  console.log("111");
+                  console.log(folder.name);
+
+                  // lookup org in database
+                  const organization = await this.prisma.ftp_users.findUnique({
+                    where: { username: folder.name },
+                  });
+
+                  console.log(organization);
+                  // here
+                  await this.fileSubmissionsService.create(
+                    {
+                      token: "ftp-user-auth-token", // ?
+                      userID: organization.username, // ?
+                      orgGUID: organization.username, // ?
+                      agency: organization.name,
+                      operation: "IMPORT",
+                    },
+                    {
+                      fieldname: file.name,
+                      originalname: file.name,
+                      encoding: "7bit",
+                      mimetype: "application/octet-stream",
+                      buffer: fileBuffer,
+                      size: fileBuffer.length,
+                    } as Express.Multer.File,
                   );
+                  // await this.fileValidationService.processFile(
+                  //   fileBuffer,
+                  //   filePath,
+                  //   folder.name, // username
+                  //   file.name,
+                  // );
                 }
                 // if (errors.length > 0) {
-                //   this.logger.log(`Validation failure for: ${filePath}`);
-                //   errors.forEach((error) => this.logger.log(error));
-                //   this.logger.log(``);
-                //   // send out a notification to the file submitter & ministry contact outlining the errors
-                //   const ministryContact = ""; // should be obtained from file somehow
-                //   await this.notifyUserOfError(
-                //     folder.name,
-                //     file.name,
-                //     errors,
-                //     ministryContact,
-                //   );
+                // this.logger.log(`Validation failure for: ${filePath}`);
+                // errors.forEach((error) => this.logger.log(error));
+                // this.logger.log(``);
+                // // send out a notification to the file submitter & ministry contact outlining the errors
+                // const ministryContact = ""; // should be obtained from file somehow
+                // await this.notificationsService.sendDataSubmitterNotification(
+                //   organizationEmail,
+                //   variables: {
+                //     file_name: file.name,
+                //     user_account_name: organizationName,
+                //     location_ids: [],
+                //     file_status: 'REJECTED',
+                //     errors: errors,
+                //     warnings: null
+                //   },
+                // )
+                //   folder.name,
+                //   file.name,
+                //   errors,
+                //   ministryContact,
+                // );
                 // } else {
                 //   this.logger.log(`Validation success for: ${filePath}`);
                 //   this.logger.log(``);
-                //   // pass to file validation service
-                //   // await this.validationService.handleFile(file); // made up function call
+                // pass to file validation service
+                // await this.validationService.handleFile(file); // made up function call
                 // }
                 // this.logger.log(`Cleaning up file: ${filePath}`);
                 // await this.client.remove(filePath);
               } catch (error) {
+                console.log(error);
                 this.logger.error(
                   "Error during file download or processing",
                   error,
@@ -156,8 +185,7 @@ export class FtpService {
     }
   }
 
-  // @Cron("0 */5 * * * *") // every 5 minutes
-  // @Cron("0,15,30,45 * * * * *") // every 15s
+  @Cron("0 */10 * * * *")
   async handleCron() {
     this.logger.log("START ################");
     this.logger.log("######################");
