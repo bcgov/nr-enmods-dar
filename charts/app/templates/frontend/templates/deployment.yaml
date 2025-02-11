@@ -40,6 +40,23 @@ spec:
               value: "http://{{ .Release.Name }}-backend"
             - name: LOG_LEVEL
               value: "info"
+            - name: NODE_TLS_REJECT_UNAUTHORIZED
+              value: "0"
+            - name: KEYCLOAK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: react-app
+                  key: keycloak-url
+            - name: KEYCLOAK_REALM
+              valueFrom:
+                secretKeyRef:
+                  name: react-app
+                  key: keycloak-realm
+            - name: KEYCLOAK_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: react-app
+                  key: keycloak-client-id
           ports:
             - name: http
               containerPort: 3000
