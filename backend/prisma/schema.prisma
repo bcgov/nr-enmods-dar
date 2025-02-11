@@ -126,13 +126,14 @@ model notifications {
 }
 
 model ftp_users {
-  id                   Int      @id @default(autoincrement())
-  username             String   @unique @db.VarChar(200)
-  email                String   @db.VarChar(200)
-  create_user_id       String   @db.VarChar(200)
-  create_utc_timestamp DateTime @db.Timestamp(6)
-  update_user_id       String   @db.VarChar(200)
-  update_utc_timestamp DateTime @db.Timestamp(6)
+  id                   Int       @id @default(autoincrement())
+  username             String    @unique @db.VarChar(255)
+  name                 String    @db.VarChar(255)
+  email                String    @db.VarChar(255)
+  create_user_id       String?   @db.VarChar(255)
+  create_utc_timestamp DateTime? @default(now()) @db.Timestamp(6)
+  update_user_id       String?   @db.VarChar(255)
+  update_utc_timestamp DateTime? @db.Timestamp(6)
 }
 
 model aqi_observed_properties {
