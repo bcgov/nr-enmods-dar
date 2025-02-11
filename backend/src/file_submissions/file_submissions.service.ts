@@ -45,7 +45,7 @@ export class FileSubmissionsService {
       })
     ).submission_status_code;
     createFileSubmissionDto.file_operation_code = body.operation;
-    createFileSubmissionDto.submitter_agency_name = "SALUSSYSTEMS"; // TODO: change this once BCeID is set up
+    createFileSubmissionDto.submitter_agency_name = body.agency ?? "SALUSSYSTEMS"; // TODO: change this once BCeID is set up
     createFileSubmissionDto.sample_count = 0;
     createFileSubmissionDto.result_count = 0;
     createFileSubmissionDto.organization_guid = body.orgGUID; // TODO: change this once BCeID is set up
