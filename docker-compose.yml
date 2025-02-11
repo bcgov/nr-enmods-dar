@@ -1,12 +1,10 @@
----
-version: "3.9"
-
 x-var:
   - &POSTGRES_USER postgres
   - &POSTGRES_PASSWORD default
   - &POSTGRES_DATABASE postgres
   - &POSTGRES_HOST localhost:5432
   - &POSTGRES_SCHEMA ENMODS
+  - &FTP_USER_PASS ftpadmin|123
 
 x-postgres-vars: &postgres-vars
   POSTGRES_HOST: *POSTGRES_HOST
@@ -24,6 +22,15 @@ services:
     healthcheck:
       test: ["CMD", "pg_isready", "-U", *POSTGRES_USER]
     ports: ["5432:5432"]
+
+  ftp:
+    image: delfer/alpine-ftp-server
+    container_name: ftp
+    environment:
+      USERS: *FTP_USER_PASS
+    ports:
+      - "21:21"
+      - 21000-21010:21000-21010
 
   migrations:
     image: flyway/flyway:9-alpine
