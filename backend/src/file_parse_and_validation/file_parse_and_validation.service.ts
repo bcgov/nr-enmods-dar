@@ -223,37 +223,6 @@ export class FileParseValidateService {
           },
         });
         return { medium: { id: mediumID[0].aqi_mediums_id, customId: param } };
-      // case "DEPTH_UNIT":
-      //   if (
-      //     param[0] == "m" ||
-      //     param[0] == "Metre" ||
-      //     param[0] == "metre" ||
-      //     param[0] == "Meter" ||
-      //     param[0] == "meter"
-      //   ) {
-      //     param[0] = "metre";
-      //   }
-
-      //   if (param[0] == "ft" || param[0] == "Feet" || param[0] == "feet") {
-      //     param[0] = "feet";
-      //   }
-
-      //   let duID = await this.prisma.aqi_units.findMany({
-      //     where: {
-      //       custom_id: {
-      //         equals: param[0],
-      //       },
-      //     },
-      //     select: {
-      //       aqi_units_id: true,
-      //     },
-      //   });
-      //   return {
-      //     depth: {
-      //       value: param[1],
-      //       unit: { id: duID[0].aqi_units_id, customId: param[0] },
-      //     },
-      //   };
       case "LABS":
         let labID = await this.prisma.aqi_laboratories.findMany({
           where: {
@@ -1370,9 +1339,9 @@ export class FileParseValidateService {
                 aqi_field_activities_custom_id: activityInfo.activity.customId,
                 aqi_location_custom_id: rowData.LocationID,
                 aqi_field_visit_start_time: activityInfo.activity.startTime,
-                create_user_id: "VMANAWAT", //TODO: need to update this to the user who submitted the file
+                create_user_id: fileName, //TODO: need to update this to the user who submitted the file
                 create_utc_timestamp: new Date(),
-                update_user_id: "VMANAWAT", // TODO: need to update this to the user who submitted the file
+                update_user_id: fileName, // TODO: need to update this to the user who submitted the file
                 update_utc_timestamp: new Date(),
               },
             });
