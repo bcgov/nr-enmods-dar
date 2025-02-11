@@ -1,4 +1,4 @@
-DROP TABLE ftp_users;
+DROP TABLE if exists ftp_users;
 CREATE TABLE ftp_users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(255) NOT NULL UNIQUE,
