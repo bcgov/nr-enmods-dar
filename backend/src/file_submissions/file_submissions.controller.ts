@@ -32,7 +32,6 @@ import { FileInfo } from "src/types/types";
 @Controller({ path: "file_submissions", version: "1" })
 @UseGuards(JwtAuthGuard)
 @UseGuards(JwtRoleGuard)
-@Roles(Role.ENMODS_ADMIN)
 export class FileSubmissionsController {
   constructor(
     private readonly fileSubmissionsService: FileSubmissionsService,
@@ -40,6 +39,7 @@ export class FileSubmissionsController {
   ) {}
 
   @Post()
+  @Roles(Role.ENMODS_ADMIN, Role.ENMODS_USER)
   @UseInterceptors(FileInterceptor("file"))
   async create(
     @UploadedFile(
@@ -54,11 +54,13 @@ export class FileSubmissionsController {
   }
 
   @Get()
+  @Roles(Role.ENMODS_ADMIN, Role.ENMODS_USER)
   findByCode(@Param("submissionCode") submissionCode: string) {
     return this.fileSubmissionsService.findByCode(submissionCode);
   }
 
   @Post("search")
+  @Roles(Role.ENMODS_ADMIN, Role.ENMODS_USER)
   @UseInterceptors(FileInterceptor("file"))
   async findByQuery(
     @Body() body: any,
@@ -67,11 +69,13 @@ export class FileSubmissionsController {
   }
 
   @Get(":fileName")
+  @Roles(Role.ENMODS_ADMIN, Role.ENMODS_USER)
   getFromS3(@Param("fileName") fileName: string) {
     return this.fileSubmissionsService.getFromS3(fileName);
   }
 
   @Patch(":id")
+  @Roles(Role.ENMODS_ADMIN, Role.ENMODS_USER)
   update(
     @Param("id") id: string,
     @Body() updateFileSubmissionDto: UpdateFileSubmissionDto,
@@ -80,6 +84,7 @@ export class FileSubmissionsController {
   }
 
   @Delete(":file_name/:id")
+  @Roles(Role.ENMODS_ADMIN)
   remove(@Param("file_name") file_name: string, @Param("id") id: string) {
     return this.fileSubmissionsService.remove(file_name, id);
   }

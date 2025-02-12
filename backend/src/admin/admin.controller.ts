@@ -10,47 +10,51 @@ import { IdirUserInfo } from "src/types/types";
 @Controller("admin")
 @UseGuards(JwtAuthGuard)
 @UseGuards(JwtRoleGuard)
-@Roles(Role.ENMODS_ADMIN)
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   @Get()
+  @Roles(Role.ENMODS_USER)
   findAll(): Promise<any[]> {
     return this.adminService.findAll();
   }
 
   @Post("user-email-search")
+  @Roles(Role.ENMODS_ADMIN)
   userEmailSearch(@Body() body: { email: string }): Promise<IdirUserInfo> {
     return this.adminService.userEmailSearch(body.email);
   }
 
   @Post("add-roles")
+  @Roles(Role.ENMODS_ADMIN)
   addRoles(
-    @Body() userRolesDto: UserRolesDto
+    @Body() userRolesDto: UserRolesDto,
   ): Promise<{ userObject: IdirUserInfo; error: string }> {
     return this.adminService.addRoles(userRolesDto);
   }
 
   @Post("remove-roles")
+  @Roles(Role.ENMODS_ADMIN)
   removeRoles(
-    @Body() userRolesDto: UserRolesDto
+    @Body() userRolesDto: UserRolesDto,
   ): Promise<{ error: string | null }> {
     return this.adminService.removeRoles(userRolesDto);
   }
 
   @Post("update-roles")
+  @Roles(Role.ENMODS_ADMIN)
   updateRoles(
     @Body()
     data: {
       idirUsername: string;
       existingRoles: string[];
       roles: string[];
-    }
+    },
   ): Promise<{ error: string | null }> {
     return this.adminService.updateRoles(
       data.idirUsername,
       data.existingRoles,
-      data.roles
+      data.roles,
     );
   }
 }

@@ -21,7 +21,7 @@ import { Role } from "src/enum/role.enum";
 @Controller({ path: "file_error_logs", version: "1" })
 @UseGuards(JwtAuthGuard)
 @UseGuards(JwtRoleGuard)
-@Roles(Role.ENMODS_ADMIN)
+@Roles(Role.ENMODS_ADMIN, Role.ENMODS_USER)
 export class FileErrorLogsController {
   constructor(private readonly fileErrorLogsService: FileErrorLogsService) {}
 

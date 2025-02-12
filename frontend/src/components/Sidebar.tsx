@@ -6,7 +6,7 @@ import Roles from "../roles";
 
 const topics = [
   { name: "Submit", link: "/submit", adminOnly: false },
-  { name: "Dashboard", link: "/dashboard", adminOnly: true },
+  { name: "Dashboard", link: "/dashboard", adminOnly: false },
   { name: "Web User - FTP User Links", link: "/", adminOnly: true },
   { name: "Admin", link: "/admin", adminOnly: true },
 ];

@@ -25,6 +25,8 @@ import {
   downloadFileLogs,
   searchFiles,
 } from "@/common/manage-files";
+import { getUsers } from "@/common/admin";
+import { jwtDecode, JwtPayload } from "jwt-decode";
 
 export default function Dashboard() {
   const { open, currentItem, handleOpen, handleClose } = useHandleOpen();
@@ -107,7 +109,11 @@ export default function Dashboard() {
           submission_status_code: string;
         };
       }) => {
-        if (params.row.submission_status_code === "SUBMITTED") {
+        const token = localStorage.getItem("__auth_token");
+        const decoded = jwtDecode<JwtPayload>(token);
+        let userRoles = decoded.client_roles
+
+        if (params.row.submission_status_code === "SUBMITTED" && userRoles.includes('Enmods Admin')) {
           return (
             <IconButton
               color="primary"
@@ -115,7 +121,7 @@ export default function Dashboard() {
                 handleOpen(
                   params.row.original_file_name,
                   params.row.submission_id,
-                  params.row.file_name
+                  params.row.file_name,
                 )
               }
             >
@@ -131,7 +137,7 @@ export default function Dashboard() {
                 handleOpen(
                   params.row.original_file_name,
                   params.row.submission_id,
-                  params.row.file_name
+                  params.row.file_name,
                 )
               }
             >
@@ -200,7 +206,10 @@ export default function Dashboard() {
     fileStatus: "",
   });
 
-  const handleFormInputChange = (key:string, event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleFormInputChange = (
+    key: string,
+    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
     setFormData({
       ...formData,
       [key]: event.target.value,
@@ -217,7 +226,10 @@ export default function Dashboard() {
     pageSize: 10,
   });
 
-  const handlePaginationChange = (params: {pageSize: number, page: number}) => {
+  const handlePaginationChange = (params: {
+    pageSize: number;
+    page: number;
+  }) => {
     setTimeout(() => {
       if (params.pageSize != paginationModel.pageSize) {
         setPaginationModel({ page: 0, pageSize: params.pageSize });
@@ -255,6 +267,10 @@ export default function Dashboard() {
     items: [],
   });
 
+  const [users, setUsers] = useState({
+    items: [],
+  });
+
   const [selectedStatusCode, setSelectedStatusCode] = useState("ALL");
   const [selectedSubmitterUserName, setSelectedSubmitterUserName] =
     useState("ALL");
@@ -267,6 +283,7 @@ export default function Dashboard() {
   };
 
   const handleUsernameChange = (event) => {
+    console.log(event.target.value);
     setSelectedSubmitterUserName(event.target.value);
     handleFormInputChange("submitterUsername", event);
   };
@@ -295,6 +312,22 @@ export default function Dashboard() {
     }
 
     fetchFileStatusCodes();
+  }, []);
+
+  useEffect(() => {
+    async function fetchUsers() {
+      await getUsers().then((response: any) => {
+        const newUsers: any = users.items;
+        Object.keys(response).map((key) => {
+          newUsers[key] = response[key];
+        });
+        setUsers({
+          items: newUsers,
+        });
+      });
+    }
+
+    fetchUsers();
   }, []);
 
   useEffect(() => {
@@ -425,9 +458,16 @@ export default function Dashboard() {
                       <MenuItem key="ALL" value="ALL">
                         ALL
                       </MenuItem>
-                      {/* TODO
-                        On page load query to find all the users and loop through them to render in dropdown                      
-                      */}
+                      {users
+                        ? users.items.map((option: any) => (
+                            <MenuItem
+                              key={option.username}
+                              value={option.username}
+                            >
+                              {option.name}
+                            </MenuItem>
+                          ))
+                        : ""}
                     </Select>
                   </FormControl>
                 </Grid>
@@ -555,7 +595,11 @@ function useHandleOpen() {
   const [open, setOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState({});
 
-  const handleOpen = (original_file_name: string, submission_id: string, file_name: string) => {
+  const handleOpen = (
+    original_file_name: string,
+    submission_id: string,
+    file_name: string,
+  ) => {
     setCurrentItem({ original_file_name, submission_id, file_name });
     setOpen(true);
   };
