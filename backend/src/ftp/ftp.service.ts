@@ -1,7 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import * as ftp from "basic-ftp";
-import * as path from "path";
 import * as dotenv from "dotenv";
 import { Writable } from "stream";
 import { NotificationsService } from "src/notifications/notifications.service";
@@ -65,7 +64,6 @@ export class FtpService {
         this.remoteBasePath,
       );
 
-      this.logger.log(`~~~~~`);
       for (const folder of folders) {
         if (folder.isDirectory) {
           const folderPath: string = `${this.remoteBasePath}/${folder.name}`;
@@ -73,6 +71,10 @@ export class FtpService {
 
           for (const file of files) {
             if (file.isFile) {
+              // lookup org in database
+              const organization = await this.prisma.ftp_users.findUnique({
+                where: { username: folder.name },
+              });
               const filePath: string = `${folderPath}/${file.name}`;
               this.logger.log(`Processing file: ${filePath}`);
 
@@ -84,10 +86,23 @@ export class FtpService {
                   // don't download the file, just send out a notification of the error
                   const ministryContact = ""; // should be obtained from file somehow
                   await this.notificationsService.notifyFtpUserOfError(
+                    // which notification is better
                     folder.name,
                     file.name,
                     errors,
                     ministryContact,
+                  );
+                  await this.notificationsService.sendDataSubmitterNotification(
+                    // which notification is better
+                    organization.email,
+                    {
+                      file_name: file.name,
+                      user_account_name: organization.name,
+                      location_ids: [],
+                      file_status: "REJECTED",
+                      errors: errors.join("\n"),
+                      warnings: null,
+                    },
                   );
                 } else {
                   const dataBuffer = [];
@@ -102,22 +117,11 @@ export class FtpService {
                   await this.client.downloadTo(writableStream, filePath);
                   // convert chunk array to buffer
                   const fileBuffer = Buffer.concat(dataBuffer);
-
-                  console.log("111");
-                  console.log(folder.name);
-
-                  // lookup org in database
-                  const organization = await this.prisma.ftp_users.findUnique({
-                    where: { username: folder.name },
-                  });
-
-                  console.log(organization);
-                  // here
-                  await this.fileSubmissionsService.create(
+                  // submit the file
+                  await this.fileSubmissionsService.createWithFtp(
                     {
-                      token: "ftp-user-auth-token", // ?
-                      userID: organization.username, // ?
-                      orgGUID: organization.username, // ?
+                      userID: organization.username,
+                      orgGUID: organization.org_guid,
                       agency: organization.name,
                       operation: "IMPORT",
                     },
@@ -130,53 +134,18 @@ export class FtpService {
                       size: fileBuffer.length,
                     } as Express.Multer.File,
                   );
-                  // await this.fileValidationService.processFile(
-                  //   fileBuffer,
-                  //   filePath,
-                  //   folder.name, // username
-                  //   file.name,
-                  // );
                 }
-                // if (errors.length > 0) {
-                // this.logger.log(`Validation failure for: ${filePath}`);
-                // errors.forEach((error) => this.logger.log(error));
-                // this.logger.log(``);
-                // // send out a notification to the file submitter & ministry contact outlining the errors
-                // const ministryContact = ""; // should be obtained from file somehow
-                // await this.notificationsService.sendDataSubmitterNotification(
-                //   organizationEmail,
-                //   variables: {
-                //     file_name: file.name,
-                //     user_account_name: organizationName,
-                //     location_ids: [],
-                //     file_status: 'REJECTED',
-                //     errors: errors,
-                //     warnings: null
-                //   },
-                // )
-                //   folder.name,
-                //   file.name,
-                //   errors,
-                //   ministryContact,
-                // );
-                // } else {
-                //   this.logger.log(`Validation success for: ${filePath}`);
-                //   this.logger.log(``);
-                // pass to file validation service
-                // await this.validationService.handleFile(file); // made up function call
-                // }
-                // this.logger.log(`Cleaning up file: ${filePath}`);
-                // await this.client.remove(filePath);
               } catch (error) {
-                console.log(error);
                 this.logger.error(
                   "Error during file download or processing",
                   error,
                 );
+              } finally {
+                this.logger.log(`Cleaning up file: ${filePath}`);
+                await this.client.remove(filePath);
               }
             }
           }
-          this.logger.log(`~~~~~`);
         }
       }
     } catch (error) {
