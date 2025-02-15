@@ -130,6 +130,7 @@ model ftp_users {
   username             String    @unique @db.VarChar(255)
   name                 String    @db.VarChar(255)
   email                String    @db.VarChar(255)
+  org_guid             String    @db.Uuid
   create_user_id       String?   @db.VarChar(255)
   create_utc_timestamp DateTime? @default(now()) @db.Timestamp(6)
   update_user_id       String?   @db.VarChar(255)
