@@ -5,18 +5,19 @@ import { PrismaService } from "nestjs-prisma";
 import { FileResultsWithCount } from "src/interface/fileResultsWithCount";
 import { Prisma } from "@prisma/client";
 import { FileInfo } from "src/types/types";
-import { randomUUID } from "crypto";
+import * as crypto from "crypto";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
 import { AqiApiService } from "src/aqi_api/aqi_api.service";
+import axios from "axios";
+import { v4 as uuidv4 } from "uuid";
 
 @Injectable()
 export class FileSubmissionsService {
-  private readonly logger = new Logger(FileSubmissionsService.name)
+  private readonly logger = new Logger(FileSubmissionsService.name);
   constructor(
     private prisma: PrismaService,
     private readonly objectStore: ObjectStoreService,
     private readonly aqiService: AqiApiService,
-
   ) {}
 
   async create(body: any, file: Express.Multer.File) {
@@ -45,7 +46,8 @@ export class FileSubmissionsService {
       })
     ).submission_status_code;
     createFileSubmissionDto.file_operation_code = body.operation;
-    createFileSubmissionDto.submitter_agency_name = body.agency ?? "SALUSSYSTEMS"; // TODO: change this once BCeID is set up
+    createFileSubmissionDto.submitter_agency_name =
+      body.agency ?? "SALUSSYSTEMS"; // TODO: change this once BCeID is set up
     createFileSubmissionDto.sample_count = 0;
     createFileSubmissionDto.result_count = 0;
     createFileSubmissionDto.organization_guid = body.orgGUID; // TODO: change this once BCeID is set up
@@ -77,6 +79,75 @@ export class FileSubmissionsService {
       update_user_id: createFileSubmissionDto.update_user_id,
       update_utc_timestamp: createFileSubmissionDto.update_utc_timestamp,
     };
+    console.log(newFilePostData);
+
+    const newFile = await this.prisma.$transaction([
+      this.prisma.file_submission.create({ data: newFilePostData }),
+    ]);
+
+    return newFile[0];
+  }
+
+  async createWithFtp(
+    body: {
+      userID: string;
+      operation: string;
+      agency: string;
+      orgGUID: string;
+    },
+    file: Express.Multer.File,
+  ) {
+    const createFileSubmissionDto = new CreateFileSubmissionDto();
+
+    // Call to function that makes API call to save file in the S3 bucket via COMS
+    let newFileName = await saveToS3WithFtp(file);
+
+    // Creating file DTO and inserting it in the database with the file GUID from the S3 bucket
+    createFileSubmissionDto.submission_id = uuidv4(); // ftp to coms returns no coms submission id, generate random uuid instead
+    createFileSubmissionDto.filename = newFileName;
+    createFileSubmissionDto.original_filename = file.originalname;
+    createFileSubmissionDto.submission_date = new Date();
+    createFileSubmissionDto.submitter_user_id = body.userID;
+    createFileSubmissionDto.submission_status_code = (
+      await this.prisma.submission_status_code.findUnique({
+        where: { submission_status_code: "QUEUED" },
+      })
+    ).submission_status_code;
+    createFileSubmissionDto.file_operation_code = body.operation;
+    createFileSubmissionDto.submitter_agency_name =
+      body.agency ?? "SALUSSYSTEMS"; // TODO: change this once BCeID is set up
+    createFileSubmissionDto.sample_count = 0;
+    createFileSubmissionDto.result_count = 0;
+    createFileSubmissionDto.organization_guid = uuidv4(); // TODO: change this once BCeID is set up
+    createFileSubmissionDto.create_user_id = body.userID;
+    createFileSubmissionDto.create_utc_timestamp = new Date();
+    createFileSubmissionDto.update_user_id = body.userID;
+    createFileSubmissionDto.update_utc_timestamp = new Date();
+
+    const newFilePostData: Prisma.file_submissionCreateInput = {
+      submission_id: createFileSubmissionDto.submission_id,
+      file_name: createFileSubmissionDto.filename,
+      original_file_name: createFileSubmissionDto.original_filename,
+      submission_date: createFileSubmissionDto.submission_date,
+      submitter_user_id: createFileSubmissionDto.submitter_user_id,
+      submission_status: { connect: { submission_status_code: "QUEUED" } },
+      file_operation_codes: {
+        connect: {
+          file_operation_code: createFileSubmissionDto.file_operation_code,
+        },
+      },
+      submitter_agency_name: createFileSubmissionDto.submitter_agency_name,
+      sample_count: createFileSubmissionDto.sample_count,
+      results_count: createFileSubmissionDto.result_count,
+      active_ind: createFileSubmissionDto.active_ind,
+      error_log: createFileSubmissionDto.error_log,
+      organization_guid: createFileSubmissionDto.organization_guid,
+      create_user_id: createFileSubmissionDto.create_user_id,
+      create_utc_timestamp: createFileSubmissionDto.create_utc_timestamp,
+      update_user_id: createFileSubmissionDto.update_user_id,
+      update_utc_timestamp: createFileSubmissionDto.update_utc_timestamp,
+    };
+    console.log(newFilePostData);
 
     const newFile = await this.prisma.$transaction([
       this.prisma.file_submission.create({ data: newFilePostData }),
@@ -197,7 +268,7 @@ export class FileSubmissionsService {
         },
         data: {
           submission_status_code: status,
-          update_utc_timestamp: new Date()
+          update_utc_timestamp: new Date(),
         },
       });
     });
@@ -231,13 +302,12 @@ export class FileSubmissionsService {
   async getFromS3(fileName: string) {
     try {
       const fileStream = await this.objectStore.getFileData(fileName);
-      const fileBinary: Uint8Array[] = []
+      const fileBinary: Uint8Array[] = [];
       return new Promise((resolve, reject) => {
-        fileStream.on('data', (chunk: Uint8Array) => fileBinary.push(chunk));
-        fileStream.on('end', () => resolve(Buffer.concat(fileBinary)));
-        fileStream.on('error', (err: Error) => reject(err));
+        fileStream.on("data", (chunk: Uint8Array) => fileBinary.push(chunk));
+        fileStream.on("end", () => resolve(Buffer.concat(fileBinary)));
+        fileStream.on("error", (err: Error) => reject(err));
       });
-
     } catch (err) {
       this.logger.error(`Error fetching file from S3: ${err.message}`);
       throw err;
@@ -275,8 +345,8 @@ async function grantBucketAccess(token: string) {
     .request(config)
     .then((res) => res)
     .catch((err) => {
-      this.logger.log("create bucket failed");
-      this.logger.log(err);
+      console.log("create bucket failed");
+      console.log(err);
     });
 }
 
@@ -284,7 +354,7 @@ async function saveToS3(token: any, file: Express.Multer.File) {
   const path = require("path");
   let fileGUID = null;
   const originalFileName = file.originalname;
-  const guid = randomUUID();
+  const guid = crypto.randomUUID();
   const extention = path.extname(originalFileName);
   const baseName = path.basename(originalFileName, extention);
   const newFileName = `${baseName}-${guid}${extention}`;
@@ -311,4 +381,55 @@ async function saveToS3(token: any, file: Express.Multer.File) {
   });
 
   return [fileGUID, newFileName];
+}
+
+async function saveToS3WithFtp(file: Express.Multer.File) {
+  const path = require("path");
+  const originalFileName = file.originalname;
+  const guid = crypto.randomUUID();
+  const extension = path.extname(originalFileName);
+  const baseName = path.basename(originalFileName, extension);
+  const newFileName = `${baseName}-${guid}${extension}`;
+
+  const OBJECTSTORE_URL = process.env.OBJECTSTORE_URL;
+  const OBJECTSTORE_ACCESS_KEY = process.env.OBJECTSTORE_ACCESS_KEY;
+  const OBJECTSTORE_SECRET_KEY = process.env.OBJECTSTORE_SECRET_KEY;
+  const OBJECTSTORE_BUCKET = process.env.OBJECTSTORE_BUCKET;
+
+  if (!OBJECTSTORE_URL) {
+    throw new Error("Objectstore Host Not Defined");
+  }
+
+  const dateValue = new Date().toUTCString();
+
+  // const stringToSign = `PUT\n\n\n${dateValue}\n/${OBJECTSTORE_BUCKET}/${newFileName}`;
+  // const contentType = "application/octet-stream";
+  const contentType = file.mimetype;
+  const stringToSign = `PUT\n\n${contentType}\n${dateValue}\n/${OBJECTSTORE_BUCKET}/${newFileName}`;
+
+  const signature = crypto
+    .createHmac("sha1", OBJECTSTORE_SECRET_KEY)
+    .update(stringToSign)
+    .digest("base64");
+
+  const requestUrl = `${OBJECTSTORE_URL}/${OBJECTSTORE_BUCKET}/${newFileName}`;
+
+  const headers = {
+    Authorization: `AWS ${OBJECTSTORE_ACCESS_KEY}:${signature}`,
+    Date: dateValue,
+    "Content-Type": contentType,
+  };
+
+  try {
+    await axios({
+      method: "put",
+      url: requestUrl,
+      headers: headers,
+      data: file.buffer,
+    });
+    return newFileName;
+  } catch (error) {
+    console.error("Error uploading file to object store:", error);
+    throw error;
+  }
 }
