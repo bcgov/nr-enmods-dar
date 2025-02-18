@@ -4,17 +4,16 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
-import { ChangeEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { DeleteRounded, Description } from "@mui/icons-material";
 import _kc from "@/keycloak";
+import Select from "react-select";
 import {
   Box,
   FormControl,
   FormLabel,
   Grid,
   IconButton,
-  MenuItem,
-  Select,
   TextField,
   Typography,
 } from "@mui/material";
@@ -25,6 +24,8 @@ import {
   downloadFileLogs,
   searchFiles,
 } from "@/common/manage-files";
+import { getUsers } from "@/common/admin";
+import { jwtDecode, JwtPayload } from "jwt-decode";
 
 export default function Dashboard() {
   const { open, currentItem, handleOpen, handleClose } = useHandleOpen();
@@ -107,7 +108,14 @@ export default function Dashboard() {
           submission_status_code: string;
         };
       }) => {
-        if (params.row.submission_status_code === "SUBMITTED") {
+        const token: any = localStorage.getItem("__auth_token");
+        const decoded = jwtDecode<JwtPayload>(token);
+        let userRoles = decoded.client_roles;
+
+        if (
+          params.row.submission_status_code === "SUBMITTED" &&
+          userRoles.includes("Enmods Admin")
+        ) {
           return (
             <IconButton
               color="primary"
@@ -115,7 +123,7 @@ export default function Dashboard() {
                 handleOpen(
                   params.row.original_file_name,
                   params.row.submission_id,
-                  params.row.file_name
+                  params.row.file_name,
                 )
               }
             >
@@ -131,7 +139,7 @@ export default function Dashboard() {
                 handleOpen(
                   params.row.original_file_name,
                   params.row.submission_id,
-                  params.row.file_name
+                  params.row.file_name,
                 )
               }
             >
@@ -195,15 +203,33 @@ export default function Dashboard() {
     fileName: "",
     submissionDateTo: "",
     submissionDateFrom: "",
-    submitterUsername: "",
-    submitterAgency: "",
-    fileStatus: "",
+    submitterUsername: [],
+    submitterAgency: [],
+    fileStatus: [],
   });
 
-  const handleFormInputChange = (key:string, event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleFormInputChange = (name: string, value: any) => {
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleMultiSelectChange = (name: string, selectedOptions: any) => {
+    const selectedValues = selectedOptions
+      ? selectedOptions.map((option: any) => option.value)
+      : [];
+    handleFormInputChange(name, selectedValues);
+  };
+
+  const handleClearSearch = () => {
     setFormData({
-      ...formData,
-      [key]: event.target.value,
+      fileName: "",
+      submissionDateTo: "",
+      submissionDateFrom: "",
+      submitterUsername: [],
+      submitterAgency: [],
+      fileStatus: [],
     });
   };
 
@@ -217,7 +243,10 @@ export default function Dashboard() {
     pageSize: 10,
   });
 
-  const handlePaginationChange = (params: {pageSize: number, page: number}) => {
+  const handlePaginationChange = (params: {
+    pageSize: number;
+    page: number;
+  }) => {
     setTimeout(() => {
       if (params.pageSize != paginationModel.pageSize) {
         setPaginationModel({ page: 0, pageSize: params.pageSize });
@@ -251,35 +280,30 @@ export default function Dashboard() {
     });
   };
 
-  const [submissionStatusCodes, setSubmissionStatusCodes] = useState({
+  const agencyOptions: any = []; // TODO: get the EnMoDS agency list from an api call
+
+  const [users, setUsers] = useState({
     items: [],
   });
 
-  const [selectedStatusCode, setSelectedStatusCode] = useState("ALL");
-  const [selectedSubmitterUserName, setSelectedSubmitterUserName] =
-    useState("ALL");
-  const [selectedSubmitterAgencyName, setSelectedSubmitterAgencyName] =
-    useState("ALL");
-
-  const handleStatusChange = (event) => {
-    setSelectedStatusCode(event.target.value);
-    handleFormInputChange("fileStatus", event);
-  };
-
-  const handleUsernameChange = (event) => {
-    setSelectedSubmitterUserName(event.target.value);
-    handleFormInputChange("submitterUsername", event);
-  };
-
-  const handleAgencyChange = (event) => {
-    setSelectedSubmitterAgencyName(event.target.value);
-    handleFormInputChange("submitterAgency", event);
-  };
+  const userOptions = users.items.map((user) => ({
+    value: user.username,
+    label: user.name,
+  }));
 
   const handleCloseAndSubmit = async () => {
     handleClose();
     await handleSearch(undefined);
   };
+
+  const [submissionStatusCodes, setSubmissionStatusCodes] = useState({
+    items: [],
+  });
+
+  const statusOptions = submissionStatusCodes.items.map((status) => ({
+    value: status.submission_status_code,
+    label: status.description,
+  }));
 
   useEffect(() => {
     async function fetchFileStatusCodes() {
@@ -295,6 +319,22 @@ export default function Dashboard() {
     }
 
     fetchFileStatusCodes();
+  }, []);
+
+  useEffect(() => {
+    async function fetchUsers() {
+      await getUsers().then((response: any) => {
+        const newUsers: any = users.items;
+        Object.keys(response).map((key) => {
+          newUsers[key] = response[key];
+        });
+        setUsers({
+          items: newUsers,
+        });
+      });
+    }
+
+    fetchUsers();
   }, []);
 
   useEffect(() => {
@@ -330,11 +370,13 @@ export default function Dashboard() {
                   </FormLabel>
                   <TextField
                     id="file-name-input"
+                    name="fileName"
                     variant="outlined"
                     size="small"
                     sx={{ width: "650px" }}
-                    onChange={(event) =>
-                      handleFormInputChange("fileName", event)
+                    value={formData.fileName}
+                    onChange={(e) =>
+                      handleFormInputChange("fileName", e.target.value)
                     }
                   />
                 </Grid>
@@ -354,11 +396,16 @@ export default function Dashboard() {
                   </FormLabel>
                   <TextField
                     id="submission-date-from-input"
+                    name="submissionDateFrom"
                     variant="outlined"
                     size="small"
                     type="date"
-                    onChange={(event) =>
-                      handleFormInputChange("submissionDateFrom", event)
+                    value={formData.submissionDateFrom}
+                    onChange={(e) =>
+                      handleFormInputChange(
+                        "submissionDateFrom",
+                        e.target.value,
+                      )
                     }
                   />
                 </Grid>
@@ -372,10 +419,12 @@ export default function Dashboard() {
                   </FormLabel>
                   <TextField
                     id="submission-date-to-input"
+                    name="submissionDateTo"
                     size="small"
                     type="date"
-                    onChange={(event) =>
-                      handleFormInputChange("submissionDateTo", event)
+                    value={formData.submissionDateTo}
+                    onChange={(e) =>
+                      handleFormInputChange("submissionDateTo", e.target.value)
                     }
                   />
                 </Grid>
@@ -387,22 +436,27 @@ export default function Dashboard() {
                   >
                     Submitting Agency
                   </FormLabel>
-                  <FormControl id="submitting-agency-input">
+                  <FormControl>
                     <Select
-                      name="dropdown-agency"
-                      variant="outlined"
-                      size="small"
-                      sx={{ width: "645px" }}
-                      onChange={handleAgencyChange}
-                      value={selectedSubmitterAgencyName}
-                    >
-                      <MenuItem key="ALL" value="ALL">
-                        ALL
-                      </MenuItem>
-                      {/* TODO
-                        On page load query to find all the agencies and loop through them to render in dropdown                      
-                      */}
-                    </Select>
+                      isMulti
+                      name="submitterAgency"
+                      options={agencyOptions}
+                      styles={{
+                        container: (provided) => ({
+                          ...provided,
+                          width: "645px",
+                        }),
+                      }}
+                      value={userOptions.filter((option) =>
+                        formData.submitterAgency.includes(option.value),
+                      )}
+                      onChange={(selectedOptions) =>
+                        handleMultiSelectChange(
+                          "submitterAgency",
+                          selectedOptions,
+                        )
+                      }
+                    />
                   </FormControl>
                 </Grid>
 
@@ -415,20 +469,25 @@ export default function Dashboard() {
                   </FormLabel>
                   <FormControl id="submitting-user-input">
                     <Select
-                      name="dropdown-user"
-                      variant="outlined"
-                      size="small"
-                      sx={{ width: "645px" }}
-                      onChange={handleUsernameChange}
-                      value={selectedSubmitterUserName}
-                    >
-                      <MenuItem key="ALL" value="ALL">
-                        ALL
-                      </MenuItem>
-                      {/* TODO
-                        On page load query to find all the users and loop through them to render in dropdown                      
-                      */}
-                    </Select>
+                      isMulti
+                      name="submitterUsername"
+                      options={userOptions}
+                      styles={{
+                        container: (provided) => ({
+                          ...provided,
+                          width: "645px",
+                        }),
+                      }}
+                      value={userOptions.filter((option) =>
+                        formData.submitterUsername.includes(option.value),
+                      )}
+                      onChange={(selectedOptions) =>
+                        handleMultiSelectChange(
+                          "submitterUsername",
+                          selectedOptions,
+                        )
+                      }
+                    />
                   </FormControl>
                 </Grid>
 
@@ -441,37 +500,42 @@ export default function Dashboard() {
                   </FormLabel>
                   <FormControl id="file-status-code-input">
                     <Select
-                      name="dropdown-status"
-                      variant="outlined"
-                      size="small"
-                      sx={{ width: "645px" }}
-                      onChange={handleStatusChange}
-                      value={selectedStatusCode}
-                    >
-                      <MenuItem key="ALL" value="ALL">
-                        ALL
-                      </MenuItem>
-                      {submissionStatusCodes
-                        ? submissionStatusCodes.items.map((option: any) => (
-                            <MenuItem
-                              key={option.submission_status_code}
-                              value={option.submission_status_code}
-                            >
-                              {option.submission_status_code}
-                            </MenuItem>
-                          ))
-                        : ""}
-                    </Select>
+                      isMulti
+                      name="submitterUsername"
+                      options={statusOptions}
+                      styles={{
+                        container: (provided) => ({
+                          ...provided,
+                          width: "645px",
+                        }),
+                      }}
+                      value={statusOptions.filter((option) =>
+                        formData.fileStatus.includes(option.value),
+                      )}
+                      onChange={(selectedOptions) =>
+                        handleMultiSelectChange("fileStatus", selectedOptions)
+                      }
+                    />
                   </FormControl>
                 </Grid>
               </Grid>
             </FormControl>
-            <Box sx={{ paddingLeft: "735px" }}>
+            <Box sx={{ paddingLeft: "550px" }}>
               <Button
                 id="search-button"
                 type="submit"
                 color="primary"
                 variant="contained"
+                onClick={handleClearSearch}
+              >
+                Clear Search
+              </Button>
+              <Button
+                id="search-button"
+                type="submit"
+                color="primary"
+                variant="contained"
+                sx={{ ml: 5 }}
                 onClick={handleSearch}
               >
                 Search
@@ -555,7 +619,11 @@ function useHandleOpen() {
   const [open, setOpen] = useState(false);
   const [currentItem, setCurrentItem] = useState({});
 
-  const handleOpen = (original_file_name: string, submission_id: string, file_name: string) => {
+  const handleOpen = (
+    original_file_name: string,
+    submission_id: string,
+    file_name: string,
+  ) => {
     setCurrentItem({ original_file_name, submission_id, file_name });
     setOpen(true);
   };
