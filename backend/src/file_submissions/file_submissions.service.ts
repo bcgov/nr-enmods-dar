@@ -138,21 +138,28 @@ export class FileSubmissionsService {
       };
     }
 
-    if (body.submitterUsername && body.submitterUsername != "ALL") {
+    if (body.submitterUsername) {
+      const usernames = body.submitterUsername
+        .split(",")
+        .map((item) => item.trim());
       whereClause.submitter_user_id = {
-        contains: body.submitterUsername,
+        in: usernames,
       };
     }
 
-    if (body.submitterAgency && body.submitterAgency != "ALL") {
+    if (body.submitterAgency) {
+      const agencies = body.submitterAgency
+        .split(",")
+        .map((item) => item.trim());
       whereClause.submitter_agency_name = {
-        contains: body.submitterAgency,
+        in: agencies,
       };
     }
 
-    if (body.fileStatus && body.fileStatus != "ALL") {
+    if (body.fileStatus) {
+      const statues = body.fileStatus.split(",").map((item) => item.trim());
       whereClause.submission_status_code = {
-        equals: body.fileStatus,
+        in: statues,
       };
     }
 
@@ -196,7 +203,7 @@ export class FileSubmissionsService {
         },
         data: {
           submission_status_code: status,
-          update_utc_timestamp: new Date()
+          update_utc_timestamp: new Date(),
         },
       });
     });
@@ -230,13 +237,12 @@ export class FileSubmissionsService {
   async getFromS3(fileName: string) {
     try {
       const fileStream = await this.objectStore.getFileData(fileName);
-      const fileBinary: Uint8Array[] = []
+      const fileBinary: Uint8Array[] = [];
       return new Promise((resolve, reject) => {
-        fileStream.on('data', (chunk: Uint8Array) => fileBinary.push(chunk));
-        fileStream.on('end', () => resolve(Buffer.concat(fileBinary)));
-        fileStream.on('error', (err: Error) => reject(err));
+        fileStream.on("data", (chunk: Uint8Array) => fileBinary.push(chunk));
+        fileStream.on("end", () => resolve(Buffer.concat(fileBinary)));
+        fileStream.on("error", (err: Error) => reject(err));
       });
-
     } catch (err) {
       this.logger.error(`Error fetching file from S3: ${err.message}`);
       throw err;
