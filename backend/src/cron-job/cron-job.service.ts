@@ -6,6 +6,7 @@ import { PrismaService } from "nestjs-prisma";
 import { FileParseValidateService } from "src/file_parse_and_validation/file_parse_and_validation.service";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
 import { resolve } from "path";
+import { OperationLockService } from "src/operationLock/operationLock.service";
 
 /**
  * Cron Job service for filling code tables with data from AQI API
@@ -22,6 +23,7 @@ export class CronJobService {
     private prisma: PrismaService,
     private readonly fileParser: FileParseValidateService,
     private readonly objectStore: ObjectStoreService,
+    private readonly operationLockService: OperationLockService
   ) {
     this.tableModels = new Map<string, any>([
       ["aqi_projects", this.prisma.aqi_projects],
@@ -353,7 +355,8 @@ export class CronJobService {
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   private async fetchAQSSData() {
-    if (this.isProcessing){
+
+    if (!this.operationLockService.acquireLock("PULLDOWN")){
       this.logger.log("Skipping cron procedure of data pull down: File processing underway.");
       return;
     }
@@ -418,7 +421,7 @@ export class CronJobService {
     }
 
     this.logger.log(`Cron Job completed.`);
-    this.dataPullDownComplete = true;
+    this.operationLockService.releaseLock("PULLDOWN");
   }
 
   private async filterData(endpoint: string, entries: any) {
@@ -580,15 +583,16 @@ export class CronJobService {
       grab all the files from the DB and S3 bucket that have a status of QUEUED
       for each file returned, change the status to INPROGRESS and go to the parser
     // */
-    // if (!this.dataPullDownComplete) {
-    //   this.logger.warn("Data pull down from AQI did not complete");
-    //   return;
-    // }
+    if (!this.operationLockService.acquireLock("FILE_PROCESSING")) {
+      this.logger.warn("Data pull down from AQI did not complete");
+      return;
+    }
 
     let filesToValidate = await this.fileParser.getQueuedFiles();
 
     if (filesToValidate.length < 1) {
       this.logger.log("************** NO FILES TO VALIDATE **************");
+      this.operationLockService.releaseLock("FILE_PROCESSING");
       return;
     } else {
       this.processFiles(filesToValidate).then(() => {
@@ -598,12 +602,11 @@ export class CronJobService {
   }
 
   async processFiles(files) {
-    if (this.isProcessing){
+    if (this.operationLockService.getCurrentLock() == "FILE_PROCESSING") {
       this.logger.log("Skipping cron procedure of file processing: Already processing files.");
       return;
     }
 
-    this.isProcessing = true;
     this.logger.log("Starting to process queued files...");
 
     try{
@@ -628,8 +631,7 @@ export class CronJobService {
         this.logger.log("GOING TO NEXT FILE");
       }
     }finally{
-      this.isProcessing = false;
-      this.dataPullDownComplete = false;
+      this.operationLockService.releaseLock("FILE_PROCESSING")
       return;
     }
   }
