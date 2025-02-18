@@ -4,7 +4,7 @@ import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
-import { ChangeEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { DeleteRounded, Description } from "@mui/icons-material";
 import _kc from "@/keycloak";
 import {
@@ -15,6 +15,7 @@ import {
   IconButton,
   MenuItem,
   Select,
+  SelectChangeEvent,
   TextField,
   Typography,
 } from "@mui/material";
@@ -109,11 +110,14 @@ export default function Dashboard() {
           submission_status_code: string;
         };
       }) => {
-        const token = localStorage.getItem("__auth_token");
+        const token: any = localStorage.getItem("__auth_token");
         const decoded = jwtDecode<JwtPayload>(token);
-        let userRoles = decoded.client_roles
+        let userRoles = decoded.client_roles;
 
-        if (params.row.submission_status_code === "SUBMITTED" && userRoles.includes('Enmods Admin')) {
+        if (
+          params.row.submission_status_code === "SUBMITTED" &&
+          userRoles.includes("Enmods Admin")
+        ) {
           return (
             <IconButton
               color="primary"
@@ -201,18 +205,31 @@ export default function Dashboard() {
     fileName: "",
     submissionDateTo: "",
     submissionDateFrom: "",
-    submitterUsername: "",
-    submitterAgency: "",
-    fileStatus: "",
+    submitterUsername: "ALL",
+    submitterAgency: "ALL",
+    fileStatus: "ALL",
   });
 
   const handleFormInputChange = (
-    key: string,
-    event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    event:
+      | React.ChangeEvent<{ name?: string; value: unknown }>
+      | SelectChangeEvent<string>,
   ) => {
+    const { name, value } = event.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name as string]: value,
+    }));
+  };
+
+  const handleClearSearch = () => {
     setFormData({
-      ...formData,
-      [key]: event.target.value,
+      fileName: "",
+      submissionDateTo: "",
+      submissionDateFrom: "",
+      submitterUsername: "ALL",
+      submitterAgency: "ALL",
+      fileStatus: "ALL",
     });
   };
 
@@ -270,28 +287,6 @@ export default function Dashboard() {
   const [users, setUsers] = useState({
     items: [],
   });
-
-  const [selectedStatusCode, setSelectedStatusCode] = useState("ALL");
-  const [selectedSubmitterUserName, setSelectedSubmitterUserName] =
-    useState("ALL");
-  const [selectedSubmitterAgencyName, setSelectedSubmitterAgencyName] =
-    useState("ALL");
-
-  const handleStatusChange = (event) => {
-    setSelectedStatusCode(event.target.value);
-    handleFormInputChange("fileStatus", event);
-  };
-
-  const handleUsernameChange = (event) => {
-    console.log(event.target.value);
-    setSelectedSubmitterUserName(event.target.value);
-    handleFormInputChange("submitterUsername", event);
-  };
-
-  const handleAgencyChange = (event) => {
-    setSelectedSubmitterAgencyName(event.target.value);
-    handleFormInputChange("submitterAgency", event);
-  };
 
   const handleCloseAndSubmit = async () => {
     handleClose();
@@ -363,12 +358,12 @@ export default function Dashboard() {
                   </FormLabel>
                   <TextField
                     id="file-name-input"
+                    name="fileName"
                     variant="outlined"
                     size="small"
                     sx={{ width: "650px" }}
-                    onChange={(event) =>
-                      handleFormInputChange("fileName", event)
-                    }
+                    value={formData.fileName}
+                    onChange={handleFormInputChange}
                   />
                 </Grid>
 
@@ -387,12 +382,12 @@ export default function Dashboard() {
                   </FormLabel>
                   <TextField
                     id="submission-date-from-input"
+                    name="submissionDateFrom"
                     variant="outlined"
                     size="small"
                     type="date"
-                    onChange={(event) =>
-                      handleFormInputChange("submissionDateFrom", event)
-                    }
+                    value={formData.submissionDateFrom}
+                    onChange={handleFormInputChange}
                   />
                 </Grid>
 
@@ -405,11 +400,11 @@ export default function Dashboard() {
                   </FormLabel>
                   <TextField
                     id="submission-date-to-input"
+                    name="submissionDateTo"
                     size="small"
                     type="date"
-                    onChange={(event) =>
-                      handleFormInputChange("submissionDateTo", event)
-                    }
+                    value={formData.submissionDateTo}
+                    onChange={handleFormInputChange}
                   />
                 </Grid>
 
@@ -420,14 +415,14 @@ export default function Dashboard() {
                   >
                     Submitting Agency
                   </FormLabel>
-                  <FormControl id="submitting-agency-input">
+                  <FormControl>
                     <Select
-                      name="dropdown-agency"
+                      name="submitterAgency"
                       variant="outlined"
                       size="small"
                       sx={{ width: "645px" }}
-                      onChange={handleAgencyChange}
-                      value={selectedSubmitterAgencyName}
+                      value={formData.submitterAgency}
+                      onChange={handleFormInputChange}
                     >
                       <MenuItem key="ALL" value="ALL">
                         ALL
@@ -448,12 +443,12 @@ export default function Dashboard() {
                   </FormLabel>
                   <FormControl id="submitting-user-input">
                     <Select
-                      name="dropdown-user"
+                      name="submitterUsername"
                       variant="outlined"
                       size="small"
                       sx={{ width: "645px" }}
-                      onChange={handleUsernameChange}
-                      value={selectedSubmitterUserName}
+                      value={formData.submitterUsername}
+                      onChange={handleFormInputChange}
                     >
                       <MenuItem key="ALL" value="ALL">
                         ALL
@@ -481,12 +476,12 @@ export default function Dashboard() {
                   </FormLabel>
                   <FormControl id="file-status-code-input">
                     <Select
-                      name="dropdown-status"
+                      name="fileStatus"
                       variant="outlined"
                       size="small"
                       sx={{ width: "645px" }}
-                      onChange={handleStatusChange}
-                      value={selectedStatusCode}
+                      value={formData.fileStatus}
+                      onChange={handleFormInputChange}
                     >
                       <MenuItem key="ALL" value="ALL">
                         ALL
@@ -506,12 +501,22 @@ export default function Dashboard() {
                 </Grid>
               </Grid>
             </FormControl>
-            <Box sx={{ paddingLeft: "735px" }}>
+            <Box sx={{ paddingLeft: "550px" }}>
               <Button
                 id="search-button"
                 type="submit"
                 color="primary"
                 variant="contained"
+                onClick={handleClearSearch}
+              >
+                Clear Search
+              </Button>
+              <Button
+                id="search-button"
+                type="submit"
+                color="primary"
+                variant="contained"
+                sx={{ ml: 5 }}
                 onClick={handleSearch}
               >
                 Search
