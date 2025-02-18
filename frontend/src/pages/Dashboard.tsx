@@ -7,15 +7,13 @@ import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import { useEffect, useState } from "react";
 import { DeleteRounded, Description } from "@mui/icons-material";
 import _kc from "@/keycloak";
-import Select, { OptionsOrGroups } from "react-select";
+import Select from "react-select";
 import {
   Box,
   FormControl,
   FormLabel,
   Grid,
   IconButton,
-  MenuItem,
-  SelectChangeEvent,
   TextField,
   Typography,
 } from "@mui/material";
@@ -218,7 +216,9 @@ export default function Dashboard() {
   };
 
   const handleMultiSelectChange = (name: string, selectedOptions: any) => {
-    const selectedValues = selectedOptions ? selectedOptions.map((option: any) => option.value) : []
+    const selectedValues = selectedOptions
+      ? selectedOptions.map((option: any) => option.value)
+      : [];
     handleFormInputChange(name, selectedValues);
   };
 
@@ -280,18 +280,30 @@ export default function Dashboard() {
     });
   };
 
-  const [submissionStatusCodes, setSubmissionStatusCodes] = useState({
-    items: [],
-  });
+  const agencyOptions: any = []; // TODO: get the EnMoDS agency list from an api call
 
   const [users, setUsers] = useState({
     items: [],
   });
 
+  const userOptions = users.items.map((user) => ({
+    value: user.username,
+    label: user.name,
+  }));
+
   const handleCloseAndSubmit = async () => {
     handleClose();
     await handleSearch(undefined);
   };
+
+  const [submissionStatusCodes, setSubmissionStatusCodes] = useState({
+    items: [],
+  });
+
+  const statusOptions = submissionStatusCodes.items.map((status) => ({
+    value: status.submission_status_code,
+    label: status.description,
+  }));
 
   useEffect(() => {
     async function fetchFileStatusCodes() {
@@ -324,18 +336,6 @@ export default function Dashboard() {
 
     fetchUsers();
   }, []);
-
-  const userOptions = users.items.map((user) => ({
-    value: user.username,
-    label: user.name,
-  }));
-
-  const agencyOptions: any= [] // TODO: get the EnMoDS agency list from an api call
-
-  const statusOptions = submissionStatusCodes.items.map((status) => ({
-    value: status.submission_status_code,
-    label: status.description
-  }))
 
   useEffect(() => {
     if (data.items.length > 0) {
@@ -375,7 +375,9 @@ export default function Dashboard() {
                     size="small"
                     sx={{ width: "650px" }}
                     value={formData.fileName}
-                    onChange={(e) => handleFormInputChange("fileName", e.target.value)}
+                    onChange={(e) =>
+                      handleFormInputChange("fileName", e.target.value)
+                    }
                   />
                 </Grid>
 
@@ -399,7 +401,12 @@ export default function Dashboard() {
                     size="small"
                     type="date"
                     value={formData.submissionDateFrom}
-                    onChange={(e) => handleFormInputChange("submissionDateFrom", e.target.value)}
+                    onChange={(e) =>
+                      handleFormInputChange(
+                        "submissionDateFrom",
+                        e.target.value,
+                      )
+                    }
                   />
                 </Grid>
 
@@ -416,7 +423,9 @@ export default function Dashboard() {
                     size="small"
                     type="date"
                     value={formData.submissionDateTo}
-                    onChange={(e) => handleFormInputChange("submissionDateTo", e.target.value)}
+                    onChange={(e) =>
+                      handleFormInputChange("submissionDateTo", e.target.value)
+                    }
                   />
                 </Grid>
 
@@ -435,13 +444,18 @@ export default function Dashboard() {
                       styles={{
                         container: (provided) => ({
                           ...provided,
-                          width: '645px',
+                          width: "645px",
                         }),
                       }}
                       value={userOptions.filter((option) =>
-                        formData.submitterAgency.includes(option.value)
+                        formData.submitterAgency.includes(option.value),
                       )}
-                      onChange={(selectedOptions) => handleMultiSelectChange("submitterAgency", selectedOptions)}
+                      onChange={(selectedOptions) =>
+                        handleMultiSelectChange(
+                          "submitterAgency",
+                          selectedOptions,
+                        )
+                      }
                     />
                   </FormControl>
                 </Grid>
@@ -461,13 +475,18 @@ export default function Dashboard() {
                       styles={{
                         container: (provided) => ({
                           ...provided,
-                          width: '645px',
+                          width: "645px",
                         }),
                       }}
                       value={userOptions.filter((option) =>
-                        formData.submitterUsername.includes(option.value)
+                        formData.submitterUsername.includes(option.value),
                       )}
-                      onChange={(selectedOptions) => handleMultiSelectChange("submitterUsername", selectedOptions)}
+                      onChange={(selectedOptions) =>
+                        handleMultiSelectChange(
+                          "submitterUsername",
+                          selectedOptions,
+                        )
+                      }
                     />
                   </FormControl>
                 </Grid>
@@ -487,13 +506,15 @@ export default function Dashboard() {
                       styles={{
                         container: (provided) => ({
                           ...provided,
-                          width: '645px',
+                          width: "645px",
                         }),
                       }}
                       value={statusOptions.filter((option) =>
-                        formData.fileStatus.includes(option.value)
+                        formData.fileStatus.includes(option.value),
                       )}
-                      onChange={(selectedOptions) => handleMultiSelectChange("fileStatus", selectedOptions)}
+                      onChange={(selectedOptions) =>
+                        handleMultiSelectChange("fileStatus", selectedOptions)
+                      }
                     />
                   </FormControl>
                 </Grid>
