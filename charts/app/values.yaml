@@ -309,8 +309,8 @@ backup:
             key: databaseUser
       resources:
         limits:
-          cpu: 50m
+          cpu: 150m
           memory: 256Mi
         requests:
-          cpu: 20m
+          cpu: 50m
           memory: 128Mi
