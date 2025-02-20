@@ -18,19 +18,18 @@
 		header {
 		Content-Type text/javascript
 		}
-		respond `
-				window.REACT_APP_KEYCLOAK_URL="{$KEYCLOAK_URL}";
-				window.REACT_APP_KEYCLOAK_REALM="standard";
-				window.REACT_APP_KEYCLOAK_CLIENT_ID="enmods-5391";
-				window.REACT_APP_API_URL="{$BACKEND_URL}";
-				window.REACT_APP_COMS_URL="{$COMS_URL}";
-				window.REACT_APP_COMS_BUCKET="{$COMS_BUCKET};"`
+		respond `window.REACT_APP_KEYCLOAK_URL={$KEYCLOAK_URL};
+                window.REACT_APP_KEYCLOAK_REALM="standard";
+                window.REACT_APP_KEYCLOAK_CLIENT_ID={$KEYCLOAK_CLIENT_ID};
+                window.REACT_APP_API_URL={$BACKEND_URL};
+                window.REACT_APP_COMS_URL={$COMS_URL};
+                window.REACT_APP_COMS_BUCKET={$COMS_BUCKET};`
   	}
 	root * /srv
 	encode zstd gzip
 	file_server
 	@spa_router {
-		not path /api/* /static/js/config.js
+		not path /api/*
 		file {
 			try_files {path} /index.html
 		}
@@ -48,7 +47,7 @@
 		Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate"
 		X-Content-Type-Options "nosniff"
 		Strict-Transport-Security "max-age=31536000"
-		Content-Security-Policy "default-src 'self' https://*.gov.bc.ca data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.gov.bc.ca https://www2.gov.bc.ca; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://use.fontawesome.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://fonts.googleapis.com http://www.w3.org https://*.gov.bc.ca https://*.tile.openstreetmap.org"
+		Content-Security-Policy "default-src 'self' https://spt.apps.gov.bc.ca data:; script-src 'self' 'unsafe-eval' https://www2.gov.bc.ca ;style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://use.fontawesome.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://fonts.googleapis.com http://www.w3.org https://*.gov.bc.ca"
 		Referrer-Policy "same-origin"
 		Feature-Policy "fullscreen 'self'; camera 'none'; microphone 'none'"
 	}
