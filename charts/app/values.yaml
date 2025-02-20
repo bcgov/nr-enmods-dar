@@ -47,11 +47,11 @@ global:
     baseUrl: ~
     reactAppApiUrl: "/api"
     reactAppKeycloakUrl: ~
-    # reactAppKeycloakUrl2: ~
+    reactAppKeycloakUrl2: ~
     reactAppKeycloakRealm: ~
     reactAppKeycloakClientId: ~
-    # reactAppKeycloakUser: ~
-    # reactAppKeycloakPassword: ~
+    reactAppKeycloakUser: ~
+    reactAppKeycloakPassword: ~
     #-- backup
     backupDir: ~
     backupStrategy: ~
