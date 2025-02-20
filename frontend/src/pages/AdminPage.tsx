@@ -250,20 +250,6 @@ export default function AdminPage() {
           Add User
         </Button>
       </Box>
-      {/**debug code, delete later */}
-      <Box sx={{ border: 1, borderColor: "grey.300", p: 2, mb: 2, mt: 2 }}>
-        <TextField
-          label="Contact Email Test"
-          variant="outlined"
-          value={testEmailValue}
-          onChange={handleTestEmailChange}
-          sx={{ mb: 2, mr: 2, width: "350px" }}
-        />
-        <Button onClick={testEmailHandler} variant="contained" color="primary">
-          Test Email
-        </Button>
-      </Box>
-      {/** */}
       <AddRoles
         show={showAddRoles}
         existingUsers={userData}
