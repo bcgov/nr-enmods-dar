@@ -27,7 +27,7 @@ RUN npm run build
 
 # Deploy container
 # Distroless has node, but not npm
-FROM node:20.12.0-bullseye-slim
+FROM gcr.io/distroless/nodejs20-debian11:nonroot
 ENV NODE_ENV production
 
 # Copy over app
@@ -37,8 +37,8 @@ COPY --from=build /app/dist ./dist
 
 # Ports, health check and non-root user
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost/:3000 || exit 1
+HEALTHCHECK --interval=30s --timeout=3s CMD curl -f http://localhost/:3000/api || exit 1
 USER nonroot
 
 # Start up command with 50MB of heap size, each application needs to determine what is the best value. DONT use default as it is 4GB.
-CMD ["--max-old-space-size=360", "/app/dist/main"]
+CMD ["--max-old-space-size=50", "/app/dist/main"]
