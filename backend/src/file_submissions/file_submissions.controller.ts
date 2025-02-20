@@ -27,7 +27,7 @@ import { FileResultsWithCount } from "src/interface/fileResultsWithCount";
 import { file_submission } from "@prisma/client";
 import { SanitizeService } from "src/sanitize/sanitize.service";
 import { FileInfo } from "src/types/types";
-import { OperationLockService } from "src/operationLock/operationLock.service";
+// import { OperationLockService } from "src/operationLock/operationLock.service";
 
 @ApiTags("file_submissions")
 @Controller({ path: "file_submissions", version: "1" })
@@ -37,7 +37,7 @@ export class FileSubmissionsController {
   constructor(
     private readonly fileSubmissionsService: FileSubmissionsService,
     private readonly sanitizeService: SanitizeService,
-    private readonly operationLockService: OperationLockService
+    // private readonly operationLockService: OperationLockService
   ) {}
 
   @Post()
@@ -89,9 +89,9 @@ export class FileSubmissionsController {
   @Roles(Role.ENMODS_ADMIN)
   remove(@Param("file_name") file_name: string, @Param("id") id: string) {
     
-    if (!this.operationLockService.acquireLock("DELETE")){
-      return
-    }
+    // if (!this.operationLockService.acquireLock("DELETE")){
+    //   return
+    // }
 
     return this.fileSubmissionsService.remove(file_name, id);
   }
