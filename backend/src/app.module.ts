@@ -78,7 +78,7 @@ function getMiddlewares() {
     FileErrorLogsModule,
   ],
   controllers: [AppController, MetricsController, HealthController],
-  providers: [AppService, CronJobService],
+  providers: [AppService, CronJobService, OperationLockService],
 })
 export class AppModule {
   // let's add a middleware on all routes
