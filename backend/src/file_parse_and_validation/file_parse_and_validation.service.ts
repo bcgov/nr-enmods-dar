@@ -1,5 +1,4 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { AxiosInstance } from "axios";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
 import {
@@ -13,7 +12,7 @@ import { AqiApiService } from "src/aqi_api/aqi_api.service";
 import ExcelJS from "exceljs";
 import fs from "fs";
 import { PrismaService } from "nestjs-prisma";
-import { PassThrough, Readable } from "stream";
+import { Readable } from "stream";
 import csv from "csv-parser";
 import { format } from "fast-csv";
 import csvParser from "csv-parser";
@@ -651,7 +650,7 @@ export class FileParseValidateService {
     return filteredObj;
   }
 
-  async localValidation(rowNumber: number, rowData: any): Promise<any[]> {
+  async localValidation(rowNumber: number, rowData: any) {
     let errorLogs = [];
     let existingRecords = [];
     // for (const [index, record] of allRecords.entries()) {
@@ -1036,9 +1035,7 @@ export class FileParseValidateService {
       existingRecords.push({ rowNum: rowNumber, existingGUIDS: existingGUIDS });
     }
 
-    return new Promise((resolve) => {
-      setTimeout(() => resolve([errorLogs, existingRecords]), 1000);
-    });
+      return [errorLogs, existingRecords];
   }
 
   async validateObsFile(
@@ -1562,6 +1559,8 @@ export class FileParseValidateService {
     file_submission_id: string,
     file_operation_code: string,
   ) {
+    console.time('parse_file')
+
     const path = require("path");
     const extention = path.extname(fileName);
 
@@ -1617,6 +1616,7 @@ export class FileParseValidateService {
       const allNonObsErrors: any[] = [];
       const allExistingRecords: any[] = [];
 
+      console.time('Validation')
       for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
         const row = worksheet.getRow(rowNumber);
 
@@ -1652,8 +1652,10 @@ export class FileParseValidateService {
           rowNumber,
         );
       }
+      console.timeEnd('Validation')
 
       csvStream.end();
+      console.time('obsValidation')
       const contactsAndValidationResults = await this.finalValidationStep(
         ministryContacts,
         filePath,
@@ -1661,6 +1663,7 @@ export class FileParseValidateService {
         file_operation_code,
         allNonObsErrors,
       );
+      console.timeEnd('obsValidation')
 
       const hasError = contactsAndValidationResults[1].some(
         (item) => item.type === "ERROR",
@@ -1676,6 +1679,7 @@ export class FileParseValidateService {
          * Save the error logs to the database table
          * Send the an email to the submitter and the ministry contact that is inside the file
          */
+        console.time('RejectFile')
         await this.rejectFileAndLogErrors(
           file_submission_id,
           fileName,
@@ -1692,7 +1696,7 @@ export class FileParseValidateService {
             this.logger.log(`Successfully cleaned up tempObsFiles.`);
           }
         });
-
+        console.timeEnd('RejectFile')
         return;
       } else {
         /*
@@ -1700,6 +1704,7 @@ export class FileParseValidateService {
          * i.e. the file may have WARNINGS - if records already exist
          */
         // If there are no errors or warnings
+        console.time('ReportValidated')
         await this.fileSubmissionsService.updateFileStatus(
           file_submission_id,
           "VALIDATED",
@@ -1727,9 +1732,10 @@ export class FileParseValidateService {
               this.logger.log(`Successfully cleaned up tempObsFiles.`);
             }
           });
-
+          console.timeEnd('ReportValidated')
           return;
         } else {
+          console.time('ImportNonObs')
           for (
             let rowNumber = 2;
             rowNumber <= worksheet.rowCount;
@@ -1765,7 +1771,9 @@ export class FileParseValidateService {
               fileName,
             );
           }
+          console.timeEnd('ImportNonObs')
 
+          console.time('ImportObs')
           await this.insertObservations(
             fileName,
             originalFileName,
@@ -1775,6 +1783,7 @@ export class FileParseValidateService {
             contactsAndValidationResults[0],
             contactsAndValidationResults[1],
           );
+          console.timeEnd('ImportObs')
         }
       }
     } else if (extention == ".csv") {
@@ -1947,5 +1956,6 @@ export class FileParseValidateService {
         }
       }
     }
+    console.timeEnd('parseFile')
   }
 }
