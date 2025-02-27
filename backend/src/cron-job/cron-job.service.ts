@@ -602,11 +602,6 @@ export class CronJobService {
   }
 
   async processFiles(files) {
-    // if (this.operationLockService.getCurrentLock() == "FILE_PROCESSING") {
-    //   this.logger.log("Skipping cron procedure of file processing: Already processing files.");
-    //   return;
-    // }
-
     this.logger.log("Starting to process queued files...");
 
     try{

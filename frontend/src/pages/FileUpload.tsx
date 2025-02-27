@@ -10,19 +10,16 @@ import {
   ListItem,
   ListItemText,
   Typography,
-  CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
 } from "@mui/material";
-import React, { useState } from "react";
+import { useState } from "react";
 import { FileUploader } from "react-drag-drop-files";
 import {
   DeleteRounded,
   UploadFile,
-  CheckCircle,
-  Error,
   ExpandMore,
   ChevronRight,
 } from "@mui/icons-material";
@@ -52,6 +49,21 @@ function FileUpload() {
   };
 
   const handleFileSelect = (files) => {
+    if (!files) return;
+
+    const selectedFilesForValidation = Array.from(files);
+    const invalidFiles = selectedFilesForValidation.filter((file: any) =>
+      file.name.includes(" "),
+    );
+
+    if (invalidFiles.length > 0) {
+      confirm(
+        "File names cannot contain spaces. Please rename the following files and try again:\n" +
+          invalidFiles.map((file: any) => file.name).join("\n"),
+      );
+      return;
+    }
+
     setFiles(files);
     selectedFiles = Array.from(files);
 
@@ -180,7 +192,7 @@ function FileUpload() {
     };
 
   const fileSizeError = () => {
-    confirm("File size error \n TODO");
+    confirm("File size error \nFile cannot be larger than 10MB.");
   };
 
   return (
