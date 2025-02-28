@@ -786,7 +786,7 @@ export class FileParseValidateService {
       }
     }
 
-    if (rowData.hasOwnProperty("Preservative")) {
+    if (rowData.hasOwnProperty("FieldPreservative")) {
       const present = await this.aqiService.databaseLookup(
         "aqi_preservatives",
         rowData.Preservative,
@@ -810,27 +810,31 @@ export class FileParseValidateService {
       }
     }
 
-    if (rowData.hasOwnProperty("SamplingConextTag")) {
-      const present = await this.aqiService.databaseLookup(
-        "aqi_context_tags",
-        rowData.SamplingConextTag,
-      );
-      if (!present) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Sampling_Context_Tag": "${rowData.SamplingConextTag} not found in EnMoDS Sampling Context Tags"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      }
-    }
+    // TODO: Delete commented code once this logic is approved
+    /*
+     * Removing sampling context tag validation as it not needed for ANY data classifications
+     */
+
+    // if (rowData.hasOwnProperty("SamplingContextTag")) {
+    //   const present = await this.aqiService.databaseLookup(
+    //     "aqi_context_tags",
+    //     rowData.SamplingContextTag,
+    //   );
+    //   if (!present) {
+    //     let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Sampling_Context_Tag": "${rowData.SamplingContextTag} not found in EnMoDS Sampling Context Tags"}}`;
+    //     errorLogs.push(JSON.parse(errorLog));
+    //   }
+    // }
 
     if (rowData.hasOwnProperty("CollectionMethod")) {
       if (
-        (rowData["DataClassification"] == "LAB" ||
-          rowData["DataClassification"] == "SURROGATE_RESULT") &&
-        rowData["CollectionMethod"] == ""
+        rowData["DataClassification"] == "LAB" ||
+        rowData["DataClassification"] == "SURROGATE_RESULT"
       ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"CollectionMethod": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      } else {
-        if (rowData["CollectionMethod"] != "") {
+        if (rowData["CollectionMethod"] == "") {
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"CollectionMethod": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        } else {
           const present = await this.aqiService.databaseLookup(
             "aqi_collection_methods",
             rowData.CollectionMethod,
@@ -924,22 +928,31 @@ export class FileParseValidateService {
       }
     }
 
+    // if (rowData.hasOwnProperty("RoundedValue")) {
+    //   if (rowData["RoundedValue"] == "" && rowData["SourceOfRoundedValue"] != ""){
+    //     let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Rounded Value": "Cannot be empty when Source of Rounded Value is provided."}}`;
+    //     errorLogs.push(JSON.parse(errorLog));
+    //   }
+
+    // }
+
     if (rowData.hasOwnProperty("AnalyzingAgency")) {
       if (
-        (rowData["DataClassification"] == "LAB" ||
-          rowData["DataClassification"] == "SURROGATE_RESULT") &&
-        rowData["AnalyzingAgency"] == ""
+        rowData["DataClassification"] == "LAB" ||
+        rowData["DataClassification"] == "SURROGATE_RESULT"
       ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Analyzing Agency": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      } else {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_laboratories",
-          rowData.AnalyzingAgency,
-        );
-        if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Analyzing_Agency": "${rowData.AnalyzingAgency} not found in EnMoDS Agencies"}}`;
+        if (rowData["AnalyzingAgency"] == "") {
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Analyzing Agency": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
           errorLogs.push(JSON.parse(errorLog));
+        } else {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_laboratories",
+            rowData.AnalyzingAgency,
+          );
+          if (!present) {
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Analyzing_Agency": "${rowData.AnalyzingAgency} not found in EnMoDS Agencies"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
         }
       }
     }
@@ -967,17 +980,24 @@ export class FileParseValidateService {
     }
 
     if (rowData.hasOwnProperty("TissueType")) {
-      if (rowData["Medium"] == "Animal - Fish" && rowData["TissueType"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"TissueType": "Cannot be empty when Medium is Animal - Fish"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      } else if (rowData["TissueType"]) {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_tissue_types",
-          rowData.TissueType,
-        );
-        if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"TissueType": "${rowData.TissueType} not found in EnMoDS Tissue Types"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+      if (
+        rowData["DataClassification"] == "LAB" ||
+        rowData["DataClassification"] == "SURROGATE_RESULT"
+      ) {
+        if (/^Animal\b/.test(rowData["Medium"])) {
+          if (rowData["TissueType"] == "") {
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"TissueType": "Cannot be empty when Data Classification is ${rowData.DataClassification} and Medium is ${rowData.Medium}"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          } else if (rowData["TissueType"]) {
+            const present = await this.aqiService.databaseLookup(
+              "aqi_tissue_types",
+              rowData.TissueType,
+            );
+            if (!present) {
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"TissueType": "${rowData.TissueType} not found in EnMoDS Tissue Types"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
+          }
         }
       }
     }
@@ -987,7 +1007,7 @@ export class FileParseValidateService {
         let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Specimen Name": "Cannot be empty when Composite Stat is present."}}`;
         errorLogs.push(JSON.parse(errorLog));
       } else if (
-        rowData["Medium"] == "Animal - Fish" &&
+        /^Animal\b/.test(rowData["Medium"]) &&
         rowData["SpecimenName"] == ""
       ) {
         let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Specimen Name": "Cannot be empty when Medium is Animal - Fish"}}`;
@@ -1035,7 +1055,7 @@ export class FileParseValidateService {
       existingRecords.push({ rowNum: rowNumber, existingGUIDS: existingGUIDS });
     }
 
-      return [errorLogs, existingRecords];
+    return [errorLogs, existingRecords];
   }
 
   async validateObsFile(
@@ -1122,6 +1142,58 @@ export class FileParseValidateService {
     });
 
     return;
+  }
+
+  async cleanRowBasedOnDataClassification(rowData: any) {
+    let cleanedRow = rowData;
+
+    if (
+      rowData.DataClassification == "LAB" ||
+      rowData.DataClassification == "SURROGATE_RESULT"
+    ) {
+      cleanedRow.ObservationID = "";
+      cleanedRow.FieldDeviceID = "";
+      cleanedRow.FieldDeviceType = "";
+      cleanedRow.SamplingContextTag = "";
+      cleanedRow.LimitType = "";
+      cleanedRow.ResultGrade = "Ungraded";
+      cleanedRow.ResultStatus = "Preliminary";
+      cleanedRow.ActivityID = "";
+      cleanedRow.ActivityName = "";
+    } else if (
+      rowData.DataClassification == "FIELD_RESULT" ||
+      rowData.DataClassification == "ACTIVITY_RESULT" ||
+      rowData.DataClassification == "FIELD_SURVEY" ||
+      rowData.DataClassification == "VERTICAL_PROFILE"
+    ) {
+      cleanedRow.ObservationID = "";
+      cleanedRow.FieldFiltered = "";
+      cleanedRow.FieldFilterComment = "";
+      cleanedRow.FieldPreservative = "";
+      cleanedRow.SamplingContextTag = "";
+      cleanedRow.LimitType = "";
+      cleanedRow.Fraction = "";
+      cleanedRow.AnalyzingAgency = "";
+      cleanedRow.AnalysisMethod = "";
+      cleanedRow.AnalyzedDateTime = "";
+      cleanedRow.ResultGrade = "Ungraded";
+      cleanedRow.ResultStatus = "Preliminary";
+      cleanedRow.ActivityID = "";
+      cleanedRow.ActivityName = "";
+      cleanedRow.TissueType = "";
+      cleanedRow.LabArrivalTemperature = "";
+      cleanedRow.SpecimenName = "";
+      cleanedRow.LabQualityFlag = "";
+      cleanedRow.LabArrivalDateandTime = "";
+      cleanedRow.LabPreparedDateTime = "";
+      cleanedRow.LabSampleID = "";
+      cleanedRow.LabDilutionFactor = "";
+      cleanedRow.QCType = "";
+      cleanedRow.QCSourceActivityName = "";
+      cleanedRow.CompositeStat = "";
+    }
+
+    return cleanedRow;
   }
 
   async validateRow(
@@ -1559,7 +1631,7 @@ export class FileParseValidateService {
     file_submission_id: string,
     file_operation_code: string,
   ) {
-    console.time('parse_file')
+    console.time("parseFile");
 
     const path = require("path");
     const extention = path.extname(fileName);
@@ -1616,7 +1688,7 @@ export class FileParseValidateService {
       const allNonObsErrors: any[] = [];
       const allExistingRecords: any[] = [];
 
-      console.time('Validation')
+      console.time("Validation");
       for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
         const row = worksheet.getRow(rowNumber);
 
@@ -1625,7 +1697,7 @@ export class FileParseValidateService {
         }
 
         // Get the row values, remove the first empty cell, and map to headers
-        const rowData: Record<string, string> = rowHeaders
+        let rowData: Record<string, string> = rowHeaders
           .map((header, colNumber) => {
             const cellValue = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
             const value =
@@ -1642,6 +1714,8 @@ export class FileParseValidateService {
 
         this.logger.log(`Created row object for row ${rowNumber}`);
 
+        rowData = await this.cleanRowBasedOnDataClassification(rowData);
+
         await this.validateRow(
           rowData,
           ministryContacts,
@@ -1652,10 +1726,10 @@ export class FileParseValidateService {
           rowNumber,
         );
       }
-      console.timeEnd('Validation')
+      console.timeEnd("Validation");
 
       csvStream.end();
-      console.time('obsValidation')
+      console.time("obsValidation");
       const contactsAndValidationResults = await this.finalValidationStep(
         ministryContacts,
         filePath,
@@ -1663,7 +1737,7 @@ export class FileParseValidateService {
         file_operation_code,
         allNonObsErrors,
       );
-      console.timeEnd('obsValidation')
+      console.timeEnd("obsValidation");
 
       const hasError = contactsAndValidationResults[1].some(
         (item) => item.type === "ERROR",
@@ -1679,7 +1753,7 @@ export class FileParseValidateService {
          * Save the error logs to the database table
          * Send the an email to the submitter and the ministry contact that is inside the file
          */
-        console.time('RejectFile')
+        console.time("RejectFile");
         await this.rejectFileAndLogErrors(
           file_submission_id,
           fileName,
@@ -1696,7 +1770,7 @@ export class FileParseValidateService {
             this.logger.log(`Successfully cleaned up tempObsFiles.`);
           }
         });
-        console.timeEnd('RejectFile')
+        console.timeEnd("RejectFile");
         return;
       } else {
         /*
@@ -1704,7 +1778,7 @@ export class FileParseValidateService {
          * i.e. the file may have WARNINGS - if records already exist
          */
         // If there are no errors or warnings
-        console.time('ReportValidated')
+        console.time("ReportValidated");
         await this.fileSubmissionsService.updateFileStatus(
           file_submission_id,
           "VALIDATED",
@@ -1732,10 +1806,10 @@ export class FileParseValidateService {
               this.logger.log(`Successfully cleaned up tempObsFiles.`);
             }
           });
-          console.timeEnd('ReportValidated')
+          console.timeEnd("ReportValidated");
           return;
         } else {
-          console.time('ImportNonObs')
+          console.time("ImportNonObs");
           for (
             let rowNumber = 2;
             rowNumber <= worksheet.rowCount;
@@ -1771,9 +1845,9 @@ export class FileParseValidateService {
               fileName,
             );
           }
-          console.timeEnd('ImportNonObs')
+          console.timeEnd("ImportNonObs");
 
-          console.time('ImportObs')
+          console.time("ImportObs");
           await this.insertObservations(
             fileName,
             originalFileName,
@@ -1783,14 +1857,13 @@ export class FileParseValidateService {
             contactsAndValidationResults[0],
             contactsAndValidationResults[1],
           );
-          console.timeEnd('ImportObs')
+          console.timeEnd("ImportObs");
         }
       }
     } else if (extention == ".csv") {
       const allNonObsErrors: any[] = [];
       const allExistingRecords: any[] = [];
       const headers: string[] = [];
-      let rowNumber = 0;
 
       file.pipe(csv()).on("headers", (csvHeaders) => {
         headers.push(...csvHeaders.map((key) => key.replace(/\s+/g, "")));
@@ -1801,19 +1874,27 @@ export class FileParseValidateService {
       // re-fetch the file for validation purposes - cannot use previously fetched stream
       const rowValidationStream =
         await this.objectStoreService.getFileData(fileName);
-      rowValidationStream
-        .pipe(csvParser({ headers }))
-        .on("data", async (row) => {
-          rowNumber++;
-          if (rowNumber == 1) {
-            return;
-          }
 
-          const rowData: Record<string, string> = {};
-          headers.forEach((header) => {
-            rowData[header] = String(row[header] ?? "");
-          });
+      const parser = rowValidationStream.pipe(csvParser({ headers }));
 
+      let rowNumber = 0;
+
+      console.time("Validation");
+      for await (const row of parser) {
+        rowNumber++;
+
+        if (rowNumber == 1) {
+          continue; // Skip header row
+        }
+
+        let rowData: Record<string, string> = {};
+        headers.forEach((header) => {
+          rowData[header] = String(row[header] ?? "");
+        });
+
+        try {
+          rowData = await this.cleanRowBasedOnDataClassification(rowData);
+          this.logger.log(`Created row object for row ${rowNumber}`);
           await this.validateRow(
             rowData,
             ministryContacts,
@@ -1823,12 +1904,14 @@ export class FileParseValidateService {
             originalFileName,
             rowNumber,
           );
-        })
-        .on("error", (error) => {
-          this.logger.error(`Error Processing:`, error);
-        });
+        } catch (error) {
+          this.logger.error(`Error Processing Row ${rowNumber}:`, error);
+        }
+      }
+      console.timeEnd("Validation");
 
       csvStream.end();
+      console.time("obsValidation");
       const contactsAndValidationResults = await this.finalValidationStep(
         ministryContacts,
         filePath,
@@ -1836,6 +1919,7 @@ export class FileParseValidateService {
         file_operation_code,
         allNonObsErrors,
       );
+      console.timeEnd("obsValidation");
 
       const hasError = contactsAndValidationResults[1].some(
         (item) => item.type === "ERROR",
@@ -1851,6 +1935,7 @@ export class FileParseValidateService {
          * Save the error logs to the database table
          * Send the an email to the submitter and the ministry contact that is inside the file
          */
+        console.time("RejectFile");
         await this.rejectFileAndLogErrors(
           file_submission_id,
           fileName,
@@ -1867,7 +1952,7 @@ export class FileParseValidateService {
             this.logger.log(`Successfully cleaned up tempObsFiles.`);
           }
         });
-
+        console.timeEnd("RejectFile");
         return;
       } else {
         /*
@@ -1875,6 +1960,7 @@ export class FileParseValidateService {
          * i.e. the file may have WARNINGS - if records already exist
          */
         // If there are no errors or warnings
+        console.time("ReportValidated");
         await this.fileSubmissionsService.updateFileStatus(
           file_submission_id,
           "VALIDATED",
@@ -1902,6 +1988,7 @@ export class FileParseValidateService {
               this.logger.log(`Successfully cleaned up tempObsFiles.`);
             }
           });
+          console.timeEnd("ReportValidated");
 
           return;
         } else {
@@ -1913,37 +2000,49 @@ export class FileParseValidateService {
            */
 
           // re-fetch the file for validation purposes - cannot use previously fetched stream
+          console.time("ImportNonObs");
           const rowValidationStream =
             await this.objectStoreService.getFileData(fileName);
 
-          rowValidationStream
-            .pipe(csvParser({ headers }))
-            .on("data", async (row) => {
-              rowNumber++;
-              if (rowNumber == 1) {
-                return;
-              }
+          const parser = rowValidationStream.pipe(csvParser({ headers }));
 
-              let GuidsToSave = {
-                visits: [],
-                activities: [],
-                specimens: [],
-                observations: [],
-              };
+          let rowNumber = 0;
 
-              const rowData: Record<string, string> = {};
-              headers.forEach((header) => {
-                rowData[header] = String(row[header] ?? "");
-              });
+          for await (const row of parser) {
+            rowNumber++;
 
+            if (rowNumber == 1) {
+              continue; // Skip header row
+            }
+
+            let GuidsToSave = {
+              visits: [],
+              activities: [],
+              specimens: [],
+              observations: [],
+            };
+
+            let rowData: Record<string, string> = {};
+            headers.forEach((header) => {
+              rowData[header] = String(row[header] ?? "");
+            });
+
+            try {
+              rowData = await this.cleanRowBasedOnDataClassification(rowData);
               // do the data insert logic here
               await this.insertDataNonObservations(
                 rowData,
                 GuidsToSave,
                 fileName,
               );
-            });
+            } catch (error) {
+              this.logger.error(`Error Processing Row ${rowNumber}:`, error);
+            }
+          }
 
+          console.timeEnd("ImportNonObs");
+
+          console.time("ImportObs");
           await this.insertObservations(
             fileName,
             originalFileName,
@@ -1953,9 +2052,10 @@ export class FileParseValidateService {
             contactsAndValidationResults[0],
             contactsAndValidationResults[1],
           );
+          console.timeEnd("ImportObs");
         }
       }
     }
-    console.timeEnd('parseFile')
+    console.timeEnd("parseFile");
   }
 }
