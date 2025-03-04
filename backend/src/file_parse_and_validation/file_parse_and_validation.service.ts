@@ -737,7 +737,7 @@ export class FileParseValidateService {
     if (rowData.hasOwnProperty("Depth Unit")) {
       if (rowData["Depth Upper"]) {
         if (rowData["Depth Unit"] != "metre") {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Depth_Unit": "${rowData["Depth Unit"]} is not valid unit for Depth. Only 'Metre' is allowed"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DepthUnit": "${rowData["Depth Unit"]} is not valid unit for Depth. Only 'Metre' is allowed"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
@@ -745,7 +745,7 @@ export class FileParseValidateService {
 
     if (rowData.hasOwnProperty("SamplingAgency")) {
       if (rowData["SamplingAgency"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Sampling Agency": "Cannot be empty"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SamplingAgency": "Cannot be empty"}}`;
         errorLogs.push(JSON.parse(errorLog));
       } else {
         const present = await this.aqiService.databaseLookup(
@@ -753,7 +753,7 @@ export class FileParseValidateService {
           rowData.SamplingAgency,
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Sampling Agency": "${rowData.SamplingAgency} not found in EnMoDS Sampling Agency"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SamplingAgency": "${rowData.SamplingAgency} not found in EnMoDS Sampling Agency"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
@@ -772,7 +772,7 @@ export class FileParseValidateService {
 
     if (rowData.hasOwnProperty("LocationID")) {
       if (rowData["LocationID"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Location_ID": "Cannot be empty"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "Cannot be empty"}}`;
         errorLogs.push(JSON.parse(errorLog));
       } else {
         const present = await this.aqiService.databaseLookup(
@@ -780,7 +780,7 @@ export class FileParseValidateService {
           rowData.LocationID,
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Location_ID": "${rowData.LocationID} not found in EnMoDS Locations"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "${rowData.LocationID} not found in EnMoDS Locations"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
@@ -805,26 +805,10 @@ export class FileParseValidateService {
           rowData["DataClassification"] == "VERTICAL_PROFILE") &&
         rowData["FieldDeviceType"] == ""
       ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Field Device Type": "Cannot be empty when data classification is ${rowData["DataClassification"]}"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"FieldDeviceType": "Cannot be empty when data classification is ${rowData["DataClassification"]}"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
     }
-
-    // TODO: Delete commented code once this logic is approved
-    /*
-     * Removing sampling context tag validation as it not needed for ANY data classifications
-     */
-
-    // if (rowData.hasOwnProperty("SamplingContextTag")) {
-    //   const present = await this.aqiService.databaseLookup(
-    //     "aqi_context_tags",
-    //     rowData.SamplingContextTag,
-    //   );
-    //   if (!present) {
-    //     let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Sampling_Context_Tag": "${rowData.SamplingContextTag} not found in EnMoDS Sampling Context Tags"}}`;
-    //     errorLogs.push(JSON.parse(errorLog));
-    //   }
-    // }
 
     if (rowData.hasOwnProperty("CollectionMethod")) {
       if (
@@ -865,7 +849,7 @@ export class FileParseValidateService {
 
     if (rowData.hasOwnProperty("ObservedPropertyID")) {
       if (rowData["ObservedPropertyID"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Observed_Property_ID": "Cannot be empty"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "Cannot be empty"}}`;
         errorLogs.push(JSON.parse(errorLog));
       } else {
         const present = await this.aqiService.databaseLookup(
@@ -873,7 +857,7 @@ export class FileParseValidateService {
           rowData.ObservedPropertyID,
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Observed_Property_ID": "${rowData.ObservedPropertyID} not found in EnMoDS Observed Properties"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "${rowData.ObservedPropertyID} not found in EnMoDS Observed Properties"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
@@ -888,7 +872,7 @@ export class FileParseValidateService {
         rowData.DetectionCondition.toUpperCase().replace(/ /g, "_"),
       );
       if (!present) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Detection_Condition": "${rowData.DetectionCondition} not found in EnMoDS Detection Conditions"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DetectionCondition": "${rowData.DetectionCondition} not found in EnMoDS Detection Conditions"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
     }
@@ -906,7 +890,7 @@ export class FileParseValidateService {
 
     if (rowData.hasOwnProperty("DataClassification")) {
       if (rowData["DataClassification"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Data Classification": "Cannot be empty"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DataClassification": "Cannot be empty"}}`;
         errorLogs.push(JSON.parse(errorLog));
       } else {
         const present = await this.aqiService.databaseLookup(
@@ -914,7 +898,7 @@ export class FileParseValidateService {
           rowData.DataClassification,
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Data Classification": "${rowData.DataClassification} not found in EnMoDS Data Classesifications"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DataClassification": "${rowData.DataClassification} not found in EnMoDS Data Classesifications"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
@@ -923,18 +907,42 @@ export class FileParseValidateService {
         rowData["CompositeStat"] != "" &&
         rowData["DataClassification"] != "LAB"
       ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Data Classification": "Must be LAB when Composite Stat is porvided."}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DataClassification": "Must be LAB when Composite Stat is porvided."}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
     }
 
-    // if (rowData.hasOwnProperty("RoundedValue")) {
-    //   if (rowData["RoundedValue"] == "" && rowData["SourceOfRoundedValue"] != ""){
-    //     let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Rounded Value": "Cannot be empty when Source of Rounded Value is provided."}}`;
-    //     errorLogs.push(JSON.parse(errorLog));
-    //   }
+    if (rowData.hasOwnProperty("SourceOfRoundedValue")) {
+      if (rowData["SourceOfRoundedValue"] != "") {
+        if (
+          rowData["SourceOfRoundedValue"] != "PROVIDED_BY_USER" ||
+          rowData["SourceOfRoundedValue"] != "ROUNDING_SPECIFICATION"
+        ) {
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SourceOfRoundedValue": "Must be PROVIDED_BY_USER or ROUNDING_SPECIFICATION."}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+      }
+    }
 
-    // }
+    if (rowData.hasOwnProperty("RoundedValue")) {
+      if (
+        rowData["RoundedValue"] == "" &&
+        rowData["SourceOfRoundedValue"] == "PROVIDED_BY_USER"
+      ) {
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"RoundedValue": "Cannot be empty when Source of Rounded Value is PROVIDED_BY_USER."}}`;
+        errorLogs.push(JSON.parse(errorLog));
+      }
+    }
+
+    if (rowData.hasOwnProperty("RoundingSpecification")) {
+      if (
+        rowData["RoundingSpecification"] == "" &&
+        rowData["SourceOfRoundedValue"] == "ROUNDING_SPECIFICATION"
+      ) {
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"RoundingSpecification": "Cannot be empty when Source of Rounded Value is ROUNDING_SPECIFICATION."}}`;
+        errorLogs.push(JSON.parse(errorLog));
+      }
+    }
 
     if (rowData.hasOwnProperty("AnalyzingAgency")) {
       if (
@@ -942,7 +950,7 @@ export class FileParseValidateService {
         rowData["DataClassification"] == "SURROGATE_RESULT"
       ) {
         if (rowData["AnalyzingAgency"] == "") {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Analyzing Agency": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalyzingAgency": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
           errorLogs.push(JSON.parse(errorLog));
         } else {
           const present = await this.aqiService.databaseLookup(
@@ -950,7 +958,7 @@ export class FileParseValidateService {
             rowData.AnalyzingAgency,
           );
           if (!present) {
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Analyzing_Agency": "${rowData.AnalyzingAgency} not found in EnMoDS Agencies"}}`;
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalyzingAgency": "${rowData.AnalyzingAgency} not found in EnMoDS Agencies"}}`;
             errorLogs.push(JSON.parse(errorLog));
           }
         }
@@ -963,7 +971,7 @@ export class FileParseValidateService {
         rowData.ResultStatus,
       );
       if (!present) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Result_Status": "${rowData.ResultStatus} not found in EnMoDS Result Statuses"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ResultStatus": "${rowData.ResultStatus} not found in EnMoDS Result Statuses"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
     }
@@ -974,7 +982,7 @@ export class FileParseValidateService {
         rowData.ResultGrade,
       );
       if (!present) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Result_Grade": "${rowData.ResultGrade} not found in EnMoDS Result Grades"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ResultGrade": "${rowData.ResultGrade} not found in EnMoDS Result Grades"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
     }
@@ -1002,15 +1010,37 @@ export class FileParseValidateService {
       }
     }
 
+    if (rowData.hasOwnProperty("QCType")) {
+      if (
+        rowData["DataClassification"] == "LAB" ||
+        rowData["DataClassification"] == "SURROGATE_RESULT"
+      ) {
+        if (rowData["QCType"] == "") {
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"QCType": "Cannot be empty when Data Classification is ${rowData.DataClassification}"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        } else if (
+          rowData["QCType"].toUpperCase() != "" &&
+          rowData["QCType"].toUpperCase() != "BLANK" &&
+          rowData["QCType"].toUpperCase() != "REPLICATE" &&
+          rowData["QCType"].toUpperCase() != "SPIKE" &&
+          rowData["QCType"].toUpperCase() != "OTHER_QC" 
+        ) {
+          // null because the AQI api considers the type REGULAR as NULL
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"QCType": "${rowData.QCType} not found in EnMoDS QC Types"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+      }
+    }
+
     if (rowData.hasOwnProperty("SpecimenName")) {
       if (rowData["CompositeStat"] != "" && rowData["SpecimenName"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Specimen Name": "Cannot be empty when Composite Stat is present."}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SpecimenName": "Cannot be empty when Composite Stat is present."}}`;
         errorLogs.push(JSON.parse(errorLog));
       } else if (
         /^Animal\b/.test(rowData["Medium"]) &&
         rowData["SpecimenName"] == ""
       ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Specimen Name": "Cannot be empty when Medium is Animal - Fish"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SpecimenName": "Cannot be empty when Medium is Animal - Fish"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
     }
@@ -1147,6 +1177,8 @@ export class FileParseValidateService {
   async cleanRowBasedOnDataClassification(rowData: any) {
     let cleanedRow = rowData;
 
+    cleanedRow.QCType  = rowData.QCType.toUpperCase()
+
     if (
       rowData.DataClassification == "LAB" ||
       rowData.DataClassification == "SURROGATE_RESULT"
@@ -1159,7 +1191,12 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      cleanedRow.ActivityName = "";
+      // cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
+
+      if (cleanedRow.QCType == "REGULAR") {
+        // this is because AQI interprets a null value as REGULAR
+        cleanedRow.QCType = "";
+      }
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
@@ -1179,6 +1216,7 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
+      // cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
       cleanedRow.ActivityName = "";
       cleanedRow.TissueType = "";
       cleanedRow.LabArrivalTemperature = "";
@@ -1699,7 +1737,8 @@ export class FileParseValidateService {
         // Get the row values, remove the first empty cell, and map to headers
         let rowData: Record<string, string> = rowHeaders
           .map((header, colNumber) => {
-            const cellValue = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
+            const cell: any = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
+            const cellValue: any = cell.text || cell.value;
             const value =
               typeof cellValue === "object" &&
               cellValue != null &&
@@ -1713,6 +1752,9 @@ export class FileParseValidateService {
           .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
         this.logger.log(`Created row object for row ${rowNumber}`);
+        
+        console.log(rowData.ObservationID)
+        console.log(rowData.FieldVisitStartTime)
 
         rowData = await this.cleanRowBasedOnDataClassification(rowData);
 
@@ -1779,11 +1821,6 @@ export class FileParseValidateService {
          */
         // If there are no errors or warnings
         console.time("ReportValidated");
-        await this.fileSubmissionsService.updateFileStatus(
-          file_submission_id,
-          "VALIDATED",
-        );
-
         if (file_operation_code === "VALIDATE") {
           const file_error_log_data = {
             file_submission_id: file_submission_id,
@@ -1794,6 +1831,11 @@ export class FileParseValidateService {
             error_log: contactsAndValidationResults[1],
             create_utc_timestamp: new Date(),
           };
+
+          await this.fileSubmissionsService.updateFileStatus(
+            file_submission_id,
+            "VALIDATED",
+          );
 
           await this.prisma.file_error_logs.create({
             data: file_error_log_data,
@@ -1823,7 +1865,7 @@ export class FileParseValidateService {
               observations: [],
             };
             // Get the row values, remove the first empty cell, and map to headers
-            const rowData: Record<string, string> = rowHeaders
+            let rowData: Record<string, string> = rowHeaders
               .map((header, colNumber) => {
                 const cellValue = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
                 const value =
@@ -1837,6 +1879,8 @@ export class FileParseValidateService {
                 };
               })
               .reduce((acc, curr) => ({ ...acc, ...curr }), {});
+
+            rowData = await this.cleanRowBasedOnDataClassification(rowData);
 
             // do the data insert logic here
             await this.insertDataNonObservations(
@@ -1961,10 +2005,6 @@ export class FileParseValidateService {
          */
         // If there are no errors or warnings
         console.time("ReportValidated");
-        await this.fileSubmissionsService.updateFileStatus(
-          file_submission_id,
-          "VALIDATED",
-        );
 
         if (file_operation_code === "VALIDATE") {
           const file_error_log_data = {
@@ -1976,6 +2016,11 @@ export class FileParseValidateService {
             error_log: contactsAndValidationResults[1],
             create_utc_timestamp: new Date(),
           };
+
+          await this.fileSubmissionsService.updateFileStatus(
+            file_submission_id,
+            "VALIDATED",
+          );
 
           await this.prisma.file_error_logs.create({
             data: file_error_log_data,
