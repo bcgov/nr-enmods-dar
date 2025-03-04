@@ -1737,8 +1737,7 @@ export class FileParseValidateService {
         // Get the row values, remove the first empty cell, and map to headers
         let rowData: Record<string, string> = rowHeaders
           .map((header, colNumber) => {
-            const cell: any = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
-            const cellValue: any = cell.text || cell.value;
+            const cellValue: any = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
             const value =
               typeof cellValue === "object" &&
               cellValue != null &&
@@ -1753,9 +1752,6 @@ export class FileParseValidateService {
 
         this.logger.log(`Created row object for row ${rowNumber}`);
         
-        console.log(rowData.ObservationID)
-        console.log(rowData.FieldVisitStartTime)
-
         rowData = await this.cleanRowBasedOnDataClassification(rowData);
 
         await this.validateRow(
