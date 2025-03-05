@@ -83,6 +83,7 @@ WITH core_data AS (
         d.METHOD_DETECT_LIMIT   AS "Method Detection Limit Source 2",        
         NULL                                                         AS "Method Reporting Limit", -- leave as blank
         aqs_units.AQS_NAME_ON_IMPORT                                                AS "Result Unit",
+        mu.short_name AS "EMS Result Unit",
         mu_mdl.short_name                                            AS "MDL Unit",
         CASE
             WHEN result.result_letter = '<' THEN
@@ -539,6 +540,7 @@ sample_data AS (
         null   AS "Method Detection Limit Source 2",        
         NULL                                                         AS "Method Reporting Limit", -- leave as blank
         null                                                AS "Result Unit",
+        null AS "EMS Result Unit",
         null                                            AS "MDL Unit",
         null                                               AS "Detection Condition",
         NULL                                                         AS "Limit Type",
@@ -664,7 +666,7 @@ sample_data AS (
     
 ) -- sample data
 -- water data
-/*
+
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -744,18 +746,17 @@ SELECT
         core."Lab Batch ID",
         core."QC Type",
         core."QC Source Activity Name",
-        core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
-        --core.parm_cd, -- for troubleshooting
-        --core."Analysis Method", -- for troubleshooting
-        --core."Result Unit", -- for troubleshooting     
-        --core."MDL Unit", -- for troubleshooting,
-        --core.mdl_unit_code,
-        --core.result_unit_code
+        core."Composite Stat",-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
+        -- debugging
+        core.parm_cd,
+        core."Analysis Method",
+        core."Result Unit",
+        core."EMS Result Unit"
 FROM -- water data
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
         and core."Analysis Method" = ed.Analysis_Method_Code
-        and core."Result Unit" = ed.Unit -- need to check this to make sure it lines up with what's in the spreadsheet
+        and core."EMS Result Unit" = ed.Unit
 left outer join ems.unit_conversions_temp unit_conversion on core.result_unit_code = unit_conversion.target_unit_id and core.mdl_unit_code = unit_conversion.source_unit_id      
 where core.result_unit_code is not null and core.mdl_unit_code is not null
         -- save result ids where the data can't be uploaded
@@ -767,7 +768,7 @@ where core.result_unit_code is not null and core.mdl_unit_code is not null
             FROM
                 ems.reqs_to_load l)
 -- end water data
-*/
+
 /*
 union all -- air data
 
@@ -861,7 +862,7 @@ FROM -- air data
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
         and core."Analysis Method" = ed.Analysis_Method_Code
-        and core."Result Unit" = ed.Unit -- need to check this to make sure it lines up with what's in the spreadsheet
+        and core."EMS Result Unit" = ed.Unit
 left outer join ems.unit_conversions_temp unit_conversion on core.result_unit_code = unit_conversion.target_unit_id and core.mdl_unit_code = unit_conversion.source_unit_id      
 where core.result_unit_code is not null and core.mdl_unit_code is not null
         -- save result ids where the data can't be uploaded
@@ -954,7 +955,7 @@ FROM -- water data - air flow volume
     sample_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
         and core."Analysis Method" = ed.Analysis_Method_Code
-        and core."Result Unit" = ed.Unit -- need to check this to make sure it lines up with what's in the spreadsheet
+        and core."EMS Result Unit" = ed.Unit
 left outer join ems.unit_conversions_temp unit_conversion on core.result_unit_code = unit_conversion.target_unit_id and core.mdl_unit_code = unit_conversion.source_unit_id      
 where upper(core."Medium") like '%AIR%' -- try WATER-MARINE for a subset
     and core."Air Flow Volume" is not null
@@ -1047,7 +1048,7 @@ FROM -- air flow volume
     sample_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
         and core."Analysis Method" = ed.Analysis_Method_Code
-        and core."Result Unit" = ed.Unit -- need to check this to make sure it lines up with what's in the spreadsheet
+        and core."EMS Result Unit" = ed.Unit
 left outer join ems.unit_conversions_temp unit_conversion on core.result_unit_code = unit_conversion.target_unit_id and core.mdl_unit_code = unit_conversion.source_unit_id      
 where upper(core."Medium") like '%AIR%' -- try WATER-MARINE for a subset
     and core."Air Flow Volume" is not null
@@ -1151,7 +1152,7 @@ FROM
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
         and core."Analysis Method" = ed.Analysis_Method_Code
-        and core."Result Unit" = ed.Unit -- need to check this to make sure it lines up with what's in the spreadsheet
+        and core."EMS Result Unit" = ed.Unit
         left outer join ems.ems_etl_tax_crosswalk_temp tax_cw on core.tax_nm_cd = tax_cw.parm_code
 left outer join ems.unit_conversions_temp unit_conversion on core.result_unit_code = unit_conversion.target_unit_id and core.mdl_unit_code = unit_conversion.source_unit_id      
 where (INSTR(UPPER(core."Medium"), 'ANIMAL') > 0
@@ -1254,7 +1255,7 @@ FROM
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
         and core."Analysis Method" = ed.Analysis_Method_Code
-        and core."Result Unit" = ed.Unit -- need to check this to make sure it lines up with what's in the spreadsheet
+        and core."EMS Result Unit" = ed.Unit
     left outer join ems.ems_etl_tax_crosswalk_temp tax_cw on core.tax_nm_cd = tax_cw.parm_code
 left outer join ems.unit_conversions_temp unit_conversion on core.result_unit_code = unit_conversion.target_unit_id and core.mdl_unit_code = unit_conversion.source_unit_id      
 where (INSTR(UPPER(core."Medium"), 'ANIMAL') > 0
@@ -1357,7 +1358,7 @@ FROM
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
         and core."Analysis Method" = ed.Analysis_Method_Code
-        and core."Result Unit" = ed.Unit -- need to check this to make sure it lines up with what's in the spreadsheet
+        and core."EMS Result Unit" = ed.Unit
 left outer join ems.unit_conversions_temp unit_conversion on core.result_unit_code = unit_conversion.target_unit_id and core.mdl_unit_code = unit_conversion.source_unit_id      
 left outer join ems.ems_etl_tax_crosswalk_temp tax_cw on core.tax_nm_cd = tax_cw.parm_code
 where (INSTR(UPPER(core."Medium"), 'ANIMAL') > 0
@@ -1458,7 +1459,7 @@ FROM -- fish data
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
         and core."Analysis Method" = ed.Analysis_Method_Code
-        and core."Result Unit" = ed.Unit -- need to check this to make sure it lines up with what's in the spreadsheet
+        and core."EMS Result Unit" = ed.Unit
 left outer join ems.unit_conversions_temp unit_conversion on core.result_unit_code = unit_conversion.target_unit_id and core.mdl_unit_code = unit_conversion.source_unit_id      
 where INSTR(UPPER(core."Medium"), 'ANIMAL - FISH') > 0
 -- end fish chemistry
@@ -1728,7 +1729,7 @@ FROM
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
         and core."Analysis Method" = ed.Analysis_Method_Code
-        and core."Result Unit" = ed.Unit -- need to check this to make sure it lines up with what's in the spreadsheet
+        and core."EMS Result Unit" = ed.Unit
 left outer join ems.unit_conversions_temp unit_conversion on core.result_unit_code = unit_conversion.target_unit_id and core.mdl_unit_code = unit_conversion.source_unit_id      
 where --upper(core."Medium") like '%WATER - WASTE%' -- try WATER-MARINE for a subset
 --upper(core."Collection Method") like '%CONTINUOUS%'
@@ -1817,7 +1818,7 @@ FROM
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
         and core."Analysis Method" = ed.Analysis_Method_Code
-        and core."Result Unit" = ed.Unit -- need to check this to make sure it lines up with what's in the spreadsheet
+        and core."EMS Result Unit" = ed.Unit
 left outer join ems.unit_conversions_temp unit_conversion on core.result_unit_code = unit_conversion.target_unit_id and core.mdl_unit_code = unit_conversion.source_unit_id      
 where --upper(core."Medium") like '%WATER - WASTE%' -- try WATER-MARINE for a subset
 --upper(core."Collection Method") like '%CONTINUOUS%'
@@ -1905,7 +1906,7 @@ FROM
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
         and core."Analysis Method" = ed.Analysis_Method_Code
-        and core."Result Unit" = ed.Unit -- need to check this to make sure it lines up with what's in the spreadsheet
+        and core."EMS Result Unit" = ed.Unit
 left outer join ems.unit_conversions_temp unit_conversion on core.result_unit_code = unit_conversion.target_unit_id and core.mdl_unit_code = unit_conversion.source_unit_id      
 where --upper(core."Medium") like '%WATER - WASTE%' -- try WATER-MARINE for a subset
 --upper(core."Collection Method") like '%CONTINUOUS%'
