@@ -19,8 +19,10 @@ WITH core_data AS (
         NULL                                                         AS "Field Filtered Comment", -- blank, doesn't exist in ems
         epc.description                                              AS "Field Preservative",-- updated to use descrsiption  note that only 3800 records of ~ 2 million records have a field preservative
         NULL                                                         AS "Sampling Context Tag", -- blank, doesn't exist in ems
-        CASE
+        smpl.clct_methd_cd,
+                CASE
             WHEN cm.code = '25' THEN 'Autosampler: Peristaltic Pump'
+            WHEN cm.code = '025' THEN 'Autosampler: Peristaltic Pump'
             WHEN cm.code = 'FCFLOW' THEN 'Flow Proportional Composite'
             WHEN cm.code = 'FCTIME' THEN 'Flow Proportional Composite'
             WHEN cm.code = 'GRB' THEN 'Grab'
@@ -28,6 +30,7 @@ WITH core_data AS (
             WHEN cm.code = '16' THEN 'Grab'
             WHEN cm.code = '016' THEN 'Grab'
             WHEN cm.code = '8' THEN 'Grab'
+            WHEN cm.code = '008' THEN 'Grab'
             WHEN cm.code = 'ELECTR' THEN 'Electrofishing'
             WHEN cm.code = 'IVKICK' THEN 'Invertebrate Kicknetting'
             WHEN cm.code = 'MNWTRP' THEN 'Minnow Trapping'
@@ -40,7 +43,9 @@ WITH core_data AS (
             WHEN cm.code = 'SCVERT' THEN 'Spatial Composite: Vertical'
             WHEN cm.code = 'TCDIS' THEN 'Time Composite: Discrete'
             WHEN cm.code = '31' THEN 'Time Composite: Discrete'
+            WHEN cm.code = '031' THEN 'Time Composite: Discrete'
             WHEN cm.code = '14' THEN 'Time Composite: Discrete'
+            WHEN cm.code = '014' THEN 'Time Composite: Discrete'
             WHEN cm.code = 'H01' THEN 'Time Composite: Discrete'
             WHEN cm.code = 'H02' THEN 'Time Composite: Discrete'
             WHEN cm.code = 'CMON' THEN 'Time Composite: Continuous Monitor'
@@ -470,8 +475,10 @@ sample_data AS (
         NULL                                                         AS "Field Filtered Comment", -- blank, doesn't exist in ems
         epc.description                                              AS "Field Preservative",-- updated to use descrsiption  note that only 3800 records of ~ 2 million records have a field preservative
         NULL                                                         AS "Sampling Context Tag", -- blank, doesn't exist in ems
+        smpl.clct_methd_cd,
         CASE
             WHEN cm.code = '25' THEN 'Autosampler: Peristaltic Pump'
+            WHEN cm.code = '025' THEN 'Autosampler: Peristaltic Pump'
             WHEN cm.code = 'FCFLOW' THEN 'Flow Proportional Composite'
             WHEN cm.code = 'FCTIME' THEN 'Flow Proportional Composite'
             WHEN cm.code = 'GRB' THEN 'Grab'
@@ -479,6 +486,7 @@ sample_data AS (
             WHEN cm.code = '16' THEN 'Grab'
             WHEN cm.code = '016' THEN 'Grab'
             WHEN cm.code = '8' THEN 'Grab'
+            WHEN cm.code = '008' THEN 'Grab'
             WHEN cm.code = 'ELECTR' THEN 'Electrofishing'
             WHEN cm.code = 'IVKICK' THEN 'Invertebrate Kicknetting'
             WHEN cm.code = 'MNWTRP' THEN 'Minnow Trapping'
@@ -491,7 +499,9 @@ sample_data AS (
             WHEN cm.code = 'SCVERT' THEN 'Spatial Composite: Vertical'
             WHEN cm.code = 'TCDIS' THEN 'Time Composite: Discrete'
             WHEN cm.code = '31' THEN 'Time Composite: Discrete'
+            WHEN cm.code = '031' THEN 'Time Composite: Discrete'
             WHEN cm.code = '14' THEN 'Time Composite: Discrete'
+            WHEN cm.code = '014' THEN 'Time Composite: Discrete'
             WHEN cm.code = 'H01' THEN 'Time Composite: Discrete'
             WHEN cm.code = 'H02' THEN 'Time Composite: Discrete'
             WHEN cm.code = 'CMON' THEN 'Time Composite: Continuous Monitor'
@@ -757,9 +767,10 @@ where core.result_unit_code is not null and core.mdl_unit_code is not null
             FROM
                 ems.reqs_to_load l)
 -- end water data
-
-union all -- air data
 */
+/*
+union all -- air data
+
 
 SELECT
         ''  as "Observation ID",
@@ -813,7 +824,10 @@ SELECT
         core."Rounding Specification",
         core."Analyzing Agency",
         core."Analysis Method",
-        core."Analyzed Date Time", -- add date/time mask
+        CASE
+            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            ELSE core."Analyzed Date Time"
+        END as "Analyzed Date Time",
         core."Result Status",
         core."Result Grade",
         core."Activity ID",
@@ -835,7 +849,8 @@ SELECT
         core."Lab Batch ID",
         core."QC Type",
         core."QC Source Activity Name",
-        core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
+        core."Composite Stat",-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
+        core.clct_methd_cd
         --core.parm_cd, -- for troubleshooting
         --core."Analysis Method", -- for troubleshooting
         --core."Result Unit", -- for troubleshooting     
@@ -907,7 +922,10 @@ SELECT
         core."Rounding Specification",
         core."Analyzing Agency",
         core."Analysis Method",
-        core."Analyzed Date Time", -- add date/time mask
+        CASE
+            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            ELSE core."Analyzed Date Time"
+        END as "Analyzed Date Time",
         core."Result Status",
         core."Result Grade",
         core."Activity ID",
@@ -924,7 +942,8 @@ SELECT
         core."Lab Batch ID",
         core."QC Type",
         core."QC Source Activity Name",
-        core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
+        core."Composite Stat",-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
+        core.clct_methd_cd
         --core.parm_cd, -- for troubleshooting
         --core."Analysis Method", -- for troubleshooting
         --core."Result Unit", -- for troubleshooting     
@@ -996,7 +1015,10 @@ SELECT
         core."Rounding Specification",
         core."Analyzing Agency",
         core."Analysis Method",
-        core."Analyzed Date Time", -- add date/time mask
+        CASE
+            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            ELSE core."Analyzed Date Time"
+        END as "Analyzed Date Time",
         core."Result Status",
         core."Result Grade",
         core."Activity ID",
@@ -1013,7 +1035,8 @@ SELECT
         core."Lab Batch ID",
         core."QC Type",
         core."QC Source Activity Name",
-        core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
+        core."Composite Stat",-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
+        core.clct_methd_cd
         --core.parm_cd, -- for troubleshooting
         --core."Analysis Method", -- for troubleshooting
         --core."Result Unit", -- for troubleshooting     
@@ -1089,7 +1112,10 @@ SELECT
         core."Rounding Specification",
         core."Analyzing Agency",
         core."Analysis Method",
-        core."Analyzed Date Time", -- add date/time mask
+        CASE
+            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            ELSE core."Analyzed Date Time"
+        END as "Analyzed Date Time",
         core."Result Status",
         core."Result Grade",
         core."Activity ID",
@@ -1186,7 +1212,10 @@ SELECT
         core."Rounding Specification",
         core."Analyzing Agency",
         core."Analysis Method",
-        core."Analyzed Date Time", -- add date/time mask
+        CASE
+            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            ELSE core."Analyzed Date Time"
+        END as "Analyzed Date Time",
         core."Result Status",
         core."Result Grade",
         core."Activity ID",
@@ -1286,7 +1315,10 @@ SELECT
         core."Rounding Specification",
         core."Analyzing Agency",
         core."Analysis Method",
-        core."Analyzed Date Time", -- add date/time mask
+        CASE
+            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            ELSE core."Analyzed Date Time"
+        END as "Analyzed Date Time",
         core."Result Status",
         core."Result Grade",
         core."Activity ID",
@@ -1485,7 +1517,10 @@ SELECT
         core."Rounding Specification",
         core."Analyzing Agency",
         core."Analysis Method",
-        core."Analyzed Date Time",
+        CASE
+            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            ELSE core."Analyzed Date Time"
+        END as "Analyzed Date Time",
         core."Result Status",
         core."Result Grade",
         core."Activity ID",
@@ -1572,7 +1607,10 @@ SELECT
         core."Rounding Specification",
         core."Analyzing Agency",
         core."Analysis Method",
-        core."Analyzed Date Time",
+        CASE
+            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            ELSE core."Analyzed Date Time"
+        END as "Analyzed Date Time",
         core."Result Status",
         core."Result Grade",
         core."Activity ID",
@@ -1607,7 +1645,7 @@ and (nvl(core.weight_from,0)) > 0
 */
 -- begin continuous data
 -- union -- continuous data - CONTINUOUS_AVERAGE
-/*
+
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -1661,7 +1699,10 @@ SELECT
         core."Rounding Specification",
         core."Analyzing Agency",
         core."Analysis Method",
-        core."Analyzed Date Time", -- add date/time mask
+        CASE
+            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            ELSE core."Analyzed Date Time"
+        END as "Analyzed Date Time",
         core."Result Status",
         core."Result Grade",
         core."Activity ID",
@@ -1743,7 +1784,10 @@ SELECT
         core."Rounding Specification",
         core."Analyzing Agency",
         core."Analysis Method",
-        core."Analyzed Date Time", -- add date/time mask
+        CASE
+            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            ELSE core."Analyzed Date Time"
+        END as "Analyzed Date Time",
         core."Result Status",
         core."Result Grade",
         core."Activity ID",
@@ -1830,7 +1874,10 @@ SELECT
         core."Rounding Specification",
         core."Analyzing Agency",
         core."Analysis Method",
-        core."Analyzed Date Time", -- add date/time mask
+        CASE
+            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            ELSE core."Analyzed Date Time"
+        END as "Analyzed Date Time",
         core."Result Status",
         core."Result Grade",
         core."Activity ID",
@@ -1858,4 +1905,3 @@ where --upper(core."Medium") like '%WATER - WASTE%' -- try WATER-MARINE for a su
 --upper(core."Collection Method") like '%CONTINUOUS%'
         core.CONTINUOUS_MINIMUM is not null
 -- end continuous
-*/
