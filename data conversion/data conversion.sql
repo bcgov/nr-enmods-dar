@@ -1645,7 +1645,7 @@ and (nvl(core.weight_from,0)) > 0
 */
 -- begin continuous data
 -- union -- continuous data - CONTINUOUS_AVERAGE
-
+/*
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -1719,7 +1719,11 @@ SELECT
         core."Lab Batch ID",
         core."QC Type",
         core."QC Source Activity Name",
-        'Average' as "Composite Stat" --core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
+        'Average' as "Composite Stat", --core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
+        -- debugging
+        core.parm_cd,
+        core."Analysis Method",
+        core."Result Unit"
 FROM
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -1804,13 +1808,11 @@ SELECT
         core."Lab Batch ID",
         core."QC Type",
         core."QC Source Activity Name",
-        'Maximum' as "Composite Stat" --core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
-        --core.parm_cd, -- for troubleshooting
-        --core."Analysis Method", -- for troubleshooting
-        --core."Result Unit", -- for troubleshooting     
-        --core."MDL Unit", -- for troubleshooting,
-        --core.mdl_unit_code,
-        --core.result_unit_code
+        'Maximum' as "Composite Stat", --core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
+        -- debugging
+        core.parm_cd,
+        core."Analysis Method",
+        core."Result Unit"
 FROM
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -1894,7 +1896,11 @@ SELECT
         core."Lab Batch ID",
         core."QC Type",
         core."QC Source Activity Name",
-        'Minimum' as "Composite Stat" --core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
+        'Minimum' as "Composite Stat", --core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
+        -- debugging
+        core.parm_cd,
+        core."Analysis Method",
+        core."Result Unit"
 FROM
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -1905,3 +1911,4 @@ where --upper(core."Medium") like '%WATER - WASTE%' -- try WATER-MARINE for a su
 --upper(core."Collection Method") like '%CONTINUOUS%'
         core.CONTINUOUS_MINIMUM is not null
 -- end continuous
+*/
