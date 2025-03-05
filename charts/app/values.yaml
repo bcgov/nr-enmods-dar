@@ -334,7 +334,7 @@ bitnami-pg:
           PGPASSWORD=$POSTGRES_PASSWORD psql -U postgres -d postgres -c "CREATE EXTENSION postgis;"
     resources:
       requests:
-        cpu: 300m
+        cpu: 400m
         memory: 250Mi
       limits:
         cpu: 500m
