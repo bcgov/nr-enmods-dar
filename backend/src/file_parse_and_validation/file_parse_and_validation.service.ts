@@ -1015,15 +1015,12 @@ export class FileParseValidateService {
         rowData["DataClassification"] == "LAB" ||
         rowData["DataClassification"] == "SURROGATE_RESULT"
       ) {
-        if (rowData["QCType"] == "") {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"QCType": "Cannot be empty when Data Classification is ${rowData.DataClassification}"}}`;
-          errorLogs.push(JSON.parse(errorLog));
-        } else if (
+        if (
           rowData["QCType"].toUpperCase() != "" &&
           rowData["QCType"].toUpperCase() != "BLANK" &&
           rowData["QCType"].toUpperCase() != "REPLICATE" &&
           rowData["QCType"].toUpperCase() != "SPIKE" &&
-          rowData["QCType"].toUpperCase() != "OTHER_QC" 
+          rowData["QCType"].toUpperCase() != "OTHER_QC"
         ) {
           // null because the AQI api considers the type REGULAR as NULL
           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"QCType": "${rowData.QCType} not found in EnMoDS QC Types"}}`;
@@ -1177,7 +1174,7 @@ export class FileParseValidateService {
   async cleanRowBasedOnDataClassification(rowData: any) {
     let cleanedRow = rowData;
 
-    cleanedRow.QCType  = rowData.QCType.toUpperCase()
+    cleanedRow.QCType = rowData.QCType.toUpperCase();
 
     if (
       rowData.DataClassification == "LAB" ||
@@ -1751,7 +1748,7 @@ export class FileParseValidateService {
           .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
         this.logger.log(`Created row object for row ${rowNumber}`);
-        
+
         rowData = await this.cleanRowBasedOnDataClassification(rowData);
 
         await this.validateRow(
@@ -1934,6 +1931,9 @@ export class FileParseValidateService {
 
         try {
           rowData = await this.cleanRowBasedOnDataClassification(rowData);
+          if (rowNumber == 2 || rowNumber == 102) {
+            console.log(rowData);
+          }
           this.logger.log(`Created row object for row ${rowNumber}`);
           await this.validateRow(
             rowData,
