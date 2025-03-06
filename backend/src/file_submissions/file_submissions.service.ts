@@ -125,15 +125,19 @@ export class FileSubmissionsService {
       };
     }
 
-    if (body.submissionDateFrom) {
+    if (body.submissionDateFrom && body.submissionDateTo) {
+      console.log(body.submissionDateFrom);
+      console.log(body.submissionDateTo);
+      whereClause.submission_date = {
+        gte: new Date(body.submissionDateFrom),
+        lte: new Date(body.submissionDateTo),
+      };
+    } else if (body.submissionDateFrom) {
       whereClause.submission_date = {
         gte: new Date(body.submissionDateFrom),
       };
-    }
-
-    if (body.submissionDateTo) {
+    } else if (body.submissionDateTo) {
       whereClause.submission_date = {
-        ...whereClause.submission_date,
         lte: new Date(body.submissionDateTo),
       };
     }
