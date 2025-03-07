@@ -665,6 +665,7 @@ sample_data AS (
         AND mloc.locntyp_cd NOT LIKE 'P%'
     
 ) -- sample data
+/*
 -- water data
 
 SELECT
@@ -746,12 +747,7 @@ SELECT
         core."Lab Batch ID",
         core."QC Type",
         core."QC Source Activity Name",
-        core."Composite Stat",-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
-        -- debugging
-        core.parm_cd,
-        core."Analysis Method",
-        core."Result Unit",
-        core."EMS Result Unit"
+        core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
 FROM -- water data
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -771,8 +767,8 @@ where core.result_unit_code is not null and core.mdl_unit_code is not null
 
 /*
 union all -- air data
-
-
+*/
+/*
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -1646,7 +1642,7 @@ and (nvl(core.weight_from,0)) > 0
 */
 -- begin continuous data
 -- union -- continuous data - CONTINUOUS_AVERAGE
-/*
+
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -1720,11 +1716,7 @@ SELECT
         core."Lab Batch ID",
         core."QC Type",
         core."QC Source Activity Name",
-        'Average' as "Composite Stat", --core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
-        -- debugging
-        core.parm_cd,
-        core."Analysis Method",
-        core."Result Unit"
+        'Average' as "Composite Stat" --core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
 FROM
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -1809,11 +1801,7 @@ SELECT
         core."Lab Batch ID",
         core."QC Type",
         core."QC Source Activity Name",
-        'Maximum' as "Composite Stat", --core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
-        -- debugging
-        core.parm_cd,
-        core."Analysis Method",
-        core."Result Unit"
+        'Maximum' as "Composite Stat" --core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
 FROM
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -1897,11 +1885,7 @@ SELECT
         core."Lab Batch ID",
         core."QC Type",
         core."QC Source Activity Name",
-        'Minimum' as "Composite Stat", --core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
-        -- debugging
-        core.parm_cd,
-        core."Analysis Method",
-        core."Result Unit"
+        'Minimum' as "Composite Stat" --core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
 FROM
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -1912,4 +1896,3 @@ where --upper(core."Medium") like '%WATER - WASTE%' -- try WATER-MARINE for a su
 --upper(core."Collection Method") like '%CONTINUOUS%'
         core.CONTINUOUS_MINIMUM is not null
 -- end continuous
-*/
