@@ -19,14 +19,17 @@ WITH core_data AS (
         NULL                                                         AS "Field Filtered Comment", -- blank, doesn't exist in ems
         epc.description                                              AS "Field Preservative",-- updated to use descrsiption  note that only 3800 records of ~ 2 million records have a field preservative
         NULL                                                         AS "Sampling Context Tag", -- blank, doesn't exist in ems
-        CASE
+                        CASE
             WHEN cm.code = '25' THEN 'Autosampler: Peristaltic Pump'
+            WHEN cm.code = '025' THEN 'Autosampler: Peristaltic Pump'
             WHEN cm.code = 'FCFLOW' THEN 'Flow Proportional Composite'
             WHEN cm.code = 'FCTIME' THEN 'Flow Proportional Composite'
             WHEN cm.code = 'GRB' THEN 'Grab'
             WHEN cm.code = 'GEL' THEN 'Grab'
             WHEN cm.code = '16' THEN 'Grab'
+            WHEN cm.code = '016' THEN 'Grab'
             WHEN cm.code = '8' THEN 'Grab'
+            WHEN cm.code = '008' THEN 'Grab'
             WHEN cm.code = 'ELECTR' THEN 'Electrofishing'
             WHEN cm.code = 'IVKICK' THEN 'Invertebrate Kicknetting'
             WHEN cm.code = 'MNWTRP' THEN 'Minnow Trapping'
@@ -39,7 +42,9 @@ WITH core_data AS (
             WHEN cm.code = 'SCVERT' THEN 'Spatial Composite: Vertical'
             WHEN cm.code = 'TCDIS' THEN 'Time Composite: Discrete'
             WHEN cm.code = '31' THEN 'Time Composite: Discrete'
+            WHEN cm.code = '031' THEN 'Time Composite: Discrete'
             WHEN cm.code = '14' THEN 'Time Composite: Discrete'
+            WHEN cm.code = '014' THEN 'Time Composite: Discrete'
             WHEN cm.code = 'H01' THEN 'Time Composite: Discrete'
             WHEN cm.code = 'H02' THEN 'Time Composite: Discrete'
             WHEN cm.code = 'CMON' THEN 'Time Composite: Continuous Monitor'
@@ -55,6 +60,7 @@ WITH core_data AS (
             WHEN cm.code = '30' THEN 'DELETE' -- don't display this row
             WHEN cm.code = 'PDW' THEN 'DELETE' -- don't display this row
             WHEN cm.code = 'SCHTRL' THEN 'DELETE' -- don't display this row
+            WHEN NULLIF(cm.code, '') IS NULL THEN 'Unknown'
             ELSE cm.code
         END AS "Collection Method", -- still need to find source
         m.enmods_medium                                             AS "Medium",
@@ -75,7 +81,8 @@ WITH core_data AS (
         result.method_detect_limit                                   AS "Method Detection Limit",
         d.METHOD_DETECT_LIMIT   AS "Method Detection Limit Source 2",        
         NULL                                                         AS "Method Reporting Limit", -- leave as blank
-        mu.short_name                                                AS "Result Unit",
+        aqs_units.AQS_NAME_ON_IMPORT                                                AS "Result Unit",
+        mu.short_name AS "EMS Result Unit",
         mu_mdl.short_name                                            AS "MDL Unit",
         CASE
             WHEN result.result_letter = '<' THEN
@@ -87,7 +94,7 @@ WITH core_data AS (
         NULL                                                         AS "Source of Rounded Value", -- can be blank
         NULL                                                         AS "Rounded Value", -- can be blank
         NULL                                                         AS "Rounding Specification", -- can be blank
-        cl2.short_name                                               AS "Analyzing Agency",
+        null                                                         AS "Analyzing Agency",
         result.anal_method_cd                                        AS "Analysis Method",
         CASE 
             WHEN result.analytical_date IS NULL THEN NULL
@@ -96,7 +103,7 @@ WITH core_data AS (
         'Preliminary'                                                AS "Result Status",
         'Ungraded'                                                   AS "Result Grade",
         NULL                                                         AS "Activity ID",
-        result.smpl_id                                               AS "Activity Name",
+        null                                               AS "Activity Name",
         tt.description                                               AS "Tissue Type", -- blank for this query, but not necessarily true for tax. and air
         smpl.lab_arrival_temperature                                 AS "Lab Arrival Temperature",
         NULL                                                         AS "Lab Quality Flag",-- leave blank
@@ -162,6 +169,7 @@ WITH core_data AS (
         LEFT JOIN ems_anal_methods am ON result.anal_method_cd = am.code
         LEFT JOIN ems_parm_dicts d on d.parm_cd = result.parm_cd
                 AND d.anal_method_cd = result.anal_method_cd
+        LEFT JOIN ems.AQS_UNITS_TEMP aqs_units ON aqs_units.EMS_CODE = d.meas_unit_cd
         LEFT JOIN ems_measurment_units mu ON mu.code = d.meas_unit_cd
         LEFT JOIN ems_measurment_units mu_mdl ON mu_mdl.code = result.meas_unit_cd
         LEFT JOIN ems_tides tide ON smpl.tide_cd = tide.code
@@ -211,7 +219,7 @@ SELECT
         core."Field Filtered Comment",
         core."Field Preservative",
         NULL AS "Field Device ID",-- leave as blank
-        ed.Device_Type as "Field Device Type",
+        ed.METHOD as "Field Device Type",
         core."Sampling Context Tag",
         core."Collection Method",
         core."Medium",
@@ -247,7 +255,7 @@ SELECT
         core."Rounded Value",
         core."Rounding Specification",
         core."Analyzing Agency",
-        core."Analysis Method",
+        null as "Analysis Method", -- removed as per request from Jeremy.  The METHOD name was moved to field device type column
         core."Analyzed Date Time", -- add date/time mask
         core."Result Status",
         core."Result Grade",
@@ -276,7 +284,7 @@ FROM -- water data
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
         and core."Analysis Method" = ed.Analysis_Method_Code
-        and core."Result Unit" = ed.Unit -- need to check this to make sure it lines up with what's in the spreadsheet
+        and core."EMS Result Unit" = ed.Unit -- need to check this to make sure it lines up with what's in the spreadsheet
         inner join EMS.VERTICAL_PROFILES V on         core."Location ID"=to_char(v.EMS_ID)
         and core."Observed DateTime"=to_char(v.collection_date_time, 'YYYY-MM-DD"T"HH24:MI:SS') || '-08:00'
         and  core.parm_cd=v.parm_cd
