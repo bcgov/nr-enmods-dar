@@ -250,7 +250,10 @@ SELECT
         core."Detection Condition",
         core."Limit Type",-- doesn't exist in ems  
         ed.Fraction as "Fraction",
-        'VERTICAL_PROFILE' as "Data Classification",
+        case 
+            when core."Depth Upper" is null and core."Depth Lower" is null then 'FIELD_RESULT'
+            else 'VERTICAL_PROFILE'
+        end AS "Data Classification",
         core."Source of Rounded Value",
         core."Rounded Value",
         core."Rounding Specification",
