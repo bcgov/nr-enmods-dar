@@ -747,7 +747,7 @@ SELECT
         core."Lab Batch ID",
         core."QC Type",
         core."QC Source Activity Name",
-        core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
+        core."Composite Stat",-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
 FROM -- water data
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -1697,7 +1697,7 @@ SELECT
         core."Analyzing Agency",
         core."Analysis Method",
         CASE
-            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            WHEN core."Analyzed Date Time" is null then core."Observed DateTime"
             ELSE core."Analyzed Date Time"
         END as "Analyzed Date Time",
         core."Result Status",
@@ -1716,7 +1716,7 @@ SELECT
         core."Lab Batch ID",
         core."QC Type",
         core."QC Source Activity Name",
-        'Average' as "Composite Stat" --core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
+        'Mean' as "Composite Stat" --core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
 FROM
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -1782,7 +1782,7 @@ SELECT
         core."Analyzing Agency",
         core."Analysis Method",
         CASE
-            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            WHEN core."Analyzed Date Time" is null then core."Observed DateTime"
             ELSE core."Analyzed Date Time"
         END as "Analyzed Date Time",
         core."Result Status",
@@ -1866,7 +1866,7 @@ SELECT
         core."Analyzing Agency",
         core."Analysis Method",
         CASE
-            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            WHEN core."Analyzed Date Time" is null then core."Observed DateTime"
             ELSE core."Analyzed Date Time"
         END as "Analyzed Date Time",
         core."Result Status",
