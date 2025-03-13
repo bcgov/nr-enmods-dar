@@ -4,10 +4,11 @@ import { FileSubmissionsController } from "./file_submissions.controller";
 import { SanitizeService } from "../sanitize/sanitize.service";
 import { ObjectStoreModule } from "../objectStore/objectStore.module";
 import { AqiApiModule } from "../aqi_api/aqi_api.module";
+import { OperationLockService } from "src/operationLock/operationLock.service";
 
 @Module({
   controllers: [FileSubmissionsController],
-  providers: [FileSubmissionsService, SanitizeService],
+  providers: [FileSubmissionsService, SanitizeService, OperationLockService],
   exports: [FileSubmissionsService],
   imports: [ObjectStoreModule, AqiApiModule],
 })

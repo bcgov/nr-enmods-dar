@@ -197,34 +197,45 @@ export class FileSubmissionsService {
       };
     }
 
-    if (body.submissionDateFrom) {
+    if (body.submissionDateFrom && body.submissionDateTo) {
+      console.log(body.submissionDateFrom);
+      console.log(body.submissionDateTo);
+      whereClause.submission_date = {
+        gte: new Date(body.submissionDateFrom),
+        lte: new Date(body.submissionDateTo),
+      };
+    } else if (body.submissionDateFrom) {
       whereClause.submission_date = {
         gte: new Date(body.submissionDateFrom),
       };
-    }
-
-    if (body.submissionDateTo) {
+    } else if (body.submissionDateTo) {
       whereClause.submission_date = {
-        ...whereClause.submission_date,
         lte: new Date(body.submissionDateTo),
       };
     }
 
-    if (body.submitterUsername && body.submitterUsername != "ALL") {
+    if (body.submitterUsername) {
+      const usernames = body.submitterUsername
+        .split(",")
+        .map((item) => item.trim());
       whereClause.submitter_user_id = {
-        contains: body.submitterUsername,
+        in: usernames,
       };
     }
 
-    if (body.submitterAgency && body.submitterAgency != "ALL") {
+    if (body.submitterAgency) {
+      const agencies = body.submitterAgency
+        .split(",")
+        .map((item) => item.trim());
       whereClause.submitter_agency_name = {
-        contains: body.submitterAgency,
+        in: agencies,
       };
     }
 
-    if (body.fileStatus && body.fileStatus != "ALL") {
+    if (body.fileStatus) {
+      const statues = body.fileStatus.split(",").map((item) => item.trim());
       whereClause.submission_status_code = {
-        equals: body.fileStatus,
+        in: statues,
       };
     }
 

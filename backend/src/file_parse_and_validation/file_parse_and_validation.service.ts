@@ -1,5 +1,4 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { AxiosInstance } from "axios";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
 import {
@@ -13,7 +12,7 @@ import { AqiApiService } from "src/aqi_api/aqi_api.service";
 import ExcelJS from "exceljs";
 import fs from "fs";
 import { PrismaService } from "nestjs-prisma";
-import { PassThrough, Readable } from "stream";
+import { Readable } from "stream";
 import csv from "csv-parser";
 import { format } from "fast-csv";
 import csvParser from "csv-parser";
@@ -149,7 +148,6 @@ const obsFile: ObservationFile = {
 @Injectable()
 export class FileParseValidateService {
   private readonly logger = new Logger(FileParseValidateService.name);
-  private axiosInstance: AxiosInstance;
 
   constructor(
     private prisma: PrismaService,
@@ -224,37 +222,6 @@ export class FileParseValidateService {
           },
         });
         return { medium: { id: mediumID[0].aqi_mediums_id, customId: param } };
-      // case "DEPTH_UNIT":
-      //   if (
-      //     param[0] == "m" ||
-      //     param[0] == "Metre" ||
-      //     param[0] == "metre" ||
-      //     param[0] == "Meter" ||
-      //     param[0] == "meter"
-      //   ) {
-      //     param[0] = "metre";
-      //   }
-
-      //   if (param[0] == "ft" || param[0] == "Feet" || param[0] == "feet") {
-      //     param[0] = "feet";
-      //   }
-
-      //   let duID = await this.prisma.aqi_units.findMany({
-      //     where: {
-      //       custom_id: {
-      //         equals: param[0],
-      //       },
-      //     },
-      //     select: {
-      //       aqi_units_id: true,
-      //     },
-      //   });
-      //   return {
-      //     depth: {
-      //       value: param[1],
-      //       unit: { id: duID[0].aqi_units_id, customId: param[0] },
-      //     },
-      //   };
       case "LABS":
         let labID = await this.prisma.aqi_laboratories.findMany({
           where: {
@@ -572,10 +539,7 @@ export class FileParseValidateService {
   async formulateObservationFile(
     observationData: any,
     originalFileName: string,
-    rowNumber: number,
   ) {
-    const obsToWrite: ObservationFile[] = [];
-
     const sourceKeys = Object.keys(observationData);
     const targetKeys = Object.keys(obsFile);
 
@@ -686,44 +650,7 @@ export class FileParseValidateService {
     return filteredObj;
   }
 
-  getUniqueWithCounts(data: any[]) {
-    const seen = new Map();
-    const duplicateDetails = [];
-
-    data.forEach((obj, index) => {
-      const item = JSON.stringify(obj);
-
-      if (seen.has(item)) {
-        const existingEntry = seen.get(item);
-        existingEntry.positions.push(index);
-        existingEntry.count++;
-      } else {
-        seen.set(item, { rec: obj, count: 1, positions: [index] });
-      }
-    });
-
-    seen.forEach((value) => {
-      if (value.count >= 1) {
-        duplicateDetails.push(value);
-      }
-    });
-
-    return duplicateDetails;
-  }
-
-  expandList(data: any[]) {
-    const expandedList: any[] = [];
-
-    data.forEach(({ rec, positions }) => {
-      positions.forEach((position) => {
-        expandedList[position] = rec;
-      });
-    });
-
-    return expandedList;
-  }
-
-  async localValidation(rowNumber: number, rowData: any): Promise<any[]> {
+  async localValidation(rowNumber: number, rowData: any) {
     let errorLogs = [];
     let existingRecords = [];
     // for (const [index, record] of allRecords.entries()) {
@@ -810,7 +737,7 @@ export class FileParseValidateService {
     if (rowData.hasOwnProperty("Depth Unit")) {
       if (rowData["Depth Upper"]) {
         if (rowData["Depth Unit"] != "metre") {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Depth_Unit": "${rowData["Depth Unit"]} is not valid unit for Depth. Only 'Metre' is allowed"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DepthUnit": "${rowData["Depth Unit"]} is not valid unit for Depth. Only 'Metre' is allowed"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
@@ -818,7 +745,7 @@ export class FileParseValidateService {
 
     if (rowData.hasOwnProperty("SamplingAgency")) {
       if (rowData["SamplingAgency"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Sampling Agency": "Cannot be empty"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SamplingAgency": "Cannot be empty"}}`;
         errorLogs.push(JSON.parse(errorLog));
       } else {
         const present = await this.aqiService.databaseLookup(
@@ -826,7 +753,7 @@ export class FileParseValidateService {
           rowData.SamplingAgency,
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Sampling Agency": "${rowData.SamplingAgency} not found in EnMoDS Sampling Agency"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SamplingAgency": "${rowData.SamplingAgency} not found in EnMoDS Sampling Agency"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
@@ -845,7 +772,7 @@ export class FileParseValidateService {
 
     if (rowData.hasOwnProperty("LocationID")) {
       if (rowData["LocationID"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Location_ID": "Cannot be empty"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "Cannot be empty"}}`;
         errorLogs.push(JSON.parse(errorLog));
       } else {
         const present = await this.aqiService.databaseLookup(
@@ -853,13 +780,13 @@ export class FileParseValidateService {
           rowData.LocationID,
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Location_ID": "${rowData.LocationID} not found in EnMoDS Locations"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "${rowData.LocationID} not found in EnMoDS Locations"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
     }
 
-    if (rowData.hasOwnProperty("Preservative")) {
+    if (rowData.hasOwnProperty("FieldPreservative")) {
       const present = await this.aqiService.databaseLookup(
         "aqi_preservatives",
         rowData.Preservative,
@@ -878,32 +805,20 @@ export class FileParseValidateService {
           rowData["DataClassification"] == "VERTICAL_PROFILE") &&
         rowData["FieldDeviceType"] == ""
       ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Field Device Type": "Cannot be empty when data classification is ${rowData["DataClassification"]}"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      }
-    }
-
-    if (rowData.hasOwnProperty("SamplingConextTag")) {
-      const present = await this.aqiService.databaseLookup(
-        "aqi_context_tags",
-        rowData.SamplingConextTag,
-      );
-      if (!present) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Sampling_Context_Tag": "${rowData.SamplingConextTag} not found in EnMoDS Sampling Context Tags"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"FieldDeviceType": "Cannot be empty when data classification is ${rowData["DataClassification"]}"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
     }
 
     if (rowData.hasOwnProperty("CollectionMethod")) {
       if (
-        (rowData["DataClassification"] == "LAB" ||
-          rowData["DataClassification"] == "SURROGATE_RESULT") &&
-        rowData["CollectionMethod"] == ""
+        rowData["DataClassification"] == "LAB" ||
+        rowData["DataClassification"] == "SURROGATE_RESULT"
       ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"CollectionMethod": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      } else {
-        if (rowData["CollectionMethod"] != "") {
+        if (rowData["CollectionMethod"] == "") {
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"CollectionMethod": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        } else {
           const present = await this.aqiService.databaseLookup(
             "aqi_collection_methods",
             rowData.CollectionMethod,
@@ -934,7 +849,7 @@ export class FileParseValidateService {
 
     if (rowData.hasOwnProperty("ObservedPropertyID")) {
       if (rowData["ObservedPropertyID"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Observed_Property_ID": "Cannot be empty"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "Cannot be empty"}}`;
         errorLogs.push(JSON.parse(errorLog));
       } else {
         const present = await this.aqiService.databaseLookup(
@@ -942,7 +857,7 @@ export class FileParseValidateService {
           rowData.ObservedPropertyID,
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Observed_Property_ID": "${rowData.ObservedPropertyID} not found in EnMoDS Observed Properties"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "${rowData.ObservedPropertyID} not found in EnMoDS Observed Properties"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
@@ -957,7 +872,7 @@ export class FileParseValidateService {
         rowData.DetectionCondition.toUpperCase().replace(/ /g, "_"),
       );
       if (!present) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Detection_Condition": "${rowData.DetectionCondition} not found in EnMoDS Detection Conditions"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DetectionCondition": "${rowData.DetectionCondition} not found in EnMoDS Detection Conditions"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
     }
@@ -975,7 +890,7 @@ export class FileParseValidateService {
 
     if (rowData.hasOwnProperty("DataClassification")) {
       if (rowData["DataClassification"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Data Classification": "Cannot be empty"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DataClassification": "Cannot be empty"}}`;
         errorLogs.push(JSON.parse(errorLog));
       } else {
         const present = await this.aqiService.databaseLookup(
@@ -983,7 +898,7 @@ export class FileParseValidateService {
           rowData.DataClassification,
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Data Classification": "${rowData.DataClassification} not found in EnMoDS Data Classesifications"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DataClassification": "${rowData.DataClassification} not found in EnMoDS Data Classesifications"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
@@ -992,27 +907,60 @@ export class FileParseValidateService {
         rowData["CompositeStat"] != "" &&
         rowData["DataClassification"] != "LAB"
       ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Data Classification": "Must be LAB when Composite Stat is porvided."}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DataClassification": "Must be LAB when Composite Stat is porvided."}}`;
+        errorLogs.push(JSON.parse(errorLog));
+      }
+    }
+
+    if (rowData.hasOwnProperty("SourceOfRoundedValue")) {
+      if (rowData["SourceOfRoundedValue"] != "") {
+        if (
+          rowData["SourceOfRoundedValue"] != "PROVIDED_BY_USER" ||
+          rowData["SourceOfRoundedValue"] != "ROUNDING_SPECIFICATION"
+        ) {
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SourceOfRoundedValue": "Must be PROVIDED_BY_USER or ROUNDING_SPECIFICATION."}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+      }
+    }
+
+    if (rowData.hasOwnProperty("RoundedValue")) {
+      if (
+        rowData["RoundedValue"] == "" &&
+        rowData["SourceOfRoundedValue"] == "PROVIDED_BY_USER"
+      ) {
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"RoundedValue": "Cannot be empty when Source of Rounded Value is PROVIDED_BY_USER."}}`;
+        errorLogs.push(JSON.parse(errorLog));
+      }
+    }
+
+    if (rowData.hasOwnProperty("RoundingSpecification")) {
+      if (
+        rowData["RoundingSpecification"] == "" &&
+        rowData["SourceOfRoundedValue"] == "ROUNDING_SPECIFICATION"
+      ) {
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"RoundingSpecification": "Cannot be empty when Source of Rounded Value is ROUNDING_SPECIFICATION."}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
     }
 
     if (rowData.hasOwnProperty("AnalyzingAgency")) {
       if (
-        (rowData["DataClassification"] == "LAB" ||
-          rowData["DataClassification"] == "SURROGATE_RESULT") &&
-        rowData["AnalyzingAgency"] == ""
+        rowData["DataClassification"] == "LAB" ||
+        rowData["DataClassification"] == "SURROGATE_RESULT"
       ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Analyzing Agency": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      } else {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_laboratories",
-          rowData.AnalyzingAgency,
-        );
-        if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Analyzing_Agency": "${rowData.AnalyzingAgency} not found in EnMoDS Agencies"}}`;
+        if (rowData["AnalyzingAgency"] == "") {
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalyzingAgency": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
           errorLogs.push(JSON.parse(errorLog));
+        } else {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_laboratories",
+            rowData.AnalyzingAgency,
+          );
+          if (!present) {
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalyzingAgency": "${rowData.AnalyzingAgency} not found in EnMoDS Agencies"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
         }
       }
     }
@@ -1023,7 +971,7 @@ export class FileParseValidateService {
         rowData.ResultStatus,
       );
       if (!present) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Result_Status": "${rowData.ResultStatus} not found in EnMoDS Result Statuses"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ResultStatus": "${rowData.ResultStatus} not found in EnMoDS Result Statuses"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
     }
@@ -1034,22 +982,48 @@ export class FileParseValidateService {
         rowData.ResultGrade,
       );
       if (!present) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Result_Grade": "${rowData.ResultGrade} not found in EnMoDS Result Grades"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ResultGrade": "${rowData.ResultGrade} not found in EnMoDS Result Grades"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
     }
 
     if (rowData.hasOwnProperty("TissueType")) {
-      if (rowData["Medium"] == "Animal - Fish" && rowData["TissueType"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"TissueType": "Cannot be empty when Medium is Animal - Fish"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      } else if (rowData["TissueType"]) {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_tissue_types",
-          rowData.TissueType,
-        );
-        if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"TissueType": "${rowData.TissueType} not found in EnMoDS Tissue Types"}}`;
+      if (
+        rowData["DataClassification"] == "LAB" ||
+        rowData["DataClassification"] == "SURROGATE_RESULT"
+      ) {
+        if (/^Animal\b/.test(rowData["Medium"])) {
+          if (rowData["TissueType"] == "") {
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"TissueType": "Cannot be empty when Data Classification is ${rowData.DataClassification} and Medium is ${rowData.Medium}"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          } else if (rowData["TissueType"]) {
+            const present = await this.aqiService.databaseLookup(
+              "aqi_tissue_types",
+              rowData.TissueType,
+            );
+            if (!present) {
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"TissueType": "${rowData.TissueType} not found in EnMoDS Tissue Types"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
+          }
+        }
+      }
+    }
+
+    if (rowData.hasOwnProperty("QCType")) {
+      if (
+        rowData["DataClassification"] == "LAB" ||
+        rowData["DataClassification"] == "SURROGATE_RESULT"
+      ) {
+        if (
+          rowData["QCType"].toUpperCase() != "" &&
+          rowData["QCType"].toUpperCase() != "BLANK" &&
+          rowData["QCType"].toUpperCase() != "REPLICATE" &&
+          rowData["QCType"].toUpperCase() != "SPIKE" &&
+          rowData["QCType"].toUpperCase() != "OTHER_QC"
+        ) {
+          // null because the AQI api considers the type REGULAR as NULL
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"QCType": "${rowData.QCType} not found in EnMoDS QC Types"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
@@ -1057,13 +1031,13 @@ export class FileParseValidateService {
 
     if (rowData.hasOwnProperty("SpecimenName")) {
       if (rowData["CompositeStat"] != "" && rowData["SpecimenName"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Specimen Name": "Cannot be empty when Composite Stat is present."}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SpecimenName": "Cannot be empty when Composite Stat is present."}}`;
         errorLogs.push(JSON.parse(errorLog));
       } else if (
-        rowData["Medium"] == "Animal - Fish" &&
+        /^Animal\b/.test(rowData["Medium"]) &&
         rowData["SpecimenName"] == ""
       ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Specimen Name": "Cannot be empty when Medium is Animal - Fish"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SpecimenName": "Cannot be empty when Medium is Animal - Fish"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
     }
@@ -1108,9 +1082,7 @@ export class FileParseValidateService {
       existingRecords.push({ rowNum: rowNumber, existingGUIDS: existingGUIDS });
     }
 
-    return new Promise((resolve) => {
-      setTimeout(() => resolve([errorLogs, existingRecords]), 1000);
-    });
+    return [errorLogs, existingRecords];
   }
 
   async validateObsFile(
@@ -1199,6 +1171,494 @@ export class FileParseValidateService {
     return;
   }
 
+  async cleanRowBasedOnDataClassification(rowData: any) {
+    let cleanedRow = rowData;
+
+    cleanedRow.QCType = rowData.QCType.toUpperCase();
+
+    if (
+      rowData.DataClassification == "LAB" ||
+      rowData.DataClassification == "SURROGATE_RESULT"
+    ) {
+      cleanedRow.ObservationID = "";
+      cleanedRow.FieldDeviceID = "";
+      cleanedRow.FieldDeviceType = "";
+      cleanedRow.SamplingContextTag = "";
+      cleanedRow.LimitType = "";
+      cleanedRow.ResultGrade = "Ungraded";
+      cleanedRow.ResultStatus = "Preliminary";
+      cleanedRow.ActivityID = "";
+      // cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
+
+      if (cleanedRow.QCType == "REGULAR") {
+        // this is because AQI interprets a null value as REGULAR
+        cleanedRow.QCType = "";
+      }
+    } else if (
+      rowData.DataClassification == "FIELD_RESULT" ||
+      rowData.DataClassification == "ACTIVITY_RESULT" ||
+      rowData.DataClassification == "FIELD_SURVEY" ||
+      rowData.DataClassification == "VERTICAL_PROFILE"
+    ) {
+      cleanedRow.ObservationID = "";
+      cleanedRow.FieldFiltered = "";
+      cleanedRow.FieldFilterComment = "";
+      cleanedRow.FieldPreservative = "";
+      cleanedRow.SamplingContextTag = "";
+      cleanedRow.LimitType = "";
+      cleanedRow.Fraction = "";
+      cleanedRow.AnalyzingAgency = "";
+      cleanedRow.AnalysisMethod = "";
+      cleanedRow.AnalyzedDateTime = "";
+      cleanedRow.ResultGrade = "Ungraded";
+      cleanedRow.ResultStatus = "Preliminary";
+      cleanedRow.ActivityID = "";
+      // cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
+      cleanedRow.ActivityName = "";
+      cleanedRow.TissueType = "";
+      cleanedRow.LabArrivalTemperature = "";
+      cleanedRow.SpecimenName = "";
+      cleanedRow.LabQualityFlag = "";
+      cleanedRow.LabArrivalDateandTime = "";
+      cleanedRow.LabPreparedDateTime = "";
+      cleanedRow.LabSampleID = "";
+      cleanedRow.LabDilutionFactor = "";
+      cleanedRow.QCType = "";
+      cleanedRow.QCSourceActivityName = "";
+      cleanedRow.CompositeStat = "";
+    }
+
+    return cleanedRow;
+  }
+
+  async validateRow(
+    rowData: any,
+    ministryContacts: any,
+    csvStream: any,
+    allNonObsErrors: any,
+    allExistingRecords: any,
+    originalFileName: any,
+    rowNumber: any,
+  ) {
+    const fieldVisitCustomAttributes: Partial<FieldVisits> = {
+      PlanningStatus: "DONE",
+    };
+
+    /*
+     * From the input file get all the atrributes and values for each sub section - Visits, Activities, Specimens and Observations
+     */
+    const fieldVisit = this.filterFile<FieldVisits>(
+      rowData,
+      Object.keys(visits),
+      fieldVisitCustomAttributes,
+    );
+
+    ministryContacts.add(fieldVisit.MinistryContact); // getting the ministry contacts (this will result in a unique list at the end of all rows)
+
+    if (rowData.DataClassification == "VERTICAL_PROFILE") {
+      rowData.SpecimenName = "";
+    }
+
+    if (rowData.DataClassification == "FIELD_RESULT") {
+      // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this
+      rowData.SpecimenName = "";
+      rowData.ActivityName == "";
+    }
+
+    const observation = this.filterFile<Observations>(
+      rowData,
+      Object.keys(observations),
+      null,
+    );
+
+    const obsRecord = await this.formulateObservationFile(
+      observation,
+      originalFileName,
+    );
+
+    const csvRow = Object.values(obsRecord);
+
+    this.logger.log(`Created observation object for row ${rowNumber}`);
+
+    csvStream.write(csvRow);
+
+    this.logger.log(`Wrote observation object to file for row ${rowNumber}`);
+
+    /*
+     * Do the local validation for each section here - if passed then go to the API calls - else create the message/file/email for the errors
+     */
+
+    this.logger.log(`Started local validation for row ${rowNumber}`);
+    const recordLocalValidationResults = await this.localValidation(
+      rowNumber,
+      rowData,
+    );
+
+    this.logger.log(`Finished local validation for row ${rowNumber}`);
+
+    allNonObsErrors.push(...recordLocalValidationResults[0]);
+    allExistingRecords.push(...recordLocalValidationResults[1]);
+  }
+
+  async finalValidationStep(
+    ministryContacts: Set<unknown>,
+    filePath: any,
+    file_submission_id: string,
+    file_operation_code: string,
+    allNonObsErrors: any[],
+  ) {
+    const uniqueMinistryContacts: any = Array.from(ministryContacts);
+
+    // send the obsfile for validation here
+    const fileValidationResults = [];
+    const finalErrorLogs = await this.validateObsFile(
+      filePath,
+      file_submission_id,
+      file_operation_code,
+      allNonObsErrors,
+    );
+
+    fileValidationResults.push(...finalErrorLogs);
+
+    return [uniqueMinistryContacts, fileValidationResults];
+  }
+
+  async insertDataNonObservations(
+    rowData: any,
+    GuidsToSave: any,
+    fileName: string,
+  ) {
+    const fieldVisitCustomAttributes: Partial<FieldVisits> = {
+      PlanningStatus: "DONE",
+    };
+
+    const fieldActivityCustomAttrib: Partial<FieldActivities> = {
+      ActivityType: "",
+    };
+
+    /*
+     * From the input file get all the atrributes and values for each sub section - Visits, Activities, Specimens and Observations
+     */
+    const fieldVisit = this.filterFile<FieldVisits>(
+      rowData,
+      Object.keys(visits),
+      fieldVisitCustomAttributes,
+    );
+
+    const fieldActivity = this.filterFile<FieldActivities>(
+      rowData,
+      Object.keys(activities),
+      fieldActivityCustomAttrib,
+    );
+
+    const specimen = this.filterFile<FieldSpecimens>(
+      rowData,
+      Object.keys(specimens),
+      null,
+    );
+
+    if (rowData.DataClassification == "VERTICAL_PROFILE") {
+      specimen.SpecimenName = "";
+    }
+
+    if (rowData.DataClassification == "FIELD_RESULT") {
+      // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this
+      specimen.SpecimenName = "";
+      fieldActivity.ActivityName == "";
+    }
+
+    /*
+     * for each of the components (visits, activities, specimens):
+     * make a DB call to see if that record already exists
+     * If exists - do a PUT with the respective object to the respective API
+     * Otherwise - do a POST with the respective object to the respective API; save the record into the db table (for future use) and save the GUID to the db table
+     */
+
+    let visitExists = await this.aqiService.AQILookup("aqi_field_visits", [
+      rowData.LocationID,
+      rowData.FieldVisitStartTime,
+    ]);
+    let visitInfo: any;
+
+    if (visitExists !== null && visitExists !== undefined) {
+      // send PUT to AQI and add visit data to activity
+      fieldVisit["id"] = visitExists;
+      await this.fieldVisitJson(fieldVisit, "put");
+      fieldActivity["fieldVisit"] = visitExists;
+      fieldActivity["LocationID"] = rowData.LocationID;
+      GuidsToSave["visits"].push(visitExists);
+    } else {
+      // send POST to AQI and add visit data to activity
+      visitInfo = await this.fieldVisitJson(fieldVisit, "post");
+
+      // insert the visit record in the db table
+      try {
+        await this.prisma.$transaction(async (prisma) => {
+          await prisma.aqi_field_visits.create({
+            data: {
+              aqi_field_visits_id: visitInfo.fieldVisit,
+              aqi_field_visit_start_time: visitInfo.startTime,
+              aqi_location_custom_id: visitInfo.samplingLocation.custom_id,
+            },
+          });
+        });
+        this.logger.log("Visit record inserted in db successfully.");
+        fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
+        fieldActivity["LocationID"] = rowData.LocationID;
+        GuidsToSave["visits"].push(visitInfo.fieldVisit);
+      } catch (err) {
+        this.logger.error(`Error inserting visit record in db: ${err.message}`);
+      }
+    }
+
+    if (rowData.DataClassification !== "FIELD_RESULT") {
+      let activityExists = await this.aqiService.AQILookup(
+        "aqi_field_activities",
+        [rowData.ActivityName, rowData.ObservedDateTime, rowData.LocationID],
+      );
+      let activityInfo: any;
+
+      if (activityExists !== null && activityExists !== undefined) {
+        // send PUT to AQI
+        fieldActivity["id"] = activityExists;
+        await this.fieldActivityJson(fieldActivity, "put");
+        specimen["activity"] = {
+          id: activityExists,
+          customId: rowData.ActivityName,
+          startTime: rowData.ObservedDateTime,
+        };
+        GuidsToSave["activities"].push(activityExists);
+      } else {
+        // send POST to AQI
+        activityInfo = await this.fieldActivityJson(fieldActivity, "post");
+
+        // insert the activity record in the db table
+        try {
+          await this.prisma.$transaction(async (prisma) => {
+            await prisma.aqi_field_activities.create({
+              data: {
+                aqi_field_activities_id: activityInfo.activity.id,
+                aqi_field_activities_start_time:
+                  activityInfo.activity.startTime,
+                aqi_field_activities_custom_id: activityInfo.activity.customId,
+                aqi_location_custom_id: rowData.LocationID,
+                aqi_field_visit_start_time: activityInfo.activity.startTime,
+                create_user_id: fileName, //TODO: need to update this to the user who submitted the file
+                create_utc_timestamp: new Date(),
+                update_user_id: fileName, // TODO: need to update this to the user who submitted the file
+                update_utc_timestamp: new Date(),
+              },
+            });
+          });
+
+          this.logger.log("Activity record inserted in db successfully.");
+          specimen["activity"] = activityInfo.activity;
+          GuidsToSave["activities"].push(activityInfo.activity.id);
+        } catch (err) {
+          this.logger.error(
+            `Error inserting activity record in db: ${err.message}`,
+          );
+        }
+      }
+    }
+
+    if (
+      rowData.DataClassification !== "VERTICAL_PROFILE" &&
+      rowData.DataClassification !== "FIELD_RESULT"
+    ) {
+      let specimenExists = await this.aqiService.AQILookup("aqi_specimens", [
+        rowData.SpecimenName,
+        rowData.ObservedDateTime,
+        rowData.ActivityName,
+        rowData.LocationID,
+      ]);
+      let specimenInfo: any;
+
+      if (specimenExists !== null && specimenExists !== undefined) {
+        // send PUT to AQI
+        specimen["id"] = specimenExists;
+        await this.specimensJson(specimen, "put");
+        GuidsToSave["specimens"].push(specimenExists);
+      } else {
+        // send POST to AQI
+        specimenInfo = await this.specimensJson(specimen, "post");
+
+        // insert the specimen record in the db table
+        try {
+          await this.prisma.$transaction(async (prisma) => {
+            await this.prisma.aqi_specimens.create({
+              data: {
+                aqi_specimens_id: specimenInfo.specimen.id,
+                aqi_specimens_custom_id: specimenInfo.specimen.customId,
+                aqi_field_activities_start_time:
+                  specimenInfo.specimen.startTime,
+                aqi_field_activities_custom_id: rowData.ActivityName,
+                aqi_location_custom_id: rowData.LocationID,
+              },
+            });
+          });
+          this.logger.log("Specimen record inserted in db successfully.");
+          GuidsToSave["specimens"].push(specimenInfo.specimen.id);
+        } catch (err) {
+          this.logger.error(
+            `Error inserting specimen record in db: ${err.message}`,
+          );
+        }
+      }
+    }
+
+    /*
+        Use the object of the imported GUIDs to update the db table (aqi_imported_data) - this table is then used for the deletion of data
+    */
+    const guidsToUpdate = await this.prisma.aqi_imported_data.findMany({
+      where: {
+        file_name: fileName,
+      },
+      select: {
+        aqi_imported_data_id: true,
+        imported_guids: true,
+      },
+    });
+
+    const updatedJson = {
+      visits: Array.from(
+        new Set([
+          ...(guidsToUpdate[0].imported_guids["visits"] || []),
+          ...(GuidsToSave["visits"] || []),
+        ]),
+      ),
+      activities: Array.from(
+        new Set([
+          ...(guidsToUpdate[0].imported_guids["activities"] || []),
+          ...(GuidsToSave["activities"] || []),
+        ]),
+      ),
+      specimens: Array.from(
+        new Set([
+          ...(guidsToUpdate[0].imported_guids["specimens"] || []),
+          ...(GuidsToSave["specimens"] || []),
+        ]),
+      ),
+      observations: guidsToUpdate[0].aqi_imported_data_id["observations"] || [],
+    };
+
+    await this.prisma.$transaction(async (prisma) => {
+      await this.prisma.aqi_imported_data.update({
+        where: {
+          aqi_imported_data_id: guidsToUpdate[0].aqi_imported_data_id,
+        },
+        data: {
+          imported_guids: updatedJson,
+        },
+      });
+    });
+
+    return;
+  }
+
+  async insertObservations(
+    fileName: string,
+    originalFileName: string,
+    filePath: any,
+    file_submission_id: string,
+    file_operation_code: string,
+    uniqueMinistryContacts: any,
+    fileValidationResults: any,
+  ) {
+    // Import Observations file after all the visits, activities and specimens have been inserted
+
+    await this.aqiService.importObservations(
+      filePath,
+      "import",
+      file_submission_id,
+      file_operation_code,
+    );
+
+    await this.fileSubmissionsService.updateFileStatus(
+      file_submission_id,
+      "SUBMITTED",
+    );
+
+    // Save the created observation GUIDs to aqi_imported
+    const observationGUIDS =
+      await this.aqiService.getObservationsFromFile(originalFileName);
+
+    const guidsToUpdate = await this.prisma.aqi_imported_data.findMany({
+      where: {
+        file_name: fileName,
+      },
+      select: {
+        aqi_imported_data_id: true,
+        imported_guids: true,
+      },
+    });
+
+    const importedGuids = guidsToUpdate[0].imported_guids as {
+      [key: string]: any;
+    };
+    const finalImportedJSON = {
+      ...importedGuids,
+      observations: observationGUIDS,
+    };
+
+    await this.prisma.$transaction(async (prisma) => {
+      await this.prisma.aqi_imported_data.update({
+        where: {
+          aqi_imported_data_id: guidsToUpdate[0].aqi_imported_data_id,
+        },
+        data: {
+          imported_guids: finalImportedJSON,
+        },
+      });
+    });
+
+    await this.prisma.$transaction(async (prisma) => {
+      const updateStatus = await this.prisma.file_submission.update({
+        where: {
+          submission_id: file_submission_id,
+        },
+        data: {
+          sample_count: guidsToUpdate[0].imported_guids["activities"].length,
+          results_count: observationGUIDS.length,
+        },
+      });
+    });
+
+    const file_error_log_data = {
+      file_submission_id: file_submission_id,
+      file_name: fileName,
+      original_file_name: originalFileName,
+      file_operation_code: file_operation_code,
+      ministry_contact: uniqueMinistryContacts,
+      error_log: fileValidationResults,
+      create_utc_timestamp: new Date(),
+    };
+
+    await this.prisma.file_error_logs.create({
+      data: file_error_log_data,
+    });
+
+    // set the aqi_obs_status record for that file submission id to false
+    const aqi_obs_status = await this.prisma.aqi_obs_status.updateMany({
+      where: {
+        file_submission_id: file_submission_id,
+      },
+      data: {
+        active_ind: false,
+      },
+    });
+
+    fs.unlink(filePath, (err) => {
+      if (err) {
+        this.logger.error(`Error cleaning up tempObsFiles`, err);
+      } else {
+        this.logger.log(`Successfully cleaned up tempObsFiles.`);
+      }
+    });
+
+    return;
+  }
+
   async parseFile(
     file: Readable,
     fileName: string,
@@ -1206,9 +1666,51 @@ export class FileParseValidateService {
     file_submission_id: string,
     file_operation_code: string,
   ) {
+    console.time("parseFile");
+
     const path = require("path");
     const extention = path.extname(fileName);
+
+    await this.fileSubmissionsService.updateFileStatus(
+      file_submission_id,
+      "INPROGRESS",
+    );
+
+    const imported_guids_data = {
+      file_name: fileName,
+      original_file_name: originalFileName,
+      imported_guids: {
+        visits: [],
+        activities: [],
+        specimens: [],
+        observations: [],
+      },
+      create_utc_timestamp: new Date(),
+    };
+
+    await this.prisma.$transaction(async (prisma) => {
+      await prisma.aqi_imported_data.create({
+        data: imported_guids_data,
+      });
+    });
+
+    const ministryContacts = new Set();
+
+    const baseFileName = path.basename(fileName, path.extname(fileName));
+    const filePath = path.join(
+      "./src/tempObsFiles/",
+      `obs-${baseFileName}.csv`,
+    );
+
+    const writeStream = fs.createWriteStream(`${filePath}`);
+
+    const headers = Object.keys(obsFile);
+    const csvStream = format({ headers: true, quoteColumns: true });
+    csvStream.pipe(writeStream);
+    csvStream.write(headers);
+
     if (extention == ".xlsx") {
+      // set up the observation csv file for the AQI APIs
       const workbook = new ExcelJS.Workbook();
 
       await workbook.xlsx.read(file);
@@ -1218,45 +1720,10 @@ export class FileParseValidateService {
         .slice(1) // Remove the first empty cell
         .map((key) => key.replace(/\s+/g, "")); // Remove all whitespace from headers
 
-      // set up the observation csv file for the AQI APIs
-      const baseFileName = path.basename(fileName, path.extname(fileName));
-      const filePath = path.join(
-        "./src/tempObsFiles/",
-        `obs-${baseFileName}.csv`,
-      );
-      const writeStream = fs.createWriteStream(`${filePath}`);
-      const headers = Object.keys(obsFile);
       const allNonObsErrors: any[] = [];
       const allExistingRecords: any[] = [];
 
-      const csvStream = format({ headers: true, quoteColumns: true });
-      csvStream.pipe(writeStream);
-      csvStream.write(headers);
-
-      await this.fileSubmissionsService.updateFileStatus(
-        file_submission_id,
-        "INPROGRESS",
-      );
-
-      const imported_guids_data = {
-        file_name: fileName,
-        original_file_name: originalFileName,
-        imported_guids: {
-          visits: [],
-          activities: [],
-          specimens: [],
-          observations: [],
-        },
-        create_utc_timestamp: new Date(),
-      };
-
-      await this.prisma.$transaction(async (prisma) => {
-        await prisma.aqi_imported_data.create({
-          data: imported_guids_data,
-        });
-      });
-      const ministryContacts = new Set();
-
+      console.time("Validation");
       for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
         const row = worksheet.getRow(rowNumber);
 
@@ -1265,9 +1732,9 @@ export class FileParseValidateService {
         }
 
         // Get the row values, remove the first empty cell, and map to headers
-        const rowData: Record<string, string> = rowHeaders
+        let rowData: Record<string, string> = rowHeaders
           .map((header, colNumber) => {
-            const cellValue = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
+            const cellValue: any = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
             const value =
               typeof cellValue === "object" &&
               cellValue != null &&
@@ -1282,88 +1749,35 @@ export class FileParseValidateService {
 
         this.logger.log(`Created row object for row ${rowNumber}`);
 
-        const fieldVisitCustomAttributes: Partial<FieldVisits> = {
-          PlanningStatus: "DONE",
-        };
+        rowData = await this.cleanRowBasedOnDataClassification(rowData);
 
-        /*
-         * From the input file get all the atrributes and values for each sub section - Visits, Activities, Specimens and Observations
-         */
-        const fieldVisit = this.filterFile<FieldVisits>(
+        await this.validateRow(
           rowData,
-          Object.keys(visits),
-          fieldVisitCustomAttributes,
-        );
-
-        ministryContacts.add(fieldVisit.MinistryContact); // getting the ministry contacts (this will result in a unique list at the end of all rows)
-
-        if (rowData.DataClassification == "VERTICAL_PROFILE") {
-          rowData.SpecimenName = "";
-        }
-
-        if (rowData.DataClassification == "FIELD_RESULT") { // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this
-          rowData.SpecimenName = "";
-          rowData.ActivityName == "";
-        }
-
-        const observation = this.filterFile<Observations>(
-          rowData,
-          Object.keys(observations),
-          null,
-        );
-
-        const obsRecord = await this.formulateObservationFile(
-          observation,
+          ministryContacts,
+          csvStream,
+          allNonObsErrors,
+          allExistingRecords,
           originalFileName,
           rowNumber,
         );
-
-        const csvRow = Object.values(obsRecord);
-
-        csvStream.write(csvRow);
-
-        this.logger.log(`Created observation object for row ${rowNumber}`);
-
-        this.logger.log(
-          `Wrote observation object to file for row ${rowNumber}`,
-        );
-
-        /*
-         * Do the local validation for each section here - if passed then go to the API calls - else create the message/file/email for the errors
-         */
-
-        this.logger.log(`Started local validation for row ${rowNumber}`);
-        const recordLocalValidationResults = await this.localValidation(
-          rowNumber,
-          rowData,
-        );
-
-        this.logger.log(`Finished local validation for row ${rowNumber}`);
-
-        allNonObsErrors.push(...recordLocalValidationResults[0]);
-        allExistingRecords.push(...recordLocalValidationResults[1]);
       }
+      console.timeEnd("Validation");
 
       csvStream.end();
-      await new Promise((f) => setTimeout(f, 5000));
-
-      const uniqueMinistryContacts: any = Array.from(ministryContacts);
-
-      // send the obsfile for validation here
-      const fileValidationResults = [];
-      const finalErrorLogs = await this.validateObsFile(
+      console.time("obsValidation");
+      const contactsAndValidationResults = await this.finalValidationStep(
+        ministryContacts,
         filePath,
         file_submission_id,
         file_operation_code,
         allNonObsErrors,
       );
+      console.timeEnd("obsValidation");
 
-      fileValidationResults.push(...finalErrorLogs);
-
-      const hasError = fileValidationResults.some(
+      const hasError = contactsAndValidationResults[1].some(
         (item) => item.type === "ERROR",
       );
-      const hasWarn = fileValidationResults.some(
+      const hasWarn = contactsAndValidationResults[1].some(
         (item) => item.type === "WARN",
       );
 
@@ -1374,13 +1788,14 @@ export class FileParseValidateService {
          * Save the error logs to the database table
          * Send the an email to the submitter and the ministry contact that is inside the file
          */
+        console.time("RejectFile");
         await this.rejectFileAndLogErrors(
           file_submission_id,
           fileName,
           originalFileName,
           file_operation_code,
-          uniqueMinistryContacts,
-          fileValidationResults,
+          contactsAndValidationResults[0],
+          contactsAndValidationResults[1],
         );
 
         fs.unlink(filePath, (err) => {
@@ -1390,7 +1805,7 @@ export class FileParseValidateService {
             this.logger.log(`Successfully cleaned up tempObsFiles.`);
           }
         });
-
+        console.timeEnd("RejectFile");
         return;
       } else {
         /*
@@ -1398,21 +1813,22 @@ export class FileParseValidateService {
          * i.e. the file may have WARNINGS - if records already exist
          */
         // If there are no errors or warnings
-        await this.fileSubmissionsService.updateFileStatus(
-          file_submission_id,
-          "VALIDATED",
-        );
-
+        console.time("ReportValidated");
         if (file_operation_code === "VALIDATE") {
           const file_error_log_data = {
             file_submission_id: file_submission_id,
             file_name: fileName,
             original_file_name: originalFileName,
             file_operation_code: file_operation_code,
-            ministry_contact: uniqueMinistryContacts,
-            error_log: fileValidationResults,
+            ministry_contact: contactsAndValidationResults[0],
+            error_log: contactsAndValidationResults[1],
             create_utc_timestamp: new Date(),
           };
+
+          await this.fileSubmissionsService.updateFileStatus(
+            file_submission_id,
+            "VALIDATED",
+          );
 
           await this.prisma.file_error_logs.create({
             data: file_error_log_data,
@@ -1425,15 +1841,10 @@ export class FileParseValidateService {
               this.logger.log(`Successfully cleaned up tempObsFiles.`);
             }
           });
-
+          console.timeEnd("ReportValidated");
           return;
         } else {
-          /*
-           * If the local validation passed then split the file into 4 and process with the AQI API calls
-           * Get unique records to prevent redundant API calls
-           * Post the unique records to the API
-           * Expand the returned list of object - this will be used for finding unique activities
-           */
+          console.time("ImportNonObs");
           for (
             let rowNumber = 2;
             rowNumber <= worksheet.rowCount;
@@ -1447,7 +1858,7 @@ export class FileParseValidateService {
               observations: [],
             };
             // Get the row values, remove the first empty cell, and map to headers
-            const rowData: Record<string, string> = rowHeaders
+            let rowData: Record<string, string> = rowHeaders
               .map((header, colNumber) => {
                 const cellValue = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
                 const value =
@@ -1462,349 +1873,34 @@ export class FileParseValidateService {
               })
               .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
-            const fieldVisitCustomAttributes: Partial<FieldVisits> = {
-              PlanningStatus: "DONE",
-            };
+            rowData = await this.cleanRowBasedOnDataClassification(rowData);
 
-            const fieldActivityCustomAttrib: Partial<FieldActivities> = {
-              ActivityType: "",
-            };
-
-            /*
-             * From the input file get all the atrributes and values for each sub section - Visits, Activities, Specimens and Observations
-             */
-            const fieldVisit = this.filterFile<FieldVisits>(
+            // do the data insert logic here
+            await this.insertDataNonObservations(
               rowData,
-              Object.keys(visits),
-              fieldVisitCustomAttributes,
+              GuidsToSave,
+              fileName,
             );
-
-            const fieldActivity = this.filterFile<FieldActivities>(
-              rowData,
-              Object.keys(activities),
-              fieldActivityCustomAttrib,
-            );
-
-            const specimen = this.filterFile<FieldSpecimens>(
-              rowData,
-              Object.keys(specimens),
-              null,
-            );
-
-            if (rowData.DataClassification == "VERTICAL_PROFILE") {
-              specimen.SpecimenName = "";
-            }
-
-            if (rowData.DataClassification == "FIELD_RESULT") { // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this
-              specimen.SpecimenName = "";
-              fieldActivity.ActivityName == "";
-            }
-
-            /*
-             * for each of the components (visits, activities, specimens):
-             * make a DB call to see if that record already exists
-             * If exists - do a PUT with the respective object to the respective API
-             * Otherwise - do a POST with the respective object to the respective API; save the record into the db table (for future use) and save the GUID to the db table
-             */
-
-            let visitExists = await this.aqiService.AQILookup(
-              "aqi_field_visits",
-              [rowData.LocationID, rowData.FieldVisitStartTime],
-            );
-            let visitInfo: any;
-
-            if (visitExists !== null && visitExists !== undefined) {
-              // send PUT to AQI and add visit data to activity
-              fieldVisit["id"] = visitExists;
-              await this.fieldVisitJson(fieldVisit, "put");
-              fieldActivity["fieldVisit"] = visitExists;
-              fieldActivity["LocationID"] = rowData.LocationID;
-              GuidsToSave["visits"].push(visitExists);
-            } else {
-              // send POST to AQI and add visit data to activity
-              visitInfo = await this.fieldVisitJson(fieldVisit, "post");
-
-              // insert the visit record in the db table
-              try {
-                await this.prisma.$transaction(async (prisma) => {
-                  await prisma.aqi_field_visits.create({
-                    data: {
-                      aqi_field_visits_id: visitInfo.fieldVisit,
-                      aqi_field_visit_start_time: visitInfo.startTime,
-                      aqi_location_custom_id:
-                        visitInfo.samplingLocation.custom_id,
-                    },
-                  });
-                });
-                this.logger.log("Visit record inserted in db successfully.");
-                fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
-                fieldActivity["LocationID"] = rowData.LocationID;
-                GuidsToSave["visits"].push(visitInfo.fieldVisit);
-              } catch (err) {
-                this.logger.error(
-                  `Error inserting visit record in db: ${err.message}`,
-                );
-              }
-            }
-
-            if (rowData.DataClassification !== "FIELD_RESULT") {
-              let activityExists = await this.aqiService.AQILookup(
-                "aqi_field_activities",
-                [
-                  rowData.ActivityName,
-                  rowData.ObservedDateTime,
-                  rowData.LocationID,
-                ],
-              );
-              let activityInfo: any;
-
-              if (activityExists !== null && activityExists !== undefined) {
-                // send PUT to AQI
-                fieldActivity["id"] = activityExists;
-                await this.fieldActivityJson(fieldActivity, "put");
-                specimen["activity"] = {
-                  id: activityExists,
-                  customId: rowData.ActivityName,
-                  startTime: rowData.ObservedDateTime,
-                };
-                GuidsToSave["activities"].push(activityExists);
-              } else {
-                // send POST to AQI
-                activityInfo = await this.fieldActivityJson(
-                  fieldActivity,
-                  "post",
-                );
-
-                // insert the activity record in the db table
-                try {
-                  await this.prisma.$transaction(async (prisma) => {
-                    await prisma.aqi_field_activities.create({
-                      data: {
-                        aqi_field_activities_id: activityInfo.activity.id,
-                        aqi_field_activities_start_time:
-                          activityInfo.activity.startTime,
-                        aqi_field_activities_custom_id:
-                          activityInfo.activity.customId,
-                        aqi_location_custom_id: rowData.LocationID,
-                        aqi_field_visit_start_time:
-                          activityInfo.activity.startTime,
-                        create_user_id: "VMANAWAT", //TODO: need to update this to the user who submitted the file
-                        create_utc_timestamp: new Date(),
-                        update_user_id: "VMANAWAT", // TODO: need to update this to the user who submitted the file
-                        update_utc_timestamp: new Date(),
-                      },
-                    });
-                  });
-
-                  this.logger.log(
-                    "Activity record inserted in db successfully.",
-                  );
-                  specimen["activity"] = activityInfo.activity;
-                  GuidsToSave["activities"].push(activityInfo.activity.id);
-                } catch (err) {
-                  this.logger.error(
-                    `Error inserting activity record in db: ${err.message}`,
-                  );
-                }
-              }
-            }
-
-            if (
-              rowData.DataClassification !== "VERTICAL_PROFILE" &&
-              rowData.DataClassification !== "FIELD_RESULT"
-            ) {
-              let specimenExists = await this.aqiService.AQILookup(
-                "aqi_specimens",
-                [
-                  rowData.SpecimenName,
-                  rowData.ObservedDateTime,
-                  rowData.ActivityName,
-                  rowData.LocationID,
-                ],
-              );
-              let specimenInfo: any;
-
-              if (specimenExists !== null && specimenExists !== undefined) {
-                // send PUT to AQI
-                specimen["id"] = specimenExists;
-                await this.specimensJson(specimen, "put");
-                GuidsToSave["specimens"].push(specimenExists);
-              } else {
-                // send POST to AQI
-                specimenInfo = await this.specimensJson(specimen, "post");
-
-                // insert the specimen record in the db table
-                try {
-                  await this.prisma.$transaction(async (prisma) => {
-                    await this.prisma.aqi_specimens.create({
-                      data: {
-                        aqi_specimens_id: specimenInfo.specimen.id,
-                        aqi_specimens_custom_id: specimenInfo.specimen.customId,
-                        aqi_field_activities_start_time:
-                          specimenInfo.specimen.startTime,
-                        aqi_field_activities_custom_id: rowData.ActivityName,
-                        aqi_location_custom_id: rowData.LocationID,
-                      },
-                    });
-                  });
-                  this.logger.log(
-                    "Specimen record inserted in db successfully.",
-                  );
-                  GuidsToSave["specimens"].push(specimenInfo.specimen.id);
-                } catch (err) {
-                  this.logger.error(
-                    `Error inserting specimen record in db: ${err.message}`,
-                  );
-                }
-              }
-            }
-
-            /*
-               Use the object of the imported GUIDs to update the db table (aqi_imported_data) - this table is then used for the deletion of data
-            */
-            const guidsToUpdate = await this.prisma.aqi_imported_data.findMany({
-              where: {
-                file_name: fileName,
-              },
-              select: {
-                aqi_imported_data_id: true,
-                imported_guids: true,
-              },
-            });
-
-            const updatedJson = {
-              visits: Array.from(
-                new Set([
-                  ...(guidsToUpdate[0].imported_guids["visits"] || []),
-                  ...(GuidsToSave["visits"] || []),
-                ]),
-              ),
-              activities: Array.from(
-                new Set([
-                  ...(guidsToUpdate[0].imported_guids["activities"] || []),
-                  ...(GuidsToSave["activities"] || []),
-                ]),
-              ),
-              specimens: Array.from(
-                new Set([
-                  ...(guidsToUpdate[0].imported_guids["specimens"] || []),
-                  ...(GuidsToSave["specimens"] || []),
-                ]),
-              ),
-              observations:
-                guidsToUpdate[0].aqi_imported_data_id["observations"] || [],
-            };
-
-            await this.prisma.$transaction(async (prisma) => {
-              await this.prisma.aqi_imported_data.update({
-                where: {
-                  aqi_imported_data_id: guidsToUpdate[0].aqi_imported_data_id,
-                },
-                data: {
-                  imported_guids: updatedJson,
-                },
-              });
-            });
           }
+          console.timeEnd("ImportNonObs");
 
-          // Import Observations file after all the visits, activities and specimens have been inserted
-
-          await this.aqiService.importObservations(
+          console.time("ImportObs");
+          await this.insertObservations(
+            fileName,
+            originalFileName,
             filePath,
-            "import",
             file_submission_id,
             file_operation_code,
+            contactsAndValidationResults[0],
+            contactsAndValidationResults[1],
           );
-
-          await this.fileSubmissionsService.updateFileStatus(
-            file_submission_id,
-            "SUBMITTED",
-          );
-
-          // Save the created observation GUIDs to aqi_imported
-          const observationGUIDS =
-            await this.aqiService.getObservationsFromFile(originalFileName);
-
-          const guidsToUpdate = await this.prisma.aqi_imported_data.findMany({
-            where: {
-              file_name: fileName,
-            },
-            select: {
-              aqi_imported_data_id: true,
-              imported_guids: true,
-            },
-          });
-
-          const importedGuids = guidsToUpdate[0].imported_guids as {
-            [key: string]: any;
-          };
-          const finalImportedJSON = {
-            ...importedGuids,
-            observations: observationGUIDS,
-          };
-
-          await this.prisma.$transaction(async (prisma) => {
-            await this.prisma.aqi_imported_data.update({
-              where: {
-                aqi_imported_data_id: guidsToUpdate[0].aqi_imported_data_id,
-              },
-              data: {
-                imported_guids: finalImportedJSON,
-              },
-            });
-          });
-
-          await this.prisma.$transaction(async (prisma) => {
-            const updateStatus = await this.prisma.file_submission.update({
-              where: {
-                submission_id: file_submission_id,
-              },
-              data: {
-                sample_count:
-                  guidsToUpdate[0].imported_guids["activities"].length,
-                results_count: observationGUIDS.length,
-              },
-            });
-          });
-
-          const file_error_log_data = {
-            file_submission_id: file_submission_id,
-            file_name: fileName,
-            original_file_name: originalFileName,
-            file_operation_code: file_operation_code,
-            ministry_contact: uniqueMinistryContacts,
-            error_log: fileValidationResults,
-            create_utc_timestamp: new Date(),
-          };
-
-          await this.prisma.file_error_logs.create({
-            data: file_error_log_data,
-          });
-
-          // set the aqi_obs_status record for that file submission id to false
-          const aqi_obs_status = await this.prisma.aqi_obs_status.updateMany({
-            where: {
-              file_submission_id: file_submission_id,
-            },
-            data: {
-              active_ind: false,
-            },
-          });
-
-          fs.unlink(filePath, (err) => {
-            if (err) {
-              this.logger.error(`Error cleaning up tempObsFiles`, err);
-            } else {
-              this.logger.log(`Successfully cleaned up tempObsFiles.`);
-            }
-          });
-
-          return;
+          console.timeEnd("ImportObs");
         }
       }
     } else if (extention == ".csv") {
+      const allNonObsErrors: any[] = [];
+      const allExistingRecords: any[] = [];
       const headers: string[] = [];
-      let rowNumber = 0;
 
       file.pipe(csv()).on("headers", (csvHeaders) => {
         headers.push(...csvHeaders.map((key) => key.replace(/\s+/g, "")));
@@ -1812,138 +1908,63 @@ export class FileParseValidateService {
 
       await new Promise((f) => setTimeout(f, 1000));
 
-      // set up the observation csv file for the AQI APIs
-      const baseFileName = path.basename(fileName, path.extname(fileName));
-      const filePath = path.join(
-        "./src/tempObsFiles/",
-        `obs-${baseFileName}.csv`,
-      );
-      const writeStream = fs.createWriteStream(`${filePath}`);
-      const allNonObsErrors: any[] = [];
-      const allExistingRecords: any[] = [];
-
-      writeStream.write(Object.keys(obsFile).join(",") + "\n");
-
-      await this.fileSubmissionsService.updateFileStatus(
-        file_submission_id,
-        "INPROGRESS",
-      );
-
-      const imported_guids_data = {
-        file_name: fileName,
-        original_file_name: originalFileName,
-        imported_guids: {
-          visits: [],
-          activities: [],
-          specimens: [],
-          observations: [],
-        },
-        create_utc_timestamp: new Date(),
-      };
-
-      await this.prisma.$transaction(async (prisma) => {
-        await prisma.aqi_imported_data.create({
-          data: imported_guids_data,
-        });
-      });
-
-      const ministryContacts = new Set();
-      let isFirstRow = true;
-
       // re-fetch the file for validation purposes - cannot use previously fetched stream
       const rowValidationStream =
         await this.objectStoreService.getFileData(fileName);
 
-      rowValidationStream
-        .pipe(csvParser({ headers }))
-        .on("data", async (row) => {
-          rowNumber++;
-          if (rowNumber == 1) {
-            return;
+      const parser = rowValidationStream.pipe(csvParser({ headers }));
+
+      let rowNumber = 0;
+
+      console.time("Validation");
+      for await (const row of parser) {
+        rowNumber++;
+
+        if (rowNumber == 1) {
+          continue; // Skip header row
+        }
+
+        let rowData: Record<string, string> = {};
+        headers.forEach((header) => {
+          rowData[header] = String(row[header] ?? "");
+        });
+
+        try {
+          rowData = await this.cleanRowBasedOnDataClassification(rowData);
+          if (rowNumber == 2 || rowNumber == 102) {
+            console.log(rowData);
           }
-
-          const rowData: Record<string, string> = {};
-          headers.forEach((header) => {
-            rowData[header] = String(row[header] ?? "");
-          });
-
-          const fieldVisitCustomAttributes: Partial<FieldVisits> = {
-            PlanningStatus: "DONE",
-          };
-
-          /*
-           * From the input file get all the atrributes and values for each sub section - Visits, Activities, Specimens and Observations
-           */
-          const fieldVisit = this.filterFile<FieldVisits>(
+          this.logger.log(`Created row object for row ${rowNumber}`);
+          await this.validateRow(
             rowData,
-            Object.keys(visits),
-            fieldVisitCustomAttributes,
-          );
-
-          ministryContacts.add(fieldVisit.MinistryContact); // getting the ministry contacts (this will result in a unique list at the end of all rows)
-
-          if (
-            rowData.DataClassification == "VERTICAL_PROFILE" ||
-            rowData.DataClassification == "FIELD_RESULT"
-          ) {
-            rowData.SpecimenName = "";
-            rowData.ActivityName = "";
-          }
-
-          const observation = this.filterFile<Observations>(
-            rowData,
-            Object.keys(observations),
-            null,
-          );
-
-          const obsRecord = await this.formulateObservationFile(
-            observation,
+            ministryContacts,
+            csvStream,
+            allNonObsErrors,
+            allExistingRecords,
             originalFileName,
             rowNumber,
           );
+        } catch (error) {
+          this.logger.error(`Error Processing Row ${rowNumber}:`, error);
+        }
+      }
+      console.timeEnd("Validation");
 
-          if (isFirstRow) {
-            writeStream.write(Object.values(obsRecord).join(","));
-            isFirstRow = false;
-          } else {
-            writeStream.write("\n" + Object.values(obsRecord).join(","));
-          }
-
-          /*
-           * Do the local validation for each section here - if passed then go to the API calls - else create the message/file/email for the errors
-           */
-
-          const recordLocalValidationResults = await this.localValidation(
-            rowNumber,
-            rowData,
-          );
-
-          allNonObsErrors.push(...recordLocalValidationResults[0]);
-          allExistingRecords.push(...recordLocalValidationResults[1]);
-        })
-        .on("error", (error) => {
-          this.logger.error(`Error Processing:`, error);
-        });
-
-      await new Promise((f) => setTimeout(f, 5000));
-
-      const uniqueMinistryContacts: any = Array.from(ministryContacts);
-
-      // send the obsfile for validation here
-      const fileValidationResults = [];
-      const finalErrorLogs = await this.validateObsFile(
+      csvStream.end();
+      console.time("obsValidation");
+      const contactsAndValidationResults = await this.finalValidationStep(
+        ministryContacts,
         filePath,
         file_submission_id,
         file_operation_code,
         allNonObsErrors,
       );
+      console.timeEnd("obsValidation");
 
-      fileValidationResults.push(...finalErrorLogs);
-
-      const hasError = fileValidationResults.some(
+      const hasError = contactsAndValidationResults[1].some(
         (item) => item.type === "ERROR",
       );
-      const hasWarn = fileValidationResults.some(
+      const hasWarn = contactsAndValidationResults[1].some(
         (item) => item.type === "WARN",
       );
 
@@ -1954,13 +1975,14 @@ export class FileParseValidateService {
          * Save the error logs to the database table
          * Send the an email to the submitter and the ministry contact that is inside the file
          */
+        console.time("RejectFile");
         await this.rejectFileAndLogErrors(
           file_submission_id,
           fileName,
           originalFileName,
           file_operation_code,
-          uniqueMinistryContacts,
-          fileValidationResults,
+          contactsAndValidationResults[0],
+          contactsAndValidationResults[1],
         );
 
         fs.unlink(filePath, (err) => {
@@ -1970,7 +1992,7 @@ export class FileParseValidateService {
             this.logger.log(`Successfully cleaned up tempObsFiles.`);
           }
         });
-
+        console.timeEnd("RejectFile");
         return;
       } else {
         /*
@@ -1978,10 +2000,7 @@ export class FileParseValidateService {
          * i.e. the file may have WARNINGS - if records already exist
          */
         // If there are no errors or warnings
-        await this.fileSubmissionsService.updateFileStatus(
-          file_submission_id,
-          "VALIDATED",
-        );
+        console.time("ReportValidated");
 
         if (file_operation_code === "VALIDATE") {
           const file_error_log_data = {
@@ -1989,10 +2008,15 @@ export class FileParseValidateService {
             file_name: fileName,
             original_file_name: originalFileName,
             file_operation_code: file_operation_code,
-            ministry_contact: uniqueMinistryContacts,
-            error_log: fileValidationResults,
+            ministry_contact: contactsAndValidationResults[0],
+            error_log: contactsAndValidationResults[1],
             create_utc_timestamp: new Date(),
           };
+
+          await this.fileSubmissionsService.updateFileStatus(
+            file_submission_id,
+            "VALIDATED",
+          );
 
           await this.prisma.file_error_logs.create({
             data: file_error_log_data,
@@ -2005,6 +2029,7 @@ export class FileParseValidateService {
               this.logger.log(`Successfully cleaned up tempObsFiles.`);
             }
           });
+          console.timeEnd("ReportValidated");
 
           return;
         } else {
@@ -2016,373 +2041,62 @@ export class FileParseValidateService {
            */
 
           // re-fetch the file for validation purposes - cannot use previously fetched stream
+          console.time("ImportNonObs");
           const rowValidationStream =
             await this.objectStoreService.getFileData(fileName);
-          rowValidationStream
-            .pipe(csvParser({ headers }))
-            .on("data", async (row) => {
-              rowNumber++;
-              if (rowNumber == 1) {
-                return;
-              }
 
-              let GuidsToSave = {
-                visits: [],
-                activities: [],
-                specimens: [],
-                observations: [],
-              };
+          const parser = rowValidationStream.pipe(csvParser({ headers }));
 
-              const rowData: Record<string, string> = {};
-              headers.forEach((header) => {
-                rowData[header] = String(row[header] ?? "");
-              });
+          let rowNumber = 0;
 
-              const fieldVisitCustomAttributes: Partial<FieldVisits> = {
-                PlanningStatus: "DONE",
-              };
+          for await (const row of parser) {
+            rowNumber++;
 
-              const fieldActivityCustomAttrib: Partial<FieldActivities> = {
-                ActivityType: "",
-              };
+            if (rowNumber == 1) {
+              continue; // Skip header row
+            }
 
-              /*
-               * From the input file get all the atrributes and values for each sub section - Visits, Activities, Specimens and Observations
-               */
-              const fieldVisit = this.filterFile<FieldVisits>(
-                rowData,
-                Object.keys(visits),
-                fieldVisitCustomAttributes,
-              );
+            let GuidsToSave = {
+              visits: [],
+              activities: [],
+              specimens: [],
+              observations: [],
+            };
 
-              const fieldActivity = this.filterFile<FieldActivities>(
-                rowData,
-                Object.keys(activities),
-                fieldActivityCustomAttrib,
-              );
-
-              const specimen = this.filterFile<FieldSpecimens>(
-                rowData,
-                Object.keys(specimens),
-                null,
-              );
-
-              if (rowData.DataClassification == "VERTICAL_PROFILE") {
-                specimen.SpecimenName = "";
-              }
-
-              if (rowData.DataClassification == "FIELD_RESULT") { // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this
-                specimen.SpecimenName = "";
-                fieldActivity.ActivityName == "";
-              }
-
-              /*
-               * for each of the components (visits, activities, specimens):
-               * make a DB call to see if that record already exists
-               * If exists - do a PUT with the respective object to the respective API
-               * Otherwise - do a POST with the respective object to the respective API; save the record into the db table (for future use) and save the GUID to the db table
-               */
-
-              let visitExists = await this.aqiService.AQILookup(
-                "aqi_field_visits",
-                [rowData.LocationID, rowData.FieldVisitStartTime],
-              );
-              let visitInfo: any;
-
-              if (visitExists !== null && visitExists !== undefined) {
-                // send PUT to AQI and add visit data to activity
-                fieldVisit["id"] = visitExists;
-                await this.fieldVisitJson(fieldVisit, "put");
-                fieldActivity["fieldVisit"] = visitExists;
-                fieldActivity["LocationID"] = rowData.LocationID;
-                GuidsToSave["visits"].push(visitExists);
-              } else {
-                // send POST to AQI and add visit data to activity
-                visitInfo = await this.fieldVisitJson(fieldVisit, "post");
-
-                // insert the visit record in the db table
-                try {
-                  await this.prisma.$transaction(async (prisma) => {
-                    await prisma.aqi_field_visits.create({
-                      data: {
-                        aqi_field_visits_id: visitInfo.fieldVisit,
-                        aqi_field_visit_start_time: visitInfo.startTime,
-                        aqi_location_custom_id:
-                          visitInfo.samplingLocation.custom_id,
-                      },
-                    });
-                  });
-                  this.logger.log("Visit record inserted in db successfully.");
-                  fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
-                  fieldActivity["LocationID"] = rowData.LocationID;
-                  GuidsToSave["visits"].push(visitInfo.fieldVisit);
-                } catch (err) {
-                  this.logger.error(
-                    `Error inserting visit record in db: ${err.message}`,
-                  );
-                }
-              }
-
-              if (rowData.DataClassification !== "FIELD_RESULT") {
-                let activityExists = await this.aqiService.AQILookup(
-                  "aqi_field_activities",
-                  [
-                    rowData.ActivityName,
-                    rowData.ObservedDateTime,
-                    rowData.LocationID,
-                  ],
-                );
-                let activityInfo: any;
-
-                if (activityExists !== null && activityExists !== undefined) {
-                  // send PUT to AQI
-                  fieldActivity["id"] = activityExists;
-                  await this.fieldActivityJson(fieldActivity, "put");
-                  specimen["activity"] = {
-                    id: activityExists,
-                    customId: rowData.ActivityName,
-                    startTime: rowData.ObservedDateTime,
-                  };
-                  GuidsToSave["activities"].push(activityExists);
-                } else {
-                  // send POST to AQI
-                  activityInfo = await this.fieldActivityJson(
-                    fieldActivity,
-                    "post",
-                  );
-
-                  // insert the activity record in the db table
-                  try {
-                    await this.prisma.$transaction(async (prisma) => {
-                      await prisma.aqi_field_activities.create({
-                        data: {
-                          aqi_field_activities_id: activityInfo.activity.id,
-                          aqi_field_activities_start_time:
-                            activityInfo.activity.startTime,
-                          aqi_field_activities_custom_id:
-                            activityInfo.activity.customId,
-                          aqi_location_custom_id: rowData.LocationID,
-                          aqi_field_visit_start_time:
-                            activityInfo.activity.startTime,
-                          create_user_id: "VMANAWAT", //TODO: need to update this to the user who submitted the file
-                          create_utc_timestamp: new Date(),
-                          update_user_id: "VMANAWAT", // TODO: need to update this to the user who submitted the file
-                          update_utc_timestamp: new Date(),
-                        },
-                      });
-                    });
-
-                    this.logger.log(
-                      "Activity record inserted in db successfully.",
-                    );
-                    specimen["activity"] = activityInfo.activity;
-                    GuidsToSave["activities"].push(activityInfo.activity.id);
-                  } catch (err) {
-                    this.logger.error(
-                      `Error inserting activity record in db: ${err.message}`,
-                    );
-                  }
-                }
-              }
-
-              if (
-                rowData.DataClassification !== "VERTICAL_PROFILE" &&
-                rowData.DataClassification !== "FIELD_RESULT"
-              ) {
-                let specimenExists = await this.aqiService.AQILookup(
-                  "aqi_specimens",
-                  [
-                    rowData.SpecimenName,
-                    rowData.ObservedDateTime,
-                    rowData.ActivityName,
-                    rowData.LocationID,
-                  ],
-                );
-                let specimenInfo: any;
-
-                if (specimenExists !== null && specimenExists !== undefined) {
-                  // send PUT to AQI
-                  specimen["id"] = specimenExists;
-                  await this.specimensJson(specimen, "put");
-                  GuidsToSave["specimens"].push(specimenExists);
-                } else {
-                  // send POST to AQI
-                  specimenInfo = await this.specimensJson(specimen, "post");
-
-                  // insert the specimen record in the db table
-                  try {
-                    await this.prisma.$transaction(async (prisma) => {
-                      await this.prisma.aqi_specimens.create({
-                        data: {
-                          aqi_specimens_id: specimenInfo.specimen.id,
-                          aqi_specimens_custom_id:
-                            specimenInfo.specimen.customId,
-                          aqi_field_activities_start_time:
-                            specimenInfo.specimen.startTime,
-                          aqi_field_activities_custom_id: rowData.ActivityName,
-                          aqi_location_custom_id: rowData.LocationID,
-                        },
-                      });
-                    });
-                    this.logger.log(
-                      "Specimen record inserted in db successfully.",
-                    );
-                    GuidsToSave["specimens"].push(specimenInfo.specimen.id);
-                  } catch (err) {
-                    this.logger.error(
-                      `Error inserting specimen record in db: ${err.message}`,
-                    );
-                  }
-                }
-              }
-
-              /*
-               Use the object of the imported GUIDs to update the db table (aqi_imported_data) - this table is then used for the deletion of data
-            */
-              const guidsToUpdate =
-                await this.prisma.aqi_imported_data.findMany({
-                  where: {
-                    file_name: fileName,
-                  },
-                  select: {
-                    aqi_imported_data_id: true,
-                    imported_guids: true,
-                  },
-                });
-
-              const updatedJson = {
-                visits: Array.from(
-                  new Set([
-                    ...(guidsToUpdate[0].imported_guids["visits"] || []),
-                    ...(GuidsToSave["visits"] || []),
-                  ]),
-                ),
-                activities: Array.from(
-                  new Set([
-                    ...(guidsToUpdate[0].imported_guids["activities"] || []),
-                    ...(GuidsToSave["activities"] || []),
-                  ]),
-                ),
-                specimens: Array.from(
-                  new Set([
-                    ...(guidsToUpdate[0].imported_guids["specimens"] || []),
-                    ...(GuidsToSave["specimens"] || []),
-                  ]),
-                ),
-                observations:
-                  guidsToUpdate[0].aqi_imported_data_id["observations"] || [],
-              };
-
-              await this.prisma.$transaction(async (prisma) => {
-                await this.prisma.aqi_imported_data.update({
-                  where: {
-                    aqi_imported_data_id: guidsToUpdate[0].aqi_imported_data_id,
-                  },
-                  data: {
-                    imported_guids: updatedJson,
-                  },
-                });
-              });
-            })
-            .on("error", (error) => {
-              this.logger.error(`Error Processing:`, error);
+            let rowData: Record<string, string> = {};
+            headers.forEach((header) => {
+              rowData[header] = String(row[header] ?? "");
             });
 
-          // Import Observations file after all the visits, activities and specimens have been inserted
+            try {
+              rowData = await this.cleanRowBasedOnDataClassification(rowData);
+              // do the data insert logic here
+              await this.insertDataNonObservations(
+                rowData,
+                GuidsToSave,
+                fileName,
+              );
+            } catch (error) {
+              this.logger.error(`Error Processing Row ${rowNumber}:`, error);
+            }
+          }
 
-          await this.aqiService.importObservations(
+          console.timeEnd("ImportNonObs");
+
+          console.time("ImportObs");
+          await this.insertObservations(
+            fileName,
+            originalFileName,
             filePath,
-            "import",
             file_submission_id,
             file_operation_code,
+            contactsAndValidationResults[0],
+            contactsAndValidationResults[1],
           );
-
-          await this.fileSubmissionsService.updateFileStatus(
-            file_submission_id,
-            "SUBMITTED",
-          );
-
-          // Save the created observation GUIDs to aqi_imported
-          const observationGUIDS =
-            await this.aqiService.getObservationsFromFile(originalFileName);
-
-          const guidsToUpdate = await this.prisma.aqi_imported_data.findMany({
-            where: {
-              file_name: fileName,
-            },
-            select: {
-              aqi_imported_data_id: true,
-              imported_guids: true,
-            },
-          });
-
-          const importedGuids = guidsToUpdate[0].imported_guids as {
-            [key: string]: any;
-          };
-          const finalImportedJSON = {
-            ...importedGuids,
-            observations: observationGUIDS,
-          };
-
-          await this.prisma.$transaction(async (prisma) => {
-            await this.prisma.aqi_imported_data.update({
-              where: {
-                aqi_imported_data_id: guidsToUpdate[0].aqi_imported_data_id,
-              },
-              data: {
-                imported_guids: finalImportedJSON,
-              },
-            });
-          });
-
-          await this.prisma.$transaction(async (prisma) => {
-            const updateStatus = await this.prisma.file_submission.update({
-              where: {
-                submission_id: file_submission_id,
-              },
-              data: {
-                sample_count:
-                  guidsToUpdate[0].imported_guids["activities"].length,
-                results_count: observationGUIDS.length,
-              },
-            });
-          });
-
-          const file_error_log_data = {
-            file_submission_id: file_submission_id,
-            file_name: fileName,
-            original_file_name: originalFileName,
-            file_operation_code: file_operation_code,
-            ministry_contact: uniqueMinistryContacts,
-            error_log: fileValidationResults,
-            create_utc_timestamp: new Date(),
-          };
-
-          await this.prisma.file_error_logs.create({
-            data: file_error_log_data,
-          });
-
-          // set the aqi_obs_status record for that file submission id to false
-          const aqi_obs_status = await this.prisma.aqi_obs_status.updateMany({
-            where: {
-              file_submission_id: file_submission_id,
-            },
-            data: {
-              active_ind: false,
-            },
-          });
-
-          fs.unlink(filePath, (err) => {
-            if (err) {
-              this.logger.error(`Error cleaning up tempObsFiles`, err);
-            } else {
-              this.logger.log(`Successfully cleaned up tempObsFiles.`);
-            }
-          });
-
-          return;
+          console.timeEnd("ImportObs");
         }
       }
     }
+    console.timeEnd("parseFile");
   }
 }
