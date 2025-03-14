@@ -107,7 +107,7 @@ export type Observations = {
   CollectionMethod: string;
   FieldDeviceID: string;
   FieldDeviceType: string;
-  FieldComment: string;
+  FieldVisitComments: string;
   SpecimenName: string;
   AnalysisMethod: string;
   DetectionCondition: string;

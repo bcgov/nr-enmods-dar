@@ -80,7 +80,7 @@ const observations: Observations = {
   CollectionMethod: "",
   FieldDeviceID: "",
   FieldDeviceType: "",
-  FieldComment: "",
+  FieldVisitComments: "",
   SpecimenName: "",
   AnalysisMethod: "",
   DetectionCondition: "",
@@ -418,6 +418,7 @@ export class FileParseValidateService {
     Object.assign(postData, { type: activityData.ActivityType });
     Object.assign(postData, extendedAttribs);
     Object.assign(postData, sampleContextTags);
+    Object.assign(postData, { comment: activityData.ActivityComments })
     Object.assign(postData, { startTime: activityData.ObservedDateTime });
     Object.assign(postData, { endTime: activityData.ObservedDateTimeEnd });
     Object.assign(postData, {
@@ -1747,6 +1748,10 @@ export class FileParseValidateService {
           })
           .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
+        if (rowNumber == 2){
+        console.log(rowData)
+        }
+
         this.logger.log(`Created row object for row ${rowNumber}`);
 
         rowData = await this.cleanRowBasedOnDataClassification(rowData);
@@ -1931,9 +1936,7 @@ export class FileParseValidateService {
 
         try {
           rowData = await this.cleanRowBasedOnDataClassification(rowData);
-          if (rowNumber == 2 || rowNumber == 102) {
-            console.log(rowData);
-          }
+
           this.logger.log(`Created row object for row ${rowNumber}`);
           await this.validateRow(
             rowData,
