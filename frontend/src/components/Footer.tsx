@@ -1,35 +1,57 @@
-import { AppBar, Button, Toolbar } from '@mui/material'
-import Typography from '@mui/material/Typography'
+import { AppBar, Box, Button, ButtonGroup, Toolbar } from "@mui/material";
+import Typography from "@mui/material/Typography";
+import { color, height, maxHeight } from "~/@mui/system";
 
 const styles = {
   appBar: {
     flexShrink: 0,
-    top: 'auto',
+    top: "auto",
     bottom: 0,
-    color: '#ffffff',
-    backgroundColor: '#ffffff',
-    display: 'flex',
+    color: "#ffffff",
+    backgroundColor: "#003366",
+    display: "flex",
     zIndex: (theme: any) => theme.zIndex.drawer + 1,
   },
   toolbar: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    height: "40px",
   },
   footerButton: {
-    margin: '0.2em',
-    padding: '0.2em',
+    margin: "2px",
+    padding: "1px",
   },
-}
+  separator: {
+    height: "2px",
+    backgroundColor: "#fcba19",
+    width: "100%",
+  },
+};
 export default function Footer() {
   return (
     <AppBar position="fixed" sx={styles.appBar}>
-      <Toolbar sx={styles.toolbar}>
-        <Typography>
+      <Box sx={styles.separator} />
+      <Box sx={styles.toolbar}>
+        <ButtonGroup
+          variant="text"
+          aria-label="Basic button group"
+          size="small"
+          sx={{
+            "& .MuiButton-root": {
+              border: "none",
+              color: "white",
+              fontSize: '0.75em'
+            },
+            "& .MuiButton-root:not(:last-child)": {
+              borderRight: "1px solid #ffffff",
+              paddingRight: '4px'
+            },
+            
+          }}
+        >
           <Button
-            sx={styles.footerButton}
-            variant="contained"
-            color="secondary"
+            sx={{ color: "#ffffff" }}
             id="footer-home"
             target="_blank"
             href="https://www.gov.bc.ca/"
@@ -37,19 +59,15 @@ export default function Footer() {
             Home
           </Button>
           <Button
-            sx={styles.footerButton}
-            variant="contained"
-            color="secondary"
+            sx={{ color: "#ffffff" }}
             id="footer-about"
             target="_blank"
             href="https://www2.gov.bc.ca/gov/content/about-gov-bc-ca"
           >
-            About gov.bc.ca
+            About this site
           </Button>
           <Button
-            sx={styles.footerButton}
-            variant="contained"
-            color="secondary"
+            sx={{ color: "#ffffff" }}
             id="footer-disclaimer"
             target="_blank"
             href="https://gov.bc.ca/disclaimer"
@@ -57,9 +75,7 @@ export default function Footer() {
             Disclaimer
           </Button>
           <Button
-            sx={styles.footerButton}
-            variant="contained"
-            color="secondary"
+            sx={{ color: "#ffffff" }}
             id="footer-privacy"
             target="_blank"
             href="https://gov.bc.ca/privacy"
@@ -67,9 +83,7 @@ export default function Footer() {
             Privacy
           </Button>
           <Button
-            sx={styles.footerButton}
-            variant="contained"
-            color="secondary"
+            sx={{ color: "#ffffff" }}
             id="footer-accessibility"
             target="_blank"
             href="https://gov.bc.ca/webaccessibility"
@@ -77,9 +91,7 @@ export default function Footer() {
             Accessibility
           </Button>
           <Button
-            sx={styles.footerButton}
-            variant="contained"
-            color="secondary"
+            sx={{ color: "#ffffff" }}
             id="footer-copyright"
             target="_blank"
             href="https://gov.bc.ca/copyright"
@@ -87,17 +99,15 @@ export default function Footer() {
             Copyright
           </Button>
           <Button
-            sx={styles.footerButton}
-            variant="contained"
-            color="secondary"
+            sx={{ color: "#ffffff" }}
             id="footer-contact"
             target="_blank"
             href="https://www2.gov.bc.ca/gov/content/home/contact-us"
           >
             Contact Us
           </Button>
-        </Typography>
-      </Toolbar>
+        </ButtonGroup>
+      </Box>
     </AppBar>
-  )
+  );
 }

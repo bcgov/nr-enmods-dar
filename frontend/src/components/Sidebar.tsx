@@ -29,7 +29,7 @@ const Sidebar = () => {
   return (
     <List component="nav" aria-label="secondary mailbox folders">
       {filteredTopics.map((topic, index) => (
-        <ListItemButton key={index} component={Link} to={topic.link}>
+        <ListItemButton sx={{ width: "75%", }} key={index} component={Link} to={topic.link}>
           <ListItemText primary={topic.name} />
         </ListItemButton>
       ))}
