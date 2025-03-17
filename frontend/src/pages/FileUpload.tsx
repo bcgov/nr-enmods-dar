@@ -27,7 +27,6 @@ import "@/index.css";
 import { jwtDecode } from "jwt-decode";
 import { insertFile } from "@/common/manage-files";
 import UserService from "@/service/user-service";
-import { maxHeight } from "~/@mui/system";
 
 const fileTypes = ["xlsx", "csv", "txt"];
 let selectedFiles: any[] = [];
@@ -198,7 +197,7 @@ function FileUpload() {
 
   return (
     <>
-      <div style={{ maxHeight: '100%'}}>
+      <div>
         <div style={{ marginLeft: "4em", width: "100%" }}>
           <Box sx={{ width: "1200px" }}>
             <Typography id="pageTitle" variant="h3" component="h1" gutterBottom>
@@ -295,7 +294,7 @@ function FileUpload() {
 
             {expandList && (
               <div className="file-list">
-                <List sx={{ maxHeight: 300, overflow: "auto" }}>
+                <List sx={{ height: "100dvh", overflow: "auto" }}>
                   {selectedFiles.length > 0 && selectedFiles.length <= 10
                     ? selectedFiles.map((file, index) => (
                         <ListItem key={index}>
@@ -510,6 +509,8 @@ function FileUpload() {
                 </div>
               </div>
             )}
+
+            {!expandList && <div style={{ height: '100dvh', overflow: 'auto' }}></div>}
           </div>
         </div>
       </div>
