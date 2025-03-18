@@ -43,7 +43,6 @@ export async function removeRoles(
   idirUsername: string,
   roles: string[],
 ): Promise<void> {
-  console.log(idirUsername)
   const removeRolesUrl: string = `${config.API_BASE_URL}/admin/remove-roles`
   const postParameters = api.generateApiParameters(removeRolesUrl, {
     idirUsername,
