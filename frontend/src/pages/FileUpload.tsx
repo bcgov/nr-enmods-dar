@@ -196,7 +196,6 @@ function FileUpload() {
   };
 
   useEffect(() =>{
-    console.log('Page Loaded!')
     setFiles(null);
     setCurrentItem(null)
     setCheckedItems({

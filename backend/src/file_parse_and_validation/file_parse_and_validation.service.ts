@@ -1931,9 +1931,6 @@ export class FileParseValidateService {
 
         try {
           rowData = await this.cleanRowBasedOnDataClassification(rowData);
-          if (rowNumber == 2 || rowNumber == 102) {
-            console.log(rowData);
-          }
           this.logger.log(`Created row object for row ${rowNumber}`);
           await this.validateRow(
             rowData,
