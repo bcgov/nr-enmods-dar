@@ -200,8 +200,8 @@ function FileUpload() {
       <div>
         <div style={{ marginLeft: "4em", width: "100%" }}>
           <Box sx={{ width: "1200px" }}>
-            <Typography id="pageTitle" variant="h3" component="h1" gutterBottom>
-              Electronic Data Transfer - Upload
+            <Typography id="pageTitle" variant="h4">
+             File Upload
             </Typography>
             <Typography
               id="pageSubTitle"
@@ -510,7 +510,9 @@ function FileUpload() {
               </div>
             )}
 
-            {!expandList && <div style={{ height: '100dvh', overflow: 'auto' }}></div>}
+            {!expandList && (
+              <div style={{ height: "100dvh", overflow: "auto" }}></div>
+            )}
           </div>
         </div>
       </div>

@@ -46,7 +46,7 @@ export default function Header() {
       className="nav-header"
     >
       <Box sx={{ bgcolor: "#003366" }}>
-        <Toolbar>
+        <Toolbar sx={{maxHeight: "10px"}}>
           <img style={{ maxHeight: "60px", paddingLeft: '20%' }} alt="Logo" src={BCGovLogo} />
           <h1 style={{paddingLeft: '2%'}}>Electronic Data Transfer</h1>
         </Toolbar>

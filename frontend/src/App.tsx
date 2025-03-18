@@ -14,7 +14,6 @@ const styles = {
   contentWrapper: {
     display: 'flex',
     justifyContent: 'center',
-    paddingTop: '30px',
     alignItems: 'flex-start',
     bgcolor: '#efefff',
     width: '100%',
