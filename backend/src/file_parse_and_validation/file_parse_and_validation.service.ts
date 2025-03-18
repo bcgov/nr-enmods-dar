@@ -418,7 +418,7 @@ export class FileParseValidateService {
     Object.assign(postData, { type: activityData.ActivityType });
     Object.assign(postData, extendedAttribs);
     Object.assign(postData, sampleContextTags);
-    Object.assign(postData, { comment: activityData.ActivityComments })
+    Object.assign(postData, { comment: activityData.ActivityComments });
     Object.assign(postData, { startTime: activityData.ObservedDateTime });
     Object.assign(postData, { endTime: activityData.ObservedDateTimeEnd });
     Object.assign(postData, {
@@ -798,19 +798,6 @@ export class FileParseValidateService {
       }
     }
 
-    if (rowData.hasOwnProperty("FieldDeviceType")) {
-      if (
-        (rowData["DataClassification"] == "FIELD_RESULT" ||
-          rowData["DataClassification"] == "ACTIVITY_RESULT" ||
-          rowData["DataClassification"] == "FIELD_SURVEY" ||
-          rowData["DataClassification"] == "VERTICAL_PROFILE") &&
-        rowData["FieldDeviceType"] == ""
-      ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"FieldDeviceType": "Cannot be empty when data classification is ${rowData["DataClassification"]}"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      }
-    }
-
     if (rowData.hasOwnProperty("CollectionMethod")) {
       if (
         rowData["DataClassification"] == "LAB" ||
@@ -993,7 +980,7 @@ export class FileParseValidateService {
         rowData["DataClassification"] == "LAB" ||
         rowData["DataClassification"] == "SURROGATE_RESULT"
       ) {
-        if (/^Animal\b/.test(rowData["Medium"])) {
+        if (/^Animal - Fish\b/.test(rowData["Medium"])) {
           if (rowData["TissueType"] == "") {
             let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"TissueType": "Cannot be empty when Data Classification is ${rowData.DataClassification} and Medium is ${rowData.Medium}"}}`;
             errorLogs.push(JSON.parse(errorLog));
@@ -1031,14 +1018,21 @@ export class FileParseValidateService {
     }
 
     if (rowData.hasOwnProperty("SpecimenName")) {
+      if (
+        rowData["DataClassification"] == "LAB" ||
+        rowData["DataClassification"] == "SURROGATE_RESULT"
+      ) {
+        if (
+          /^Animal\b/.test(rowData["Medium"]) &&
+          rowData["SpecimenName"] == ""
+        ) {
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SpecimenName": "Cannot be empty when Medium is ${rowData.Medium} and Data Classification is ${rowData.DataClassification}"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+      }
+
       if (rowData["CompositeStat"] != "" && rowData["SpecimenName"] == "") {
         let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SpecimenName": "Cannot be empty when Composite Stat is present."}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      } else if (
-        /^Animal\b/.test(rowData["Medium"]) &&
-        rowData["SpecimenName"] == ""
-      ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SpecimenName": "Cannot be empty when Medium is Animal - Fish"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
     }
@@ -1747,10 +1741,6 @@ export class FileParseValidateService {
             };
           })
           .reduce((acc, curr) => ({ ...acc, ...curr }), {});
-
-        if (rowNumber == 2){
-        console.log(rowData)
-        }
 
         this.logger.log(`Created row object for row ${rowNumber}`);
 

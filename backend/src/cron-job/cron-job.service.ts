@@ -23,7 +23,7 @@ export class CronJobService {
     private prisma: PrismaService,
     private readonly fileParser: FileParseValidateService,
     private readonly objectStore: ObjectStoreService,
-    private readonly operationLockService: OperationLockService
+    private readonly operationLockService: OperationLockService,
   ) {
     this.tableModels = new Map<string, any>([
       ["aqi_projects", this.prisma.aqi_projects],
@@ -121,7 +121,8 @@ export class CronJobService {
       paramsEnabled: false,
     },
     {
-      endpoint: "/v1/extendedattributes/65d94fac-aac5-498f-bc73-b63a322ce350/dropdownlistitems",
+      endpoint:
+        "/v1/extendedattributes/65d94fac-aac5-498f-bc73-b63a322ce350/dropdownlistitems",
       method: "GET",
       dbTable: "aqi_sampling_agency",
       paramsEnabled: false,
@@ -235,7 +236,7 @@ export class CronJobService {
         return {
           aqi_specimens_custom_id: record.name,
           aqi_field_activities_start_time: record.activityStartTime,
-          aqi_field_activities_custom_id: record.activityCustomId,
+          aqi_field_activities_custom_id: record.activityCustomId ?? "",
           aqi_location_custom_id: record.locationCustomID,
         };
       case "aqi_analysis_methods":
@@ -318,7 +319,7 @@ export class CronJobService {
           [`${dbTable}_id`]: record.id,
           aqi_specimens_custom_id: record.name,
           aqi_field_activities_start_time: record.activityStartTime,
-          aqi_field_activities_custom_id: record.activityCustomId,
+          aqi_field_activities_custom_id: record.activityCustomid ?? "",
           aqi_location_custom_id: record.locationCustomID,
         };
       case "aqi_analysis_methods":
@@ -355,9 +356,10 @@ export class CronJobService {
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   private async fetchAQSSData() {
-
-    if (!this.operationLockService.acquireLock("PULLDOWN")){
-      this.logger.log("Skipping cron procedure of data pull down: File processing underway.");
+    if (!this.operationLockService.acquireLock("PULLDOWN")) {
+      this.logger.log(
+        "Skipping cron procedure of data pull down: File processing underway.",
+      );
       return;
     }
 
@@ -369,59 +371,68 @@ export class CronJobService {
 
     const baseUrl = process.env.AQI_BASE_URL;
 
-    for (const api of this.apisToCall) {
-      this.logger.log(`Getting data from ${api.endpoint}`);
-      let cursor = "";
-      let total = 0;
-      let processedCount = 0;
-      let loopCount = 0;
+    try {
+      for (const api of this.apisToCall) {
+        this.logger.log(`Getting data from ${api.endpoint}`);
+        let cursor = "";
+        let total = 0;
+        let processedCount = 0;
+        let loopCount = 0;
 
-      do {
-        const url = `${baseUrl + api.endpoint}${api.paramsEnabled ? (cursor ? `?limit=1000&cursor=${cursor}` : "?limit=1000") : ""}`;
-        const response = await axios.get(url);
+        do {
+          const url = `${baseUrl + api.endpoint}${api.paramsEnabled ? (cursor ? `?limit=1000&cursor=${cursor}` : "?limit=1000") : ""}`;
+          const response = await axios.get(url);
 
-        // Extract response data
-        const entries = response.data.domainObjects || [];
-        cursor = response.data.cursor || null;
-        total = response.data.totalCount || 0;
+          if (response.status != 200) {
+            this.logger.error(
+              `Could not ping AQI API for ${api.endpoint}. Response Code: ${response.status}`,
+            );
+            return;
+          }
 
-        this.logger.log(
-          `Fetched ${entries.length} entries from ${api.endpoint}. Processed: ${processedCount}/${total}`,
-        );
+          // Extract response data
+          const entries = response.data.domainObjects || [];
+          cursor = response.data.cursor || null;
+          total = response.data.totalCount || 0;
 
-        // Process and filter the data
-        const filteredData = await this.filterData(api.endpoint, entries);
-
-        // Stream data into the database in small batches
-        await this.updateDatabase(api.dbTable, filteredData, 100);
-
-        // Increment counters
-        processedCount += entries.length;
-        loopCount++;
-
-        // Log progress periodically
-        if (loopCount % 5 === 0 || processedCount >= total) {
-          this.logger.log(`Progress: ${processedCount}/${total}`);
-        }
-
-        // Break if we've processed all expected entries
-        if (processedCount >= total) {
-          this.logger.log(`Completed fetching data for ${api.endpoint}`);
-          break;
-        }
-
-        // Edge case: Break if no entries are returned but the cursor is still valid
-        if (entries.length === 0 && cursor) {
-          this.logger.warn(
-            `Empty response for ${api.endpoint} with cursor ${cursor}. Terminating early.`,
+          this.logger.log(
+            `Fetched ${entries.length} entries from ${api.endpoint}. Processed: ${processedCount}/${total}`,
           );
-          break;
-        }
-      } while (cursor); // Continue only if a cursor is provided
-    }
 
-    this.logger.log(`Cron Job completed.`);
-    this.operationLockService.releaseLock("PULLDOWN");
+          // Process and filter the data
+          const filteredData = await this.filterData(api.endpoint, entries);
+
+          // Stream data into the database in small batches
+          await this.updateDatabase(api.dbTable, filteredData, 100);
+
+          // Increment counters
+          processedCount += entries.length;
+          loopCount++;
+
+          // Log progress periodically
+          if (loopCount % 5 === 0 || processedCount >= total) {
+            this.logger.log(`Progress: ${processedCount}/${total}`);
+          }
+
+          // Break if we've processed all expected entries
+          if (processedCount >= total) {
+            this.logger.log(`Completed fetching data for ${api.endpoint}`);
+            break;
+          }
+
+          // Edge case: Break if no entries are returned but the cursor is still valid
+          if (entries.length === 0 && cursor) {
+            this.logger.warn(
+              `Empty response for ${api.endpoint} with cursor ${cursor}. Terminating early.`,
+            );
+            break;
+          }
+        } while (cursor); // Continue only if a cursor is provided
+      }
+    } finally {
+      this.logger.log(`Cron Job completed.`);
+      this.operationLockService.releaseLock("PULLDOWN");
+    }
   }
 
   private async filterData(endpoint: string, entries: any) {
@@ -564,9 +575,9 @@ export class CronJobService {
         return array.map(filerAnalysisMethodAttributes);
       } else if (
         endpoint ==
-        "/v1/extendedattributes/6f7d5be0-f91a-4353-9d31-13983205cbe0/dropdownlistitems" ||
+          "/v1/extendedattributes/6f7d5be0-f91a-4353-9d31-13983205cbe0/dropdownlistitems" ||
         endpoint ==
-        "/v1/extendedattributes/65d94fac-aac5-498f-bc73-b63a322ce350/dropdownlistitems" 
+          "/v1/extendedattributes/65d94fac-aac5-498f-bc73-b63a322ce350/dropdownlistitems"
       ) {
         return array.map(filterEELists);
       } else {
@@ -604,7 +615,7 @@ export class CronJobService {
   async processFiles(files) {
     this.logger.log("Starting to process queued files...");
 
-    try{
+    try {
       for (const file of files) {
         try {
           const fileStream = await this.objectStore.getFileData(file.file_name);
@@ -622,10 +633,9 @@ export class CronJobService {
         } catch (err) {
           this.logger.error(`Error processing file ${file.file_name}: ${err}`);
         }
-
       }
-    }finally{
-      this.operationLockService.releaseLock("FILE_PROCESSING")
+    } finally {
+      this.operationLockService.releaseLock("FILE_PROCESSING");
       return;
     }
   }

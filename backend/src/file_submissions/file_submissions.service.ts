@@ -126,8 +126,6 @@ export class FileSubmissionsService {
     }
 
     if (body.submissionDateFrom && body.submissionDateTo) {
-      console.log(body.submissionDateFrom);
-      console.log(body.submissionDateTo);
       whereClause.submission_date = {
         gte: new Date(body.submissionDateFrom),
         lte: new Date(body.submissionDateTo),
