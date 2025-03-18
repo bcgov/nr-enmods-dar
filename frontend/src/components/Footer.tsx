@@ -1,6 +1,6 @@
 import { AppBar, Box, Button, ButtonGroup, Toolbar } from "@mui/material";
 import Typography from "@mui/material/Typography";
-import { color, height, maxHeight } from "~/@mui/system";
+import { color, height, margin, maxHeight } from "~/@mui/system";
 
 const styles = {
   appBar: {
@@ -41,13 +41,12 @@ export default function Footer() {
             "& .MuiButton-root": {
               border: "none",
               color: "white",
-              fontSize: '0.75em'
+              fontSize: "0.7em",
             },
             "& .MuiButton-root:not(:last-child)": {
               borderRight: "1px solid #ffffff",
-              paddingRight: '4px'
+              paddingRight: "4px",
             },
-            
           }}
         >
           <Button
@@ -107,6 +106,7 @@ export default function Footer() {
             Contact Us
           </Button>
         </ButtonGroup>
+        <Typography sx={{ paddingLeft: "60%" }} fontSize="0.7em">Version 0.0.1</Typography>
       </Box>
     </AppBar>
   );
