@@ -15,7 +15,7 @@ import {
   DialogContent,
   DialogActions,
 } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FileUploader } from "react-drag-drop-files";
 import {
   DeleteRounded,
@@ -195,6 +195,17 @@ function FileUpload() {
     confirm("File size error \nFile cannot be larger than 10MB.");
   };
 
+  useEffect(() =>{
+    console.log('Page Loaded!')
+    setFiles(null);
+    setCurrentItem(null)
+    setCheckedItems({
+      master: true,
+      items: [],
+    });
+    selectedFiles = []
+  }, [])
+
   return (
     <>
       <div>
@@ -235,7 +246,7 @@ function FileUpload() {
                       Upload or drop files right here
                     </span>
                     <div style={{ fontSize: 15, textAlign: "center" }}>
-                      Accepted file types: .xlsx, .csv, .txt
+                      Accepted file types: .xlsx, .csv
                     </div>
                   </div>
                 </label>
