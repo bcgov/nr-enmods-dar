@@ -178,13 +178,6 @@ export default function AdminPage() {
             }}
             rows={userData}
             columns={userColumns(handleOpenEdit)}
-            initialState={{
-              pagination: {
-                paginationModel: {
-                  pageSize: 9,
-                },
-              },
-            }}
             pageSizeOptions={[5, 10, 20, 50, 100]}
             checkboxSelection={false}
             disableRowSelectionOnClick
@@ -205,13 +198,6 @@ export default function AdminPage() {
             slotProps={{
               toolbar: {
                 showQuickFilter: true,
-              },
-            }}
-            initialState={{
-              pagination: {
-                paginationModel: {
-                  pageSize: 9,
-                },
               },
             }}
             checkboxSelection={false}
@@ -235,13 +221,6 @@ export default function AdminPage() {
             slotProps={{
               toolbar: {
                 showQuickFilter: true,
-              },
-            }}
-            initialState={{
-              pagination: {
-                paginationModel: {
-                  pageSize: 9,
-                },
               },
             }}
             checkboxSelection={false}
