@@ -8,7 +8,7 @@ const styles = {
     padding: '0.5rem 1rem',
   },
   link: {
-    color: '#0277bd',
+    color: '#ffffff',
     textDecoration: 'none',
     '&:hover': {
       textDecoration: 'underline',
@@ -34,7 +34,7 @@ const Navbar: FC = () => {
       {breadcrumbs.map((path, index) => {
         const isLast = index === breadcrumbs.length - 1
         return isLast ? (
-          <Typography color="textPrimary" key={index}>
+          <Typography color="#ffffff" key={index}>
             {path.name}
           </Typography>
         ) : (
@@ -43,7 +43,7 @@ const Navbar: FC = () => {
             color="inherit"
             href={path.url}
             style={styles.link}
-            underline="hover"
+            underline="always"
           >
             {path.name}
           </Link>

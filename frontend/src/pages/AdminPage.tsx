@@ -1,7 +1,7 @@
 import { Button, Tabs, Tab, TextField, Typography } from "@mui/material";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import { ChangeEvent, useEffect, useState } from "react";
-import { Box } from "@mui/system";
+import { Box, height } from "@mui/system";
 import { getUsers } from "@/common/admin";
 import type { NotificationInfo, UserInfo } from "@/types/types";
 import AddRoles from "@/components/modal/admin/AddRoles";
@@ -122,15 +122,15 @@ export default function AdminPage() {
   return (
     <div
       style={{
-        minHeight: "45em",
-        maxHeight: "45em",
+        minHeight: "100dvh",
         width: "100%",
         marginLeft: "4em",
+        overflow: "auto",
       }}
     >
       <Box sx={{ paddingBottom: "30px" }}>
         <Typography id="pageTitle" variant="h4">
-          Electronic Data Transfer - Admin
+          Admin
         </Typography>
       </Box>
       <Tabs
@@ -164,7 +164,7 @@ export default function AdminPage() {
         id={`tabpanel-0`}
         aria-labelledby={`tab-0`}
         style={{
-          maxHeight: "45em",
+          height: 600,
           width: "100%",
         }}
       >
@@ -176,12 +176,19 @@ export default function AdminPage() {
                 showQuickFilter: true,
               },
             }}
-            checkboxSelection={false}
             rows={userData}
             columns={userColumns(handleOpenEdit)}
+            initialState={{
+              pagination: {
+                paginationModel: {
+                  pageSize: 9,
+                },
+              },
+            }}
             pageSizeOptions={[5, 10, 20, 50, 100]}
+            checkboxSelection={false}
+            disableRowSelectionOnClick
             getRowId={(row) => row["username"]}
-            style={{ minWidth: 1000 }}
           />
         )}
       </Box>
@@ -190,7 +197,7 @@ export default function AdminPage() {
         hidden={selectedTab !== 1}
         id={`tabpanel-1`}
         aria-labelledby={`tab-1`}
-        style={{ maxHeight: "45em", width: "100%" }}
+        style={{ height: 400, width: "100%" }}
       >
         {selectedTab === 1 && (
           <DataGrid
@@ -200,12 +207,18 @@ export default function AdminPage() {
                 showQuickFilter: true,
               },
             }}
+            initialState={{
+              pagination: {
+                paginationModel: {
+                  pageSize: 9,
+                },
+              },
+            }}
             checkboxSelection={false}
             rows={companyData}
             columns={companyColumns(handleOpenEdit)}
             pageSizeOptions={[5, 10, 20, 50, 100]}
             getRowId={(row) => row["id"]}
-            style={{ minWidth: 920 }}
           />
         )}
       </Box>
@@ -214,7 +227,7 @@ export default function AdminPage() {
         hidden={selectedTab !== 2}
         id={`tabpanel-2`}
         aria-labelledby={`tab-2`}
-        style={{ maxHeight: "45em", width: "100%" }}
+        style={{ height: 400, width: "100%" }}
       >
         {selectedTab === 2 && (
           <DataGrid
@@ -224,12 +237,18 @@ export default function AdminPage() {
                 showQuickFilter: true,
               },
             }}
+            initialState={{
+              pagination: {
+                paginationModel: {
+                  pageSize: 9,
+                },
+              },
+            }}
             checkboxSelection={false}
             rows={notificationData}
             columns={notificationColumns(handleNotificationChange)}
             pageSizeOptions={[5, 10, 20, 50, 100]}
             getRowId={(row) => row["id"]}
-            style={{ maxWidth: 920 }}
           />
         )}
       </Box>

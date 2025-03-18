@@ -353,7 +353,7 @@ export default function Dashboard() {
       >
         <Box>
           <Typography id="pageTitle" variant="h4">
-            Electronic Data Transfer - Dashboard
+            Dashboard
           </Typography>
         </Box>
 
