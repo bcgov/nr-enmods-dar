@@ -891,12 +891,18 @@ export class FileParseValidateService {
         }
       }
 
-      if (
-        rowData["CompositeStat"] != "" &&
-        rowData["DataClassification"] != "LAB"
-      ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DataClassification": "Must be LAB when Composite Stat is porvided."}}`;
-        errorLogs.push(JSON.parse(errorLog));
+      if (rowData["CompositeStat"] != "") {
+        if (rowData["DataClassification"] != "LAB") {
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DataClassification": "Must be LAB when Composite Stat is porvided."}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+
+        if (rowData["DataClassification"] == "LAB") {
+          if (rowData["SpecimenName"] == "") {
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SpecimenName": "Cannot be empty when Composite Stat is present and Data Classification is LAB."}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+        }
       }
     }
 
@@ -1029,11 +1035,6 @@ export class FileParseValidateService {
           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SpecimenName": "Cannot be empty when Medium is ${rowData.Medium} and Data Classification is ${rowData.DataClassification}"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
-      }
-
-      if (rowData["CompositeStat"] != "" && rowData["SpecimenName"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SpecimenName": "Cannot be empty when Composite Stat is present."}}`;
-        errorLogs.push(JSON.parse(errorLog));
       }
     }
 
