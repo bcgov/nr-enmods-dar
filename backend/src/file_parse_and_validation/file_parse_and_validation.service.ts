@@ -702,6 +702,8 @@ export class FileParseValidateService {
           if (row["QCType"] == "") {
             Object.assign(filteredObj, { ActivityType: "SPIKE" });
           }
+        }else if (row["DataClassification"] == "FIELD_SURVEY"){
+          Object.assign(filteredObj, { ActivityType: "FIELD_SURVEY" });
         }
       } else {
         Object.assign(filteredObj, customAttributes);
