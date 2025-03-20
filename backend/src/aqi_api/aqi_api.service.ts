@@ -125,7 +125,7 @@ export class AqiApiService {
   async getObservationsFromFile(fileName: string) {
     try {
       let observations = (
-        await this.axiosInstance.get("/v2/observations?limit=1000")
+        await this.axiosInstance.get("/v2/observations")
       ).data.domainObjects;
 
       const relatedData = observations

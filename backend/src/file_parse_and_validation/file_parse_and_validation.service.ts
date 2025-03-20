@@ -5,6 +5,7 @@ import {
   FieldActivities,
   FieldSpecimens,
   FieldVisits,
+  FileHeaders,
   ObservationFile,
   Observations,
 } from "src/types/types";
@@ -16,6 +17,65 @@ import { Readable } from "stream";
 import csv from "csv-parser";
 import { format } from "fast-csv";
 import csvParser from "csv-parser";
+
+const fileHeaders: FileHeaders = {
+  "Observation ID": "Observation ID",
+  "Ministry Contact": "Ministry Contact",
+  "Sampling Agency": "Sampling Agency",
+  Project: "Project",
+  "Work Order Number": "Work Order Number",
+  "Location ID": "Location ID",
+  "Field Visit Start Time": "Field Visit Start Time",
+  "Field Visit End Time": "Field Visit End Time",
+  "Field Visit Participants": "Field Visit Participants",
+  "Field Visit Comments": "Field Visit Comments",
+  "Activity Comments": "Activity Comments",
+  "Field Filtered": "Field Filtered",
+  "Field Filtered Comment": "Field Filtered Comment",
+  "Field Preservative": "Field Preservative",
+  "Field Device ID": "Field Device ID",
+  "Field Device Type": "Field Device Type",
+  "Sampling Context Tag": "Sampling Context Tag",
+  "Collection Method": "Collection Method",
+  Medium: "Medium",
+  "Depth Upper": "Depth Upper",
+  "Depth Lower": "Depth Lower",
+  "Depth Unit": "Depth Unit",
+  "Observed DateTime": "Observed DateTime",
+  "Observed Date Time End": "Observed Date Time End",
+  "Observed Property ID": "Observed Property ID",
+  "Result Value": "Result Value",
+  "Method Detection Limit": "Method Detection Limit",
+  "Method Reporting Limit": "Method Reporting Limit",
+  "Result Unit": "Result Unit",
+  "Detection Condition": "Detection Condition",
+  "Limit Type": "Limit Type",
+  Fraction: "Fraction",
+  "Data Classification": "Data Classification",
+  "Source of Rounded Value": "Source of Rounded Value",
+  "Rounded Value": "Rounded Value",
+  "Rounding Specification": "Rounding Specification",
+  "Analyzing Agency": "Analyzing Agency",
+  "Analysis Method": "Analysis Method",
+  "Analyzed Date Time": "Analyzed Date Time",
+  "Result Status": "Result Status",
+  "Result Grade": "Result Grade",
+  "Activity ID": "Activity ID",
+  "Activity Name": "Activity Name",
+  "Tissue Type": "Tissue Type",
+  "Lab Arrival Temperature": "Lab Arrival Temperature",
+  "Specimen Name": "Specimen Name",
+  "Lab Quality Flag": "Lab Quality Flag",
+  "Lab Arrival Date and Time": "Lab Arrival Date and Time",
+  "Lab Prepared DateTime": "Lab Prepared DateTime",
+  "Lab Sample ID": "Lab Sample ID",
+  "Lab Dilution Factor": "Lab Dilution Factor",
+  "Lab Comment": "Lab Comment",
+  "Lab Batch ID": "Lab Batch ID",
+  "QC Type": "QC Type",
+  "QC Source Activity Name": "QC Source Activity Name",
+  "Composite Stat": "Composite Stat",
+};
 
 const visits: FieldVisits = {
   MinistryContact: "",
@@ -642,6 +702,8 @@ export class FileParseValidateService {
           if (row["QCType"] == "") {
             Object.assign(filteredObj, { ActivityType: "SPIKE" });
           }
+        }else if (row["DataClassification"] == "FIELD_SURVEY"){
+          Object.assign(filteredObj, { ActivityType: "FIELD_SURVEY" });
         }
       } else {
         Object.assign(filteredObj, customAttributes);
@@ -649,6 +711,36 @@ export class FileParseValidateService {
     }
 
     return filteredObj;
+  }
+
+  async checkHeaders(rowHeaders: any[], fileType: string) {
+    let headerErrors = [];
+    let sourceHeaders = [];
+    const targetHeaders = Object.keys(fileHeaders);
+
+    if (fileType == "xlsx") {
+      sourceHeaders = rowHeaders.slice(1);
+    } else {
+      sourceHeaders = rowHeaders;
+    }
+
+    if (sourceHeaders.length != targetHeaders.length) {
+      let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "Invalid number of headers. Got ${sourceHeaders.length}, expected ${targetHeaders.length}"}}`;
+      headerErrors.push(JSON.parse(errorLog));
+    }
+
+    for (let i = 0; i < sourceHeaders.length; i++) {
+      if (sourceHeaders[i] !== targetHeaders[i]) {
+        if (targetHeaders[i] === undefined){
+          let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${sourceHeaders[i]} is invalid. Please check submission file."}}`;
+          headerErrors.push(JSON.parse(errorLog));
+        }else{
+          let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${sourceHeaders[i]}, should be ${targetHeaders[i]}"}}`;
+          headerErrors.push(JSON.parse(errorLog));
+        }
+      }
+    }
+    return headerErrors;
   }
 
   async localValidation(rowNumber: number, rowData: any) {
@@ -1719,6 +1811,36 @@ export class FileParseValidateService {
       const allNonObsErrors: any[] = [];
       const allExistingRecords: any[] = [];
 
+      // do a validation on the headers
+      const headerErrors = await this.checkHeaders(
+        worksheet.getRow(1).values as string[],
+        "xlsx",
+      );
+
+      if (headerErrors.length > 0) {
+        // there is an error in the headers. Report to the user and reject the file
+        const file_error_log_data = {
+          file_submission_id: file_submission_id,
+          file_name: fileName,
+          original_file_name: originalFileName,
+          file_operation_code: file_operation_code,
+          ministry_contact: null,
+          error_log: headerErrors,
+          create_utc_timestamp: new Date(),
+        };
+
+        await this.prisma.file_error_logs.create({
+          data: file_error_log_data,
+        });
+
+        await this.fileSubmissionsService.updateFileStatus(
+          file_submission_id,
+          "REJECTED",
+        );
+
+        return;
+      }
+
       console.time("Validation");
       for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
         const row = worksheet.getRow(rowNumber);
@@ -1896,13 +2018,42 @@ export class FileParseValidateService {
     } else if (extention == ".csv") {
       const allNonObsErrors: any[] = [];
       const allExistingRecords: any[] = [];
+      const headersForValidation: string[] = [];
       const headers: string[] = [];
 
       file.pipe(csv()).on("headers", (csvHeaders) => {
         headers.push(...csvHeaders.map((key) => key.replace(/\s+/g, "")));
+        headersForValidation.push(...csvHeaders);
       });
 
       await new Promise((f) => setTimeout(f, 1000));
+
+      // do a validation on the headers
+      const headerErrors = await this.checkHeaders(headersForValidation, "csv");
+
+      if (headerErrors.length > 0) {
+        // there is an error in the headers. Report to the user and reject the file
+        const file_error_log_data = {
+          file_submission_id: file_submission_id,
+          file_name: fileName,
+          original_file_name: originalFileName,
+          file_operation_code: file_operation_code,
+          ministry_contact: null,
+          error_log: headerErrors,
+          create_utc_timestamp: new Date(),
+        };
+
+        await this.prisma.file_error_logs.create({
+          data: file_error_log_data,
+        });
+
+        await this.fileSubmissionsService.updateFileStatus(
+          file_submission_id,
+          "REJECTED",
+        );
+
+        return;
+      }
 
       // re-fetch the file for validation purposes - cannot use previously fetched stream
       const rowValidationStream =
