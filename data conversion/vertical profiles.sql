@@ -55,9 +55,12 @@ WITH core_data AS (
             WHEN cm.code = 'VRBL' THEN 'Variable Well Sampling'
             WHEN cm.code = '29' THEN 'Variable Well Sampling'
             WHEN cm.code = '32' THEN 'Variable Well Sampling'
+            WHEN cm.code = '029' THEN 'Variable Well Sampling'
+            WHEN cm.code = '032' THEN 'Variable Well Sampling'
             WHEN cm.code = 'SCOBLQ' THEN 'DELETE' -- don't display this row
             WHEN cm.code = 'CFLOW' THEN 'DELETE' -- don't display this row
             WHEN cm.code = '30' THEN 'DELETE' -- don't display this row
+            WHEN cm.code = '030' THEN 'DELETE' -- don't display this row
             WHEN cm.code = 'PDW' THEN 'DELETE' -- don't display this row
             WHEN cm.code = 'SCHTRL' THEN 'DELETE' -- don't display this row
             WHEN NULLIF(cm.code, '') IS NULL THEN 'Unknown'
@@ -129,6 +132,8 @@ WITH core_data AS (
         result.parm_cd ,
         d.meas_unit_cd as result_unit_code,
         result.meas_unit_cd as mdl_unit_code
+                -- Generate row numbers based on duplicate criteria.  EMS allows these duplicates, but EDT doesn't, so we'll use this to turn "specimen" into a unique column by adding a -n suffix
+
     FROM
         ems_samples smpl
         LEFT JOIN ems_results result ON smpl.id = result.smpl_id
@@ -203,6 +208,125 @@ WITH core_data AS (
         mloc.locntyp_cd NOT LIKE 'D%' -- needed for all queries
         AND mloc.locntyp_cd NOT LIKE 'P%'
 )
+select "Observation ID",
+        "Ministry Contact",
+        "Sampling Agency",
+        "Project",
+        "Work Order Number",
+        "Location ID",
+        "Field Visit Start Time", -- required
+        "Field Visit End Time",
+        "Field Visit Participants",
+        "Activity Comments" as "Field Visit Comments",
+        "Activity Comments",
+        "Field Filtered",
+        "Field Filtered Comment",
+        "Field Preservative",
+        "Field Device ID",-- leave as blank
+        "Field Device Type",
+        "Sampling Context Tag",
+        "Collection Method",
+        "Medium",
+        "Depth Upper",
+        "Depth Lower",
+        "Depth Unit",
+        "Observed DateTime",
+        "Observed Date Time End",
+        "Observed Property ID",-- based on the analytical method and parameter code and unit
+        "Result Value",
+        "Method Detection Limit", 
+        "Method Reporting Limit",
+        "Result Unit",
+        "Detection Condition",
+        "Limit Type",-- doesn't exist in ems  
+        "Fraction",
+        "Data Classification",
+        "Source of Rounded Value",
+        "Rounded Value",
+        "Rounding Specification",
+        "Analyzing Agency",
+        "Analysis Method", -- removed as per request from Jeremy.  The METHOD name was moved to field device type column
+        "Analyzed Date Time", -- add date/time mask
+        "Result Status",
+        "Result Grade",
+        "Activity ID",
+        "Activity Name",
+        "Tissue Type",
+        "Lab Arrival Temperature",
+        "Specimen Name",
+        "Lab Quality Flag",
+        "Lab Arrival Date and Time",
+        "Lab Prepared DateTime",
+        "Lab Sample ID",
+        "Lab Dilution Factor" as "Lab Dilution Factor",
+        "Lab Comment" as "Lab Comment",
+        "Lab Batch ID",
+        "QC Type",
+        "QC Source Activity Name",
+        "Composite Stat"
+from(
+select "Observation ID",
+        "Ministry Contact",
+        "Sampling Agency",
+        "Project",
+        "Work Order Number",
+        "Location ID",
+        "Field Visit Start Time", -- required
+        "Field Visit End Time",
+        "Field Visit Participants",
+        "Activity Comments" as "Field Visit Comments",
+        "Activity Comments",
+        "Field Filtered",
+        "Field Filtered Comment",
+        "Field Preservative",
+        "Field Device ID",-- leave as blank
+        "Field Device Type",
+        "Sampling Context Tag",
+        "Collection Method",
+        "Medium",
+        "Depth Upper",
+        "Depth Lower",
+        "Depth Unit",
+        "Observed DateTime",
+        "Observed Date Time End",
+        "Observed Property ID",-- based on the analytical method and parameter code and unit
+        "Result Value",
+        "Method Detection Limit", 
+        "Method Reporting Limit",
+        "Result Unit",
+        "Detection Condition",
+        "Limit Type",-- doesn't exist in ems  
+        "Fraction",
+        "Data Classification",
+        "Source of Rounded Value",
+        "Rounded Value",
+        "Rounding Specification",
+        "Analyzing Agency",
+        "Analysis Method", -- removed as per request from Jeremy.  The METHOD name was moved to field device type column
+        "Analyzed Date Time", -- add date/time mask
+        "Result Status",
+        "Result Grade",
+        "Activity ID",
+        "Activity Name",
+        "Tissue Type",
+        "Lab Arrival Temperature",
+        "Specimen Name",
+        "Lab Quality Flag",
+        "Lab Arrival Date and Time",
+        "Lab Prepared DateTime",
+        "Lab Sample ID",
+        "Lab Dilution Factor" as "Lab Dilution Factor",
+        "Lab Comment" as "Lab Comment",
+        "Lab Batch ID",
+        "QC Type",
+        "QC Source Activity Name",
+        "Composite Stat",
+        ROW_NUMBER() OVER (
+            PARTITION BY "Location ID", "Field Visit Start Time", "Depth Upper", "Depth Lower", "Specimen Name", "Data Classification", "QC Type", "Observed Property ID"
+            ORDER BY "Field Visit Start Time"
+        ) AS duplicate_row_number
+
+from (
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -213,7 +337,7 @@ SELECT
         core."Field Visit Start Time", -- required
         core."Field Visit End Time",
         core."Field Visit Participants",
-        core."Activity Comments" as "Field Comment",
+        core."Activity Comments" as "Field Visit Comments",
         core."Activity Comments",
         core."Field Filtered",
         core."Field Filtered Comment",
@@ -292,6 +416,9 @@ FROM -- water data
         and core."Observed DateTime"=to_char(v.collection_date_time, 'YYYY-MM-DD"T"HH24:MI:SS') || '-08:00'
         and  core.parm_cd=v.parm_cd
 left outer join ems.unit_conversions_temp unit_conversion on core.result_unit_code = unit_conversion.target_unit_id and core.mdl_unit_code = unit_conversion.source_unit_id      
-where core.result_unit_code is not null and core.mdl_unit_code is not null
+where core.result_unit_code is not null and core.mdl_unit_code is not null)
         -- save result ids where the data can't be uploaded
         -- sort on monitoring location id and date, asc
+        )
+        where duplicate_row_number = 1
+        order by "Location ID" asc, "Observed DateTime" asc
