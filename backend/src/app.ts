@@ -6,6 +6,7 @@ import { NestExpressApplication } from "@nestjs/platform-express";
 import helmet from "helmet";
 import { VersioningType } from "@nestjs/common";
 import { metricsMiddleware } from "./prom";
+import * as fs from "fs";
 
 export async function bootstrap() {
   const app: NestExpressApplication =
@@ -23,13 +24,14 @@ export async function bootstrap() {
     prefix: "v",
   });
   const config = new DocumentBuilder()
-    .setTitle("Users example")
-    .setDescription("The user API description")
+    .setTitle("EDT API")
+    .setDescription("API for EDT")
     .setVersion("1.0")
-    .addTag("users")
+    .addTag("EDT")
     .build();
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup("docs", app, document);
+
   return app;
 }
