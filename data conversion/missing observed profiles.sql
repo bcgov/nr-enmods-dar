@@ -3,7 +3,7 @@ WITH core_data AS (
     SELECT DISTINCT
         ps.first_name || ' ' || ps.last_name                         AS "Ministry Contact",
         cl.id || ' - ' || cl.name                                    AS "Sampling Agency",
-        'TEST-VERTICAL-PROFILES'                                                      AS "Project", --anything not lakes should be hardcoded to either blank or something
+        'BCLMN'                                                      AS "Project",
         smpl.requisition_id                                          AS "Work Order Number",
         smpl.mon_locn_id                                             AS "Location ID",
         to_char(eal.earlieststarttime, 'YYYY-MM-DD"T"HH24:MI:SS') || '-08:00'    AS "Field Visit Start Time",
@@ -19,7 +19,8 @@ WITH core_data AS (
         NULL                                                         AS "Field Filtered Comment", -- blank, doesn't exist in ems
         epc.description                                              AS "Field Preservative",-- updated to use descrsiption  note that only 3800 records of ~ 2 million records have a field preservative
         NULL                                                         AS "Sampling Context Tag", -- blank, doesn't exist in ems
-                        CASE
+        smpl.clct_methd_cd,
+                CASE
             WHEN cm.code = '25' THEN 'Autosampler: Peristaltic Pump'
             WHEN cm.code = '025' THEN 'Autosampler: Peristaltic Pump'
             WHEN cm.code = 'FCFLOW' THEN 'Flow Proportional Composite'
@@ -97,7 +98,7 @@ WITH core_data AS (
         NULL                                                         AS "Source of Rounded Value", -- can be blank
         NULL                                                         AS "Rounded Value", -- can be blank
         NULL                                                         AS "Rounding Specification", -- can be blank
-        null                                                         AS "Analyzing Agency",
+        cl2.short_name                                               AS "Analyzing Agency",
         result.anal_method_cd                                        AS "Analysis Method",
         CASE 
             WHEN result.analytical_date IS NULL THEN NULL
@@ -106,8 +107,11 @@ WITH core_data AS (
         'Preliminary'                                                AS "Result Status",
         'Ungraded'                                                   AS "Result Grade",
         NULL                                                         AS "Activity ID",
-        null                                               AS "Activity Name",
+        smpl.id                                                      AS "Activity Name",
         tt.description                                               AS "Tissue Type", -- blank for this query, but not necessarily true for tax. and air
+        smpl.tissue_typ_cd,
+        esp.DESCRIPTION AS "SPECIES",
+        result.tax_nm_cd,
         smpl.lab_arrival_temperature                                 AS "Lab Arrival Temperature",
         NULL                                                         AS "Lab Quality Flag",-- leave blank
         CASE 
@@ -122,8 +126,10 @@ WITH core_data AS (
         CASE
             WHEN sc.description IN ( 'Replicate', 'Replicate-First', 'Replicate-Second', 'Replicate-Third' ) THEN
                 'Replicate'
-            WHEN sc.description LIKE '%Blank%' THEN
+            WHEN upper(sc.description) LIKE '%BLANK%' THEN
                 'Blank'
+            WHEN upper(sc.description) LIKE '%SPIKE%' THEN
+                'Spike'
             ELSE
                 ''
         END                                                          AS "QC Type",
@@ -131,9 +137,30 @@ WITH core_data AS (
         NULL                                                         AS "Composite Stat",-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes
         result.parm_cd ,
         d.meas_unit_cd as result_unit_code,
-        result.meas_unit_cd as mdl_unit_code
-                -- Generate row numbers based on duplicate criteria.  EMS allows these duplicates, but EDT doesn't, so we'll use this to turn "specimen" into a unique column by adding a -n suffix
-
+        result.meas_unit_cd as mdl_unit_code,
+        smpl.flow as "Air Flow Volume", -- convert to rows and add to activity result (data classification) - "ACTIVITY_RESULT" - no method, no 
+        flow_unit.short_name as "Air Flow Unit Code",
+        smpl.filter_size as "Air Filter Size",
+        smpl.BIO_SAMPLE_AREA,
+        au.short_name as BIO_SAMPLE_AREA_CODE,
+        smpl.BIO_SAMPLE_VOLUME,
+        vu.short_name as BIO_SAMPLE_VOLUME_CODE,
+        smpl.BIO_SAMPLE_WEIGHT,
+        wu.short_name as BIO_SAMPLE_WEIGHT_CODE,
+        result.CONTINUOUS_MINIMUM,
+        result.CONTINUOUS_MAXIMUM,
+        result.CONTINUOUS_AVERAGE,
+        smpl.SIZE_FROM,
+        smpl.SIZE_TO,
+        smpl.WEIGHT_FROM,
+        smpl.WEIGHT_TO,
+        smpl.life_stg_cd,
+        param.description as "parameter_name",
+        -- Generate row numbers based on duplicate criteria.  EMS allows these duplicates, but EDT doesn't, so we'll use this to turn "specimen" into a unique column by adding a -n suffix
+        ROW_NUMBER() OVER (
+            PARTITION BY smpl.mon_locn_id, result.parm_cd, smpl.collection_start_date, d.METHOD_DETECT_LIMIT, smpl.depth_upper, smpl.depth_lower, result.smpl_id
+            ORDER BY eal.earlieststarttime
+        ) AS duplicate_row_number
     FROM
         ems_samples smpl
         LEFT JOIN ems_results result ON smpl.id = result.smpl_id
@@ -208,220 +235,11 @@ WITH core_data AS (
         mloc.locntyp_cd NOT LIKE 'D%' -- needed for all queries
         AND mloc.locntyp_cd NOT LIKE 'P%'
 )
-select "Observation ID",
-        "Ministry Contact",
-        "Sampling Agency",
-        "Project",
-        "Work Order Number",
-        "Location ID",
-        "Field Visit Start Time", -- required
-        "Field Visit End Time",
-        "Field Visit Participants",
-        "Activity Comments" as "Field Visit Comments",
-        "Activity Comments",
-        "Field Filtered",
-        "Field Filtered Comment",
-        "Field Preservative",
-        "Field Device ID",-- leave as blank
-        "Field Device Type",
-        "Sampling Context Tag",
-        "Collection Method",
-        "Medium",
-        "Depth Upper",
-        "Depth Lower",
-        "Depth Unit",
-        "Observed DateTime",
-        "Observed Date Time End",
-        "Observed Property ID",-- based on the analytical method and parameter code and unit
-        "Result Value",
-        "Method Detection Limit", 
-        "Method Reporting Limit",
-        "Result Unit",
-        "Detection Condition",
-        "Limit Type",-- doesn't exist in ems  
-        "Fraction",
-        "Data Classification",
-        "Source of Rounded Value",
-        "Rounded Value",
-        "Rounding Specification",
-        "Analyzing Agency",
-        "Analysis Method", -- removed as per request from Jeremy.  The METHOD name was moved to field device type column
-        "Analyzed Date Time", -- add date/time mask
-        "Result Status",
-        "Result Grade",
-        "Activity ID",
-        "Activity Name",
-        "Tissue Type",
-        "Lab Arrival Temperature",
-        "Specimen Name",
-        "Lab Quality Flag",
-        "Lab Arrival Date and Time",
-        "Lab Prepared DateTime",
-        "Lab Sample ID",
-        "Lab Dilution Factor" as "Lab Dilution Factor",
-        "Lab Comment" as "Lab Comment",
-        "Lab Batch ID",
-        "QC Type",
-        "QC Source Activity Name",
-        "Composite Stat"
-from(
-select "Observation ID",
-        "Ministry Contact",
-        "Sampling Agency",
-        "Project",
-        "Work Order Number",
-        "Location ID",
-        "Field Visit Start Time", -- required
-        "Field Visit End Time",
-        "Field Visit Participants",
-        "Activity Comments" as "Field Visit Comments",
-        "Activity Comments",
-        "Field Filtered",
-        "Field Filtered Comment",
-        "Field Preservative",
-        "Field Device ID",-- leave as blank
-        "Field Device Type",
-        "Sampling Context Tag",
-        "Collection Method",
-        "Medium",
-        "Depth Upper",
-        "Depth Lower",
-        "Depth Unit",
-        "Observed DateTime",
-        "Observed Date Time End",
-        "Observed Property ID",-- based on the analytical method and parameter code and unit
-        "Result Value",
-        "Method Detection Limit", 
-        "Method Reporting Limit",
-        "Result Unit",
-        "Detection Condition",
-        "Limit Type",-- doesn't exist in ems  
-        "Fraction",
-        "Data Classification",
-        "Source of Rounded Value",
-        "Rounded Value",
-        "Rounding Specification",
-        "Analyzing Agency",
-        "Analysis Method", -- removed as per request from Jeremy.  The METHOD name was moved to field device type column
-        "Analyzed Date Time", -- add date/time mask
-        "Result Status",
-        "Result Grade",
-        "Activity ID",
-        "Activity Name",
-        "Tissue Type",
-        "Lab Arrival Temperature",
-        "Specimen Name",
-        "Lab Quality Flag",
-        "Lab Arrival Date and Time",
-        "Lab Prepared DateTime",
-        "Lab Sample ID",
-        "Lab Dilution Factor" as "Lab Dilution Factor",
-        "Lab Comment" as "Lab Comment",
-        "Lab Batch ID",
-        "QC Type",
-        "QC Source Activity Name",
-        "Composite Stat",
-        ROW_NUMBER() OVER (
-            PARTITION BY "Location ID", "Field Visit Start Time", "Depth Upper", "Depth Lower", "Specimen Name", "Data Classification", "QC Type", "Observed Property ID"
-            ORDER BY "Field Visit Start Time"
-        ) AS duplicate_row_number
-
-from (
-SELECT
-        ''  as "Observation ID",
-        core."Ministry Contact",
-        core."Sampling Agency",
-        core."Project",
-        core."Work Order Number",
-        core."Location ID",
-        core."Field Visit Start Time", -- required
-        core."Field Visit End Time",
-        core."Field Visit Participants",
-        core."Activity Comments" as "Field Visit Comments",
-        core."Activity Comments",
-        core."Field Filtered",
-        core."Field Filtered Comment",
-        core."Field Preservative",
-        NULL AS "Field Device ID",-- leave as blank
-        ed.METHOD as "Field Device Type",
-        core."Sampling Context Tag",
-        core."Collection Method",
-        core."Medium",
-        core."Depth Upper",
-        core."Depth Lower",
-        core."Depth Unit",
-        core."Observed DateTime",
-        core."Observed Date Time End",
-        ed.NewNameID AS "Observed Property ID",-- based on the analytical method and parameter code and unit
-        core."Result Value",
-        --core."Method Detection Limit" as "UNCONVERTED_MDL",-- the unit may not be accurate.  Conversion may be needed.  This is the lab based limit.  If the result from the lab is missing, we can get from the analytical methods table
-        --unit_conversion.source_unit_id,
-        --unit_conversion.target_unit_id,
-        --unit_conversion.conversion_factor,
-        CASE
-            WHEN core."Method Detection Limit" is null THEN core."Method Detection Limit Source 2"
-            WHEN core."MDL Unit" <> core."Result Unit" THEN
-                core."Method Detection Limit" / unit_conversion.conversion_factor
-                --unit_conversion.conversion_factor
-        ELSE core."Method Detection Limit" -- No conversion needed
-        END AS "Method Detection Limit", 
-        --core."Method Detection Limit" as "Method Detection Limit OG", -- debugging
-        --unit_conversion.conversion_factor, -- debugging,
-        --core."MDL Unit", core."Result Unit", -- debugging
-        core."Method Reporting Limit",
-        
-        core."Result Unit",
-        core."Detection Condition",
-        core."Limit Type",-- doesn't exist in ems  
-        ed.Fraction as "Fraction",
-        case 
-            when core."Depth Upper" is null and core."Depth Lower" is null then 'FIELD_RESULT'
-            else 'VERTICAL_PROFILE'
-        end AS "Data Classification",
-        core."Source of Rounded Value",
-        core."Rounded Value",
-        core."Rounding Specification",
-        core."Analyzing Agency",
-        null as "Analysis Method", -- removed as per request from Jeremy.  The METHOD name was moved to field device type column
-        core."Analyzed Date Time", -- add date/time mask
-        core."Result Status",
-        core."Result Grade",
-        core."Activity ID",
-        core."Activity Name",
-        core."Tissue Type",
-        core."Lab Arrival Temperature",
-        null as "Specimen Name",
-        core."Lab Quality Flag",
-        core."Lab Arrival Date and Time",
-        core."Lab Prepared DateTime",
-        core."Lab Sample ID",
-        core."Lab Dilution Factor" as "Lab Dilution Factor",
-        core."Lab Comment" as "Lab Comment",
-        core."Lab Batch ID",
-        core."QC Type",
-        core."QC Source Activity Name",
-        core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
-        --core.parm_cd, -- for troubleshooting
-        --core."Analysis Method", -- for troubleshooting
-        --core."Result Unit", -- for troubleshooting     
-        --core."MDL Unit", -- for troubleshooting,
-        --core.mdl_unit_code,
-        --core.result_unit_code
-FROM -- water data
-    core_data core
+select core.parm_cd, core."parameter_name", core."Analysis Method",core."EMS Result Unit" 
+from     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
         and core."Analysis Method" = ed.Analysis_Method_Code
-        and core."EMS Result Unit" = ed.Unit -- need to check this to make sure it lines up with what's in the spreadsheet
-        inner join EMS.VERTICAL_PROFILES V on         core."Location ID"=to_char(v.EMS_ID)
-        and core."Observed DateTime"=to_char(v.collection_date_time, 'YYYY-MM-DD"T"HH24:MI:SS') || '-08:00'
-        and  core.parm_cd=v.parm_cd
-left outer join ems.unit_conversions_temp unit_conversion on core.result_unit_code = unit_conversion.target_unit_id and core.mdl_unit_code = unit_conversion.source_unit_id      
-where core.result_unit_code is not null and core.mdl_unit_code is not null
-AND ed.NewNameID is not null
-)
-        -- save result ids where the data can't be uploaded
-        -- sort on monitoring location id and date, asc
+        and core."EMS Result Unit" = ed.Unit
+        where ed.Parm_code is null or ed.Analysis_Method_Code is null or ed.Unit is null
+        group by core.parm_cd,core."Analysis Method",core."EMS Result Unit", core."parameter_name"
         
-        )
-        where duplicate_row_number = 1
-        order by "Location ID" asc, "Observed DateTime" asc

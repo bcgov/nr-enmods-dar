@@ -448,7 +448,7 @@ sample_data AS (
 ) -- sample data
 
 -- water data
-
+/*
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -513,7 +513,7 @@ SELECT
         core."Result Status",
         core."Result Grade",
         core."Activity ID",
-        core."Activity Name",
+        case when ed.Classification == FIELD_RESULT then '' else core."Activity Name" as "Activity Name",
         core."Tissue Type",
         core."Lab Arrival Temperature",
         CASE 
@@ -556,7 +556,7 @@ where core.result_unit_code is not null and core.mdl_unit_code is not null
                 order by core."Location ID" asc, core."Observed DateTime" asc
 
 -- end water data
-
+*/
 /*
 union all -- air data
 */
@@ -620,7 +620,7 @@ SELECT
         core."Result Status",
         core."Result Grade",
         core."Activity ID",
-        core."Activity Name",
+        case when ed.Classification == FIELD_RESULT then '' else core."Activity Name" as "Activity Name",
         core."Tissue Type",
         core."Lab Arrival Temperature",
         CASE 
@@ -1214,7 +1214,7 @@ SELECT
         core."Result Status",
         core."Result Grade",
         core."Activity ID",
-        core."Activity Name",
+        case when ed.Classification == FIELD_RESULT then '' else core."Activity Name" as "Activity Name",
         COALESCE(core."Tissue Type", 'Unknown') AS "Tissue Type",
         core.tissue_typ_cd,
         core."Lab Arrival Temperature",
@@ -1431,7 +1431,7 @@ and (nvl(core.weight_from,0)) > 0
 */
 -- begin continuous data
 -- union -- continuous data - CONTINUOUS_AVERAGE
-/*
+
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -1702,4 +1702,3 @@ where --upper(core."Medium") like '%WATER - WASTE%' -- try WATER-MARINE for a su
         core.CONTINUOUS_MINIMUM is not null
         AND ed.NewNameID is not null
 -- end continuous
-*/
