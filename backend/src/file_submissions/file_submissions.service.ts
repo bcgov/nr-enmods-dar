@@ -8,6 +8,7 @@ import { FileInfo } from "src/types/types";
 import { randomUUID } from "crypto";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
 import { AqiApiService } from "src/aqi_api/aqi_api.service";
+import { OperationLockService } from "src/operationLock/operationLock.service";
 
 @Injectable()
 export class FileSubmissionsService {
@@ -16,6 +17,7 @@ export class FileSubmissionsService {
     private prisma: PrismaService,
     private readonly objectStore: ObjectStoreService,
     private readonly aqiService: AqiApiService,
+    private readonly operationLockService: OperationLockService,
   ) {}
 
   async create(body: any, file: Express.Multer.File) {
@@ -211,8 +213,20 @@ export class FileSubmissionsService {
     });
   }
 
-  update(id: number, updateFileSubmissionDto: UpdateFileSubmissionDto) {
-    return `This action updates a #${id} fileSubmission`;
+  async update(id: string, updateFileSubmissionDto: UpdateFileSubmissionDto) {
+    try {
+      const updateFileStatus = await this.prisma.file_submission.update({
+        where: {
+          submission_id: id,
+        },
+        data: {
+          submission_status_code:
+            updateFileSubmissionDto.submission_status_code,
+        },
+      });
+    } catch (err) {
+      this.logger.error(`Error updating file status: ${err.message}`);
+    }
   }
 
   async remove(file_name: string, id: string) {
@@ -229,9 +243,12 @@ export class FileSubmissionsService {
           },
         });
       });
+      this.operationLockService.releaseLock("DELETE")
+
       return true;
     } catch (err) {
       this.logger.error(`Error deleting file: ${err.message}`);
+      this.operationLockService.releaseLock("DELETE")
       return false;
     }
   }

@@ -82,7 +82,7 @@ export class FileSubmissionsController {
     @Param("id") id: string,
     @Body() updateFileSubmissionDto: UpdateFileSubmissionDto,
   ) {
-    return this.fileSubmissionsService.update(+id, updateFileSubmissionDto);
+    return this.fileSubmissionsService.update(id, updateFileSubmissionDto);
   }
 
   @Delete(":file_name/:id")

@@ -1,12 +1,11 @@
-import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
-import axios, { create } from "axios";
-import { error } from "winston";
+import { Injectable, Logger } from "@nestjs/common";
+import axios from "axios";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "nestjs-prisma";
 import { FileParseValidateService } from "src/file_parse_and_validation/file_parse_and_validation.service";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
-import { resolve } from "path";
 import { OperationLockService } from "src/operationLock/operationLock.service";
+import * as fs from 'fs'
 
 /**
  * Cron Job service for filling code tables with data from AQI API
@@ -180,7 +179,6 @@ export class CronJobService {
           `Processed batch ${Math.ceil((i + 1) / batchSize)}/${Math.ceil(data.length / batchSize)} for ${dbTable}`,
         );
       }
-
       this.logger.log(
         `Successfully upserted ${data.length} entries into ${dbTable} in ${(new Date().getTime() - startTime) / 1000} seconds`,
       );
@@ -219,9 +217,9 @@ export class CronJobService {
         };
       case "aqi_field_activities":
         return {
-          aqi_field_activities_start_time: new Date(record.startTime),
-          aqi_field_activities_custom_id: record.customId,
-          aqi_field_visit_start_time: new Date(record.visitStartTime),
+          aqi_field_activities_start_time: new Date(record.startTime) ?? "",
+          aqi_field_activities_custom_id: record.customId ?? "",
+          aqi_field_visit_start_time: new Date(record.visitStartTime) ?? "",
           aqi_location_custom_id: record.locationCustomID,
           create_user_id: record.creationUserProfileId,
           create_utc_timestamp: record.creationTime

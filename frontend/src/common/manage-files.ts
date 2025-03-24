@@ -52,3 +52,10 @@ export const deleteFile = async (fileName: string, submissionId: string) => {
   const response = await api.deleteMethod(getParameters);
   return response;
 }
+
+export const updateFileStatus = async (submissionId: string, data: any) => {
+  const url = `${config.API_BASE_URL}/v1/file_submissions/${submissionId}`
+  const getParameters = api.generateApiParameters(url, data);
+  const response = await api.patch(getParameters);
+  return response;
+}

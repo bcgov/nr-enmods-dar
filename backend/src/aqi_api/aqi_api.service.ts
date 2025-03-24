@@ -23,100 +23,100 @@ export class AqiApiService {
     });
   }
 
-  async fieldVisits(body: any) {
+  async fieldVisits(rowNumber: number, body: any) {
     try {
       const response = await this.axiosInstance.post("/v1/fieldvisits", body);
       this.logger.log(
-        `API call to POST Field Visits succeeded: ${response.status}`,
+        `RowNum: ${rowNumber} -> API call to POST Field Visits succeeded: ${response.status}`,
       );
       return response.data.id;
     } catch (err) {
       this.logger.error(
-        "API CALL TO POST Field Visits failed: ",
+        `RowNum: ${rowNumber} -> API CALL TO POST Field Visits failed: `,
         err.response.data.message,
       );
     }
   }
 
-  async putFieldVisits(GUID: string, body: any) {
+  async putFieldVisits(rowNumber: number, GUID: string, body: any) {
     try {
       const response = await this.axiosInstance.put(
         `/v1/fieldvisits/${GUID}`,
         body,
       );
       this.logger.log(
-        `API call to PUT Field Visits succeeded: ${response.status}`,
+        `RowNum: ${rowNumber} -> API call to PUT Field Visits succeeded: ${response.status}`,
       );
       return response.data.id;
     } catch (err) {
       this.logger.error(
-        "API CALL TO PUT Field Visits failed: ",
+        `RowNum: ${rowNumber} -> API CALL TO PUT Field Visits failed: `,
         err.response.data.message,
       );
     }
   }
 
-  async fieldActivities(body: any) {
+  async fieldActivities(rowNumber: number, body: any) {
     try {
       const response = await this.axiosInstance.post("/v1/activities", body);
       this.logger.log(
-        `API call to POST Activities succeeded: ${response.status}`,
+        `RowNum: ${rowNumber} -> API call to POST Activities succeeded: ${response.status}`,
       );
       return response.data.id;
     } catch (err) {
       this.logger.error(
-        "API CALL TO POST Activities failed: ",
+        `RowNum: ${rowNumber} -> API CALL TO POST Activities failed: `,
         err.response.data.message,
       );
     }
   }
 
-  async putFieldActivities(GUID: string, body: any) {
+  async putFieldActivities(rowNumber: number, GUID: string, body: any) {
     try {
       const response = await this.axiosInstance.put(
         `/v1/activities/${GUID}`,
         body,
       );
       this.logger.log(
-        `API call to PUT Field Activities succeeded: ${response.status}`,
+        `RowNum: ${rowNumber} -> API call to PUT Field Activities succeeded: ${response.status}`,
       );
       return response.data.id;
     } catch (err) {
       this.logger.error(
-        "API CALL TO PUT Field Activities failed: ",
+        `RowNum: ${rowNumber} -> API CALL TO PUT Field Activities failed: `,
         err.response.data.message,
       );
     }
   }
 
-  async fieldSpecimens(body: any) {
+  async fieldSpecimens(rowNumber: number, body: any) {
     try {
       const response = await this.axiosInstance.post("/v1/specimens", body);
       this.logger.log(
-        `API call to POST Specimens succeeded: ${response.status}`,
+        `RowNum: ${rowNumber} -> API call to POST Specimens succeeded: ${response.status}`,
       );
       return response.data.id;
     } catch (err) {
       this.logger.error(
-        "API CALL TO POST Specimens failed: ",
+        `RowNum: ${rowNumber} -> API CALL TO POST Specimens failed: `,
         err.response.data.message,
       );
     }
   }
 
-  async putSpecimens(GUID: string, body: any) {
+  async putSpecimens(rowNumber: number, GUID: string, body: any) {
     try {
       const response = await this.axiosInstance.put(
         `/v1/specimens/${GUID}`,
         body,
       );
       this.logger.log(
-        `API call to PUT Specimens succeeded: ${response.status}`,
+        `RowNum: ${rowNumber} -> API call to PUT Specimens succeeded: ${response.status}`,
       );
       return response.data.id;
     } catch (err) {
       this.logger.error(
-        "API CALL TO PUT Specimens failed: ",
+        `RowNum: ${rowNumber} -> API CALL TO PUT Specimens failed: `,
         err.response.data.message,
       );
     }
@@ -124,18 +124,62 @@ export class AqiApiService {
 
   async getObservationsFromFile(fileName: string) {
     try {
-      let observations = (
-        await this.axiosInstance.get("/v2/observations")
-      ).data.domainObjects;
+      let allObservationsFromFile = [];
+      let cursor: string | null = null;
+      let total = 0;
+      let processedCount = 0;
+      let loopCount = 0;
 
-      const relatedData = observations
-        .filter((observation) =>
-          observation.extendedAttributes.some(
-            (attribute) => attribute.text === fileName,
-          ),
-        )
-        .map((observation) => observation.id);
-      return relatedData;
+      do {
+        const url = cursor
+          ? `/v2/observations?EA_Upload%20File%20Name=${fileName}&cursor=${cursor}`
+          : `/v2/observations?EA_Upload%20File%20Name=${fileName}`;
+
+        const response = await this.axiosInstance.get(url);
+
+        if (response.status != 200) {
+          this.logger.error(
+            `Could not ping AQI API for observations. Response Code: ${response.status}`,
+          );
+          return;
+        }
+
+        const entries = response.data.domainObjects || [];
+        const relatedData = entries.map((observation) => observation.id);
+        cursor = response.data.cursor || null;
+        total = response.data.totalCount || 0;
+
+        this.logger.log(
+          `Fetched ${entries.length} entries from observations. Processed: ${processedCount}/${total}`,
+        );
+
+        allObservationsFromFile.push(...relatedData);
+
+        // Increment counters
+        processedCount += entries.length;
+        loopCount++;
+
+        // Log progress periodically
+        if (loopCount % 5 === 0 || processedCount >= total) {
+          this.logger.log(`Progress: ${processedCount}/${total}`);
+        }
+
+        // Break if we've processed all expected entries
+        if (processedCount >= total) {
+          this.logger.log(`Completed fetching data for observations`);
+          break;
+        }
+
+        // Edge case: Break if no entries are returned but the cursor is still valid
+        if (entries.length === 0 && cursor) {
+          this.logger.warn(
+            `Empty response for observations with cursor ${cursor}. Terminating early.`,
+          );
+          break;
+        }
+      } while (cursor);
+
+      return allObservationsFromFile;
     } catch (err) {
       this.logger.error("API CALL TO GET Observations from File failed: ", err);
     }
@@ -703,7 +747,7 @@ export class AqiApiService {
           try {
             const dbDeletion = await this.prisma.aqi_field_visits.delete({
               where: {
-                aqi_field_visits_id: visit
+                aqi_field_visits_id: visit,
               },
             });
             this.logger.log("DB VISIT DELETION: " + dbDeletion);

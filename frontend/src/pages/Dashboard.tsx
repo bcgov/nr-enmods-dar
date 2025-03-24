@@ -23,6 +23,7 @@ import {
   downloadFile,
   downloadFileLogs,
   searchFiles,
+  updateFileStatus,
 } from "@/common/manage-files";
 import { getUsers } from "@/common/admin";
 import { jwtDecode, JwtPayload } from "jwt-decode";
@@ -304,6 +305,20 @@ export default function Dashboard() {
     value: status.submission_status_code,
     label: status.description,
   }));
+
+  const setupDelete = async (submission_id: string) => {
+    const prevData = data.items;
+    let newData = prevData.map((row: any) =>
+      row.submission_id === submission_id
+        ? { ...row, ["submission_status_code"]: "DELETING" }
+        : row,
+    );
+
+    // update the status in the backend here
+    await handleFileStatus(submission_id, "DELETING")
+    await handleSearch(undefined)
+    handleDelete(currentItem.file_name, currentItem.submission_id);
+  };
 
   useEffect(() => {
     async function fetchFileStatusCodes() {
@@ -600,8 +615,8 @@ export default function Dashboard() {
             <Button
               color="secondary"
               onClick={() => {
-                handleDelete(currentItem.file_name, currentItem.submission_id);
-                handleCloseAndSubmit();
+                setupDelete(currentItem.submission_id);
+                handleCloseAndSubmit()
               }}
               variant="contained"
               autoFocus
@@ -670,6 +685,13 @@ async function handleMessages(
   document.body.appendChild(link); // Append link to body
   link.click(); // Click the link
   document.body.removeChild(link); // Clean up
+}
+
+async function handleFileStatus(
+  submission_id: string,
+  newStatus: string
+){
+  await updateFileStatus(submission_id, {submission_status_code: newStatus})
 }
 
 async function handleDelete(

@@ -349,7 +349,7 @@ export class FileParseValidateService {
     }
   }
 
-  async fieldVisitJson(visitData: any, apiType: string) {
+  async fieldVisitJson(visitData: any, row_number: number, apiType: string) {
     let postData: any = {};
     const extendedAttribs = { extendedAttributes: [] };
 
@@ -403,11 +403,11 @@ export class FileParseValidateService {
 
     if (apiType === "post") {
       Object.assign(currentVisitAndLoc, {
-        fieldVisit: await this.aqiService.fieldVisits(postData),
+        fieldVisit: await this.aqiService.fieldVisits(row_number, postData),
       });
     } else if (apiType == "put") {
       const GUIDtoUpdate = visitData.id;
-      await this.aqiService.putFieldVisits(GUIDtoUpdate, postData);
+      await this.aqiService.putFieldVisits(row_number, GUIDtoUpdate, postData);
       Object.assign(currentVisitAndLoc, {
         fieldVisit: GUIDtoUpdate,
       });
@@ -415,7 +415,7 @@ export class FileParseValidateService {
     return currentVisitAndLoc;
   }
 
-  async fieldActivityJson(activityData: any, apiType: string) {
+  async fieldActivityJson(activityData: any, row_number: number, apiType: string) {
     let postData: any = {};
     const extendedAttribs = { extendedAttributes: [] };
     const sampleContextTags = { samplingContextTags: [] };
@@ -491,14 +491,14 @@ export class FileParseValidateService {
     if (apiType === "post") {
       Object.assign(currentActivity, {
         activity: {
-          id: await this.aqiService.fieldActivities(postData),
+          id: await this.aqiService.fieldActivities(row_number, postData),
           customId: activityData.ActivityName,
           startTime: activityData.ObservedDateTime,
         },
       });
     } else if (apiType === "put") {
       const GUIDtoUpdate = activityData.id;
-      await this.aqiService.putFieldActivities(GUIDtoUpdate, postData);
+      await this.aqiService.putFieldActivities(row_number, GUIDtoUpdate, postData);
       Object.assign(currentActivity, {
         activity: {
           id: GUIDtoUpdate,
@@ -511,7 +511,7 @@ export class FileParseValidateService {
     return currentActivity;
   }
 
-  async specimensJson(specimenData: any, apiType: string) {
+  async specimensJson(specimenData: any, row_number: number, apiType: string) {
     let postData: any = {};
     const extendedAttribs = { extendedAttributes: [] };
 
@@ -578,14 +578,14 @@ export class FileParseValidateService {
     if (apiType === "post") {
       Object.assign(currentSpecimen, {
         specimen: {
-          id: await this.aqiService.fieldSpecimens(postData),
+          id: await this.aqiService.fieldSpecimens(row_number, postData),
           customId: specimenData.SpecimenName,
           startTime: specimenData.ObservedDateTime,
         },
       });
     } else if (apiType === "put") {
       const GUIDtoUpdate = specimenData.id;
-      await this.aqiService.putSpecimens(GUIDtoUpdate, postData);
+      await this.aqiService.putSpecimens(row_number, GUIDtoUpdate, postData);
       Object.assign(currentSpecimen, {
         specimen: {
           id: GUIDtoUpdate,
@@ -1412,6 +1412,7 @@ export class FileParseValidateService {
   }
 
   async insertDataNonObservations(
+    rowNumber: number,
     rowData: any,
     GuidsToSave: any,
     fileName: string,
@@ -1471,13 +1472,13 @@ export class FileParseValidateService {
     if (visitExists !== null && visitExists !== undefined) {
       // send PUT to AQI and add visit data to activity
       fieldVisit["id"] = visitExists;
-      await this.fieldVisitJson(fieldVisit, "put");
+      await this.fieldVisitJson(fieldVisit, rowNumber, "put");
       fieldActivity["fieldVisit"] = visitExists;
       fieldActivity["LocationID"] = rowData.LocationID;
       GuidsToSave["visits"].push(visitExists);
     } else {
       // send POST to AQI and add visit data to activity
-      visitInfo = await this.fieldVisitJson(fieldVisit, "post");
+      visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
 
       // insert the visit record in the db table
       try {
@@ -1509,7 +1510,7 @@ export class FileParseValidateService {
       if (activityExists !== null && activityExists !== undefined) {
         // send PUT to AQI
         fieldActivity["id"] = activityExists;
-        await this.fieldActivityJson(fieldActivity, "put");
+        await this.fieldActivityJson(fieldActivity, rowNumber, "put");
         specimen["activity"] = {
           id: activityExists,
           customId: rowData.ActivityName,
@@ -1518,7 +1519,7 @@ export class FileParseValidateService {
         GuidsToSave["activities"].push(activityExists);
       } else {
         // send POST to AQI
-        activityInfo = await this.fieldActivityJson(fieldActivity, "post");
+        activityInfo = await this.fieldActivityJson(fieldActivity, rowNumber, "post");
 
         // insert the activity record in the db table
         try {
@@ -1565,11 +1566,11 @@ export class FileParseValidateService {
       if (specimenExists !== null && specimenExists !== undefined) {
         // send PUT to AQI
         specimen["id"] = specimenExists;
-        await this.specimensJson(specimen, "put");
+        await this.specimensJson(specimen, rowNumber, "put");
         GuidsToSave["specimens"].push(specimenExists);
       } else {
         // send POST to AQI
-        specimenInfo = await this.specimensJson(specimen, "post");
+        specimenInfo = await this.specimensJson(specimen, rowNumber, "post");
 
         // insert the specimen record in the db table
         try {
@@ -1995,6 +1996,7 @@ export class FileParseValidateService {
 
             // do the data insert logic here
             await this.insertDataNonObservations(
+              rowNumber,
               rowData,
               GuidsToSave,
               fileName,
@@ -2217,6 +2219,7 @@ export class FileParseValidateService {
               rowData = await this.cleanRowBasedOnDataClassification(rowData);
               // do the data insert logic here
               await this.insertDataNonObservations(
+                rowNumber,
                 rowData,
                 GuidsToSave,
                 fileName,
