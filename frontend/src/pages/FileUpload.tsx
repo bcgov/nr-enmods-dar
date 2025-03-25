@@ -27,6 +27,8 @@ import "@/index.css";
 import { jwtDecode } from "jwt-decode";
 import { insertFile } from "@/common/manage-files";
 import UserService from "@/service/user-service";
+import ExcelJS from "exceljs";
+import Papa from "papaparse"
 
 const fileTypes = ["xlsx", "csv", "txt"];
 let selectedFiles: any[] = [];
@@ -48,7 +50,30 @@ function FileUpload() {
     setCurrentItem(null);
   };
 
-  const handleFileSelect = (files) => {
+  async function getRowCount(file: any): Promise<number> {
+    if (file.name.endsWith(".xlsx")){
+      const buffer = await file.arrayBuffer();
+      const workbook = new ExcelJS.Workbook()
+      await workbook.xlsx.load(buffer)
+      const worksheet = workbook.worksheets[0]
+      return worksheet.rowCount
+    }else if (file.name.endsWith(".csv")){
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (!event.target?.result) return reject
+          const csvText = event.target.result as string;
+          const { data } = Papa.parse(csvText)
+          resolve(data.length)
+        }
+        reader.onerror = () => reject(reader.error)
+        reader.readAsText(file)
+      })
+    }
+    return 0
+  }
+
+  const handleFileSelect = async (files) => {
     if (!files) return;
 
     const selectedFilesForValidation = Array.from(files);
@@ -62,6 +87,19 @@ function FileUpload() {
           invalidFiles.map((file: any) => file.name).join("\n"),
       );
       return;
+    }
+
+    // check for max number of rows
+    for (const file of selectedFilesForValidation){
+      const rowCount = await getRowCount(file)
+
+      if (rowCount > 10000){
+        confirm(
+          "File contains more than 10,000 rows. Make sure file has at most 10,000 rows and try again:\n" +
+            file.name + `, rows found: ${rowCount}`,
+        );
+        return;
+      }
     }
 
     setFiles(files);
