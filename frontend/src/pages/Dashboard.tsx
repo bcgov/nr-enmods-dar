@@ -310,14 +310,13 @@ export default function Dashboard() {
     const prevData = data.items;
     let newData = prevData.map((row: any) =>
       row.submission_id === submission_id
-        ? { ...row, ["submission_status_code"]: "DELETING" }
+        ? { ...row, ["submission_status_code"]: "DEL QUEUED" }
         : row,
     );
 
     // update the status in the backend here
-    await handleFileStatus(submission_id, "DELETING")
+    await handleFileStatus(submission_id, "DEL QUEUED")
     await handleSearch(undefined)
-    handleDelete(currentItem.file_name, currentItem.submission_id);
   };
 
   useEffect(() => {
@@ -692,14 +691,6 @@ async function handleFileStatus(
   newStatus: string
 ){
   await updateFileStatus(submission_id, {submission_status_code: newStatus})
-}
-
-async function handleDelete(
-  fileName: string,
-  submission_id: string,
-): Promise<void> {
-  let deleted = false;
-  await deleteFile(fileName, submission_id);
 }
 
 function getMimeType(fileName: string) {

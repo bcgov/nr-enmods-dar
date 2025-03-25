@@ -17,4 +17,24 @@ values (
         (now() at time zone 'utc'),
         'VMANAWAT',
         (now() at time zone 'utc')
+    ),
+    (
+        'DEL ERROR',
+        'Delete Error',
+        0,
+        true,
+        'VMANAWAT',
+        (now() at time zone 'utc'),
+        'VMANAWAT',
+        (now() at time zone 'utc')
+    ),
+    (
+        'DEL QUEUED',
+        'Delete Queued',
+        0,
+        true,
+        'VMANAWAT',
+        (now() at time zone 'utc'),
+        'VMANAWAT',
+        (now() at time zone 'utc')
     );

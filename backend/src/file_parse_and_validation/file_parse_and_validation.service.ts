@@ -220,6 +220,14 @@ export class FileParseValidateService {
     return this.fileSubmissionsService.findByCode("QUEUED");
   }
 
+  async getFilesToDelete(){
+    return this.fileSubmissionsService.findByCode("DEL QUEUED");
+  }
+
+  async deleteFile(fileName, fileId){
+    return this.fileSubmissionsService.remove(fileName, fileId)
+  }
+
   async queryCodeTables(tableName: string, param: any) {
     switch (tableName) {
       case "LOCATIONS":

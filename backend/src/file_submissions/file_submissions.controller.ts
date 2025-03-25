@@ -37,7 +37,7 @@ export class FileSubmissionsController {
   constructor(
     private readonly fileSubmissionsService: FileSubmissionsService,
     private readonly sanitizeService: SanitizeService,
-    private readonly operationLockService: OperationLockService
+    private readonly operationLockService: OperationLockService,
   ) {}
 
   @Post()
@@ -88,11 +88,6 @@ export class FileSubmissionsController {
   @Delete(":file_name/:id")
   @Roles(Role.ENMODS_ADMIN)
   remove(@Param("file_name") file_name: string, @Param("id") id: string) {
-    
-    if (!this.operationLockService.acquireLock("DELETE")){
-      return
-    }
-
     return this.fileSubmissionsService.remove(file_name, id);
   }
 }

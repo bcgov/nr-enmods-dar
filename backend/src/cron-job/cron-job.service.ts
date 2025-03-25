@@ -5,7 +5,7 @@ import { PrismaService } from "nestjs-prisma";
 import { FileParseValidateService } from "src/file_parse_and_validation/file_parse_and_validation.service";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
 import { OperationLockService } from "src/operationLock/operationLock.service";
-import * as fs from 'fs'
+import * as fs from "fs";
 
 /**
  * Cron Job service for filling code tables with data from AQI API
@@ -634,6 +634,61 @@ export class CronJobService {
       }
     } finally {
       this.operationLockService.releaseLock("FILE_PROCESSING");
+      return;
+    }
+  }
+
+  @Cron(CronExpression.EVERY_10_SECONDS) // every 2 hours
+  private async beginDelete() {
+    /*
+    TODO:
+      grab all the files from the DB and S3 bucket that have a status of QUEUED
+      for each file returned, change the status to INPROGRESS and go to the parser
+    // */
+    if (!this.operationLockService.acquireLock("DELETE")) {
+      this.logger.warn("Delete cannot be started. Another process running");
+      return;
+    }
+
+    let filesToDelete = await this.fileParser.getFilesToDelete();
+
+    if (filesToDelete.length < 1) {
+      this.logger.log("************** NO FILES TO DELETE **************");
+      this.operationLockService.releaseLock("DELETE");
+      return;
+    } else {
+      this.deleteFiles(filesToDelete).then(() => {
+        this.logger.log("All files processed.");
+      });
+    }
+  }
+
+  async deleteFiles(files) {
+    this.logger.log("Starting to delete queued files...");
+
+    try {
+      for (const file of files) {
+        try {
+          await this.prisma.$transaction(async (prisma) => {
+            const updateFileStatus = await this.prisma.file_submission.update({
+              where: {
+                submission_id: file.submission_id,
+              },
+              data: {
+                submission_status_code: "DELETING",
+                update_utc_timestamp: new Date(),
+              },
+            });
+          });
+          await this.fileParser.deleteFile(file.file_name, file.submission_id);
+
+          this.logger.log(`File ${file.file_name} deleted successfully.`);
+        } catch (err) {
+          this.logger.error(`Error deleting file ${file.file_name}: ${err}`);
+        }
+      }
+    } finally {
+      this.operationLockService.releaseLock("DELETE");
       return;
     }
   }

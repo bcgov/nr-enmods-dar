@@ -243,12 +243,27 @@ export class FileSubmissionsService {
           },
         });
       });
-      this.operationLockService.releaseLock("DELETE")
+
+      await this.prisma.aqi_imported_data.deleteMany({
+        where: {
+          file_name: file_name,
+        },
+      });
 
       return true;
     } catch (err) {
       this.logger.error(`Error deleting file: ${err.message}`);
-      this.operationLockService.releaseLock("DELETE")
+      await this.prisma.$transaction(async (prisma) => {
+        const updateFileStatus = await this.prisma.file_submission.update({
+          where: {
+            submission_id: id,
+          },
+          data: {
+            submission_status_code: "DEL ERROR",
+            update_utc_timestamp: new Date(),
+          },
+        });
+      });
       return false;
     }
   }

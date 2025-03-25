@@ -830,20 +830,5 @@ export class AqiApiService {
         },
       );
     }
-
-    if (
-      successfulObs &&
-      successfulSpecimen &&
-      successfulActivity &&
-      successfulVisit
-    ) {
-      await this.prisma.aqi_imported_data.deleteMany({
-        where: {
-          file_name: fileName,
-        },
-      });
-    } else {
-      this.logger.error(`Error deleting related data for file ${fileName}.`);
-    }
   }
 }
