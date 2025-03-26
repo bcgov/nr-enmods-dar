@@ -245,12 +245,12 @@ select "Observation ID",
         "Rounded Value",
         "Rounding Specification",
         "Analyzing Agency",
-        "Analysis Method", -- removed as per request from Jeremy.  The METHOD name was moved to field device type column
+        case when "Data Classification" = 'FIELD_RESULT' then null else "Analysis Method" end as "Analysis Method",
         "Analyzed Date Time", -- add date/time mask
         "Result Status",
         "Result Grade",
         "Activity ID",
-        "Activity Name",
+        case when "Data Classification" = 'FIELD_RESULT' then null else "Activity Name" end as "Activity Name",
         "Tissue Type",
         "Lab Arrival Temperature",
         "Specimen Name",
@@ -322,7 +322,7 @@ select "Observation ID",
         "QC Source Activity Name",
         "Composite Stat",
         ROW_NUMBER() OVER (
-            PARTITION BY "Location ID", "Field Visit Start Time", "Depth Upper", "Depth Lower", "Specimen Name", "Data Classification", "QC Type", "Observed Property ID"
+            PARTITION BY "Location ID", "Field Visit Start Time", "Medium", "Depth Upper", "Activity Name", "Specimen Name", "Data Classification", "QC Type", "Observed Property ID"
             ORDER BY "Field Visit Start Time"
         ) AS duplicate_row_number
 

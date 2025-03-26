@@ -446,6 +446,124 @@ sample_data AS (
         AND mloc.locntyp_cd NOT LIKE 'P%'
     
 ) -- sample data
+select "Observation ID",
+        "Ministry Contact",
+        "Sampling Agency",
+        "Project",
+        "Work Order Number",
+        "Location ID",
+        "Field Visit Start Time", -- required
+        "Field Visit End Time",
+        "Field Visit Participants",
+        "Activity Comments" as "Field Visit Comments",
+        "Activity Comments",
+        "Field Filtered",
+        "Field Filtered Comment",
+        "Field Preservative",
+        "Field Device ID",-- leave as blank
+        "Field Device Type",
+        "Sampling Context Tag",
+        "Collection Method",
+        "Medium",
+        "Depth Upper",
+        "Depth Lower",
+        "Depth Unit",
+        "Observed DateTime",
+        "Observed Date Time End",
+        "Observed Property ID",-- based on the analytical method and parameter code and unit
+        "Result Value",
+        "Method Detection Limit", 
+        "Method Reporting Limit",
+        "Result Unit",
+        "Detection Condition",
+        "Limit Type",-- doesn't exist in ems  
+        "Fraction",
+        "Data Classification",
+        "Source of Rounded Value",
+        "Rounded Value",
+        "Rounding Specification",
+        "Analyzing Agency",
+        case when "Data Classification" = 'FIELD_RESULT' then null else "Analysis Method" end as "Analysis Method",
+        "Analyzed Date Time", -- add date/time mask
+        "Result Status",
+        "Result Grade",
+        "Activity ID",
+        case when "Data Classification" = 'FIELD_RESULT' then null else "Activity Name" end as "Activity Name",
+        "Tissue Type",
+        "Lab Arrival Temperature",
+        "Specimen Name",
+        "Lab Quality Flag",
+        "Lab Arrival Date and Time",
+        "Lab Prepared DateTime",
+        "Lab Sample ID",
+        "Lab Dilution Factor" as "Lab Dilution Factor",
+        "Lab Comment" as "Lab Comment",
+        "Lab Batch ID",
+        "QC Type",
+        "QC Source Activity Name",
+        "Composite Stat"
+from(
+select "Observation ID",
+        "Ministry Contact",
+        "Sampling Agency",
+        "Project",
+        "Work Order Number",
+        "Location ID",
+        "Field Visit Start Time", -- required
+        "Field Visit End Time",
+        "Field Visit Participants",
+        "Activity Comments" as "Field Visit Comments",
+        "Activity Comments",
+        "Field Filtered",
+        "Field Filtered Comment",
+        "Field Preservative",
+        "Field Device ID",-- leave as blank
+        "Field Device Type",
+        "Sampling Context Tag",
+        "Collection Method",
+        "Medium",
+        "Depth Upper",
+        "Depth Lower",
+        "Depth Unit",
+        "Observed DateTime",
+        "Observed Date Time End",
+        "Observed Property ID",-- based on the analytical method and parameter code and unit
+        "Result Value",
+        "Method Detection Limit", 
+        "Method Reporting Limit",
+        "Result Unit",
+        "Detection Condition",
+        "Limit Type",-- doesn't exist in ems  
+        "Fraction",
+        "Data Classification",
+        "Source of Rounded Value",
+        "Rounded Value",
+        "Rounding Specification",
+        "Analyzing Agency",
+        "Analysis Method", -- removed as per request from Jeremy.  The METHOD name was moved to field device type column
+        "Analyzed Date Time", -- add date/time mask
+        "Result Status",
+        "Result Grade",
+        "Activity ID",
+        "Activity Name",
+        "Tissue Type",
+        "Lab Arrival Temperature",
+        "Specimen Name",
+        "Lab Quality Flag",
+        "Lab Arrival Date and Time",
+        "Lab Prepared DateTime",
+        "Lab Sample ID",
+        "Lab Dilution Factor" as "Lab Dilution Factor",
+        "Lab Comment" as "Lab Comment",
+        "Lab Batch ID",
+        "QC Type",
+        "QC Source Activity Name",
+        "Composite Stat",
+        ROW_NUMBER() OVER (
+            PARTITION BY "Location ID", "Field Visit Start Time", "Medium", "Depth Upper", "Activity Name", "Specimen Name", "Data Classification", "QC Type", "Observed Property ID"
+            ORDER BY "Field Visit Start Time"
+        ) AS duplicate_row_number
+from (
 
 -- water data
 /*
@@ -513,12 +631,13 @@ SELECT
         core."Result Status",
         core."Result Grade",
         core."Activity ID",
-        case when ed.Classification == FIELD_RESULT then '' else core."Activity Name" as "Activity Name",
+        core."Activity Name",
         core."Tissue Type",
         core."Lab Arrival Temperature",
-        CASE 
-        WHEN ed.Classification IN ('FIELD_RESULT', 'VERTICAL_PROFILE', 'FIELD_SURVEY') 
+        CASE
+            WHEN ed.Classification IN ('FIELD_RESULT', 'VERTICAL_PROFILE', 'FIELD_SURVEY') 
             THEN '' 
+            WHEN duplicate_row_number > 1 THEN RTRIM(ed.OP_Group, '; ') || '-' || duplicate_row_number
             ELSE RTRIM(ed.OP_Group, '; ') 
         END AS "Specimen Name",
         core."Lab Quality Flag",
@@ -560,7 +679,7 @@ where core.result_unit_code is not null and core.mdl_unit_code is not null
 /*
 union all -- air data
 */
-/*
+
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -620,7 +739,7 @@ SELECT
         core."Result Status",
         core."Result Grade",
         core."Activity ID",
-        case when ed.Classification == FIELD_RESULT then '' else core."Activity Name" as "Activity Name",
+        core."Activity Name",
         core."Tissue Type",
         core."Lab Arrival Temperature",
         CASE 
@@ -640,10 +759,10 @@ SELECT
         core."QC Source Activity Name",
         core."Composite Stat"
         --debugging
-        ,
-        core.parm_cd,
-        core."Analysis Method",
-        core."EMS Result Unit"
+        --,
+        --core.parm_cd,
+        --core."Analysis Method",
+        --core."EMS Result Unit"
 FROM -- air data
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -656,6 +775,7 @@ where core.result_unit_code is not null and core.mdl_unit_code is not null
     AND upper(core."Medium") like '%AIR%' -- try WATER-MARINE for a subset
     AND ed.NewNameID is not null
     -- end air data
+    
 union -- flow volume
 SELECT
         ''  as "Observation ID",
@@ -732,10 +852,10 @@ SELECT
         core."QC Source Activity Name",
         core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
         --debugging
-        ,
-        core.parm_cd,
-        core."Analysis Method",
-        core."EMS Result Unit"
+        --,
+        --core.parm_cd,
+        --core."Analysis Method",
+        --core."EMS Result Unit"
 FROM -- water data - air flow volume
     sample_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -824,10 +944,10 @@ SELECT
         core."QC Source Activity Name",
         core."Composite Stat"
         --debugging
-        ,
-        core.parm_cd,
-        core."Analysis Method",
-        core."EMS Result Unit"
+        --,
+        --core.parm_cd,
+        --core."Analysis Method",
+        --core."EMS Result Unit"
 FROM -- air flow volume
     sample_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -840,7 +960,7 @@ where upper(core."Medium") like '%AIR%' -- try WATER-MARINE for a subset
     and core."Air Filter Size" is not null
     AND ed.NewNameID is not null
 -- end air filter size
-*/
+
 /*
 union -- taxonomic data - bio sample area
 
@@ -908,9 +1028,9 @@ SELECT
         core."Activity Name",
         core."Tissue Type",
         core."Lab Arrival Temperature",
-        CASE 
         WHEN ed.Classification IN ('FIELD_RESULT', 'VERTICAL_PROFILE', 'FIELD_SURVEY') 
             THEN '' 
+            WHEN duplicate_row_number > 1 THEN RTRIM(ed.OP_Group, '; ') || '-' || duplicate_row_number
             ELSE RTRIM(ed.OP_Group, '; ') 
         END AS "Specimen Name",
         core."Lab Quality Flag",
@@ -1214,7 +1334,7 @@ SELECT
         core."Result Status",
         core."Result Grade",
         core."Activity ID",
-        case when ed.Classification == FIELD_RESULT then '' else core."Activity Name" as "Activity Name",
+        core."Activity Name",
         COALESCE(core."Tissue Type", 'Unknown') AS "Tissue Type",
         core.tissue_typ_cd,
         core."Lab Arrival Temperature",
@@ -1431,7 +1551,7 @@ and (nvl(core.weight_from,0)) > 0
 */
 -- begin continuous data
 -- union -- continuous data - CONTINUOUS_AVERAGE
-
+/*
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -1702,3 +1822,7 @@ where --upper(core."Medium") like '%WATER - WASTE%' -- try WATER-MARINE for a su
         core.CONTINUOUS_MINIMUM is not null
         AND ed.NewNameID is not null
 -- end continuous
+*/
+))
+        where duplicate_row_number = 1
+        order by "Location ID" asc, "Observed DateTime" asc
