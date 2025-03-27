@@ -20,13 +20,6 @@ COPY ./prisma ./prisma
 ENV PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x
 RUN npm ci --ignore-scripts --no-update-notifier --omit=dev
 
-# COPY over few dependencies from buildWithDevDeps
-COPY --from=buildWithDevDeps /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=buildWithDevDeps /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=buildWithDevDeps /app/node_modules/prisma ./node_modules/prisma
-
-RUN npm run build
-
 # Deploy container
 # Distroless has node, but not npm
 FROM node:22.14-bookworm-slim
