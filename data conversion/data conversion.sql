@@ -566,7 +566,7 @@ select "Observation ID",
 from (
 
 -- water data
-/*
+
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -621,7 +621,7 @@ SELECT
         core."Analyzing Agency",
         core."Analysis Method",
         CASE 
-            WHEN ed.Classification = 'LAB' 
+            WHEN upper(ed.Classification) IN ('LAB', 'SURROGATE_RESULT')
                 THEN COALESCE(
                     MAX(core."Analyzed Date Time") OVER (PARTITION BY core."Activity Name"),
                     core."Observed DateTime"
@@ -675,11 +675,11 @@ where core.result_unit_code is not null and core.mdl_unit_code is not null
                 order by core."Location ID" asc, core."Observed DateTime" asc
 
 -- end water data
-*/
+
 /*
 union all -- air data
 */
-
+/*
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -733,7 +733,7 @@ SELECT
         core."Analyzing Agency",
         core."Analysis Method",
         CASE
-            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            WHEN upper(ed.Classification) IN ('LAB', 'SURROGATE_RESULT') and core."Analyzed Date Time" is null then core."Observed DateTime"
             ELSE core."Analyzed Date Time"
         END as "Analyzed Date Time",
         core."Result Status",
@@ -831,7 +831,7 @@ SELECT
         core."Analyzing Agency",
         core."Analysis Method",
         CASE
-            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            WHEN upper(ed.Classification) IN ('LAB', 'SURROGATE_RESULT') and core."Analyzed Date Time" is null then core."Observed DateTime"
             ELSE core."Analyzed Date Time"
         END as "Analyzed Date Time",
         core."Result Status",
@@ -923,7 +923,7 @@ SELECT
         core."Analyzing Agency",
         core."Analysis Method",
         CASE
-            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            WHEN upper(ed.Classification) IN ('LAB', 'SURROGATE_RESULT') and core."Analyzed Date Time" is null then core."Observed DateTime"
             ELSE core."Analyzed Date Time"
         END as "Analyzed Date Time",
         core."Result Status",
@@ -960,7 +960,7 @@ where upper(core."Medium") like '%AIR%' -- try WATER-MARINE for a subset
     and core."Air Filter Size" is not null
     AND ed.NewNameID is not null
 -- end air filter size
-
+*/
 /*
 union -- taxonomic data - bio sample area
 
@@ -1019,7 +1019,7 @@ SELECT
         core."Analyzing Agency",
         core."Analysis Method",
         CASE
-            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            WHEN upper(ed.Classification) IN ('LAB', 'SURROGATE_RESULT') and core."Analyzed Date Time" is null then core."Observed DateTime"
             ELSE core."Analyzed Date Time"
         END as "Analyzed Date Time",
         core."Result Status",
@@ -1119,7 +1119,7 @@ SELECT
         core."Analyzing Agency",
         core."Analysis Method",
         CASE
-            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            WHEN upper(ed.Classification) IN ('LAB', 'SURROGATE_RESULT') and core."Analyzed Date Time" is null then core."Observed DateTime"
             ELSE core."Analyzed Date Time"
         END as "Analyzed Date Time",
         core."Result Status",
@@ -1222,7 +1222,7 @@ SELECT
         core."Analyzing Agency",
         core."Analysis Method",
         CASE
-            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            WHEN upper(ed.Classification) IN ('LAB', 'SURROGATE_RESULT') and core."Analyzed Date Time" is null then core."Observed DateTime"
             ELSE core."Analyzed Date Time"
         END as "Analyzed Date Time",
         core."Result Status",
@@ -1328,7 +1328,7 @@ SELECT
         core."Analyzing Agency",
         core."Analysis Method",
         CASE
-            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            WHEN upper(ed.Classification) IN ('LAB', 'SURROGATE_RESULT') and core."Analyzed Date Time" is null then core."Observed DateTime"
             ELSE core."Analyzed Date Time"
         END as "Analyzed Date Time",
         core."Result Status",
@@ -1424,7 +1424,7 @@ SELECT
         core."Analyzing Agency",
         core."Analysis Method",
         CASE
-            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            WHEN upper(ed.Classification) IN ('LAB', 'SURROGATE_RESULT') and core."Analyzed Date Time" is null then core."Observed DateTime"
             ELSE core."Analyzed Date Time"
         END as "Analyzed Date Time",
         core."Result Status",
@@ -1514,7 +1514,7 @@ SELECT
         core."Analyzing Agency",
         core."Analysis Method",
         CASE
-            WHEN upper(ed.Classification) = 'LAB' and core."Analyzed Date Time" is null then core."Observed DateTime"
+            WHEN upper(ed.Classification) IN ('LAB', 'SURROGATE_RESULT') and core."Analyzed Date Time" is null then core."Observed DateTime"
             ELSE core."Analyzed Date Time"
         END as "Analyzed Date Time",
         core."Result Status",
