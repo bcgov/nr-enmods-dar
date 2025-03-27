@@ -1,6 +1,6 @@
 # Build static files
 # Node Bullseye has npm
-FROM node:22.14-slim AS build 
+FROM node:22.14-bookworm AS build 
 
 # Install packages, build and keep only prod packages
 WORKDIR /app
@@ -10,7 +10,7 @@ COPY ./prisma ./prisma
 ENV PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x
 RUN npm run deploy
 
-FROM node:22.14-slim AS dependencies
+FROM node:22.14-bookworm AS dependencies
 
 # Install packages, build and keep only prod packages
 WORKDIR /app
@@ -22,7 +22,7 @@ RUN npm ci --ignore-scripts --no-update-notifier --omit=dev
 
 # Deploy container
 # Distroless has node, but not npm
-FROM node:22.14-slim
+FROM node:22.14-bookworm
 ENV NODE_ENV production
 
 # Copy over app
