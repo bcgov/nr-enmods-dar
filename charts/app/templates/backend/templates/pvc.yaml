@@ -10,7 +10,7 @@ metadata:
     app.kubernetes.io/managed-by: {{ .Release.Service }}
 spec:
   accessModes:
-    - ReadWriteOnce
+    - {{ .Values.backend.persistence.accessMode }}
   resources:
     requests:
       storage: {{ .Values.backend.persistence.size }}
