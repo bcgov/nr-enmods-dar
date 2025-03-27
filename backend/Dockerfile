@@ -1,6 +1,6 @@
 # Build static files
 # Node Bullseye has npm
-FROM node:20.12.0-bullseye-slim AS buildWithDevDeps
+FROM node:22.14-bookworm-slim AS buildWithDevDeps
 
 # Install packages, build and keep only prod packages
 WORKDIR /app
@@ -9,7 +9,7 @@ COPY ./src ./src
 COPY ./prisma ./prisma
 RUN npm ci --ignore-scripts --no-update-notifier
 RUN npm run prisma-generate
-FROM node:20.12.0-bullseye-slim AS build
+FROM node:22.14-bookworm-slim AS build
 
 # Install packages, build and keep only prod packages
 WORKDIR /app
@@ -27,7 +27,7 @@ RUN npm run build
 
 # Deploy container
 # Distroless has node, but not npm
-FROM node:20.12.0-bullseye-slim
+FROM node:22.14-bookworm-slim
 ENV NODE_ENV production
 
 # Copy over app

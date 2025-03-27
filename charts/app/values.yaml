@@ -122,7 +122,7 @@ backend:
   # Mount Persistent Volume Claim for the backend to store files
   persistence:
     enabled: true
-    accessMode: ReadWriteOnce
+    accessMode: ReadWriteMany
     size: 150Mi
     storageClassName: netapp-file-standard
     swapFiles:
