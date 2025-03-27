@@ -1,21 +1,23 @@
 # Build static files
 # Node Bullseye has npm
-FROM node:22.14-bookworm-slim AS buildWithDevDeps
+FROM node:22.14-bookworm-slim AS build 
 
 # Install packages, build and keep only prod packages
 WORKDIR /app
 COPY *.json ./
 COPY ./src ./src
 COPY ./prisma ./prisma
+ENV PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x
 RUN npm ci --ignore-scripts --no-update-notifier
 RUN npm run prisma-generate
-FROM node:22.14-bookworm-slim AS build
+FROM node:22.14-bookworm-slim AS dependencies
 
 # Install packages, build and keep only prod packages
 WORKDIR /app
 COPY *.json ./
 COPY ./src ./src
 COPY ./prisma ./prisma
+ENV PRISMA_CLI_BINARY_TARGETS=debian-openssl-3.0.x
 RUN npm ci --ignore-scripts --no-update-notifier --omit=dev
 
 # COPY over few dependencies from buildWithDevDeps
@@ -32,7 +34,10 @@ ENV NODE_ENV production
 
 # Copy over app
 WORKDIR /app
-COPY --from=build /app/node_modules ./node_modules
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=build /app/node_modules/prisma ./node_modules/prisma
 COPY --from=build /app/dist ./dist
 
 # Ports, health check and non-root user
