@@ -5,6 +5,7 @@ import FormData from "form-data";
 import { PrismaService } from "nestjs-prisma";
 import path from "path";
 import { Cron, CronExpression } from "@nestjs/schedule";
+import { JsonValue } from "@prisma/client/runtime/library";
 
 @Injectable()
 export class AqiApiService {
@@ -628,7 +629,7 @@ export class AqiApiService {
     }
   }
 
-  async ObservationDelete(obsData: any[]) {
+  async ObservationDelete(obsData: any[], obsDeleteErrors: any[]) {
     if (obsData.length > 0) {
       for (let i = 0; i < obsData.length; i++) {
         try {
@@ -643,15 +644,18 @@ export class AqiApiService {
           );
           this.logger.log("AQI OBS DELETION: " + deletion.status);
         } catch (err) {
+          let obsError = `{"rowNum": "N/A", "type": "ERROR", "message": {"Delete": "Failed to delete observation with GUID ${obsData[i]}"}}`;
+          obsDeleteErrors.push(JSON.parse(obsError));
           this.logger.error(`API call to delete AQI observation failed: `, err);
         }
       }
     }
+    // await new Promise((f) => setTimeout(f, 1000));
 
-    return new Promise((resolve) => setTimeout(resolve, 1000));
+    return obsDeleteErrors;
   }
 
-  async SpecimenDelete(specimenData: any[]) {
+  async SpecimenDelete(specimenData: any[], specimenDeleteErrors: any[]) {
     if (specimenData.length > 0) {
       for (const specimen of specimenData) {
         try {
@@ -683,14 +687,17 @@ export class AqiApiService {
             }
           }
         } catch (err) {
+          let specimenError = `{"rowNum": "N/A", "type": "ERROR", "message": {"Delete": "Failed to delete specimen with GUID ${specimen}"}}`;
+          specimenDeleteErrors.push(JSON.parse(specimenError));
           this.logger.error(`API call to delete AQI specimen failed: `, err);
         }
       }
     }
-    return new Promise((resolve) => setTimeout(resolve, 1000));
+    // await new Promise((f) => setTimeout(f, 1000));
+    return specimenDeleteErrors;
   }
 
-  async ActivityDelete(activityData: any[]) {
+  async ActivityDelete(activityData: any[], activityDeleteErrors: any[]) {
     if (activityData.length > 0) {
       for (const activity of activityData) {
         try {
@@ -722,14 +729,17 @@ export class AqiApiService {
             }
           }
         } catch (err) {
+          let activityError = `{"rowNum": "N/A", "type": "ERROR", "message": {"Delete": "Failed to delete activity with GUID ${activity}"}}`;
+          activityDeleteErrors.push(JSON.parse(activityError));
           this.logger.error(`API call to delete AQI activity failed: `, err);
         }
       }
     }
-    return new Promise((resolve) => setTimeout(resolve, 1000));
+    // await new Promise((f) => setTimeout(f, 1000));
+    return activityDeleteErrors;
   }
 
-  async VisitDelete(visitData: any[]) {
+  async VisitDelete(visitData: any[], visitDeleteErrors: any[]) {
     if (visitData.length > 0) {
       for (const visit of visitData) {
         try {
@@ -761,19 +771,24 @@ export class AqiApiService {
             }
           }
         } catch (err) {
+          let visitError = `{"rowNum": "N/A", "type": "ERROR", "message": {"Delete": "Failed to delete visit with GUID ${visit}"}}`;
+          visitDeleteErrors.push(JSON.parse(visitError));
           this.logger.error(`API call to delete AQI visit failed: `, err);
         }
       }
     }
-    return new Promise((resolve) => setTimeout(resolve, 1000));
+    // await new Promise((f) => setTimeout(f, 1000));
+    return visitDeleteErrors;
   }
 
-  async deleteRelatedData(fileName: string) {
+  async deleteRelatedData(fileName: string, submission_id: string) {
     const guidsToDelete: any = await this.prisma.aqi_imported_data.findMany({
       where: {
         file_name: fileName,
       },
     });
+
+    let deleteErrors = []
 
     let successfulObs = false;
     let successfulSpecimen = false;
@@ -787,6 +802,7 @@ export class AqiApiService {
 
     await this.ObservationDelete(
       guidsToDelete[0].imported_guids.observations,
+      deleteErrors,
     ).then(() => {
       successfulObs = true;
       this.logger.log(`Finished observation delete for file ${fileName}`);
@@ -797,12 +813,13 @@ export class AqiApiService {
       this.logger.log(
         `Starting specimen delete for file ${fileName}..............`,
       );
-      await this.SpecimenDelete(guidsToDelete[0].imported_guids.specimens).then(
-        () => {
-          successfulSpecimen = true;
-          this.logger.log(`Finished specimen delete for file ${fileName}.`);
-        },
-      );
+      await this.SpecimenDelete(
+        guidsToDelete[0].imported_guids.specimens,
+        deleteErrors,
+      ).then(() => {
+        successfulSpecimen = true;
+        this.logger.log(`Finished specimen delete for file ${fileName}.`);
+      });
     }
 
     if (successfulSpecimen) {
@@ -812,6 +829,7 @@ export class AqiApiService {
       );
       await this.ActivityDelete(
         guidsToDelete[0].imported_guids.activities,
+        deleteErrors,
       ).then(() => {
         successfulActivity = true;
         this.logger.log(`Finished activity delete for file ${fileName}.`);
@@ -823,12 +841,40 @@ export class AqiApiService {
       this.logger.log(
         `Starting visit delete for file ${fileName}..............`,
       );
-      await this.VisitDelete(guidsToDelete[0].imported_guids.visits).then(
-        () => {
-          successfulVisit = true;
-          this.logger.log(`Finished visit delete for file ${fileName}.`);
-        },
-      );
+      await this.VisitDelete(
+        guidsToDelete[0].imported_guids.visits,
+        deleteErrors,
+      ).then(() => {
+        successfulVisit = true;
+        this.logger.log(`Finished visit delete for file ${fileName}.`);
+      });
     }
+
+
+    // get the file error logs
+    const errorLogToUpdate = await this.prisma.file_error_logs.findMany({
+      where: {
+        file_submission_id: submission_id,
+      },
+      select: {
+        file_error_log_id: true,
+        error_log: true,
+      },
+    });
+
+    let fileErrors = errorLogToUpdate.flatMap(item => Array.isArray(item.error_log) ? (item.error_log as any[]) : [])
+
+    // append all the delete errors found above to this list
+    const finalErrorLogs = [...fileErrors, ...deleteErrors]
+    await this.prisma.$transaction(async (prisma) => {
+      await this.prisma.file_error_logs.update({
+        where: {
+          file_error_log_id: errorLogToUpdate[0].file_error_log_id,
+        },
+        data: {
+          error_log: finalErrorLogs,
+        },
+      });
+    });
   }
 }

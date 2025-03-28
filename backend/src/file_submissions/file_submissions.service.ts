@@ -231,7 +231,7 @@ export class FileSubmissionsService {
 
   async remove(file_name: string, id: string) {
     try {
-      await this.aqiService.deleteRelatedData(file_name);
+      await this.aqiService.deleteRelatedData(file_name, id);
       await this.prisma.$transaction(async (prisma) => {
         const updateFileStatus = await this.prisma.file_submission.update({
           where: {
