@@ -220,6 +220,14 @@ export class FileParseValidateService {
     return this.fileSubmissionsService.findByCode("QUEUED");
   }
 
+  async getFilesToDelete() {
+    return this.fileSubmissionsService.findByCode("DEL QUEUED");
+  }
+
+  async deleteFile(fileName, fileId) {
+    return this.fileSubmissionsService.remove(fileName, fileId);
+  }
+
   async queryCodeTables(tableName: string, param: any) {
     switch (tableName) {
       case "LOCATIONS":
@@ -349,7 +357,7 @@ export class FileParseValidateService {
     }
   }
 
-  async fieldVisitJson(visitData: any, apiType: string) {
+  async fieldVisitJson(visitData: any, row_number: number, apiType: string) {
     let postData: any = {};
     const extendedAttribs = { extendedAttributes: [] };
 
@@ -403,11 +411,11 @@ export class FileParseValidateService {
 
     if (apiType === "post") {
       Object.assign(currentVisitAndLoc, {
-        fieldVisit: await this.aqiService.fieldVisits(postData),
+        fieldVisit: await this.aqiService.fieldVisits(row_number, postData),
       });
     } else if (apiType == "put") {
       const GUIDtoUpdate = visitData.id;
-      await this.aqiService.putFieldVisits(GUIDtoUpdate, postData);
+      await this.aqiService.putFieldVisits(row_number, GUIDtoUpdate, postData);
       Object.assign(currentVisitAndLoc, {
         fieldVisit: GUIDtoUpdate,
       });
@@ -415,7 +423,11 @@ export class FileParseValidateService {
     return currentVisitAndLoc;
   }
 
-  async fieldActivityJson(activityData: any, apiType: string) {
+  async fieldActivityJson(
+    activityData: any,
+    row_number: number,
+    apiType: string,
+  ) {
     let postData: any = {};
     const extendedAttribs = { extendedAttributes: [] };
     const sampleContextTags = { samplingContextTags: [] };
@@ -491,14 +503,18 @@ export class FileParseValidateService {
     if (apiType === "post") {
       Object.assign(currentActivity, {
         activity: {
-          id: await this.aqiService.fieldActivities(postData),
+          id: await this.aqiService.fieldActivities(row_number, postData),
           customId: activityData.ActivityName,
           startTime: activityData.ObservedDateTime,
         },
       });
     } else if (apiType === "put") {
       const GUIDtoUpdate = activityData.id;
-      await this.aqiService.putFieldActivities(GUIDtoUpdate, postData);
+      await this.aqiService.putFieldActivities(
+        row_number,
+        GUIDtoUpdate,
+        postData,
+      );
       Object.assign(currentActivity, {
         activity: {
           id: GUIDtoUpdate,
@@ -511,7 +527,7 @@ export class FileParseValidateService {
     return currentActivity;
   }
 
-  async specimensJson(specimenData: any, apiType: string) {
+  async specimensJson(specimenData: any, row_number: number, apiType: string) {
     let postData: any = {};
     const extendedAttribs = { extendedAttributes: [] };
 
@@ -578,14 +594,14 @@ export class FileParseValidateService {
     if (apiType === "post") {
       Object.assign(currentSpecimen, {
         specimen: {
-          id: await this.aqiService.fieldSpecimens(postData),
+          id: await this.aqiService.fieldSpecimens(row_number, postData),
           customId: specimenData.SpecimenName,
           startTime: specimenData.ObservedDateTime,
         },
       });
     } else if (apiType === "put") {
       const GUIDtoUpdate = specimenData.id;
-      await this.aqiService.putSpecimens(GUIDtoUpdate, postData);
+      await this.aqiService.putSpecimens(row_number, GUIDtoUpdate, postData);
       Object.assign(currentSpecimen, {
         specimen: {
           id: GUIDtoUpdate,
@@ -702,7 +718,7 @@ export class FileParseValidateService {
           if (row["QCType"] == "") {
             Object.assign(filteredObj, { ActivityType: "SPIKE" });
           }
-        }else if (row["DataClassification"] == "FIELD_SURVEY"){
+        } else if (row["DataClassification"] == "FIELD_SURVEY") {
           Object.assign(filteredObj, { ActivityType: "FIELD_SURVEY" });
         }
       } else {
@@ -731,10 +747,10 @@ export class FileParseValidateService {
 
     for (let i = 0; i < sourceHeaders.length; i++) {
       if (sourceHeaders[i] !== targetHeaders[i]) {
-        if (targetHeaders[i] === undefined){
+        if (targetHeaders[i] === undefined) {
           let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${sourceHeaders[i]} is invalid. Please check submission file."}}`;
           headerErrors.push(JSON.parse(errorLog));
-        }else{
+        } else {
           let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${sourceHeaders[i]}, should be ${targetHeaders[i]}"}}`;
           headerErrors.push(JSON.parse(errorLog));
         }
@@ -1412,6 +1428,7 @@ export class FileParseValidateService {
   }
 
   async insertDataNonObservations(
+    rowNumber: number,
     rowData: any,
     GuidsToSave: any,
     fileName: string,
@@ -1471,13 +1488,13 @@ export class FileParseValidateService {
     if (visitExists !== null && visitExists !== undefined) {
       // send PUT to AQI and add visit data to activity
       fieldVisit["id"] = visitExists;
-      await this.fieldVisitJson(fieldVisit, "put");
+      await this.fieldVisitJson(fieldVisit, rowNumber, "put");
       fieldActivity["fieldVisit"] = visitExists;
       fieldActivity["LocationID"] = rowData.LocationID;
       GuidsToSave["visits"].push(visitExists);
     } else {
       // send POST to AQI and add visit data to activity
-      visitInfo = await this.fieldVisitJson(fieldVisit, "post");
+      visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
 
       // insert the visit record in the db table
       try {
@@ -1509,7 +1526,7 @@ export class FileParseValidateService {
       if (activityExists !== null && activityExists !== undefined) {
         // send PUT to AQI
         fieldActivity["id"] = activityExists;
-        await this.fieldActivityJson(fieldActivity, "put");
+        await this.fieldActivityJson(fieldActivity, rowNumber, "put");
         specimen["activity"] = {
           id: activityExists,
           customId: rowData.ActivityName,
@@ -1518,7 +1535,11 @@ export class FileParseValidateService {
         GuidsToSave["activities"].push(activityExists);
       } else {
         // send POST to AQI
-        activityInfo = await this.fieldActivityJson(fieldActivity, "post");
+        activityInfo = await this.fieldActivityJson(
+          fieldActivity,
+          rowNumber,
+          "post",
+        );
 
         // insert the activity record in the db table
         try {
@@ -1565,11 +1586,11 @@ export class FileParseValidateService {
       if (specimenExists !== null && specimenExists !== undefined) {
         // send PUT to AQI
         specimen["id"] = specimenExists;
-        await this.specimensJson(specimen, "put");
+        await this.specimensJson(specimen, rowNumber, "put");
         GuidsToSave["specimens"].push(specimenExists);
       } else {
         // send POST to AQI
-        specimenInfo = await this.specimensJson(specimen, "post");
+        specimenInfo = await this.specimensJson(specimen, rowNumber, "post");
 
         // insert the specimen record in the db table
         try {
@@ -1963,11 +1984,13 @@ export class FileParseValidateService {
           return;
         } else {
           console.time("ImportNonObs");
+          this.logger.log(`Starting the import process`);
           for (
             let rowNumber = 2;
             rowNumber <= worksheet.rowCount;
             rowNumber++
           ) {
+            this.logger.log(`Beginning processing row: ${rowNumber}`);
             const row = worksheet.getRow(rowNumber);
             let GuidsToSave = {
               visits: [],
@@ -1992,17 +2015,22 @@ export class FileParseValidateService {
               .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
             rowData = await this.cleanRowBasedOnDataClassification(rowData);
+            this.logger.log(`Created row object for row ${rowNumber}`);
 
             // do the data insert logic here
+            this.logger.log(`Starting import for row ${rowNumber}`);
             await this.insertDataNonObservations(
+              rowNumber,
               rowData,
               GuidsToSave,
               fileName,
             );
+            this.logger.log(`Completed import for row ${rowNumber}`);
           }
           console.timeEnd("ImportNonObs");
 
           console.time("ImportObs");
+          this.logger.log(`Starting import of observations`);
           await this.insertObservations(
             fileName,
             originalFileName,
@@ -2012,6 +2040,7 @@ export class FileParseValidateService {
             contactsAndValidationResults[0],
             contactsAndValidationResults[1],
           );
+          this.logger.log(`Completed import for observations`);
           console.timeEnd("ImportObs");
         }
       }
@@ -2187,6 +2216,7 @@ export class FileParseValidateService {
 
           // re-fetch the file for validation purposes - cannot use previously fetched stream
           console.time("ImportNonObs");
+          this.logger.log(`Starting the import process`);
           const rowValidationStream =
             await this.objectStoreService.getFileData(fileName);
 
@@ -2196,6 +2226,7 @@ export class FileParseValidateService {
 
           for await (const row of parser) {
             rowNumber++;
+            this.logger.log(`Beginning processing row: ${rowNumber}`);
 
             if (rowNumber == 1) {
               continue; // Skip header row
@@ -2215,18 +2246,26 @@ export class FileParseValidateService {
 
             try {
               rowData = await this.cleanRowBasedOnDataClassification(rowData);
+
+              this.logger.log(`Created row object for row ${rowNumber}`);
+
               // do the data insert logic here
+              this.logger.log(`Starting import for row ${rowNumber}`);
               await this.insertDataNonObservations(
+                rowNumber,
                 rowData,
                 GuidsToSave,
                 fileName,
               );
+              this.logger.log(`Completed import for row ${rowNumber}`);
             } catch (error) {
               this.logger.error(`Error Processing Row ${rowNumber}:`, error);
             }
           }
 
           console.timeEnd("ImportNonObs");
+
+          this.logger.log(`Starting import of observations`);
 
           console.time("ImportObs");
           await this.insertObservations(
@@ -2238,6 +2277,8 @@ export class FileParseValidateService {
             contactsAndValidationResults[0],
             contactsAndValidationResults[1],
           );
+          this.logger.log(`Completed import of observations`);
+
           console.timeEnd("ImportObs");
         }
       }
