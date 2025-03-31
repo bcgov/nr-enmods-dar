@@ -244,11 +244,13 @@ export class FileSubmissionsService {
         });
       });
 
-      await this.prisma.aqi_imported_data.deleteMany({
-        where: {
-          file_name: file_name,
-        },
-      });
+
+      // don't delete the imported GUIDs, can be used again for deletion if deletion failed
+      // await this.prisma.aqi_imported_data.deleteMany({
+      //   where: {
+      //     file_name: file_name,
+      //   },
+      // });
 
       return true;
     } catch (err) {

@@ -876,5 +876,7 @@ export class AqiApiService {
         },
       });
     });
+
+    deleteErrors = []
   }
 }
