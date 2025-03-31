@@ -23,6 +23,7 @@ import {
   downloadFile,
   downloadFileLogs,
   searchFiles,
+  updateFileStatus,
 } from "@/common/manage-files";
 import { getUsers } from "@/common/admin";
 import { jwtDecode, JwtPayload } from "jwt-decode";
@@ -304,6 +305,19 @@ export default function Dashboard() {
     value: status.submission_status_code,
     label: status.description,
   }));
+
+  const setupDelete = async (submission_id: string) => {
+    const prevData = data.items;
+    let newData = prevData.map((row: any) =>
+      row.submission_id === submission_id
+        ? { ...row, ["submission_status_code"]: "DEL QUEUED" }
+        : row,
+    );
+
+    // update the status in the backend here
+    await handleFileStatus(submission_id, "DEL QUEUED")
+    await handleSearch(undefined)
+  };
 
   useEffect(() => {
     async function fetchFileStatusCodes() {
@@ -600,8 +614,8 @@ export default function Dashboard() {
             <Button
               color="secondary"
               onClick={() => {
-                handleDelete(currentItem.file_name, currentItem.submission_id);
-                handleCloseAndSubmit();
+                setupDelete(currentItem.submission_id);
+                handleCloseAndSubmit()
               }}
               variant="contained"
               autoFocus
@@ -672,12 +686,11 @@ async function handleMessages(
   document.body.removeChild(link); // Clean up
 }
 
-async function handleDelete(
-  fileName: string,
+async function handleFileStatus(
   submission_id: string,
-): Promise<void> {
-  let deleted = false;
-  await deleteFile(fileName, submission_id);
+  newStatus: string
+){
+  await updateFileStatus(submission_id, {submission_status_code: newStatus})
 }
 
 function getMimeType(fileName: string) {
