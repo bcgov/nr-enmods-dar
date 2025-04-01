@@ -1488,7 +1488,7 @@ export class FileParseValidateService {
     if (visitExists !== null && visitExists !== undefined) {
       // send PUT to AQI and add visit data to activity
       fieldVisit["id"] = visitExists;
-      await this.fieldVisitJson(fieldVisit, rowNumber, "put");
+      // await this.fieldVisitJson(fieldVisit, rowNumber, "put");
       fieldActivity["fieldVisit"] = visitExists;
       fieldActivity["LocationID"] = rowData.LocationID;
       GuidsToSave["visits"].push(visitExists);
@@ -1526,7 +1526,7 @@ export class FileParseValidateService {
       if (activityExists !== null && activityExists !== undefined) {
         // send PUT to AQI
         fieldActivity["id"] = activityExists;
-        await this.fieldActivityJson(fieldActivity, rowNumber, "put");
+        // await this.fieldActivityJson(fieldActivity, rowNumber, "put");
         specimen["activity"] = {
           id: activityExists,
           customId: rowData.ActivityName,
@@ -1586,7 +1586,7 @@ export class FileParseValidateService {
       if (specimenExists !== null && specimenExists !== undefined) {
         // send PUT to AQI
         specimen["id"] = specimenExists;
-        await this.specimensJson(specimen, rowNumber, "put");
+        // await this.specimensJson(specimen, rowNumber, "put");
         GuidsToSave["specimens"].push(specimenExists);
       } else {
         // send POST to AQI
