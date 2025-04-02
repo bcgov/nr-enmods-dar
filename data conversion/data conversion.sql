@@ -154,12 +154,7 @@ WITH core_data AS (
         smpl.SIZE_TO,
         smpl.WEIGHT_FROM,
         smpl.WEIGHT_TO,
-        smpl.life_stg_cd,
-        -- Generate row numbers based on duplicate criteria.  EMS allows these duplicates, but EDT doesn't, so we'll use this to turn "specimen" into a unique column by adding a -n suffix
-        ROW_NUMBER() OVER (
-            PARTITION BY smpl.mon_locn_id, result.parm_cd, smpl.collection_start_date, d.METHOD_DETECT_LIMIT, smpl.depth_upper, smpl.depth_lower, result.smpl_id
-            ORDER BY eal.earlieststarttime
-        ) AS duplicate_row_number
+        smpl.life_stg_cd
     FROM
         ems_samples smpl
         LEFT JOIN ems_results result ON smpl.id = result.smpl_id
@@ -491,7 +486,11 @@ select "Observation ID",
         case when "Data Classification" = 'FIELD_RESULT' then null else "Activity Name" end as "Activity Name",
         "Tissue Type",
         "Lab Arrival Temperature",
-        "Specimen Name",
+        CASE
+            WHEN "Specimen Name" is null then ''
+            WHEN duplicate_row_number > 1 THEN "Specimen Name" || '-' || duplicate_row_number
+            ELSE "Specimen Name"
+        END AS "Specimen Name",
         "Lab Quality Flag",
         "Lab Arrival Date and Time",
         "Lab Prepared DateTime",
@@ -637,7 +636,6 @@ SELECT
         CASE
             WHEN ed.Classification IN ('FIELD_RESULT', 'VERTICAL_PROFILE', 'FIELD_SURVEY') 
             THEN '' 
-            WHEN duplicate_row_number > 1 THEN RTRIM(ed.OP_Group, '; ') || '-' || duplicate_row_number
             ELSE RTRIM(ed.OP_Group, '; ') 
         END AS "Specimen Name",
         core."Lab Quality Flag",
@@ -666,12 +664,12 @@ where core.result_unit_code is not null and core.mdl_unit_code is not null
         -- save result ids where the data can't be uploaded
         -- sort on monitoring location id and date, asc
     AND upper(core."Medium") like '%WATER%' -- try WATER-MARINE for a subset
---    AND core."Work Order Number" IN ( -- remove this to get all results
---            SELECT
---                to_char(l.req_id)
---            FROM
---                ems.reqs_to_load l)
-    AND ed.NewNameID is not null
+    --AND core."Work Order Number" IN ( -- remove this to get all results
+    --        SELECT
+    --            to_char(l.req_id)
+    --        FROM
+    --            ems.reqs_to_load l)
+    --AND ed.NewNameID is not null
                 order by core."Location ID" asc, core."Observed DateTime" asc
 
 -- end water data
@@ -742,10 +740,9 @@ SELECT
         core."Activity Name",
         core."Tissue Type",
         core."Lab Arrival Temperature",
-        CASE 
-        WHEN ed.Classification IN ('FIELD_RESULT', 'VERTICAL_PROFILE', 'FIELD_SURVEY') 
+        CASE
+            WHEN ed.Classification IN ('FIELD_RESULT', 'VERTICAL_PROFILE', 'FIELD_SURVEY') 
             THEN '' 
-            WHEN duplicate_row_number > 1 THEN RTRIM(ed.OP_Group, '; ') || '-' || duplicate_row_number
             ELSE RTRIM(ed.OP_Group, '; ') 
         END AS "Specimen Name",
         core."Lab Quality Flag",
@@ -1824,5 +1821,5 @@ where --upper(core."Medium") like '%WATER - WASTE%' -- try WATER-MARINE for a su
 -- end continuous
 */
 ))
-        where duplicate_row_number = 1
+        --where duplicate_row_number =1
         order by "Location ID" asc, "Observed DateTime" asc
