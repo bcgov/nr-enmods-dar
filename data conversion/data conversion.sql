@@ -501,6 +501,7 @@ select "Observation ID",
         "QC Type",
         "QC Source Activity Name",
         "Composite Stat"
+
 from(
 select "Observation ID",
         "Ministry Contact",
@@ -558,6 +559,9 @@ select "Observation ID",
         "QC Type",
         "QC Source Activity Name",
         "Composite Stat",
+        "DEBUGGING ANALYZSED DATE TIME",
+        "DEBUGGING OBSERVED DATE TIME",
+
         ROW_NUMBER() OVER (
             PARTITION BY "Location ID", "Field Visit Start Time", "Medium", "Depth Upper", "Activity Name", "Specimen Name", "Data Classification", "QC Type", "Observed Property ID"
             ORDER BY "Field Visit Start Time"
@@ -622,10 +626,10 @@ SELECT
         CASE 
             WHEN upper(ed.Classification) IN ('LAB', 'SURROGATE_RESULT')
                 THEN COALESCE(
-                    MAX(core."Analyzed Date Time") OVER (PARTITION BY core."Activity Name"),
+                    "Analyzed Date Time",
                     core."Observed DateTime"
                 )
-            ELSE COALESCE(core."Analyzed Date Time", core."Observed DateTime")
+            ELSE core."Analyzed Date Time"
         END AS "Analyzed Date Time",
         core."Result Status",
         core."Result Grade",
@@ -652,7 +656,9 @@ SELECT
         ,
         core.parm_cd as "DEBUGGING parm_cd",
         core."Analysis Method" as "DEBUGGING ANALYSIS METHOD",
-        core."EMS Result Unit" as "DEBUGGING RESULT UNIT"
+        core."EMS Result Unit" as "DEBUGGING RESULT UNIT",
+        core."Analyzed Date Time" as "DEBUGGING ANALYZSED DATE TIME",
+        core."Observed DateTime" as "DEBUGGING OBSERVED DATE TIME"
 
 FROM -- water data
     core_data core
