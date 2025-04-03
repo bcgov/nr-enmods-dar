@@ -1275,7 +1275,7 @@ export class FileParseValidateService {
     return;
   }
 
-  async cleanRowBasedOnDataClassification(rowData: any) {
+  cleanRowBasedOnDataClassification(rowData: any) {
     let cleanedRow = rowData;
 
     cleanedRow.QCType = rowData.QCType.toUpperCase();
@@ -1888,7 +1888,7 @@ export class FileParseValidateService {
 
         this.logger.log(`Created row object for row ${rowNumber}`);
 
-        rowData = await this.cleanRowBasedOnDataClassification(rowData);
+        rowData = this.cleanRowBasedOnDataClassification(rowData);
 
         await this.validateRow(
           rowData,
@@ -2014,7 +2014,7 @@ export class FileParseValidateService {
               })
               .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
-            rowData = await this.cleanRowBasedOnDataClassification(rowData);
+            rowData = this.cleanRowBasedOnDataClassification(rowData);
             this.logger.log(`Created row object for row ${rowNumber}`);
 
             // do the data insert logic here
@@ -2106,7 +2106,7 @@ export class FileParseValidateService {
         });
 
         try {
-          rowData = await this.cleanRowBasedOnDataClassification(rowData);
+          rowData = this.cleanRowBasedOnDataClassification(rowData);
 
           this.logger.log(`Created row object for row ${rowNumber}`);
           await this.validateRow(
@@ -2246,7 +2246,7 @@ export class FileParseValidateService {
               });
 
               try {
-                rowData = await this.cleanRowBasedOnDataClassification(rowData);
+                rowData = this.cleanRowBasedOnDataClassification(rowData);
 
                 this.logger.log(`Created row object for row ${rowNumber}`);
 
