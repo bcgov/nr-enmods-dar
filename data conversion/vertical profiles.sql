@@ -230,7 +230,11 @@ select "Observation ID",
         "Depth Upper",
         "Depth Lower",
         "Depth Unit",
-        "Observed DateTime",
+        TO_CHAR(
+            TO_TIMESTAMP(SUBSTR("Observed DateTime", 1, 19), 'YYYY-MM-DD"T"HH24:MI:SS') 
+                + NUMTODSINTERVAL(duplicate_row_number - 1, 'MINUTE'),
+            'YYYY-MM-DD"T"HH24:MI:SS'
+        ) || '-08:00' AS "Observed DateTime",
         "Observed Date Time End",
         "Observed Property ID",-- based on the analytical method and parameter code and unit
         "Result Value",
@@ -423,5 +427,5 @@ AND ed.NewNameID is not null
         -- sort on monitoring location id and date, asc
         
         )
-        where duplicate_row_number = 1
+        --where duplicate_row_number = 1
         order by "Location ID" asc, "Observed DateTime" asc

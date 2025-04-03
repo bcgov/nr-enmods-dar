@@ -559,9 +559,6 @@ select "Observation ID",
         "QC Type",
         "QC Source Activity Name",
         "Composite Stat",
-        "DEBUGGING ANALYZSED DATE TIME",
-        "DEBUGGING OBSERVED DATE TIME",
-
         ROW_NUMBER() OVER (
             PARTITION BY "Location ID", "Field Visit Start Time", "Medium", "Depth Upper", "Activity Name", "Specimen Name", "Data Classification", "QC Type", "Observed Property ID"
             ORDER BY "Field Visit Start Time"
@@ -1828,4 +1825,5 @@ where --upper(core."Medium") like '%WATER - WASTE%' -- try WATER-MARINE for a su
 */
 ))
         --where duplicate_row_number =1
+        where "Observed Property ID" is not null
         order by "Location ID" asc, "Observed DateTime" asc
