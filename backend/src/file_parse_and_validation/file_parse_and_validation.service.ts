@@ -1892,6 +1892,10 @@ export class FileParseValidateService {
     let validationApisCalled = [];
 
     if (extention == ".xlsx") {
+      let batchSize = process.env.FILE_BATCH_SIZE
+
+      let batch: any[] = []
+      let rowIndex = 0
       // set up the observation csv file for the AQI APIs
       const workbook = new ExcelJS.Workbook();
 
