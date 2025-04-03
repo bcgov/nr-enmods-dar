@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  replicas: {{ .Values.deployment.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: {{ .Values.sftp.port }}
+          name: sftp
+        - containerPort: {{ .Values.sftp.webport }}
+          name: webui
+        env:
+        - name: UPLOADER1_PUBLIC_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Chart.Name }}-sftp-secrets
+              key: UPLOADER1_PUBLIC_KEY
+        - name: UPLOADER2_PUBLIC_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Chart.Name }}-sftp-secrets
+              key: UPLOADER2_PUBLIC_KEY
+        - name: UPLOADER3_PUBLIC_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Chart.Name }}-sftp-secrets
+              key: UPLOADER3_PUBLIC_KEY
+        - name: SERVICE_PUBLIC_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Chart.Name }}-sftp-secrets
+              key: SERVICE_PUBLIC_KEY
+        - name: ADMIN_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Chart.Name }}-sftp-secrets
+              key: ADMIN_USER
+        - name: ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Chart.Name }}-sftp-secrets
+              key: ADMIN_PASSWORD
+        resources:
+          {{- toYaml .Values.deployment.resources | nindent 10 }}
+        volumeMounts:
+        - name: sftp-data
+          mountPath: {{ .Values.sftp.directory }}
+      volumes:
+      - name: sftp-data
+        persistentVolumeClaim:
+          claimName: {{ .Chart.Name }}-pvc
