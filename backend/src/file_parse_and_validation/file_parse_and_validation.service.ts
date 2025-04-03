@@ -1275,7 +1275,7 @@ export class FileParseValidateService {
     return;
   }
 
-  async cleanRowBasedOnDataClassification(rowData: any) {
+  cleanRowBasedOnDataClassification(rowData: any) {
     let cleanedRow = rowData;
 
     cleanedRow.QCType = rowData.QCType.toUpperCase();
@@ -1488,7 +1488,7 @@ export class FileParseValidateService {
     if (visitExists !== null && visitExists !== undefined) {
       // send PUT to AQI and add visit data to activity
       fieldVisit["id"] = visitExists;
-      await this.fieldVisitJson(fieldVisit, rowNumber, "put");
+      // await this.fieldVisitJson(fieldVisit, rowNumber, "put");
       fieldActivity["fieldVisit"] = visitExists;
       fieldActivity["LocationID"] = rowData.LocationID;
       GuidsToSave["visits"].push(visitExists);
@@ -1526,7 +1526,7 @@ export class FileParseValidateService {
       if (activityExists !== null && activityExists !== undefined) {
         // send PUT to AQI
         fieldActivity["id"] = activityExists;
-        await this.fieldActivityJson(fieldActivity, rowNumber, "put");
+        // await this.fieldActivityJson(fieldActivity, rowNumber, "put");
         specimen["activity"] = {
           id: activityExists,
           customId: rowData.ActivityName,
@@ -1586,7 +1586,7 @@ export class FileParseValidateService {
       if (specimenExists !== null && specimenExists !== undefined) {
         // send PUT to AQI
         specimen["id"] = specimenExists;
-        await this.specimensJson(specimen, rowNumber, "put");
+        // await this.specimensJson(specimen, rowNumber, "put");
         GuidsToSave["specimens"].push(specimenExists);
       } else {
         // send POST to AQI
@@ -1888,7 +1888,7 @@ export class FileParseValidateService {
 
         this.logger.log(`Created row object for row ${rowNumber}`);
 
-        rowData = await this.cleanRowBasedOnDataClassification(rowData);
+        rowData = this.cleanRowBasedOnDataClassification(rowData);
 
         await this.validateRow(
           rowData,
@@ -2014,7 +2014,7 @@ export class FileParseValidateService {
               })
               .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
-            rowData = await this.cleanRowBasedOnDataClassification(rowData);
+            rowData = this.cleanRowBasedOnDataClassification(rowData);
             this.logger.log(`Created row object for row ${rowNumber}`);
 
             // do the data insert logic here
@@ -2106,7 +2106,7 @@ export class FileParseValidateService {
         });
 
         try {
-          rowData = await this.cleanRowBasedOnDataClassification(rowData);
+          rowData = this.cleanRowBasedOnDataClassification(rowData);
 
           this.logger.log(`Created row object for row ${rowNumber}`);
           await this.validateRow(
@@ -2224,43 +2224,47 @@ export class FileParseValidateService {
 
           let rowNumber = 0;
 
-          for await (const row of parser) {
-            rowNumber++;
-            this.logger.log(`Beginning processing row: ${rowNumber}`);
+          try{
+            for await (const row of parser) {
+              rowNumber++;
+              this.logger.log(`Beginning processing row: ${rowNumber}`);
 
-            if (rowNumber == 1) {
-              continue; // Skip header row
+              if (rowNumber == 1) {
+                continue; // Skip header row
+              }
+
+              let GuidsToSave = {
+                visits: [],
+                activities: [],
+                specimens: [],
+                observations: [],
+              };
+
+              let rowData: Record<string, string> = {};
+              headers.forEach((header) => {
+                rowData[header] = String(row[header] ?? "");
+              });
+
+              try {
+                rowData = this.cleanRowBasedOnDataClassification(rowData);
+
+                this.logger.log(`Created row object for row ${rowNumber}`);
+
+                // do the data insert logic here
+                this.logger.log(`Starting import for row ${rowNumber}`);
+                await this.insertDataNonObservations(
+                  rowNumber,
+                  rowData,
+                  GuidsToSave,
+                  fileName,
+                );
+                this.logger.log(`Completed import for row ${rowNumber}`);
+              } catch (error) {
+                this.logger.error(`Error Processing Row ${rowNumber}:`, error);
+              }
             }
-
-            let GuidsToSave = {
-              visits: [],
-              activities: [],
-              specimens: [],
-              observations: [],
-            };
-
-            let rowData: Record<string, string> = {};
-            headers.forEach((header) => {
-              rowData[header] = String(row[header] ?? "");
-            });
-
-            try {
-              rowData = await this.cleanRowBasedOnDataClassification(rowData);
-
-              this.logger.log(`Created row object for row ${rowNumber}`);
-
-              // do the data insert logic here
-              this.logger.log(`Starting import for row ${rowNumber}`);
-              await this.insertDataNonObservations(
-                rowNumber,
-                rowData,
-                GuidsToSave,
-                fileName,
-              );
-              this.logger.log(`Completed import for row ${rowNumber}`);
-            } catch (error) {
-              this.logger.error(`Error Processing Row ${rowNumber}:`, error);
-            }
+          }catch (err){
+            this.logger.log(`There was an error importing data: ${err}`)
           }
 
           console.timeEnd("ImportNonObs");
