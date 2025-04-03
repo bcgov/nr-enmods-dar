@@ -39,6 +39,50 @@ export class AqiApiService {
     }
   }
 
+  async getFieldVisits(rowNumber: number, url: any) {
+    try {
+      const response = await this.axiosInstance.get(url);
+      this.logger.log(
+        `RowNum: ${rowNumber} -> API call to GET Field Visits succeeded: ${response.status}`,
+      );
+
+      let urlAndResponse = {
+        id: rowNumber,
+        url: url,
+        count: response.data.totalCount,
+        GUID: response.data.domainObjects.length > 0 ? response.data.domainObjects[0].id : null
+      };
+      return urlAndResponse;
+    } catch (err) {
+      this.logger.error(
+        `RowNum: ${rowNumber} -> API CALL TO GET Field Visits failed: `,
+        err.response.data.message,
+      );
+    }
+  }
+
+  async getActivities(rowNumber: number, url: any) {
+    try {
+      const response = await this.axiosInstance.get(url);
+      this.logger.log(
+        `RowNum: ${rowNumber} -> API call to GET Activities succeeded: ${response.status}`,
+      );
+
+      let urlAndResponse = {
+        id: rowNumber,
+        url: url,
+        count: response.data.totalCount,
+        GUID: response.data.domainObjects.length > 0 ? response.data.domainObjects[0].id : null
+      };
+      return urlAndResponse;
+    } catch (err) {
+      this.logger.error(
+        `RowNum: ${rowNumber} -> API CALL TO GET Activities failed: `,
+        err.response.data.message,
+      );
+    }
+  }
+
   async putFieldVisits(rowNumber: number, GUID: string, body: any) {
     try {
       const response = await this.axiosInstance.put(
@@ -788,7 +832,7 @@ export class AqiApiService {
       },
     });
 
-    let deleteErrors = []
+    let deleteErrors = [];
 
     let successfulObs = false;
     let successfulSpecimen = false;
@@ -850,7 +894,6 @@ export class AqiApiService {
       });
     }
 
-
     // get the file error logs
     const errorLogToUpdate = await this.prisma.file_error_logs.findMany({
       where: {
@@ -862,10 +905,12 @@ export class AqiApiService {
       },
     });
 
-    let fileErrors = errorLogToUpdate.flatMap(item => Array.isArray(item.error_log) ? (item.error_log as any[]) : [])
+    let fileErrors = errorLogToUpdate.flatMap((item) =>
+      Array.isArray(item.error_log) ? (item.error_log as any[]) : [],
+    );
 
     // append all the delete errors found above to this list
-    const finalErrorLogs = [...fileErrors, ...deleteErrors]
+    const finalErrorLogs = [...fileErrors, ...deleteErrors];
     await this.prisma.$transaction(async (prisma) => {
       await this.prisma.file_error_logs.update({
         where: {
@@ -877,6 +922,6 @@ export class AqiApiService {
       });
     });
 
-    deleteErrors = []
+    deleteErrors = [];
   }
 }

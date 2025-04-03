@@ -759,7 +759,11 @@ export class FileParseValidateService {
     return headerErrors;
   }
 
-  async localValidation(rowNumber: number, rowData: any) {
+  async localValidation(
+    rowNumber: number,
+    rowData: any,
+    validationApisCalled: any,
+  ) {
     let errorLogs = [];
     let existingRecords = [];
     // for (const [index, record] of allRecords.entries()) {
@@ -1147,40 +1151,105 @@ export class FileParseValidateService {
     }
 
     // check if the visit already exists -- check if visit timetsamp for that location already exists
-
-    const visitExists = await this.aqiService.AQILookup("aqi_field_visits", [
+    const locationGUID = await this.queryCodeTables(
+      "LOCATIONS",
       rowData.LocationID,
-      rowData.FieldVisitStartTime,
-    ]);
-    if (visitExists !== null && visitExists !== undefined) {
-      existingGUIDS["visit"] = visitExists;
-      let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
-      errorLogs.push(JSON.parse(errorLog));
-    }
-
-    // check if the activity already exits -- check if the activity name for that given visit and location already exists
-    const activityExists = await this.aqiService.AQILookup(
-      "aqi_field_activities",
-      [rowData.ActivityName, rowData.ObservedDateTime, rowData.LocationID],
     );
-    if (activityExists !== null && activityExists !== undefined) {
-      existingGUIDS["activity"] = activityExists;
-      let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
-      errorLogs.push(JSON.parse(errorLog));
+
+    const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
+    let visitExists = false;
+    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}`;
+    let activityExists = false;
+
+    if (validationApisCalled.some((item) => item.url === visitURL)) {
+      // visit url has been called before
+      let seenVisitUrl = validationApisCalled.find(
+        (item) => item.url === visitURL,
+      );
+
+      if (seenVisitUrl.count > 0) {
+        // visit exists in AQI
+        visitExists = true;
+        existingGUIDS["visit"] = seenVisitUrl.GUID;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
+        errorLogs.push(JSON.parse(errorLog));
+      }
+    } else {
+      const visitURLCalled = await this.aqiService.getFieldVisits(
+        rowNumber,
+        visitURL,
+      );
+      if (visitURLCalled.count > 0) {
+        // visit exists in AQI
+        visitExists = true;
+        existingGUIDS["visit"] = visitURLCalled.GUID;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
+        errorLogs.push(JSON.parse(errorLog));
+      }
+      validationApisCalled.push(visitURLCalled);
     }
 
-    // check if the specimen already exists -- check if the specimen name for that given visit and location already exists
-    const specimenExists = await this.aqiService.AQILookup("aqi_specimens", [
-      rowData.SpecimenName,
-      rowData.ObservedDateTime,
-      rowData.ActivityName,
-      rowData.LocationID,
-    ]);
-    if (specimenExists !== null && specimenExists !== undefined) {
-      existingGUIDS["specimen"] = specimenExists;
-      let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Specimen": "Specimen Name ${rowData.SpecimenName} for that Activity at Start Time ${rowData.ObservedDateTime} already exists in EnMoDS Specimen"}}`;
-      errorLogs.push(JSON.parse(errorLog));
+    if (validationApisCalled.some((item) => item.url === activityURL)) {
+      // activity url has been called before
+      let seenActivityUrl = validationApisCalled.find(
+        (item) => item.url === activityURL,
+      );
+
+      if (seenActivityUrl.count > 0) {
+        // activity exists in AQI
+        activityExists = true;
+        existingGUIDS["activity"] = seenActivityUrl.GUID;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
+        errorLogs.push(JSON.parse(errorLog));
+      }
+    } else {
+      const activityURLCalled = await this.aqiService.getFieldVisits(
+        rowNumber,
+        activityURL,
+      );
+      if (activityURLCalled.count > 0) {
+        // visit exists in AQI
+        visitExists = true;
+        existingGUIDS["activity"] = activityURLCalled.GUID;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
+        errorLogs.push(JSON.parse(errorLog));
+      }
+      validationApisCalled.push(activityURLCalled);
     }
+
+    // const visitExists = await this.aqiService.AQILookup("aqi_field_visits", [
+    //   rowData.LocationID,
+    //   rowData.FieldVisitStartTime,
+    // ]);
+    // if (visitExists !== null && visitExists !== undefined) {
+    //   existingGUIDS["visit"] = visitExists;
+    //   let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
+    //   errorLogs.push(JSON.parse(errorLog));
+    // }
+
+    // // check if the activity already exits -- check if the activity name for that given visit and location already exists
+    // const activityExists = await this.aqiService.AQILookup(
+    //   "aqi_field_activities",
+    //   [rowData.ActivityName, rowData.ObservedDateTime, rowData.LocationID],
+    // );
+    // if (activityExists !== null && activityExists !== undefined) {
+    //   existingGUIDS["activity"] = activityExists;
+    //   let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
+    //   errorLogs.push(JSON.parse(errorLog));
+    // }
+
+    // // check if the specimen already exists -- check if the specimen name for that given visit and location already exists
+    // const specimenExists = await this.aqiService.AQILookup("aqi_specimens", [
+    //   rowData.SpecimenName,
+    //   rowData.ObservedDateTime,
+    //   rowData.ActivityName,
+    //   rowData.LocationID,
+    // ]);
+    // if (specimenExists !== null && specimenExists !== undefined) {
+    //   existingGUIDS["specimen"] = specimenExists;
+    //   let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Specimen": "Specimen Name ${rowData.SpecimenName} for that Activity at Start Time ${rowData.ObservedDateTime} already exists in EnMoDS Specimen"}}`;
+    //   errorLogs.push(JSON.parse(errorLog));
+    // }
 
     if (Object.keys(existingGUIDS).length > 0) {
       existingRecords.push({ rowNum: rowNumber, existingGUIDS: existingGUIDS });
@@ -1275,7 +1344,7 @@ export class FileParseValidateService {
     return;
   }
 
-  async cleanRowBasedOnDataClassification(rowData: any) {
+  cleanRowBasedOnDataClassification(rowData: any) {
     let cleanedRow = rowData;
 
     cleanedRow.QCType = rowData.QCType.toUpperCase();
@@ -1343,6 +1412,7 @@ export class FileParseValidateService {
     allExistingRecords: any,
     originalFileName: any,
     rowNumber: any,
+    validationApisCalled: any,
   ) {
     const fieldVisitCustomAttributes: Partial<FieldVisits> = {
       PlanningStatus: "DONE",
@@ -1396,6 +1466,7 @@ export class FileParseValidateService {
     const recordLocalValidationResults = await this.localValidation(
       rowNumber,
       rowData,
+      validationApisCalled,
     );
 
     this.logger.log(`Finished local validation for row ${rowNumber}`);
@@ -1818,6 +1889,8 @@ export class FileParseValidateService {
     csvStream.pipe(writeStream);
     csvStream.write(headers);
 
+    let validationApisCalled = [];
+
     if (extention == ".xlsx") {
       // set up the observation csv file for the AQI APIs
       const workbook = new ExcelJS.Workbook();
@@ -1888,7 +1961,7 @@ export class FileParseValidateService {
 
         this.logger.log(`Created row object for row ${rowNumber}`);
 
-        rowData = await this.cleanRowBasedOnDataClassification(rowData);
+        rowData = this.cleanRowBasedOnDataClassification(rowData);
 
         await this.validateRow(
           rowData,
@@ -1898,6 +1971,7 @@ export class FileParseValidateService {
           allExistingRecords,
           originalFileName,
           rowNumber,
+          validationApisCalled,
         );
       }
       console.timeEnd("Validation");
@@ -2014,7 +2088,7 @@ export class FileParseValidateService {
               })
               .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
-            rowData = await this.cleanRowBasedOnDataClassification(rowData);
+            rowData = this.cleanRowBasedOnDataClassification(rowData);
             this.logger.log(`Created row object for row ${rowNumber}`);
 
             // do the data insert logic here
@@ -2106,7 +2180,7 @@ export class FileParseValidateService {
         });
 
         try {
-          rowData = await this.cleanRowBasedOnDataClassification(rowData);
+          rowData = this.cleanRowBasedOnDataClassification(rowData);
 
           this.logger.log(`Created row object for row ${rowNumber}`);
           await this.validateRow(
@@ -2117,6 +2191,7 @@ export class FileParseValidateService {
             allExistingRecords,
             originalFileName,
             rowNumber,
+            validationApisCalled,
           );
         } catch (error) {
           this.logger.error(`Error Processing Row ${rowNumber}:`, error);
@@ -2214,53 +2289,59 @@ export class FileParseValidateService {
            * Expand the returned list of object - this will be used for finding unique activities
            */
 
-          // re-fetch the file for validation purposes - cannot use previously fetched stream
+          // re-fetch the file for import purposes - cannot use previously fetched stream
           console.time("ImportNonObs");
           this.logger.log(`Starting the import process`);
-          const rowValidationStream =
+          const rowImportStream =
             await this.objectStoreService.getFileData(fileName);
 
-          const parser = rowValidationStream.pipe(csvParser({ headers }));
-
+          const parser = rowImportStream.pipe(csvParser({ headers }));
           let rowNumber = 0;
 
-          for await (const row of parser) {
-            rowNumber++;
-            this.logger.log(`Beginning processing row: ${rowNumber}`);
+          try {
+            for await (const row of parser) {
+              rowNumber++;
+              this.logger.log(`Beginning processing row: ${rowNumber}`);
 
-            if (rowNumber == 1) {
-              continue; // Skip header row
+              if (rowNumber == 1) {
+                continue; // Skip header row
+              }
+
+              let GuidsToSave = {
+                visits: [],
+                activities: [],
+                specimens: [],
+                observations: [],
+              };
+
+              let rowData: Record<string, string> = {};
+              headers.forEach((header) => {
+                rowData[header] = String(row[header] ?? "");
+              });
+
+              parser.pause()
+
+              try {
+                rowData = this.cleanRowBasedOnDataClassification(rowData);
+
+                this.logger.log(`Created row object for row ${rowNumber}`);
+
+                // do the data insert logic here
+                this.logger.log(`Starting import for row ${rowNumber}`);
+                await this.insertDataNonObservations(
+                  rowNumber,
+                  rowData,
+                  GuidsToSave,
+                  fileName,
+                );
+                this.logger.log(`Completed import for row ${rowNumber}`);
+                parser.resume()
+              } catch (error) {
+                this.logger.error(`Error Processing Row ${rowNumber}:`, error);
+              }
             }
-
-            let GuidsToSave = {
-              visits: [],
-              activities: [],
-              specimens: [],
-              observations: [],
-            };
-
-            let rowData: Record<string, string> = {};
-            headers.forEach((header) => {
-              rowData[header] = String(row[header] ?? "");
-            });
-
-            try {
-              rowData = await this.cleanRowBasedOnDataClassification(rowData);
-
-              this.logger.log(`Created row object for row ${rowNumber}`);
-
-              // do the data insert logic here
-              this.logger.log(`Starting import for row ${rowNumber}`);
-              await this.insertDataNonObservations(
-                rowNumber,
-                rowData,
-                GuidsToSave,
-                fileName,
-              );
-              this.logger.log(`Completed import for row ${rowNumber}`);
-            } catch (error) {
-              this.logger.error(`Error Processing Row ${rowNumber}:`, error);
-            }
+          } catch (err) {
+            this.logger.log(`There was an error importing data: ${err}`);
           }
 
           console.timeEnd("ImportNonObs");
