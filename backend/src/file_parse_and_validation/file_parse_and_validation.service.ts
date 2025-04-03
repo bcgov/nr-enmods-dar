@@ -2224,43 +2224,47 @@ export class FileParseValidateService {
 
           let rowNumber = 0;
 
-          for await (const row of parser) {
-            rowNumber++;
-            this.logger.log(`Beginning processing row: ${rowNumber}`);
+          try{
+            for await (const row of parser) {
+              rowNumber++;
+              this.logger.log(`Beginning processing row: ${rowNumber}`);
 
-            if (rowNumber == 1) {
-              continue; // Skip header row
+              if (rowNumber == 1) {
+                continue; // Skip header row
+              }
+
+              let GuidsToSave = {
+                visits: [],
+                activities: [],
+                specimens: [],
+                observations: [],
+              };
+
+              let rowData: Record<string, string> = {};
+              headers.forEach((header) => {
+                rowData[header] = String(row[header] ?? "");
+              });
+
+              try {
+                rowData = await this.cleanRowBasedOnDataClassification(rowData);
+
+                this.logger.log(`Created row object for row ${rowNumber}`);
+
+                // do the data insert logic here
+                this.logger.log(`Starting import for row ${rowNumber}`);
+                await this.insertDataNonObservations(
+                  rowNumber,
+                  rowData,
+                  GuidsToSave,
+                  fileName,
+                );
+                this.logger.log(`Completed import for row ${rowNumber}`);
+              } catch (error) {
+                this.logger.error(`Error Processing Row ${rowNumber}:`, error);
+              }
             }
-
-            let GuidsToSave = {
-              visits: [],
-              activities: [],
-              specimens: [],
-              observations: [],
-            };
-
-            let rowData: Record<string, string> = {};
-            headers.forEach((header) => {
-              rowData[header] = String(row[header] ?? "");
-            });
-
-            try {
-              rowData = await this.cleanRowBasedOnDataClassification(rowData);
-
-              this.logger.log(`Created row object for row ${rowNumber}`);
-
-              // do the data insert logic here
-              this.logger.log(`Starting import for row ${rowNumber}`);
-              await this.insertDataNonObservations(
-                rowNumber,
-                rowData,
-                GuidsToSave,
-                fileName,
-              );
-              this.logger.log(`Completed import for row ${rowNumber}`);
-            } catch (error) {
-              this.logger.error(`Error Processing Row ${rowNumber}:`, error);
-            }
+          }catch (err){
+            this.logger.log(`There was an error importing data: ${err}`)
           }
 
           console.timeEnd("ImportNonObs");
