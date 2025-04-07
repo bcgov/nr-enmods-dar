@@ -50,7 +50,10 @@ export class AqiApiService {
         id: rowNumber,
         url: url,
         count: response.data.totalCount,
-        GUID: response.data.domainObjects.length > 0 ? response.data.domainObjects[0].id : null
+        GUID:
+          response.data.domainObjects.length > 0
+            ? response.data.domainObjects[0].id
+            : null,
       };
       return urlAndResponse;
     } catch (err) {
@@ -72,7 +75,10 @@ export class AqiApiService {
         id: rowNumber,
         url: url,
         count: response.data.totalCount,
-        GUID: response.data.domainObjects.length > 0 ? response.data.domainObjects[0].id : null
+        GUID:
+          response.data.domainObjects.length > 0
+            ? response.data.domainObjects[0].id
+            : null,
       };
       return urlAndResponse;
     } catch (err) {
@@ -142,10 +148,22 @@ export class AqiApiService {
       );
       return response.data.id;
     } catch (err) {
-      this.logger.error(
-        `RowNum: ${rowNumber} -> API CALL TO POST Specimens failed: `,
-        err.response.data.message,
-      );
+      const message = err.response.data.message;
+     
+      const skipMessage =
+        "A Specimen with the same name already exists for the referenced Activity";
+
+      if (message == skipMessage) {
+        this.logger.warn(
+          `RowNum: ${rowNumber} -> Duplicate Specimen name, skipping...`,
+        );
+        return "exists";
+      }else{
+        this.logger.error(
+          `RowNum: ${rowNumber} -> API CALL TO POST Specimens failed: `,
+          err.response.data.message,
+        );
+      }
     }
   }
 
@@ -713,23 +731,6 @@ export class AqiApiService {
             },
           );
           this.logger.log("AQI SPECIMEN DELETION: " + aqiDeletion.status);
-
-          try {
-            const dbDeletion = await this.prisma.aqi_specimens.delete({
-              where: {
-                aqi_specimens_id: specimen,
-              },
-            });
-            this.logger.log("DB SPECIMEN DELETION: " + dbDeletion);
-          } catch (err) {
-            if (err.code === "P2025") {
-              this.logger.log(
-                `Record with ID ${specimen} not found in DB. Record was deleted in AQI but skipping deletion from DB.`,
-              );
-            } else {
-              this.logger.error(`API call to delete DB specimen failed: `, err);
-            }
-          }
         } catch (err) {
           let specimenError = `{"rowNum": "N/A", "type": "ERROR", "message": {"Delete": "Failed to delete specimen with GUID ${specimen}"}}`;
           specimenDeleteErrors.push(JSON.parse(specimenError));
@@ -755,23 +756,6 @@ export class AqiApiService {
             },
           );
           this.logger.log("AQI ACTIVITY DELETION: " + aqiDeletion.status);
-
-          try {
-            const dbDeletion = await this.prisma.aqi_field_activities.delete({
-              where: {
-                aqi_field_activities_id: activity,
-              },
-            });
-            this.logger.log("DB ACTIVITY DELETION: " + dbDeletion);
-          } catch (err) {
-            if (err.code === "P2025") {
-              this.logger.log(
-                `Record with ID ${activity} not found in DB. Record was deleted in AQI but skipping deletion from DB.`,
-              );
-            } else {
-              this.logger.error(`API call to delete DB activity failed: `, err);
-            }
-          }
         } catch (err) {
           let activityError = `{"rowNum": "N/A", "type": "ERROR", "message": {"Delete": "Failed to delete activity with GUID ${activity}"}}`;
           activityDeleteErrors.push(JSON.parse(activityError));
@@ -798,22 +782,6 @@ export class AqiApiService {
           );
           this.logger.log("AQI VISIT DELETION: " + deletion.status);
 
-          try {
-            const dbDeletion = await this.prisma.aqi_field_visits.delete({
-              where: {
-                aqi_field_visits_id: visit,
-              },
-            });
-            this.logger.log("DB VISIT DELETION: " + dbDeletion);
-          } catch (err) {
-            if (err.code === "P2025") {
-              this.logger.log(
-                `Records with IDs ${visitData} not found in DB. Records were deleted in AQI but skipping deletion from DB.`,
-              );
-            } else {
-              this.logger.error(`API call to delete DB visits failed: `, err);
-            }
-          }
         } catch (err) {
           let visitError = `{"rowNum": "N/A", "type": "ERROR", "message": {"Delete": "Failed to delete visit with GUID ${visit}"}}`;
           visitDeleteErrors.push(JSON.parse(visitError));

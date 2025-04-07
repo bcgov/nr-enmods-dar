@@ -624,7 +624,8 @@ export class CronJobService {
             file.file_name,
             file.original_file_name,
             file.submission_id,
-            file.file_operation_code,
+            file.file_operation_code, 
+            file.file_row_count
           );
 
           this.logger.log(`File ${file.file_name} processed successfully.`);
@@ -638,7 +639,7 @@ export class CronJobService {
     }
   }
 
-  // @Cron(CronExpression.EVERY_30_SECONDS) // every 2 hours
+  @Cron(CronExpression.EVERY_10_SECONDS) // every 2 hours
   private async beginDelete() {
     /*
     TODO:

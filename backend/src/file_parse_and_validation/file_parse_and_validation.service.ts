@@ -1216,40 +1216,6 @@ export class FileParseValidateService {
       validationApisCalled.push(activityURLCalled);
     }
 
-    // const visitExists = await this.aqiService.AQILookup("aqi_field_visits", [
-    //   rowData.LocationID,
-    //   rowData.FieldVisitStartTime,
-    // ]);
-    // if (visitExists !== null && visitExists !== undefined) {
-    //   existingGUIDS["visit"] = visitExists;
-    //   let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
-    //   errorLogs.push(JSON.parse(errorLog));
-    // }
-
-    // // check if the activity already exits -- check if the activity name for that given visit and location already exists
-    // const activityExists = await this.aqiService.AQILookup(
-    //   "aqi_field_activities",
-    //   [rowData.ActivityName, rowData.ObservedDateTime, rowData.LocationID],
-    // );
-    // if (activityExists !== null && activityExists !== undefined) {
-    //   existingGUIDS["activity"] = activityExists;
-    //   let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
-    //   errorLogs.push(JSON.parse(errorLog));
-    // }
-
-    // // check if the specimen already exists -- check if the specimen name for that given visit and location already exists
-    // const specimenExists = await this.aqiService.AQILookup("aqi_specimens", [
-    //   rowData.SpecimenName,
-    //   rowData.ObservedDateTime,
-    //   rowData.ActivityName,
-    //   rowData.LocationID,
-    // ]);
-    // if (specimenExists !== null && specimenExists !== undefined) {
-    //   existingGUIDS["specimen"] = specimenExists;
-    //   let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Specimen": "Specimen Name ${rowData.SpecimenName} for that Activity at Start Time ${rowData.ObservedDateTime} already exists in EnMoDS Specimen"}}`;
-    //   errorLogs.push(JSON.parse(errorLog));
-    // }
-
     if (Object.keys(existingGUIDS).length > 0) {
       existingRecords.push({ rowNum: rowNumber, existingGUIDS: existingGUIDS });
     }
@@ -1279,47 +1245,25 @@ export class FileParseValidateService {
       .on("data", (row) => {
         if (isFirstRow) {
           isFirstRow = false;
-        }
+          const expectedHeaders = Object.keys(obsFile);
 
-        const expectedHeaders = Object.keys(obsFile);
+          // First check: if the number of columns is correct
+          if (row.length !== expectedHeaders.length) {
+            let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Invalid number of columns. Expected 40, got ${row.length}"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
 
-        // First check: if the number of columns is correct
-        if (row.length !== expectedHeaders.length) {
-          let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Invalid number of columns. Expected 40, got ${row.length}"}}`;
-          errorLogs.push(JSON.parse(errorLog));
-        }
-
-        // Second-Third check:
-        if (
-          !expectedHeaders.every(
-            (header, rowNumber) => header === row[rowNumber],
-          )
-        ) {
-          let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Headers do not match expected names or order. You can find the expected format here: https://bcenv-enmods-test.aqsamples.ca/import"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+          // Second-Third check: headers match expected names and order
+          const headerMismatch = expectedHeaders.some(
+            (header, rowNumber) => header !== row[rowNumber],
+          );
+          if (headerMismatch) {
+            let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Headers do not match expected names or order. You can find the expected format here: https://bcenv-enmods-test.aqsamples.ca/import"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
         }
       })
       .on("end", () => {});
-
-    // fs.createReadStream(observationFilePath)
-    //   .pipe(parser)
-    //   .on("headers", (headers) => {
-    //     // First check: if the number of columns is correct
-    //     if (headers.length !== Object.keys(obsFile).length) {
-    //       let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Invalid number of columns. Expected 40, got ${headers.length}"}}`;
-    //       errorLogs.push(JSON.parse(errorLog));
-    //     }
-
-    //     // Second-Third check:
-    //     if (
-    //       !Object.keys(obsFile).every(
-    //         (header, rowNumber) => header === headers[rowNumber],
-    //       )
-    //     ) {
-    //       let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Headers do not match expected names or order. You can find the expected format here: https://bcenv-enmods-test.aqsamples.ca/import"}}`;
-    //       errorLogs.push(JSON.parse(errorLog));
-    //     }
-    //   });
 
     const observationsErrors = await this.aqiService.importObservations(
       observationFilePath,
@@ -1582,52 +1526,49 @@ export class FileParseValidateService {
      * Otherwise - do a POST with the respective object to the respective API; save the record into the db table (for future use) and save the GUID to the db table
      */
 
-    let visitExists = await this.aqiService.AQILookup("aqi_field_visits", [
+    const locationGUID = await this.queryCodeTables(
+      "LOCATIONS",
       rowData.LocationID,
-      rowData.FieldVisitStartTime,
-    ]);
+    );
+
+    const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
+    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}`;
+
+    let visitExists = await this.aqiService.getFieldVisits(rowNumber, visitURL);
+
     let visitInfo: any;
 
-    if (visitExists !== null && visitExists !== undefined) {
+    if (visitExists.count > 0) {
       // send PUT to AQI and add visit data to activity
-      fieldVisit["id"] = visitExists;
-      // await this.fieldVisitJson(fieldVisit, rowNumber, "put");
-      fieldActivity["fieldVisit"] = visitExists;
+      fieldVisit["id"] = visitExists.GUID;
+      fieldActivity["fieldVisit"] = visitExists.GUID;
       fieldActivity["LocationID"] = rowData.LocationID;
-      GuidsToSave["visits"].push(visitExists);
+      GuidsToSave["visits"].push(visitExists.GUID);
     } else {
       // send POST to AQI and add visit data to activity
       visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
       fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
       fieldActivity["LocationID"] = rowData.LocationID;
       GuidsToSave["visits"].push(visitInfo.fieldVisit);
-      // // insert the visit record in the db table
-      // try {
-
-      //   this.logger.log("Visit record inserted in db successfully.");
-
-      // } catch (err) {
-      //   this.logger.error(`Error inserting visit record in db: ${err.message}`);
-      // }
     }
 
     if (rowData.DataClassification !== "FIELD_RESULT") {
-      let activityExists = await this.aqiService.AQILookup(
-        "aqi_field_activities",
-        [rowData.ActivityName, rowData.ObservedDateTime, rowData.LocationID],
+      let activityExists = await this.aqiService.getActivities(
+        rowNumber,
+        activityURL,
       );
+
       let activityInfo: any;
 
-      if (activityExists !== null && activityExists !== undefined) {
+      if (activityExists.count > 0) {
         // send PUT to AQI
-        fieldActivity["id"] = activityExists;
-        // await this.fieldActivityJson(fieldActivity, rowNumber, "put");
+        fieldActivity["id"] = activityExists.GUID;
         specimen["activity"] = {
-          id: activityExists,
+          id: activityExists.GUID,
           customId: rowData.ActivityName,
           startTime: rowData.ObservedDateTime,
         };
-        GuidsToSave["activities"].push(activityExists);
+        GuidsToSave["activities"].push(activityExists.GUID);
       } else {
         // send POST to AQI
         activityInfo = await this.fieldActivityJson(
@@ -1638,34 +1579,6 @@ export class FileParseValidateService {
 
         specimen["activity"] = activityInfo.activity;
         GuidsToSave["activities"].push(activityInfo.activity.id);
-
-        // // insert the activity record in the db table
-        // try {
-        //   await this.prisma.$transaction(async (prisma) => {
-        //     await prisma.aqi_field_activities.create({
-        //       data: {
-        //         aqi_field_activities_id: activityInfo.activity.id,
-        //         aqi_field_activities_start_time:
-        //           activityInfo.activity.startTime,
-        //         aqi_field_activities_custom_id: activityInfo.activity.customId,
-        //         aqi_location_custom_id: rowData.LocationID,
-        //         aqi_field_visit_start_time: activityInfo.activity.startTime,
-        //         create_user_id: fileName, //TODO: need to update this to the user who submitted the file
-        //         create_utc_timestamp: new Date(),
-        //         update_user_id: fileName, // TODO: need to update this to the user who submitted the file
-        //         update_utc_timestamp: new Date(),
-        //       },
-        //     });
-        //   });
-
-        //   this.logger.log("Activity record inserted in db successfully.");
-        //   specimen["activity"] = activityInfo.activity;
-        //   GuidsToSave["activities"].push(activityInfo.activity.id);
-        // } catch (err) {
-        //   this.logger.error(
-        //     `Error inserting activity record in db: ${err.message}`,
-        //   );
-        // }
       }
     }
 
@@ -1673,44 +1586,13 @@ export class FileParseValidateService {
       rowData.DataClassification !== "VERTICAL_PROFILE" &&
       rowData.DataClassification !== "FIELD_RESULT"
     ) {
-      let specimenExists = await this.aqiService.AQILookup("aqi_specimens", [
-        rowData.SpecimenName,
-        rowData.ObservedDateTime,
-        rowData.ActivityName,
-        rowData.LocationID,
-      ]);
       let specimenInfo: any;
 
-      if (specimenExists !== null && specimenExists !== undefined) {
-        // send PUT to AQI
-        specimen["id"] = specimenExists;
-        // await this.specimensJson(specimen, rowNumber, "put");
-        GuidsToSave["specimens"].push(specimenExists);
-      } else {
-        // send POST to AQI
-        specimenInfo = await this.specimensJson(specimen, rowNumber, "post");
+      // send POST to AQI
+      specimenInfo = await this.specimensJson(specimen, rowNumber, "post");
+      if (specimenInfo.specimen.id != "exists") {
+        // response true means that the specimen already exists for that activity -- essentially skipping that post and save here
         GuidsToSave["specimens"].push(specimenInfo.specimen.id);
-        // insert the specimen record in the db table
-        // try {
-        //   await this.prisma.$transaction(async (prisma) => {
-        //     await this.prisma.aqi_specimens.create({
-        //       data: {
-        //         aqi_specimens_id: specimenInfo.specimen.id,
-        //         aqi_specimens_custom_id: specimenInfo.specimen.customId,
-        //         aqi_field_activities_start_time:
-        //           specimenInfo.specimen.startTime,
-        //         aqi_field_activities_custom_id: rowData.ActivityName,
-        //         aqi_location_custom_id: rowData.LocationID,
-        //       },
-        //     });
-        //   });
-        //   this.logger.log("Specimen record inserted in db successfully.");
-        //   GuidsToSave["specimens"].push(specimenInfo.specimen.id);
-        // } catch (err) {
-        //   this.logger.error(
-        //     `Error inserting specimen record in db: ${err.message}`,
-        //   );
-        // }
       }
     }
 
@@ -1866,12 +1748,82 @@ export class FileParseValidateService {
     return;
   }
 
+  async validateCSVRow(
+    row: any,
+    headers: any[],
+    rowNumber: number,
+    ministryContacts,
+    csvStream,
+    allNonObsErrors,
+    allExistingRecords,
+    originalFileName,
+    validationApisCalled,
+  ) {
+    try {
+      this.logger.log(`Started creating object for row ${rowNumber}`);
+      let rowData: Record<string, string> = {};
+      headers.forEach((header) => {
+        rowData[header] = String(row[header] ?? "").replace(/\r?\n/g, " ");
+      });
+
+      rowData = await this.cleanRowBasedOnDataClassification(rowData);
+      this.logger.log(`Finished creating object for row ${rowNumber}`);
+
+      this.logger.log(`Sent row ${rowNumber} for validation`);
+      await this.validateRow(
+        rowData,
+        ministryContacts,
+        csvStream,
+        allNonObsErrors,
+        allExistingRecords,
+        originalFileName,
+        rowNumber,
+        validationApisCalled,
+      );
+    } catch (err) {
+      this.logger.error("Error in async ops:", err.message);
+      throw err;
+    }
+  }
+
+  async importCSVRow(
+    row: any,
+    headers: any[],
+    rowNumber: number,
+    fileName: string,
+    GuidsToSave: any,
+  ) {
+    try {
+      this.logger.log(`Started creating object for row ${rowNumber}`);
+      let rowData: Record<string, string> = {};
+      headers.forEach((header) => {
+        rowData[header] = String(row[header] ?? "").replace(/\r?\n/g, " ");
+      });
+
+      rowData = await this.cleanRowBasedOnDataClassification(rowData);
+      this.logger.log(`Finished creating object for row ${rowNumber}`);
+
+      this.logger.log(`Sent row ${rowNumber} for import`);
+      await this.insertDataNonObservations(
+        rowNumber,
+        rowData,
+        GuidsToSave,
+        fileName,
+      );
+      this.logger.log(`Completed import for row ${rowNumber}`);
+    } catch (err) {
+      this.logger.error("Error in async ops:", err.message);
+      throw err;
+    }
+  }
+
   async parseFile(
     file: Readable,
     fileName: string,
     originalFileName: string,
     file_submission_id: string,
     file_operation_code: string,
+    file_row_count: number,
   ) {
     console.time("parseFile");
 
@@ -1985,7 +1937,7 @@ export class FileParseValidateService {
                 ? cellValue.result
                 : cellValue ?? "";
             return {
-              [header]: String(value),
+              [header]: String(value).replace(/\r?\n/g, " "),
             };
           })
           .reduce((acc, curr) => ({ ...acc, ...curr }), {});
@@ -2114,7 +2066,7 @@ export class FileParseValidateService {
                     ? cellValue.result
                     : cellValue ?? "";
                 return {
-                  [header]: String(value),
+                  [header]: String(value).replace(/\r?\n/g, " "),
                 };
               })
               .reduce((acc, curr) => ({ ...acc, ...curr }), {});
@@ -2210,7 +2162,7 @@ export class FileParseValidateService {
         return;
       }
 
-      // re-fetch the file for validation purposes - cannot use previously fetched stream
+      // re-fetch the file for validation
       const rowValidationStream =
         await this.objectStoreService.getFileData(fileName);
 
@@ -2219,41 +2171,94 @@ export class FileParseValidateService {
         trim: true,
       });
 
-      Readable.from(rowValidationStream).pipe(parser);
+      rowValidationStream.on("error", (err) => {
+        this.logger.error("Stream error:", err.message);
+      });
 
-      let rowNumber = 0;
+      parser.on("error", (err) => {
+        this.logger.error("Parser error:", err.message);
+      });
+
+      parser.on("end", () => {
+        this.logger.log("Finished parsing file.");
+      });
 
       console.time("Validation");
+
+      // Pipe + iterate
+      rowValidationStream.pipe(parser);
+
+      const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
+      let batch: any[] = [];
+      let totalRows = file_row_count;
+      let rowNumber = 0;
+      let batchNumber = 1;
+
       for await (const row of parser) {
         rowNumber++;
 
-        if (rowNumber == 1) {
-          continue; // Skip header row
+        if (rowNumber === 1) {
+          continue;
         }
 
-        let rowData: Record<string, string> = {};
-        headers.forEach((header) => {
-          rowData[header] = String(row[header] ?? "");
-        });
+        this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
+        batch.push(row);
 
-        try {
-          rowData = this.cleanRowBasedOnDataClassification(rowData);
+        if (batch.length === BATCH_SIZE) {
+          this.logger.log(`Created batch ${batchNumber}`);
+          this.logger.log(
+            `Starting to process batch ${batchNumber} ******************`,
+          );
 
-          this.logger.log(`Created row object for row ${rowNumber}`);
-          await this.validateRow(
-            rowData,
+          for (const [index, row] of batch.entries()) {
+            let actualRowNumber = index + batchNumber * BATCH_SIZE + 1 - 100;
+            await this.validateCSVRow(
+              row,
+              headers,
+              actualRowNumber,
+              ministryContacts,
+              csvStream,
+              allNonObsErrors,
+              allExistingRecords,
+              originalFileName,
+              validationApisCalled,
+            );
+          }
+          this.logger.log(
+            `Finished processing batch ${batchNumber} ******************`,
+          );
+
+          batchNumber++;
+          batch = [];
+        }
+      }
+
+      if (batch.length > 0) {
+        this.logger.log(
+          `Starting to process (final) batch ${batchNumber} ******************`,
+        );
+
+        for (const [index, row] of batch.entries()) {
+          let actualRowNumber = index + batchNumber * BATCH_SIZE + 1 - 100;
+          await this.validateCSVRow(
+            row,
+            headers,
+            actualRowNumber,
             ministryContacts,
             csvStream,
             allNonObsErrors,
             allExistingRecords,
             originalFileName,
-            rowNumber,
             validationApisCalled,
           );
-        } catch (error) {
-          this.logger.error(`Error Processing Row ${rowNumber}:`, error);
         }
+        this.logger.log(
+          `Finished processing (final) batch ${batchNumber} ******************`,
+        );
       }
+
+      this.logger.log(`✅ All done. Processed ${rowNumber} rows.`);
+
       console.timeEnd("Validation");
 
       csvStream.end();
@@ -2352,60 +2357,100 @@ export class FileParseValidateService {
           const rowImportStream =
             await this.objectStoreService.getFileData(fileName);
 
-          const parser = rowValidationStream.pipe(
-            parse({
-              columns: headers,
-              trim: true,
-            }),
-          );
+          const parser = parse({
+            columns: headers,
+            trim: true,
+          });
+
+          rowImportStream.on("error", (err) => {
+            this.logger.error("Stream error:", err.message);
+          });
+
+          parser.on("error", (err) => {
+            this.logger.error("Parser error:", err.message);
+          });
+
+          parser.on("end", () => {
+            this.logger.log("Finished parsing file.");
+          });
+
+          // Pipe + iterate
+          rowImportStream.pipe(parser);
+
+          const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
+          let batch: any[] = [];
+          let totalRows = file_row_count;
           let rowNumber = 0;
+          let batchNumber = 1;
 
-          try {
-            for await (const row of parser) {
-              rowNumber++;
-              this.logger.log(`Beginning processing row: ${rowNumber}`);
+          for await (const row of parser) {
+            rowNumber++;
 
-              if (rowNumber == 1) {
-                continue; // Skip header row
+            if (rowNumber === 1) {
+              continue;
+            }
+
+            this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
+            batch.push(row);
+
+            if (batch.length === BATCH_SIZE) {
+              this.logger.log(`Created batch ${batchNumber}`);
+              this.logger.log(
+                `Starting to process batch ${batchNumber} ******************`,
+              );
+
+              for (const [index, row] of batch.entries()) {
+                let actualRowNumber =
+                  index + batchNumber * BATCH_SIZE + 1 - 100;
+
+                let GuidsToSave = {
+                  visits: [],
+                  activities: [],
+                  specimens: [],
+                  observations: [],
+                };
+                await this.importCSVRow(
+                  row,
+                  headers,
+                  actualRowNumber,
+                  fileName,
+                  GuidsToSave,
+                );
               }
+              this.logger.log(
+                `Finished processing batch ${batchNumber} ******************`,
+              );
 
+              batchNumber++;
+              batch = [];
+            }
+          }
+
+          if (batch.length > 0) {
+            this.logger.log(
+              `Starting to process (final) batch ${batchNumber} ******************`,
+            );
+
+            for (const [index, row] of batch.entries()) {
+              let actualRowNumber = index + batchNumber * BATCH_SIZE + 1 - 100;
               let GuidsToSave = {
                 visits: [],
                 activities: [],
                 specimens: [],
                 observations: [],
               };
-
-              let rowData: Record<string, string> = {};
-              headers.forEach((header) => {
-                rowData[header] = String(row[header] ?? "");
-              });
-
-              parser.pause();
-
-              try {
-                rowData = this.cleanRowBasedOnDataClassification(rowData);
-
-                this.logger.log(`Created row object for row ${rowNumber}`);
-
-                // do the data insert logic here
-                this.logger.log(`Starting import for row ${rowNumber}`);
-                await this.insertDataNonObservations(
-                  rowNumber,
-                  rowData,
-                  GuidsToSave,
-                  fileName,
-                );
-                this.logger.log(`Completed import for row ${rowNumber}`);
-                parser.resume();
-              } catch (error) {
-                this.logger.error(`Error Processing Row ${rowNumber}:`, error);
-              }
+              await this.importCSVRow(
+                row,
+                headers,
+                actualRowNumber,
+                fileName,
+                GuidsToSave,
+              );
             }
-          } catch (err) {
-            this.logger.log(`There was an error importing data: ${err}`);
+            this.logger.log(
+              `Finished processing (final) batch ${batchNumber} ******************`,
+            );
           }
-
           console.timeEnd("ImportNonObs");
 
           this.logger.log(`Starting import of observations`);
