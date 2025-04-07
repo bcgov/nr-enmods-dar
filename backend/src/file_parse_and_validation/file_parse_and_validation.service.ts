@@ -2211,7 +2211,7 @@ export class FileParseValidateService {
           );
 
           for (const [index, row] of batch.entries()) {
-            let actualRowNumber = index + batchNumber * BATCH_SIZE + 1 - 100;
+            let actualRowNumber = index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
             await this.validateCSVRow(
               row,
               headers,
@@ -2239,7 +2239,7 @@ export class FileParseValidateService {
         );
 
         for (const [index, row] of batch.entries()) {
-          let actualRowNumber = index + batchNumber * BATCH_SIZE + 1 - 100;
+          let actualRowNumber = index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
           await this.validateCSVRow(
             row,
             headers,
@@ -2401,7 +2401,7 @@ export class FileParseValidateService {
 
               for (const [index, row] of batch.entries()) {
                 let actualRowNumber =
-                  index + batchNumber * BATCH_SIZE + 1 - 100;
+                  index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
 
                 let GuidsToSave = {
                   visits: [],
@@ -2432,7 +2432,7 @@ export class FileParseValidateService {
             );
 
             for (const [index, row] of batch.entries()) {
-              let actualRowNumber = index + batchNumber * BATCH_SIZE + 1 - 100;
+              let actualRowNumber = index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
               let GuidsToSave = {
                 visits: [],
                 activities: [],
