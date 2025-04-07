@@ -14,9 +14,8 @@ import ExcelJS from "exceljs";
 import fs from "fs";
 import { PrismaService } from "nestjs-prisma";
 import { Readable } from "stream";
-import csv from "csv-parser";
 import { format } from "fast-csv";
-import csvParser from "csv-parser";
+import { parse } from "csv-parse";
 
 const fileHeaders: FileHeaders = {
   "Observation ID": "Observation ID",
@@ -1268,26 +1267,59 @@ export class FileParseValidateService {
      * Do an initial validation on the observation file. This will check the file has the right number of columns, the header names are correct and the order of the headers are right
      * Do a dry run of the observations
      */
+    const parser = parse({
+      columns: false,
+      trim: true,
+    });
+
+    let isFirstRow = true;
 
     fs.createReadStream(observationFilePath)
-      .pipe(csv())
-      .on("headers", (headers) => {
+      .pipe(parser)
+      .on("data", (row) => {
+        if (isFirstRow) {
+          isFirstRow = false;
+        }
+
+        const expectedHeaders = Object.keys(obsFile);
+
         // First check: if the number of columns is correct
-        if (headers.length !== Object.keys(obsFile).length) {
-          let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Invalid number of columns. Expected 40, got ${headers.length}"}}`;
+        if (row.length !== expectedHeaders.length) {
+          let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Invalid number of columns. Expected 40, got ${row.length}"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
 
         // Second-Third check:
         if (
-          !Object.keys(obsFile).every(
-            (header, rowNumber) => header === headers[rowNumber],
+          !expectedHeaders.every(
+            (header, rowNumber) => header === row[rowNumber],
           )
         ) {
           let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Headers do not match expected names or order. You can find the expected format here: https://bcenv-enmods-test.aqsamples.ca/import"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
-      });
+      })
+      .on("end", () => {});
+
+    // fs.createReadStream(observationFilePath)
+    //   .pipe(parser)
+    //   .on("headers", (headers) => {
+    //     // First check: if the number of columns is correct
+    //     if (headers.length !== Object.keys(obsFile).length) {
+    //       let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Invalid number of columns. Expected 40, got ${headers.length}"}}`;
+    //       errorLogs.push(JSON.parse(errorLog));
+    //     }
+
+    //     // Second-Third check:
+    //     if (
+    //       !Object.keys(obsFile).every(
+    //         (header, rowNumber) => header === headers[rowNumber],
+    //       )
+    //     ) {
+    //       let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Headers do not match expected names or order. You can find the expected format here: https://bcenv-enmods-test.aqsamples.ca/import"}}`;
+    //       errorLogs.push(JSON.parse(errorLog));
+    //     }
+    //   });
 
     const observationsErrors = await this.aqiService.importObservations(
       observationFilePath,
@@ -1566,25 +1598,17 @@ export class FileParseValidateService {
     } else {
       // send POST to AQI and add visit data to activity
       visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
+      fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
+      fieldActivity["LocationID"] = rowData.LocationID;
+      GuidsToSave["visits"].push(visitInfo.fieldVisit);
+      // // insert the visit record in the db table
+      // try {
 
-      // insert the visit record in the db table
-      try {
-        await this.prisma.$transaction(async (prisma) => {
-          await prisma.aqi_field_visits.create({
-            data: {
-              aqi_field_visits_id: visitInfo.fieldVisit,
-              aqi_field_visit_start_time: visitInfo.startTime,
-              aqi_location_custom_id: visitInfo.samplingLocation.custom_id,
-            },
-          });
-        });
-        this.logger.log("Visit record inserted in db successfully.");
-        fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
-        fieldActivity["LocationID"] = rowData.LocationID;
-        GuidsToSave["visits"].push(visitInfo.fieldVisit);
-      } catch (err) {
-        this.logger.error(`Error inserting visit record in db: ${err.message}`);
-      }
+      //   this.logger.log("Visit record inserted in db successfully.");
+
+      // } catch (err) {
+      //   this.logger.error(`Error inserting visit record in db: ${err.message}`);
+      // }
     }
 
     if (rowData.DataClassification !== "FIELD_RESULT") {
@@ -1612,33 +1636,36 @@ export class FileParseValidateService {
           "post",
         );
 
-        // insert the activity record in the db table
-        try {
-          await this.prisma.$transaction(async (prisma) => {
-            await prisma.aqi_field_activities.create({
-              data: {
-                aqi_field_activities_id: activityInfo.activity.id,
-                aqi_field_activities_start_time:
-                  activityInfo.activity.startTime,
-                aqi_field_activities_custom_id: activityInfo.activity.customId,
-                aqi_location_custom_id: rowData.LocationID,
-                aqi_field_visit_start_time: activityInfo.activity.startTime,
-                create_user_id: fileName, //TODO: need to update this to the user who submitted the file
-                create_utc_timestamp: new Date(),
-                update_user_id: fileName, // TODO: need to update this to the user who submitted the file
-                update_utc_timestamp: new Date(),
-              },
-            });
-          });
+        specimen["activity"] = activityInfo.activity;
+        GuidsToSave["activities"].push(activityInfo.activity.id);
 
-          this.logger.log("Activity record inserted in db successfully.");
-          specimen["activity"] = activityInfo.activity;
-          GuidsToSave["activities"].push(activityInfo.activity.id);
-        } catch (err) {
-          this.logger.error(
-            `Error inserting activity record in db: ${err.message}`,
-          );
-        }
+        // // insert the activity record in the db table
+        // try {
+        //   await this.prisma.$transaction(async (prisma) => {
+        //     await prisma.aqi_field_activities.create({
+        //       data: {
+        //         aqi_field_activities_id: activityInfo.activity.id,
+        //         aqi_field_activities_start_time:
+        //           activityInfo.activity.startTime,
+        //         aqi_field_activities_custom_id: activityInfo.activity.customId,
+        //         aqi_location_custom_id: rowData.LocationID,
+        //         aqi_field_visit_start_time: activityInfo.activity.startTime,
+        //         create_user_id: fileName, //TODO: need to update this to the user who submitted the file
+        //         create_utc_timestamp: new Date(),
+        //         update_user_id: fileName, // TODO: need to update this to the user who submitted the file
+        //         update_utc_timestamp: new Date(),
+        //       },
+        //     });
+        //   });
+
+        //   this.logger.log("Activity record inserted in db successfully.");
+        //   specimen["activity"] = activityInfo.activity;
+        //   GuidsToSave["activities"].push(activityInfo.activity.id);
+        // } catch (err) {
+        //   this.logger.error(
+        //     `Error inserting activity record in db: ${err.message}`,
+        //   );
+        // }
       }
     }
 
@@ -1662,28 +1689,28 @@ export class FileParseValidateService {
       } else {
         // send POST to AQI
         specimenInfo = await this.specimensJson(specimen, rowNumber, "post");
-
+        GuidsToSave["specimens"].push(specimenInfo.specimen.id);
         // insert the specimen record in the db table
-        try {
-          await this.prisma.$transaction(async (prisma) => {
-            await this.prisma.aqi_specimens.create({
-              data: {
-                aqi_specimens_id: specimenInfo.specimen.id,
-                aqi_specimens_custom_id: specimenInfo.specimen.customId,
-                aqi_field_activities_start_time:
-                  specimenInfo.specimen.startTime,
-                aqi_field_activities_custom_id: rowData.ActivityName,
-                aqi_location_custom_id: rowData.LocationID,
-              },
-            });
-          });
-          this.logger.log("Specimen record inserted in db successfully.");
-          GuidsToSave["specimens"].push(specimenInfo.specimen.id);
-        } catch (err) {
-          this.logger.error(
-            `Error inserting specimen record in db: ${err.message}`,
-          );
-        }
+        // try {
+        //   await this.prisma.$transaction(async (prisma) => {
+        //     await this.prisma.aqi_specimens.create({
+        //       data: {
+        //         aqi_specimens_id: specimenInfo.specimen.id,
+        //         aqi_specimens_custom_id: specimenInfo.specimen.customId,
+        //         aqi_field_activities_start_time:
+        //           specimenInfo.specimen.startTime,
+        //         aqi_field_activities_custom_id: rowData.ActivityName,
+        //         aqi_location_custom_id: rowData.LocationID,
+        //       },
+        //     });
+        //   });
+        //   this.logger.log("Specimen record inserted in db successfully.");
+        //   GuidsToSave["specimens"].push(specimenInfo.specimen.id);
+        // } catch (err) {
+        //   this.logger.error(
+        //     `Error inserting specimen record in db: ${err.message}`,
+        //   );
+        // }
       }
     }
 
@@ -1892,10 +1919,10 @@ export class FileParseValidateService {
     let validationApisCalled = [];
 
     if (extention == ".xlsx") {
-      let batchSize = process.env.FILE_BATCH_SIZE
+      let batchSize = process.env.FILE_BATCH_SIZE;
 
-      let batch: any[] = []
-      let rowIndex = 0
+      let batch: any[] = [];
+      let rowIndex = 0;
       // set up the observation csv file for the AQI APIs
       const workbook = new ExcelJS.Workbook();
 
@@ -2128,10 +2155,31 @@ export class FileParseValidateService {
       const headersForValidation: string[] = [];
       const headers: string[] = [];
 
-      file.pipe(csv()).on("headers", (csvHeaders) => {
-        headers.push(...csvHeaders.map((key) => key.replace(/\s+/g, "")));
-        headersForValidation.push(...csvHeaders);
-      });
+      let isFirstRow = true;
+      file
+        .pipe(
+          parse({
+            columns: false,
+            trim: true,
+          }),
+        )
+        .on("data", (row: string[]) => {
+          if (isFirstRow) {
+            isFirstRow = false;
+
+            headers.push(...row.map((key) => key.replace(/\s+/g, "")));
+            headersForValidation.push(...row);
+          }
+        })
+        .on("end", () => {
+          this.logger.log("Got the file headers");
+        })
+        .on("error", (err) => {
+          this.logger.error(
+            "Error while parsing file for headers:",
+            err.message,
+          );
+        });
 
       await new Promise((f) => setTimeout(f, 1000));
 
@@ -2166,7 +2214,12 @@ export class FileParseValidateService {
       const rowValidationStream =
         await this.objectStoreService.getFileData(fileName);
 
-      const parser = rowValidationStream.pipe(csvParser({ headers }));
+      const parser = parse({
+        columns: headers,
+        trim: true,
+      });
+
+      Readable.from(rowValidationStream).pipe(parser);
 
       let rowNumber = 0;
 
@@ -2299,7 +2352,12 @@ export class FileParseValidateService {
           const rowImportStream =
             await this.objectStoreService.getFileData(fileName);
 
-          const parser = rowImportStream.pipe(csvParser({ headers }));
+          const parser = rowValidationStream.pipe(
+            parse({
+              columns: headers,
+              trim: true,
+            }),
+          );
           let rowNumber = 0;
 
           try {
@@ -2323,7 +2381,7 @@ export class FileParseValidateService {
                 rowData[header] = String(row[header] ?? "");
               });
 
-              parser.pause()
+              parser.pause();
 
               try {
                 rowData = this.cleanRowBasedOnDataClassification(rowData);
@@ -2339,7 +2397,7 @@ export class FileParseValidateService {
                   fileName,
                 );
                 this.logger.log(`Completed import for row ${rowNumber}`);
-                parser.resume()
+                parser.resume();
               } catch (error) {
                 this.logger.error(`Error Processing Row ${rowNumber}:`, error);
               }

@@ -39,9 +39,9 @@ export class CronJobService {
       ["aqi_tissue_types", this.prisma.aqi_tissue_types],
       ["aqi_sampling_agency", this.prisma.aqi_sampling_agency],
       ["aqi_locations", this.prisma.aqi_locations],
-      ["aqi_field_visits", this.prisma.aqi_field_visits],
-      ["aqi_field_activities", this.prisma.aqi_field_activities],
-      ["aqi_specimens", this.prisma.aqi_specimens],
+      // ["aqi_field_visits", this.prisma.aqi_field_visits],
+      // ["aqi_field_activities", this.prisma.aqi_field_activities],
+      // ["aqi_specimens", this.prisma.aqi_specimens],
     ]);
   }
 
@@ -132,24 +132,24 @@ export class CronJobService {
       dbTable: "aqi_locations",
       paramsEnabled: true,
     },
-    {
-      endpoint: "/v1/fieldvisits",
-      method: "GET",
-      dbTable: "aqi_field_visits",
-      paramsEnabled: true,
-    },
-    {
-      endpoint: "/v1/activities",
-      method: "GET",
-      dbTable: "aqi_field_activities",
-      paramsEnabled: true,
-    },
-    {
-      endpoint: "/v1/specimens",
-      method: "GET",
-      dbTable: "aqi_specimens",
-      paramsEnabled: true,
-    },
+    // {
+    //   endpoint: "/v1/fieldvisits",
+    //   method: "GET",
+    //   dbTable: "aqi_field_visits",
+    //   paramsEnabled: true,
+    // },
+    // {
+    //   endpoint: "/v1/activities",
+    //   method: "GET",
+    //   dbTable: "aqi_field_activities",
+    //   paramsEnabled: true,
+    // },
+    // {
+    //   endpoint: "/v1/specimens",
+    //   method: "GET",
+    //   dbTable: "aqi_specimens",
+    //   paramsEnabled: true,
+    // },
   ];
 
   private async updateDatabase(dbTable: string, data: any, batchSize = 1000) {
@@ -352,7 +352,7 @@ export class CronJobService {
     }
   }
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  // @Cron(CronExpression.EVERY_5_MINUTES)
   private async fetchAQSSData() {
     if (!this.operationLockService.acquireLock("PULLDOWN")) {
       this.logger.log(
@@ -585,7 +585,7 @@ export class CronJobService {
     return filterArray(entries);
   }
 
-  @Cron(CronExpression.EVERY_MINUTE) // every 2 hours
+  @Cron(CronExpression.EVERY_30_SECONDS) // every 2 hours
   private async beginFileValidation() {
     /*
     TODO:
@@ -638,7 +638,7 @@ export class CronJobService {
     }
   }
 
-  @Cron(CronExpression.EVERY_30_SECONDS) // every 2 hours
+  // @Cron(CronExpression.EVERY_30_SECONDS) // every 2 hours
   private async beginDelete() {
     /*
     TODO:
