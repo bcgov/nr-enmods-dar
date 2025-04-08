@@ -625,7 +625,6 @@ export class CronJobService {
             file.original_file_name,
             file.submission_id,
             file.file_operation_code, 
-            file.file_row_count
           );
 
           this.logger.log(`File ${file.file_name} processed successfully.`);

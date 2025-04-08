@@ -119,12 +119,12 @@ function FileUpload() {
 
   const validateFile = async (file: string | Blob, index: number) => {
     if (file) {
-      const rowCount = await getRowCount(file)
+      // const rowCount = await getRowCount(file)
       const formData = new FormData();
       var JWT = jwtDecode(UserService.getToken()?.toString());
       formData.append("file", file);
       formData.append("operation", "VALIDATE");
-      formData.append("file_row_count", rowCount)
+      // formData.append("file_row_count", rowCount)
       formData.append("userID", JWT.idir_username); // TODO: This will need to be updated based on BCeID
       formData.append("orgGUID", JWT.idir_user_guid); // TODO: This will need to be updated based on BCeID and company GUID
       formData.append("token", UserService.getToken()?.toString());
@@ -142,12 +142,12 @@ function FileUpload() {
   const validateAllFiles = (files) => {
     if (files) {
       Object.entries(files).forEach(async ([key, value], index) => {
-        const rowCount = await getRowCount(value)
+        // const rowCount = await getRowCount(value)
         const formData = new FormData();
         var JWT = jwtDecode(UserService.getToken()?.toString());
         formData.append("file", value);
         formData.append("operation", "VALIDATE");
-        formData.append("file_row_count", rowCount)
+        // formData.append("file_row_count", rowCount)
         formData.append("userID", JWT.idir_username); // TODO: This will need to be updated based on BCeID
         formData.append("orgGUID", JWT.idir_user_guid); // TODO: This will need to be updated based on BCeID and company GUID
         formData.append("token", UserService.getToken()?.toString());
@@ -165,12 +165,12 @@ function FileUpload() {
 
   const submitFile = async (file: string | Blob, index: number) => {
     if (file) {
-      const rowCount = await getRowCount(file)
+      // const rowCount = await getRowCount(file)
       const formData = new FormData();
       var JWT = jwtDecode(UserService.getToken()?.toString());
       formData.append("file", file);
       formData.append("operation", "IMPORT");
-      formData.append("file_row_count", rowCount)
+      // formData.append("file_row_count", rowCount)
       formData.append("userID", JWT.idir_username); // TODO: This will need to be updated based on BCeID
       formData.append("orgGUID", JWT.idir_user_guid); // TODO: This will need to be updated based on BCeID and company GUID
       formData.append("token", UserService.getToken()?.toString());
@@ -188,12 +188,12 @@ function FileUpload() {
   const submitAllFiles = async (files: any) => {
     if (files) {
       Object.entries(files).forEach(async ([key, value], index) => {
-        const rowCount = await getRowCount(value)
+        // const rowCount = await getRowCount(value)
         const formData = new FormData();
         var JWT = jwtDecode(UserService.getToken()?.toString());
         formData.append("file", value);
         formData.append("operation", "IMPORT");
-        formData.append("file_row_count", rowCount)
+        // formData.append("file_row_count", rowCount)
         formData.append("userID", JWT.idir_username); // TODO: This will need to be updated based on BCeID
         formData.append("orgGUID", JWT.idir_user_guid); // TODO: This will need to be updated based on BCeID and company GUID
         formData.append("token", UserService.getToken()?.toString());
