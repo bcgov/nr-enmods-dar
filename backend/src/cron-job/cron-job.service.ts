@@ -352,7 +352,7 @@ export class CronJobService {
     }
   }
 
-  // @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_5_MINUTES)
   private async fetchAQSSData() {
     if (!this.operationLockService.acquireLock("PULLDOWN")) {
       this.logger.log(

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
+import { OperationLockService } from "src/operationLock/operationLock.service";
 import {
   FieldActivities,
   FieldSpecimens,
@@ -213,6 +214,7 @@ export class FileParseValidateService {
     private readonly fileSubmissionsService: FileSubmissionsService,
     private readonly aqiService: AqiApiService,
     private readonly objectStoreService: ObjectStoreService,
+    private readonly operationLockService: OperationLockService,
   ) {}
 
   async getQueuedFiles() {
@@ -2171,11 +2173,24 @@ export class FileParseValidateService {
         trim: true,
       });
 
-      rowValidationStream.on("error", (err) => {
-        this.logger.error("Stream error:", err.message);
+      rowValidationStream.pipe(parser);
+
+      const startTime = Date.now();
+      let streamError = true;
+
+      // Set up the error and end handlers *before* piping
+      rowValidationStream.on("error", async (err) => {
+        const duration = Date.now() - startTime;
+        this.logger.error(`Stream error after ${duration}ms:`, err.message);
+        await this.fileSubmissionsService.updateFileStatus(
+          file_submission_id,
+          "ERROR",
+        );
+        streamError = true;
       });
 
       parser.on("error", (err) => {
+        streamError = true;
         this.logger.error("Parser error:", err.message);
       });
 
@@ -2184,9 +2199,7 @@ export class FileParseValidateService {
       });
 
       console.time("Validation");
-
-      // Pipe + iterate
-      rowValidationStream.pipe(parser);
+      // Pipe immediately after setting up handlers
 
       const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
       let batch: any[] = [];
@@ -2211,7 +2224,8 @@ export class FileParseValidateService {
           );
 
           for (const [index, row] of batch.entries()) {
-            let actualRowNumber = index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+            let actualRowNumber =
+              index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
             await this.validateCSVRow(
               row,
               headers,
@@ -2239,7 +2253,8 @@ export class FileParseValidateService {
         );
 
         for (const [index, row] of batch.entries()) {
-          let actualRowNumber = index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+          let actualRowNumber =
+            index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
           await this.validateCSVRow(
             row,
             headers,
@@ -2260,6 +2275,10 @@ export class FileParseValidateService {
       this.logger.log(`✅ All done. Processed ${rowNumber} rows.`);
 
       console.timeEnd("Validation");
+
+      if (streamError) {
+        return;
+      }
 
       csvStream.end();
       console.time("obsValidation");
@@ -2432,7 +2451,8 @@ export class FileParseValidateService {
             );
 
             for (const [index, row] of batch.entries()) {
-              let actualRowNumber = index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+              let actualRowNumber =
+                index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
               let GuidsToSave = {
                 visits: [],
                 activities: [],

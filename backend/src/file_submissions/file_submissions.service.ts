@@ -94,7 +94,7 @@ export class FileSubmissionsService {
         submission_status_code: {
           equals: submissionCode,
         },
-      },
+      }
     };
 
     const [results, count] = await this.prisma.$transaction([
@@ -188,7 +188,7 @@ export class FileSubmissionsService {
         select: selectColumns,
         where: whereClause,
         orderBy: {
-          create_utc_timestamp: "desc",
+          create_utc_timestamp: "asc",
         },
       }),
 
