@@ -39,6 +39,56 @@ export class AqiApiService {
     }
   }
 
+  async getFieldVisits(rowNumber: number, url: any) {
+    try {
+      const response = await this.axiosInstance.get(url);
+      this.logger.log(
+        `RowNum: ${rowNumber} -> API call to GET Field Visits succeeded: ${response.status}`,
+      );
+
+      let urlAndResponse = {
+        id: rowNumber,
+        url: url,
+        count: response.data.totalCount,
+        GUID:
+          response.data.domainObjects.length > 0
+            ? response.data.domainObjects[0].id
+            : null,
+      };
+      return urlAndResponse;
+    } catch (err) {
+      this.logger.error(
+        `RowNum: ${rowNumber} -> API CALL TO GET Field Visits failed: `,
+        err.response.data.message,
+      );
+    }
+  }
+
+  async getActivities(rowNumber: number, url: any) {
+    try {
+      const response = await this.axiosInstance.get(url);
+      this.logger.log(
+        `RowNum: ${rowNumber} -> API call to GET Activities succeeded: ${response.status}`,
+      );
+
+      let urlAndResponse = {
+        id: rowNumber,
+        url: url,
+        count: response.data.totalCount,
+        GUID:
+          response.data.domainObjects.length > 0
+            ? response.data.domainObjects[0].id
+            : null,
+      };
+      return urlAndResponse;
+    } catch (err) {
+      this.logger.error(
+        `RowNum: ${rowNumber} -> API CALL TO GET Activities failed: `,
+        err.response.data.message,
+      );
+    }
+  }
+
   async putFieldVisits(rowNumber: number, GUID: string, body: any) {
     try {
       const response = await this.axiosInstance.put(
@@ -98,10 +148,22 @@ export class AqiApiService {
       );
       return response.data.id;
     } catch (err) {
-      this.logger.error(
-        `RowNum: ${rowNumber} -> API CALL TO POST Specimens failed: `,
-        err.response.data.message,
-      );
+      const message = err.response.data.message;
+     
+      const skipMessage =
+        "A Specimen with the same name already exists for the referenced Activity";
+
+      if (message == skipMessage) {
+        this.logger.warn(
+          `RowNum: ${rowNumber} -> Duplicate Specimen name, skipping...`,
+        );
+        return "exists";
+      }else{
+        this.logger.error(
+          `RowNum: ${rowNumber} -> API CALL TO POST Specimens failed: `,
+          err.response.data.message,
+        );
+      }
     }
   }
 
@@ -671,23 +733,6 @@ export class AqiApiService {
             },
           );
           this.logger.log("AQI SPECIMEN DELETION: " + aqiDeletion.status);
-
-          try {
-            const dbDeletion = await this.prisma.aqi_specimens.delete({
-              where: {
-                aqi_specimens_id: specimen,
-              },
-            });
-            this.logger.log("DB SPECIMEN DELETION: " + dbDeletion);
-          } catch (err) {
-            if (err.code === "P2025") {
-              this.logger.log(
-                `Record with ID ${specimen} not found in DB. Record was deleted in AQI but skipping deletion from DB.`,
-              );
-            } else {
-              this.logger.error(`API call to delete DB specimen failed: `, err);
-            }
-          }
         } catch (err) {
           let specimenError = `{"rowNum": "N/A", "type": "ERROR", "message": {"Delete": "Failed to delete specimen with GUID ${specimen}"}}`;
           specimenDeleteErrors.push(JSON.parse(specimenError));
@@ -713,23 +758,6 @@ export class AqiApiService {
             },
           );
           this.logger.log("AQI ACTIVITY DELETION: " + aqiDeletion.status);
-
-          try {
-            const dbDeletion = await this.prisma.aqi_field_activities.delete({
-              where: {
-                aqi_field_activities_id: activity,
-              },
-            });
-            this.logger.log("DB ACTIVITY DELETION: " + dbDeletion);
-          } catch (err) {
-            if (err.code === "P2025") {
-              this.logger.log(
-                `Record with ID ${activity} not found in DB. Record was deleted in AQI but skipping deletion from DB.`,
-              );
-            } else {
-              this.logger.error(`API call to delete DB activity failed: `, err);
-            }
-          }
         } catch (err) {
           let activityError = `{"rowNum": "N/A", "type": "ERROR", "message": {"Delete": "Failed to delete activity with GUID ${activity}"}}`;
           activityDeleteErrors.push(JSON.parse(activityError));
@@ -756,22 +784,6 @@ export class AqiApiService {
           );
           this.logger.log("AQI VISIT DELETION: " + deletion.status);
 
-          try {
-            const dbDeletion = await this.prisma.aqi_field_visits.delete({
-              where: {
-                aqi_field_visits_id: visit,
-              },
-            });
-            this.logger.log("DB VISIT DELETION: " + dbDeletion);
-          } catch (err) {
-            if (err.code === "P2025") {
-              this.logger.log(
-                `Records with IDs ${visitData} not found in DB. Records were deleted in AQI but skipping deletion from DB.`,
-              );
-            } else {
-              this.logger.error(`API call to delete DB visits failed: `, err);
-            }
-          }
         } catch (err) {
           let visitError = `{"rowNum": "N/A", "type": "ERROR", "message": {"Delete": "Failed to delete visit with GUID ${visit}"}}`;
           visitDeleteErrors.push(JSON.parse(visitError));
@@ -790,7 +802,7 @@ export class AqiApiService {
       },
     });
 
-    let deleteErrors = []
+    let deleteErrors = [];
 
     let successfulObs = false;
     let successfulSpecimen = false;
@@ -852,7 +864,6 @@ export class AqiApiService {
       });
     }
 
-
     // get the file error logs
     const errorLogToUpdate = await this.prisma.file_error_logs.findMany({
       where: {
@@ -864,10 +875,12 @@ export class AqiApiService {
       },
     });
 
-    let fileErrors = errorLogToUpdate.flatMap(item => Array.isArray(item.error_log) ? (item.error_log as any[]) : [])
+    let fileErrors = errorLogToUpdate.flatMap((item) =>
+      Array.isArray(item.error_log) ? (item.error_log as any[]) : [],
+    );
 
     // append all the delete errors found above to this list
-    const finalErrorLogs = [...fileErrors, ...deleteErrors]
+    const finalErrorLogs = [...fileErrors, ...deleteErrors];
     await this.prisma.$transaction(async (prisma) => {
       await this.prisma.file_error_logs.update({
         where: {
@@ -879,6 +892,6 @@ export class AqiApiService {
       });
     });
 
-    deleteErrors = []
+    deleteErrors = [];
   }
 }

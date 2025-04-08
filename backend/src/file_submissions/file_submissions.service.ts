@@ -49,6 +49,7 @@ export class FileSubmissionsService {
     createFileSubmissionDto.submitter_agency_name = "SALUSSYSTEMS"; // TODO: change this once BCeID is set up
     createFileSubmissionDto.sample_count = 0;
     createFileSubmissionDto.result_count = 0;
+    // createFileSubmissionDto.file_row_count = body.file_row_count
     createFileSubmissionDto.organization_guid = body.orgGUID; // TODO: change this once BCeID is set up
     createFileSubmissionDto.create_user_id = body.userID;
     createFileSubmissionDto.create_utc_timestamp = new Date();
@@ -70,6 +71,7 @@ export class FileSubmissionsService {
       submitter_agency_name: createFileSubmissionDto.submitter_agency_name,
       sample_count: createFileSubmissionDto.sample_count,
       results_count: createFileSubmissionDto.result_count,
+      // file_row_count: parseInt(createFileSubmissionDto.file_row_count, 10),
       active_ind: createFileSubmissionDto.active_ind,
       error_log: createFileSubmissionDto.error_log,
       organization_guid: createFileSubmissionDto.organization_guid,
@@ -92,7 +94,7 @@ export class FileSubmissionsService {
         submission_status_code: {
           equals: submissionCode,
         },
-      },
+      }
     };
 
     const [results, count] = await this.prisma.$transaction([
@@ -186,7 +188,7 @@ export class FileSubmissionsService {
         select: selectColumns,
         where: whereClause,
         orderBy: {
-          create_utc_timestamp: "desc",
+          create_utc_timestamp: "asc",
         },
       }),
 
