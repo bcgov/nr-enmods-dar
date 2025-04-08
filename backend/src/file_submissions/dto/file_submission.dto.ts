@@ -93,8 +93,8 @@ export class FileSubmissionDto {
   })
   update_utc_timestamp: Date;
 
-  @ApiProperty({
-    description: 'Number of rows in the file',
-  })
-  file_row_count: string;
+  // @ApiProperty({
+  //   description: 'Number of rows in the file',
+  // })
+  // file_row_count: string;
 }
