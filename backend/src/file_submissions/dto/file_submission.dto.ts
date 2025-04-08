@@ -92,9 +92,4 @@ export class FileSubmissionDto {
     description: 'When the user last updated the record',
   })
   update_utc_timestamp: Date;
-
-  @ApiProperty({
-    description: 'Number of rows in the file',
-  })
-  file_row_count: string;
 }

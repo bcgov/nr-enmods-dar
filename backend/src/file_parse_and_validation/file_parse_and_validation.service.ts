@@ -1825,7 +1825,6 @@ export class FileParseValidateService {
     originalFileName: string,
     file_submission_id: string,
     file_operation_code: string,
-    file_row_count: number,
   ) {
     console.time("parseFile");
 
