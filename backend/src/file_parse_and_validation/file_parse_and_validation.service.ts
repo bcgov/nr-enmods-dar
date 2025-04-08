@@ -1481,6 +1481,7 @@ export class FileParseValidateService {
     rowData: any,
     GuidsToSave: any,
     fileName: string,
+    validationApisCalled: any,
   ) {
     const fieldVisitCustomAttributes: Partial<FieldVisits> = {
       PlanningStatus: "DONE",
@@ -1535,52 +1536,110 @@ export class FileParseValidateService {
 
     const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
     const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}`;
-
-    let visitExists = await this.aqiService.getFieldVisits(rowNumber, visitURL);
-
     let visitInfo: any;
+    let activityInfo: any;
 
-    if (visitExists.count > 0) {
-      // send PUT to AQI and add visit data to activity
-      fieldVisit["id"] = visitExists.GUID;
-      fieldActivity["fieldVisit"] = visitExists.GUID;
-      fieldActivity["LocationID"] = rowData.LocationID;
-      GuidsToSave["visits"].push(visitExists.GUID);
+    if (validationApisCalled.some((item) => item.url === visitURL)) {
+      // visit url has been called before
+      let seenVisitUrl = validationApisCalled.find(
+        (item) => item.url === visitURL,
+      );
+
+      if (seenVisitUrl.count > 0) {
+        // send PUT to AQI and add visit data to activity
+        fieldVisit["id"] = seenVisitUrl.GUID;
+        fieldActivity["fieldVisit"] = seenVisitUrl.GUID;
+        fieldActivity["LocationID"] = rowData.LocationID;
+        GuidsToSave["visits"].push(seenVisitUrl.GUID);
+      } else {
+        // send POST to AQI and add visit data to activity
+        visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
+        fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
+        fieldActivity["LocationID"] = rowData.LocationID;
+        GuidsToSave["visits"].push(visitInfo.fieldVisit);
+        
+        seenVisitUrl.count = 1
+        seenVisitUrl.GUID = visitInfo.fieldVisit
+      }
     } else {
-      // send POST to AQI and add visit data to activity
-      visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
-      fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
-      fieldActivity["LocationID"] = rowData.LocationID;
-      GuidsToSave["visits"].push(visitInfo.fieldVisit);
+      let visitExists = await this.aqiService.getFieldVisits(
+        rowNumber,
+        visitURL,
+      );
+      if (visitExists.count > 0) {
+        // send PUT to AQI and add visit data to activity
+        fieldVisit["id"] = visitExists.GUID;
+        fieldActivity["fieldVisit"] = visitExists.GUID;
+        fieldActivity["LocationID"] = rowData.LocationID;
+        GuidsToSave["visits"].push(visitExists.GUID);
+      } else {
+        // send POST to AQI and add visit data to activity
+        visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
+        fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
+        fieldActivity["LocationID"] = rowData.LocationID;
+        GuidsToSave["visits"].push(visitInfo.fieldVisit);
+      }
+
+      validationApisCalled.push(visitURL)
     }
 
     if (rowData.DataClassification !== "FIELD_RESULT") {
-      let activityExists = await this.aqiService.getActivities(
-        rowNumber,
-        activityURL,
-      );
-
-      let activityInfo: any;
-
-      if (activityExists.count > 0) {
-        // send PUT to AQI
-        fieldActivity["id"] = activityExists.GUID;
-        specimen["activity"] = {
-          id: activityExists.GUID,
-          customId: rowData.ActivityName,
-          startTime: rowData.ObservedDateTime,
-        };
-        GuidsToSave["activities"].push(activityExists.GUID);
-      } else {
-        // send POST to AQI
-        activityInfo = await this.fieldActivityJson(
-          fieldActivity,
-          rowNumber,
-          "post",
+      if (validationApisCalled.some((item) => item.url === activityURL)) {
+        // visit url has been called before
+        let seenActivityUrl = validationApisCalled.find(
+          (item) => item.url === activityURL,
         );
 
-        specimen["activity"] = activityInfo.activity;
-        GuidsToSave["activities"].push(activityInfo.activity.id);
+        if (seenActivityUrl.count > 0) {
+          // send PUT to AQI
+          fieldActivity["id"] = seenActivityUrl.GUID;
+          specimen["activity"] = {
+            id: seenActivityUrl.GUID,
+            customId: rowData.ActivityName,
+            startTime: rowData.ObservedDateTime,
+          };
+          GuidsToSave["activities"].push(seenActivityUrl.GUID);
+        } else {
+          // send POST to AQI
+          activityInfo = await this.fieldActivityJson(
+            fieldActivity,
+            rowNumber,
+            "post",
+          );
+
+          specimen["activity"] = activityInfo.activity;
+          GuidsToSave["activities"].push(activityInfo.activity.id);
+          seenActivityUrl.count = 1
+          seenActivityUrl.GUID = activityInfo.activity.id
+        }
+      } else {
+        let activityExists = await this.aqiService.getActivities(
+          rowNumber,
+          activityURL,
+        );
+
+        if (activityExists.count > 0) {
+          // send PUT to AQI
+          fieldActivity["id"] = activityExists.GUID;
+          specimen["activity"] = {
+            id: activityExists.GUID,
+            customId: rowData.ActivityName,
+            startTime: rowData.ObservedDateTime,
+          };
+          GuidsToSave["activities"].push(activityExists.GUID);
+        } else {
+          // send POST to AQI
+          activityInfo = await this.fieldActivityJson(
+            fieldActivity,
+            rowNumber,
+            "post",
+          );
+
+          specimen["activity"] = activityInfo.activity;
+          GuidsToSave["activities"].push(activityInfo.activity.id);
+
+          validationApisCalled.push(activityURL)
+        }
       }
     }
 
@@ -1794,6 +1853,7 @@ export class FileParseValidateService {
     rowNumber: number,
     fileName: string,
     GuidsToSave: any,
+    validationApisCalled,
   ) {
     try {
       this.logger.log(`Started creating object for row ${rowNumber}`);
@@ -1811,6 +1871,7 @@ export class FileParseValidateService {
         rowData,
         GuidsToSave,
         fileName,
+        validationApisCalled,
       );
       this.logger.log(`Completed import for row ${rowNumber}`);
     } catch (err) {
@@ -2082,6 +2143,7 @@ export class FileParseValidateService {
               rowData,
               GuidsToSave,
               fileName,
+              validationApisCalled,
             );
             this.logger.log(`Completed import for row ${rowNumber}`);
           }
@@ -2427,6 +2489,7 @@ export class FileParseValidateService {
                   actualRowNumber,
                   fileName,
                   GuidsToSave,
+                  validationApisCalled,
                 );
               }
               this.logger.log(
@@ -2458,6 +2521,7 @@ export class FileParseValidateService {
                 actualRowNumber,
                 fileName,
                 GuidsToSave,
+                validationApisCalled,
               );
             }
             this.logger.log(
