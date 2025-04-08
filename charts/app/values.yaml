@@ -30,6 +30,7 @@ global:
     usersApiClientSecret: ~
     aqiBaseUrl: ~
     aqiAccessToken: ~
+    fileBatchSize: ~
     chesTokenUrl: ~
     chesEmailUrl: ~
     chesClientId: ~
@@ -336,7 +337,6 @@ bitnami-pg:
       requests:
         cpu: 100m
         memory: 250Mi
-
 
 backup:
   enabled: true
