@@ -2274,10 +2274,6 @@ export class FileParseValidateService {
 
       console.timeEnd("Validation");
 
-      if (streamError) {
-        return;
-      }
-
       csvStream.end();
       console.time("obsValidation");
       const contactsAndValidationResults = await this.finalValidationStep(
