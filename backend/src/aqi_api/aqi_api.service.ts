@@ -5,6 +5,7 @@ import FormData from "form-data";
 import { PrismaService } from "nestjs-prisma";
 import path from "path";
 import { Cron, CronExpression } from "@nestjs/schedule";
+import { JsonValue } from "@prisma/client/runtime/library";
 
 @Injectable()
 export class AqiApiService {
@@ -23,100 +24,162 @@ export class AqiApiService {
     });
   }
 
-  async fieldVisits(body: any) {
+  async fieldVisits(rowNumber: number, body: any) {
     try {
       const response = await this.axiosInstance.post("/v1/fieldvisits", body);
       this.logger.log(
-        `API call to POST Field Visits succeeded: ${response.status}`,
+        `RowNum: ${rowNumber} -> API call to POST Field Visits succeeded: ${response.status}`,
       );
       return response.data.id;
     } catch (err) {
       this.logger.error(
-        "API CALL TO POST Field Visits failed: ",
+        `RowNum: ${rowNumber} -> API CALL TO POST Field Visits failed: `,
         err.response.data.message,
       );
     }
   }
 
-  async putFieldVisits(GUID: string, body: any) {
+  async getFieldVisits(rowNumber: number, url: any) {
+    try {
+      const response = await this.axiosInstance.get(url);
+      this.logger.log(
+        `RowNum: ${rowNumber} -> API call to GET Field Visits succeeded: ${response.status}`,
+      );
+
+      let urlAndResponse = {
+        id: rowNumber,
+        url: url,
+        count: response.data.totalCount,
+        GUID:
+          response.data.domainObjects.length > 0
+            ? response.data.domainObjects[0].id
+            : null,
+      };
+      return urlAndResponse;
+    } catch (err) {
+      this.logger.error(
+        `RowNum: ${rowNumber} -> API CALL TO GET Field Visits failed: `,
+        err.response.data.message,
+      );
+    }
+  }
+
+  async getActivities(rowNumber: number, url: any) {
+    try {
+      const response = await this.axiosInstance.get(url);
+      this.logger.log(
+        `RowNum: ${rowNumber} -> API call to GET Activities succeeded: ${response.status}`,
+      );
+
+      let urlAndResponse = {
+        id: rowNumber,
+        url: url,
+        count: response.data.totalCount,
+        GUID:
+          response.data.domainObjects.length > 0
+            ? response.data.domainObjects[0].id
+            : null,
+      };
+      return urlAndResponse;
+    } catch (err) {
+      this.logger.error(
+        `RowNum: ${rowNumber} -> API CALL TO GET Activities failed: `,
+        err.response.data.message,
+      );
+    }
+  }
+
+  async putFieldVisits(rowNumber: number, GUID: string, body: any) {
     try {
       const response = await this.axiosInstance.put(
         `/v1/fieldvisits/${GUID}`,
         body,
       );
       this.logger.log(
-        `API call to PUT Field Visits succeeded: ${response.status}`,
+        `RowNum: ${rowNumber} -> API call to PUT Field Visits succeeded: ${response.status}`,
       );
       return response.data.id;
     } catch (err) {
       this.logger.error(
-        "API CALL TO PUT Field Visits failed: ",
+        `RowNum: ${rowNumber} -> API CALL TO PUT Field Visits failed: `,
         err.response.data.message,
       );
     }
   }
 
-  async fieldActivities(body: any) {
+  async fieldActivities(rowNumber: number, body: any) {
     try {
       const response = await this.axiosInstance.post("/v1/activities", body);
       this.logger.log(
-        `API call to POST Activities succeeded: ${response.status}`,
+        `RowNum: ${rowNumber} -> API call to POST Activities succeeded: ${response.status}`,
       );
       return response.data.id;
     } catch (err) {
       this.logger.error(
-        "API CALL TO POST Activities failed: ",
+        `RowNum: ${rowNumber} -> API CALL TO POST Activities failed: `,
         err.response.data.message,
       );
     }
   }
 
-  async putFieldActivities(GUID: string, body: any) {
+  async putFieldActivities(rowNumber: number, GUID: string, body: any) {
     try {
       const response = await this.axiosInstance.put(
         `/v1/activities/${GUID}`,
         body,
       );
       this.logger.log(
-        `API call to PUT Field Activities succeeded: ${response.status}`,
+        `RowNum: ${rowNumber} -> API call to PUT Field Activities succeeded: ${response.status}`,
       );
       return response.data.id;
     } catch (err) {
       this.logger.error(
-        "API CALL TO PUT Field Activities failed: ",
+        `RowNum: ${rowNumber} -> API CALL TO PUT Field Activities failed: `,
         err.response.data.message,
       );
     }
   }
 
-  async fieldSpecimens(body: any) {
+  async fieldSpecimens(rowNumber: number, body: any) {
     try {
       const response = await this.axiosInstance.post("/v1/specimens", body);
       this.logger.log(
-        `API call to POST Specimens succeeded: ${response.status}`,
+        `RowNum: ${rowNumber} -> API call to POST Specimens succeeded: ${response.status}`,
       );
       return response.data.id;
     } catch (err) {
-      this.logger.error(
-        "API CALL TO POST Specimens failed: ",
-        err.response.data.message,
-      );
+      const message = err.response.data.message;
+     
+      const skipMessage =
+        "A Specimen with the same name already exists for the referenced Activity";
+
+      if (message == skipMessage) {
+        this.logger.warn(
+          `RowNum: ${rowNumber} -> Duplicate Specimen name, skipping...`,
+        );
+        return "exists";
+      }else{
+        this.logger.error(
+          `RowNum: ${rowNumber} -> API CALL TO POST Specimens failed: `,
+          err.response.data.message,
+        );
+      }
     }
   }
 
-  async putSpecimens(GUID: string, body: any) {
+  async putSpecimens(rowNumber: number, GUID: string, body: any) {
     try {
       const response = await this.axiosInstance.put(
         `/v1/specimens/${GUID}`,
         body,
       );
       this.logger.log(
-        `API call to PUT Specimens succeeded: ${response.status}`,
+        `RowNum: ${rowNumber} -> API call to PUT Specimens succeeded: ${response.status}`,
       );
       return response.data.id;
     } catch (err) {
       this.logger.error(
-        "API CALL TO PUT Specimens failed: ",
+        `RowNum: ${rowNumber} -> API CALL TO PUT Specimens failed: `,
         err.response.data.message,
       );
     }
@@ -124,18 +187,62 @@ export class AqiApiService {
 
   async getObservationsFromFile(fileName: string) {
     try {
-      let observations = (
-        await this.axiosInstance.get("/v2/observations?limit=1000")
-      ).data.domainObjects;
+      let allObservationsFromFile = [];
+      let cursor: string | null = null;
+      let total = 0;
+      let processedCount = 0;
+      let loopCount = 0;
 
-      const relatedData = observations
-        .filter((observation) =>
-          observation.extendedAttributes.some(
-            (attribute) => attribute.text === fileName,
-          ),
-        )
-        .map((observation) => observation.id);
-      return relatedData;
+      do {
+        const url = cursor
+          ? `/v2/observations?EA_Upload%20File%20Name=${fileName}&cursor=${cursor}`
+          : `/v2/observations?EA_Upload%20File%20Name=${fileName}`;
+
+        const response = await this.axiosInstance.get(url);
+
+        if (response.status != 200) {
+          this.logger.error(
+            `Could not ping AQI API for observations. Response Code: ${response.status}`,
+          );
+          return;
+        }
+
+        const entries = response.data.domainObjects || [];
+        const relatedData = entries.map((observation) => observation.id);
+        cursor = response.data.cursor || null;
+        total = response.data.totalCount || 0;
+
+        this.logger.log(
+          `Fetched ${entries.length} entries from observations. Processed: ${processedCount}/${total}`,
+        );
+
+        allObservationsFromFile.push(...relatedData);
+
+        // Increment counters
+        processedCount += entries.length;
+        loopCount++;
+
+        // Log progress periodically
+        if (loopCount % 5 === 0 || processedCount >= total) {
+          this.logger.log(`Progress: ${processedCount}/${total}`);
+        }
+
+        // Break if we've processed all expected entries
+        if (processedCount >= total) {
+          this.logger.log(`Completed fetching data for observations`);
+          break;
+        }
+
+        // Edge case: Break if no entries are returned but the cursor is still valid
+        if (entries.length === 0 && cursor) {
+          this.logger.warn(
+            `Empty response for observations with cursor ${cursor}. Terminating early.`,
+          );
+          break;
+        }
+      } while (cursor);
+
+      return allObservationsFromFile;
     } catch (err) {
       this.logger.error("API CALL TO GET Observations from File failed: ", err);
     }
@@ -584,7 +691,7 @@ export class AqiApiService {
     }
   }
 
-  async ObservationDelete(obsData: any[]) {
+  async ObservationDelete(obsData: any[], obsDeleteErrors: any[]) {
     if (obsData.length > 0) {
       for (let i = 0; i < obsData.length; i++) {
         try {
@@ -599,15 +706,18 @@ export class AqiApiService {
           );
           this.logger.log("AQI OBS DELETION: " + deletion.status);
         } catch (err) {
+          let obsError = `{"rowNum": "N/A", "type": "ERROR", "message": {"Delete": "Failed to delete observation with GUID ${obsData[i]}"}}`;
+          obsDeleteErrors.push(JSON.parse(obsError));
           this.logger.error(`API call to delete AQI observation failed: `, err);
         }
       }
     }
+    // await new Promise((f) => setTimeout(f, 1000));
 
-    return new Promise((resolve) => setTimeout(resolve, 1000));
+    return obsDeleteErrors;
   }
 
-  async SpecimenDelete(specimenData: any[]) {
+  async SpecimenDelete(specimenData: any[], specimenDeleteErrors: any[]) {
     if (specimenData.length > 0) {
       for (const specimen of specimenData) {
         try {
@@ -621,32 +731,18 @@ export class AqiApiService {
             },
           );
           this.logger.log("AQI SPECIMEN DELETION: " + aqiDeletion.status);
-
-          try {
-            const dbDeletion = await this.prisma.aqi_specimens.delete({
-              where: {
-                aqi_specimens_id: specimen,
-              },
-            });
-            this.logger.log("DB SPECIMEN DELETION: " + dbDeletion);
-          } catch (err) {
-            if (err.code === "P2025") {
-              this.logger.log(
-                `Record with ID ${specimen} not found in DB. Record was deleted in AQI but skipping deletion from DB.`,
-              );
-            } else {
-              this.logger.error(`API call to delete DB specimen failed: `, err);
-            }
-          }
         } catch (err) {
+          let specimenError = `{"rowNum": "N/A", "type": "ERROR", "message": {"Delete": "Failed to delete specimen with GUID ${specimen}"}}`;
+          specimenDeleteErrors.push(JSON.parse(specimenError));
           this.logger.error(`API call to delete AQI specimen failed: `, err);
         }
       }
     }
-    return new Promise((resolve) => setTimeout(resolve, 1000));
+    // await new Promise((f) => setTimeout(f, 1000));
+    return specimenDeleteErrors;
   }
 
-  async ActivityDelete(activityData: any[]) {
+  async ActivityDelete(activityData: any[], activityDeleteErrors: any[]) {
     if (activityData.length > 0) {
       for (const activity of activityData) {
         try {
@@ -660,32 +756,18 @@ export class AqiApiService {
             },
           );
           this.logger.log("AQI ACTIVITY DELETION: " + aqiDeletion.status);
-
-          try {
-            const dbDeletion = await this.prisma.aqi_field_activities.delete({
-              where: {
-                aqi_field_activities_id: activity,
-              },
-            });
-            this.logger.log("DB ACTIVITY DELETION: " + dbDeletion);
-          } catch (err) {
-            if (err.code === "P2025") {
-              this.logger.log(
-                `Record with ID ${activity} not found in DB. Record was deleted in AQI but skipping deletion from DB.`,
-              );
-            } else {
-              this.logger.error(`API call to delete DB activity failed: `, err);
-            }
-          }
         } catch (err) {
+          let activityError = `{"rowNum": "N/A", "type": "ERROR", "message": {"Delete": "Failed to delete activity with GUID ${activity}"}}`;
+          activityDeleteErrors.push(JSON.parse(activityError));
           this.logger.error(`API call to delete AQI activity failed: `, err);
         }
       }
     }
-    return new Promise((resolve) => setTimeout(resolve, 1000));
+    // await new Promise((f) => setTimeout(f, 1000));
+    return activityDeleteErrors;
   }
 
-  async VisitDelete(visitData: any[]) {
+  async VisitDelete(visitData: any[], visitDeleteErrors: any[]) {
     if (visitData.length > 0) {
       for (const visit of visitData) {
         try {
@@ -700,36 +782,25 @@ export class AqiApiService {
           );
           this.logger.log("AQI VISIT DELETION: " + deletion.status);
 
-          try {
-            const dbDeletion = await this.prisma.aqi_field_visits.delete({
-              where: {
-                aqi_field_visits_id: visit
-              },
-            });
-            this.logger.log("DB VISIT DELETION: " + dbDeletion);
-          } catch (err) {
-            if (err.code === "P2025") {
-              this.logger.log(
-                `Records with IDs ${visitData} not found in DB. Records were deleted in AQI but skipping deletion from DB.`,
-              );
-            } else {
-              this.logger.error(`API call to delete DB visits failed: `, err);
-            }
-          }
         } catch (err) {
+          let visitError = `{"rowNum": "N/A", "type": "ERROR", "message": {"Delete": "Failed to delete visit with GUID ${visit}"}}`;
+          visitDeleteErrors.push(JSON.parse(visitError));
           this.logger.error(`API call to delete AQI visit failed: `, err);
         }
       }
     }
-    return new Promise((resolve) => setTimeout(resolve, 1000));
+    // await new Promise((f) => setTimeout(f, 1000));
+    return visitDeleteErrors;
   }
 
-  async deleteRelatedData(fileName: string) {
+  async deleteRelatedData(fileName: string, submission_id: string) {
     const guidsToDelete: any = await this.prisma.aqi_imported_data.findMany({
       where: {
         file_name: fileName,
       },
     });
+
+    let deleteErrors = [];
 
     let successfulObs = false;
     let successfulSpecimen = false;
@@ -743,6 +814,7 @@ export class AqiApiService {
 
     await this.ObservationDelete(
       guidsToDelete[0].imported_guids.observations,
+      deleteErrors,
     ).then(() => {
       successfulObs = true;
       this.logger.log(`Finished observation delete for file ${fileName}`);
@@ -753,12 +825,13 @@ export class AqiApiService {
       this.logger.log(
         `Starting specimen delete for file ${fileName}..............`,
       );
-      await this.SpecimenDelete(guidsToDelete[0].imported_guids.specimens).then(
-        () => {
-          successfulSpecimen = true;
-          this.logger.log(`Finished specimen delete for file ${fileName}.`);
-        },
-      );
+      await this.SpecimenDelete(
+        guidsToDelete[0].imported_guids.specimens,
+        deleteErrors,
+      ).then(() => {
+        successfulSpecimen = true;
+        this.logger.log(`Finished specimen delete for file ${fileName}.`);
+      });
     }
 
     if (successfulSpecimen) {
@@ -768,6 +841,7 @@ export class AqiApiService {
       );
       await this.ActivityDelete(
         guidsToDelete[0].imported_guids.activities,
+        deleteErrors,
       ).then(() => {
         successfulActivity = true;
         this.logger.log(`Finished activity delete for file ${fileName}.`);
@@ -779,27 +853,43 @@ export class AqiApiService {
       this.logger.log(
         `Starting visit delete for file ${fileName}..............`,
       );
-      await this.VisitDelete(guidsToDelete[0].imported_guids.visits).then(
-        () => {
-          successfulVisit = true;
-          this.logger.log(`Finished visit delete for file ${fileName}.`);
-        },
-      );
+      await this.VisitDelete(
+        guidsToDelete[0].imported_guids.visits,
+        deleteErrors,
+      ).then(() => {
+        successfulVisit = true;
+        this.logger.log(`Finished visit delete for file ${fileName}.`);
+      });
     }
 
-    if (
-      successfulObs &&
-      successfulSpecimen &&
-      successfulActivity &&
-      successfulVisit
-    ) {
-      await this.prisma.aqi_imported_data.deleteMany({
+    // get the file error logs
+    const errorLogToUpdate = await this.prisma.file_error_logs.findMany({
+      where: {
+        file_submission_id: submission_id,
+      },
+      select: {
+        file_error_log_id: true,
+        error_log: true,
+      },
+    });
+
+    let fileErrors = errorLogToUpdate.flatMap((item) =>
+      Array.isArray(item.error_log) ? (item.error_log as any[]) : [],
+    );
+
+    // append all the delete errors found above to this list
+    const finalErrorLogs = [...fileErrors, ...deleteErrors];
+    await this.prisma.$transaction(async (prisma) => {
+      await this.prisma.file_error_logs.update({
         where: {
-          file_name: fileName,
+          file_error_log_id: errorLogToUpdate[0].file_error_log_id,
+        },
+        data: {
+          error_log: finalErrorLogs,
         },
       });
-    } else {
-      this.logger.error(`Error deleting related data for file ${fileName}.`);
-    }
+    });
+
+    deleteErrors = [];
   }
 }

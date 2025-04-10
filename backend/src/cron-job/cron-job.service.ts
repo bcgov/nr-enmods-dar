@@ -1,12 +1,11 @@
-import { forwardRef, Inject, Injectable, Logger } from "@nestjs/common";
-import axios, { create } from "axios";
-import { error } from "winston";
+import { Injectable, Logger } from "@nestjs/common";
+import axios from "axios";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "nestjs-prisma";
 import { FileParseValidateService } from "src/file_parse_and_validation/file_parse_and_validation.service";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
-import { resolve } from "path";
 import { OperationLockService } from "src/operationLock/operationLock.service";
+import * as fs from "fs";
 
 /**
  * Cron Job service for filling code tables with data from AQI API
@@ -23,7 +22,7 @@ export class CronJobService {
     private prisma: PrismaService,
     private readonly fileParser: FileParseValidateService,
     private readonly objectStore: ObjectStoreService,
-    private readonly operationLockService: OperationLockService
+    private readonly operationLockService: OperationLockService,
   ) {
     this.tableModels = new Map<string, any>([
       ["aqi_projects", this.prisma.aqi_projects],
@@ -40,9 +39,9 @@ export class CronJobService {
       ["aqi_tissue_types", this.prisma.aqi_tissue_types],
       ["aqi_sampling_agency", this.prisma.aqi_sampling_agency],
       ["aqi_locations", this.prisma.aqi_locations],
-      ["aqi_field_visits", this.prisma.aqi_field_visits],
-      ["aqi_field_activities", this.prisma.aqi_field_activities],
-      ["aqi_specimens", this.prisma.aqi_specimens],
+      // ["aqi_field_visits", this.prisma.aqi_field_visits],
+      // ["aqi_field_activities", this.prisma.aqi_field_activities],
+      // ["aqi_specimens", this.prisma.aqi_specimens],
     ]);
   }
 
@@ -121,7 +120,8 @@ export class CronJobService {
       paramsEnabled: false,
     },
     {
-      endpoint: "/v1/extendedattributes/65d94fac-aac5-498f-bc73-b63a322ce350/dropdownlistitems",
+      endpoint:
+        "/v1/extendedattributes/65d94fac-aac5-498f-bc73-b63a322ce350/dropdownlistitems",
       method: "GET",
       dbTable: "aqi_sampling_agency",
       paramsEnabled: false,
@@ -132,24 +132,24 @@ export class CronJobService {
       dbTable: "aqi_locations",
       paramsEnabled: true,
     },
-    {
-      endpoint: "/v1/fieldvisits",
-      method: "GET",
-      dbTable: "aqi_field_visits",
-      paramsEnabled: true,
-    },
-    {
-      endpoint: "/v1/activities",
-      method: "GET",
-      dbTable: "aqi_field_activities",
-      paramsEnabled: true,
-    },
-    {
-      endpoint: "/v1/specimens",
-      method: "GET",
-      dbTable: "aqi_specimens",
-      paramsEnabled: true,
-    },
+    // {
+    //   endpoint: "/v1/fieldvisits",
+    //   method: "GET",
+    //   dbTable: "aqi_field_visits",
+    //   paramsEnabled: true,
+    // },
+    // {
+    //   endpoint: "/v1/activities",
+    //   method: "GET",
+    //   dbTable: "aqi_field_activities",
+    //   paramsEnabled: true,
+    // },
+    // {
+    //   endpoint: "/v1/specimens",
+    //   method: "GET",
+    //   dbTable: "aqi_specimens",
+    //   paramsEnabled: true,
+    // },
   ];
 
   private async updateDatabase(dbTable: string, data: any, batchSize = 1000) {
@@ -179,7 +179,6 @@ export class CronJobService {
           `Processed batch ${Math.ceil((i + 1) / batchSize)}/${Math.ceil(data.length / batchSize)} for ${dbTable}`,
         );
       }
-
       this.logger.log(
         `Successfully upserted ${data.length} entries into ${dbTable} in ${(new Date().getTime() - startTime) / 1000} seconds`,
       );
@@ -218,9 +217,9 @@ export class CronJobService {
         };
       case "aqi_field_activities":
         return {
-          aqi_field_activities_start_time: new Date(record.startTime),
-          aqi_field_activities_custom_id: record.customId,
-          aqi_field_visit_start_time: new Date(record.visitStartTime),
+          aqi_field_activities_start_time: new Date(record.startTime) ?? "",
+          aqi_field_activities_custom_id: record.customId ?? "",
+          aqi_field_visit_start_time: new Date(record.visitStartTime) ?? "",
           aqi_location_custom_id: record.locationCustomID,
           create_user_id: record.creationUserProfileId,
           create_utc_timestamp: record.creationTime
@@ -235,7 +234,7 @@ export class CronJobService {
         return {
           aqi_specimens_custom_id: record.name,
           aqi_field_activities_start_time: record.activityStartTime,
-          aqi_field_activities_custom_id: record.activityCustomId,
+          aqi_field_activities_custom_id: record.activityCustomId ?? "",
           aqi_location_custom_id: record.locationCustomID,
         };
       case "aqi_analysis_methods":
@@ -318,7 +317,7 @@ export class CronJobService {
           [`${dbTable}_id`]: record.id,
           aqi_specimens_custom_id: record.name,
           aqi_field_activities_start_time: record.activityStartTime,
-          aqi_field_activities_custom_id: record.activityCustomId,
+          aqi_field_activities_custom_id: record.activityCustomid ?? "",
           aqi_location_custom_id: record.locationCustomID,
         };
       case "aqi_analysis_methods":
@@ -355,9 +354,10 @@ export class CronJobService {
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   private async fetchAQSSData() {
-
-    if (!this.operationLockService.acquireLock("PULLDOWN")){
-      this.logger.log("Skipping cron procedure of data pull down: File processing underway.");
+    if (!this.operationLockService.acquireLock("PULLDOWN")) {
+      this.logger.log(
+        "Skipping cron procedure of data pull down: File processing underway.",
+      );
       return;
     }
 
@@ -369,59 +369,68 @@ export class CronJobService {
 
     const baseUrl = process.env.AQI_BASE_URL;
 
-    for (const api of this.apisToCall) {
-      this.logger.log(`Getting data from ${api.endpoint}`);
-      let cursor = "";
-      let total = 0;
-      let processedCount = 0;
-      let loopCount = 0;
+    try {
+      for (const api of this.apisToCall) {
+        this.logger.log(`Getting data from ${api.endpoint}`);
+        let cursor = "";
+        let total = 0;
+        let processedCount = 0;
+        let loopCount = 0;
 
-      do {
-        const url = `${baseUrl + api.endpoint}${api.paramsEnabled ? (cursor ? `?limit=1000&cursor=${cursor}` : "?limit=1000") : ""}`;
-        const response = await axios.get(url);
+        do {
+          const url = `${baseUrl + api.endpoint}${api.paramsEnabled ? (cursor ? `?limit=1000&cursor=${cursor}` : "?limit=1000") : ""}`;
+          const response = await axios.get(url);
 
-        // Extract response data
-        const entries = response.data.domainObjects || [];
-        cursor = response.data.cursor || null;
-        total = response.data.totalCount || 0;
+          if (response.status != 200) {
+            this.logger.error(
+              `Could not ping AQI API for ${api.endpoint}. Response Code: ${response.status}`,
+            );
+            return;
+          }
 
-        this.logger.log(
-          `Fetched ${entries.length} entries from ${api.endpoint}. Processed: ${processedCount}/${total}`,
-        );
+          // Extract response data
+          const entries = response.data.domainObjects || [];
+          cursor = response.data.cursor || null;
+          total = response.data.totalCount || 0;
 
-        // Process and filter the data
-        const filteredData = await this.filterData(api.endpoint, entries);
-
-        // Stream data into the database in small batches
-        await this.updateDatabase(api.dbTable, filteredData, 100);
-
-        // Increment counters
-        processedCount += entries.length;
-        loopCount++;
-
-        // Log progress periodically
-        if (loopCount % 5 === 0 || processedCount >= total) {
-          this.logger.log(`Progress: ${processedCount}/${total}`);
-        }
-
-        // Break if we've processed all expected entries
-        if (processedCount >= total) {
-          this.logger.log(`Completed fetching data for ${api.endpoint}`);
-          break;
-        }
-
-        // Edge case: Break if no entries are returned but the cursor is still valid
-        if (entries.length === 0 && cursor) {
-          this.logger.warn(
-            `Empty response for ${api.endpoint} with cursor ${cursor}. Terminating early.`,
+          this.logger.log(
+            `Fetched ${entries.length} entries from ${api.endpoint}. Processed: ${processedCount}/${total}`,
           );
-          break;
-        }
-      } while (cursor); // Continue only if a cursor is provided
-    }
 
-    this.logger.log(`Cron Job completed.`);
-    this.operationLockService.releaseLock("PULLDOWN");
+          // Process and filter the data
+          const filteredData = await this.filterData(api.endpoint, entries);
+
+          // Stream data into the database in small batches
+          await this.updateDatabase(api.dbTable, filteredData, 100);
+
+          // Increment counters
+          processedCount += entries.length;
+          loopCount++;
+
+          // Log progress periodically
+          if (loopCount % 5 === 0 || processedCount >= total) {
+            this.logger.log(`Progress: ${processedCount}/${total}`);
+          }
+
+          // Break if we've processed all expected entries
+          if (processedCount >= total) {
+            this.logger.log(`Completed fetching data for ${api.endpoint}`);
+            break;
+          }
+
+          // Edge case: Break if no entries are returned but the cursor is still valid
+          if (entries.length === 0 && cursor) {
+            this.logger.warn(
+              `Empty response for ${api.endpoint} with cursor ${cursor}. Terminating early.`,
+            );
+            break;
+          }
+        } while (cursor); // Continue only if a cursor is provided
+      }
+    } finally {
+      this.logger.log(`Cron Job completed.`);
+      this.operationLockService.releaseLock("PULLDOWN");
+    }
   }
 
   private async filterData(endpoint: string, entries: any) {
@@ -564,9 +573,9 @@ export class CronJobService {
         return array.map(filerAnalysisMethodAttributes);
       } else if (
         endpoint ==
-        "/v1/extendedattributes/6f7d5be0-f91a-4353-9d31-13983205cbe0/dropdownlistitems" ||
+          "/v1/extendedattributes/6f7d5be0-f91a-4353-9d31-13983205cbe0/dropdownlistitems" ||
         endpoint ==
-        "/v1/extendedattributes/65d94fac-aac5-498f-bc73-b63a322ce350/dropdownlistitems" 
+          "/v1/extendedattributes/65d94fac-aac5-498f-bc73-b63a322ce350/dropdownlistitems"
       ) {
         return array.map(filterEELists);
       } else {
@@ -576,7 +585,7 @@ export class CronJobService {
     return filterArray(entries);
   }
 
-  @Cron(CronExpression.EVERY_MINUTE) // every 2 hours
+  @Cron(CronExpression.EVERY_30_SECONDS) // every 2 hours
   private async beginFileValidation() {
     /*
     TODO:
@@ -604,7 +613,7 @@ export class CronJobService {
   async processFiles(files) {
     this.logger.log("Starting to process queued files...");
 
-    try{
+    try {
       for (const file of files) {
         try {
           const fileStream = await this.objectStore.getFileData(file.file_name);
@@ -615,17 +624,71 @@ export class CronJobService {
             file.file_name,
             file.original_file_name,
             file.submission_id,
-            file.file_operation_code,
+            file.file_operation_code, 
           );
 
           this.logger.log(`File ${file.file_name} processed successfully.`);
         } catch (err) {
           this.logger.error(`Error processing file ${file.file_name}: ${err}`);
         }
-
       }
-    }finally{
-      this.operationLockService.releaseLock("FILE_PROCESSING")
+    } finally {
+      this.operationLockService.releaseLock("FILE_PROCESSING");
+      return;
+    }
+  }
+
+  @Cron(CronExpression.EVERY_10_SECONDS) // every 2 hours
+  private async beginDelete() {
+    /*
+    TODO:
+      grab all the files from the DB and S3 bucket that have a status of QUEUED
+      for each file returned, change the status to INPROGRESS and go to the parser
+    // */
+    if (!this.operationLockService.acquireLock("DELETE")) {
+      this.logger.warn("Delete cannot be started. Another process running");
+      return;
+    }
+
+    let filesToDelete = await this.fileParser.getFilesToDelete();
+
+    if (filesToDelete.length < 1) {
+      this.logger.log("************** NO FILES TO DELETE **************");
+      this.operationLockService.releaseLock("DELETE");
+      return;
+    } else {
+      this.deleteFiles(filesToDelete).then(() => {
+        this.logger.log("All files processed.");
+      });
+    }
+  }
+
+  async deleteFiles(files) {
+    this.logger.log("Starting to delete queued files...");
+
+    try {
+      for (const file of files) {
+        try {
+          await this.prisma.$transaction(async (prisma) => {
+            const updateFileStatus = await this.prisma.file_submission.update({
+              where: {
+                submission_id: file.submission_id,
+              },
+              data: {
+                submission_status_code: "DELETING",
+                update_utc_timestamp: new Date(),
+              },
+            });
+          });
+          await this.fileParser.deleteFile(file.file_name, file.submission_id);
+
+          this.logger.log(`File ${file.file_name} deleted successfully.`);
+        } catch (err) {
+          this.logger.error(`Error deleting file ${file.file_name}: ${err}`);
+        }
+      }
+    } finally {
+      this.operationLockService.releaseLock("DELETE");
       return;
     }
   }

@@ -1,10 +1,12 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
+import { OperationLockService } from "src/operationLock/operationLock.service";
 import {
   FieldActivities,
   FieldSpecimens,
   FieldVisits,
+  FileHeaders,
   ObservationFile,
   Observations,
 } from "src/types/types";
@@ -13,9 +15,67 @@ import ExcelJS from "exceljs";
 import fs from "fs";
 import { PrismaService } from "nestjs-prisma";
 import { Readable } from "stream";
-import csv from "csv-parser";
 import { format } from "fast-csv";
-import csvParser from "csv-parser";
+import { parse } from "csv-parse";
+
+const fileHeaders: FileHeaders = {
+  "Observation ID": "Observation ID",
+  "Ministry Contact": "Ministry Contact",
+  "Sampling Agency": "Sampling Agency",
+  Project: "Project",
+  "Work Order Number": "Work Order Number",
+  "Location ID": "Location ID",
+  "Field Visit Start Time": "Field Visit Start Time",
+  "Field Visit End Time": "Field Visit End Time",
+  "Field Visit Participants": "Field Visit Participants",
+  "Field Visit Comments": "Field Visit Comments",
+  "Activity Comments": "Activity Comments",
+  "Field Filtered": "Field Filtered",
+  "Field Filtered Comment": "Field Filtered Comment",
+  "Field Preservative": "Field Preservative",
+  "Field Device ID": "Field Device ID",
+  "Field Device Type": "Field Device Type",
+  "Sampling Context Tag": "Sampling Context Tag",
+  "Collection Method": "Collection Method",
+  Medium: "Medium",
+  "Depth Upper": "Depth Upper",
+  "Depth Lower": "Depth Lower",
+  "Depth Unit": "Depth Unit",
+  "Observed DateTime": "Observed DateTime",
+  "Observed Date Time End": "Observed Date Time End",
+  "Observed Property ID": "Observed Property ID",
+  "Result Value": "Result Value",
+  "Method Detection Limit": "Method Detection Limit",
+  "Method Reporting Limit": "Method Reporting Limit",
+  "Result Unit": "Result Unit",
+  "Detection Condition": "Detection Condition",
+  "Limit Type": "Limit Type",
+  Fraction: "Fraction",
+  "Data Classification": "Data Classification",
+  "Source of Rounded Value": "Source of Rounded Value",
+  "Rounded Value": "Rounded Value",
+  "Rounding Specification": "Rounding Specification",
+  "Analyzing Agency": "Analyzing Agency",
+  "Analysis Method": "Analysis Method",
+  "Analyzed Date Time": "Analyzed Date Time",
+  "Result Status": "Result Status",
+  "Result Grade": "Result Grade",
+  "Activity ID": "Activity ID",
+  "Activity Name": "Activity Name",
+  "Tissue Type": "Tissue Type",
+  "Lab Arrival Temperature": "Lab Arrival Temperature",
+  "Specimen Name": "Specimen Name",
+  "Lab Quality Flag": "Lab Quality Flag",
+  "Lab Arrival Date and Time": "Lab Arrival Date and Time",
+  "Lab Prepared DateTime": "Lab Prepared DateTime",
+  "Lab Sample ID": "Lab Sample ID",
+  "Lab Dilution Factor": "Lab Dilution Factor",
+  "Lab Comment": "Lab Comment",
+  "Lab Batch ID": "Lab Batch ID",
+  "QC Type": "QC Type",
+  "QC Source Activity Name": "QC Source Activity Name",
+  "Composite Stat": "Composite Stat",
+};
 
 const visits: FieldVisits = {
   MinistryContact: "",
@@ -80,7 +140,7 @@ const observations: Observations = {
   CollectionMethod: "",
   FieldDeviceID: "",
   FieldDeviceType: "",
-  FieldComment: "",
+  FieldVisitComments: "",
   SpecimenName: "",
   AnalysisMethod: "",
   DetectionCondition: "",
@@ -154,10 +214,19 @@ export class FileParseValidateService {
     private readonly fileSubmissionsService: FileSubmissionsService,
     private readonly aqiService: AqiApiService,
     private readonly objectStoreService: ObjectStoreService,
+    private readonly operationLockService: OperationLockService,
   ) {}
 
   async getQueuedFiles() {
     return this.fileSubmissionsService.findByCode("QUEUED");
+  }
+
+  async getFilesToDelete() {
+    return this.fileSubmissionsService.findByCode("DEL QUEUED");
+  }
+
+  async deleteFile(fileName, fileId) {
+    return this.fileSubmissionsService.remove(fileName, fileId);
   }
 
   async queryCodeTables(tableName: string, param: any) {
@@ -289,7 +358,7 @@ export class FileParseValidateService {
     }
   }
 
-  async fieldVisitJson(visitData: any, apiType: string) {
+  async fieldVisitJson(visitData: any, row_number: number, apiType: string) {
     let postData: any = {};
     const extendedAttribs = { extendedAttributes: [] };
 
@@ -343,11 +412,11 @@ export class FileParseValidateService {
 
     if (apiType === "post") {
       Object.assign(currentVisitAndLoc, {
-        fieldVisit: await this.aqiService.fieldVisits(postData),
+        fieldVisit: await this.aqiService.fieldVisits(row_number, postData),
       });
     } else if (apiType == "put") {
       const GUIDtoUpdate = visitData.id;
-      await this.aqiService.putFieldVisits(GUIDtoUpdate, postData);
+      await this.aqiService.putFieldVisits(row_number, GUIDtoUpdate, postData);
       Object.assign(currentVisitAndLoc, {
         fieldVisit: GUIDtoUpdate,
       });
@@ -355,7 +424,11 @@ export class FileParseValidateService {
     return currentVisitAndLoc;
   }
 
-  async fieldActivityJson(activityData: any, apiType: string) {
+  async fieldActivityJson(
+    activityData: any,
+    row_number: number,
+    apiType: string,
+  ) {
     let postData: any = {};
     const extendedAttribs = { extendedAttributes: [] };
     const sampleContextTags = { samplingContextTags: [] };
@@ -418,6 +491,7 @@ export class FileParseValidateService {
     Object.assign(postData, { type: activityData.ActivityType });
     Object.assign(postData, extendedAttribs);
     Object.assign(postData, sampleContextTags);
+    Object.assign(postData, { comment: activityData.ActivityComments });
     Object.assign(postData, { startTime: activityData.ObservedDateTime });
     Object.assign(postData, { endTime: activityData.ObservedDateTimeEnd });
     Object.assign(postData, {
@@ -430,14 +504,18 @@ export class FileParseValidateService {
     if (apiType === "post") {
       Object.assign(currentActivity, {
         activity: {
-          id: await this.aqiService.fieldActivities(postData),
+          id: await this.aqiService.fieldActivities(row_number, postData),
           customId: activityData.ActivityName,
           startTime: activityData.ObservedDateTime,
         },
       });
     } else if (apiType === "put") {
       const GUIDtoUpdate = activityData.id;
-      await this.aqiService.putFieldActivities(GUIDtoUpdate, postData);
+      await this.aqiService.putFieldActivities(
+        row_number,
+        GUIDtoUpdate,
+        postData,
+      );
       Object.assign(currentActivity, {
         activity: {
           id: GUIDtoUpdate,
@@ -450,7 +528,7 @@ export class FileParseValidateService {
     return currentActivity;
   }
 
-  async specimensJson(specimenData: any, apiType: string) {
+  async specimensJson(specimenData: any, row_number: number, apiType: string) {
     let postData: any = {};
     const extendedAttribs = { extendedAttributes: [] };
 
@@ -517,14 +595,14 @@ export class FileParseValidateService {
     if (apiType === "post") {
       Object.assign(currentSpecimen, {
         specimen: {
-          id: await this.aqiService.fieldSpecimens(postData),
+          id: await this.aqiService.fieldSpecimens(row_number, postData),
           customId: specimenData.SpecimenName,
           startTime: specimenData.ObservedDateTime,
         },
       });
     } else if (apiType === "put") {
       const GUIDtoUpdate = specimenData.id;
-      await this.aqiService.putSpecimens(GUIDtoUpdate, postData);
+      await this.aqiService.putSpecimens(row_number, GUIDtoUpdate, postData);
       Object.assign(currentSpecimen, {
         specimen: {
           id: GUIDtoUpdate,
@@ -641,6 +719,8 @@ export class FileParseValidateService {
           if (row["QCType"] == "") {
             Object.assign(filteredObj, { ActivityType: "SPIKE" });
           }
+        } else if (row["DataClassification"] == "FIELD_SURVEY") {
+          Object.assign(filteredObj, { ActivityType: "FIELD_SURVEY" });
         }
       } else {
         Object.assign(filteredObj, customAttributes);
@@ -650,7 +730,41 @@ export class FileParseValidateService {
     return filteredObj;
   }
 
-  async localValidation(rowNumber: number, rowData: any) {
+  async checkHeaders(rowHeaders: any[], fileType: string) {
+    let headerErrors = [];
+    let sourceHeaders = [];
+    const targetHeaders = Object.keys(fileHeaders);
+
+    if (fileType == "xlsx") {
+      sourceHeaders = rowHeaders.slice(1);
+    } else {
+      sourceHeaders = rowHeaders;
+    }
+
+    if (sourceHeaders.length != targetHeaders.length) {
+      let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "Invalid number of headers. Got ${sourceHeaders.length}, expected ${targetHeaders.length}"}}`;
+      headerErrors.push(JSON.parse(errorLog));
+    }
+
+    for (let i = 0; i < sourceHeaders.length; i++) {
+      if (sourceHeaders[i] !== targetHeaders[i]) {
+        if (targetHeaders[i] === undefined) {
+          let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${sourceHeaders[i]} is invalid. Please check submission file."}}`;
+          headerErrors.push(JSON.parse(errorLog));
+        } else {
+          let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${sourceHeaders[i]}, should be ${targetHeaders[i]}"}}`;
+          headerErrors.push(JSON.parse(errorLog));
+        }
+      }
+    }
+    return headerErrors;
+  }
+
+  async localValidation(
+    rowNumber: number,
+    rowData: any,
+    validationApisCalled: any,
+  ) {
     let errorLogs = [];
     let existingRecords = [];
     // for (const [index, record] of allRecords.entries()) {
@@ -797,19 +911,6 @@ export class FileParseValidateService {
       }
     }
 
-    if (rowData.hasOwnProperty("FieldDeviceType")) {
-      if (
-        (rowData["DataClassification"] == "FIELD_RESULT" ||
-          rowData["DataClassification"] == "ACTIVITY_RESULT" ||
-          rowData["DataClassification"] == "FIELD_SURVEY" ||
-          rowData["DataClassification"] == "VERTICAL_PROFILE") &&
-        rowData["FieldDeviceType"] == ""
-      ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"FieldDeviceType": "Cannot be empty when data classification is ${rowData["DataClassification"]}"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      }
-    }
-
     if (rowData.hasOwnProperty("CollectionMethod")) {
       if (
         rowData["DataClassification"] == "LAB" ||
@@ -903,12 +1004,18 @@ export class FileParseValidateService {
         }
       }
 
-      if (
-        rowData["CompositeStat"] != "" &&
-        rowData["DataClassification"] != "LAB"
-      ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DataClassification": "Must be LAB when Composite Stat is porvided."}}`;
-        errorLogs.push(JSON.parse(errorLog));
+      if (rowData["CompositeStat"] != "") {
+        if (rowData["DataClassification"] != "LAB") {
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DataClassification": "Must be LAB when Composite Stat is porvided."}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+
+        if (rowData["DataClassification"] == "LAB") {
+          if (rowData["SpecimenName"] == "") {
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SpecimenName": "Cannot be empty when Composite Stat is present and Data Classification is LAB."}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+        }
       }
     }
 
@@ -992,7 +1099,7 @@ export class FileParseValidateService {
         rowData["DataClassification"] == "LAB" ||
         rowData["DataClassification"] == "SURROGATE_RESULT"
       ) {
-        if (/^Animal\b/.test(rowData["Medium"])) {
+        if (/^Animal - Fish\b/.test(rowData["Medium"])) {
           if (rowData["TissueType"] == "") {
             let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"TissueType": "Cannot be empty when Data Classification is ${rowData.DataClassification} and Medium is ${rowData.Medium}"}}`;
             errorLogs.push(JSON.parse(errorLog));
@@ -1030,52 +1137,85 @@ export class FileParseValidateService {
     }
 
     if (rowData.hasOwnProperty("SpecimenName")) {
-      if (rowData["CompositeStat"] != "" && rowData["SpecimenName"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SpecimenName": "Cannot be empty when Composite Stat is present."}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      } else if (
-        /^Animal\b/.test(rowData["Medium"]) &&
-        rowData["SpecimenName"] == ""
+      if (
+        rowData["DataClassification"] == "LAB" ||
+        rowData["DataClassification"] == "SURROGATE_RESULT"
       ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SpecimenName": "Cannot be empty when Medium is Animal - Fish"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+        if (
+          /^Animal\b/.test(rowData["Medium"]) &&
+          rowData["SpecimenName"] == ""
+        ) {
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SpecimenName": "Cannot be empty when Medium is ${rowData.Medium} and Data Classification is ${rowData.DataClassification}"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
       }
     }
 
     // check if the visit already exists -- check if visit timetsamp for that location already exists
-
-    const visitExists = await this.aqiService.AQILookup("aqi_field_visits", [
+    const locationGUID = await this.queryCodeTables(
+      "LOCATIONS",
       rowData.LocationID,
-      rowData.FieldVisitStartTime,
-    ]);
-    if (visitExists !== null && visitExists !== undefined) {
-      existingGUIDS["visit"] = visitExists;
-      let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
-      errorLogs.push(JSON.parse(errorLog));
-    }
-
-    // check if the activity already exits -- check if the activity name for that given visit and location already exists
-    const activityExists = await this.aqiService.AQILookup(
-      "aqi_field_activities",
-      [rowData.ActivityName, rowData.ObservedDateTime, rowData.LocationID],
     );
-    if (activityExists !== null && activityExists !== undefined) {
-      existingGUIDS["activity"] = activityExists;
-      let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
-      errorLogs.push(JSON.parse(errorLog));
+
+    const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
+    let visitExists = false;
+    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}`;
+    let activityExists = false;
+
+    if (validationApisCalled.some((item) => item.url === visitURL)) {
+      // visit url has been called before
+      let seenVisitUrl = validationApisCalled.find(
+        (item) => item.url === visitURL,
+      );
+
+      if (seenVisitUrl.count > 0) {
+        // visit exists in AQI
+        visitExists = true;
+        existingGUIDS["visit"] = seenVisitUrl.GUID;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
+        errorLogs.push(JSON.parse(errorLog));
+      }
+    } else {
+      const visitURLCalled = await this.aqiService.getFieldVisits(
+        rowNumber,
+        visitURL,
+      );
+      if (visitURLCalled.count > 0) {
+        // visit exists in AQI
+        visitExists = true;
+        existingGUIDS["visit"] = visitURLCalled.GUID;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
+        errorLogs.push(JSON.parse(errorLog));
+      }
+      validationApisCalled.push(visitURLCalled);
     }
 
-    // check if the specimen already exists -- check if the specimen name for that given visit and location already exists
-    const specimenExists = await this.aqiService.AQILookup("aqi_specimens", [
-      rowData.SpecimenName,
-      rowData.ObservedDateTime,
-      rowData.ActivityName,
-      rowData.LocationID,
-    ]);
-    if (specimenExists !== null && specimenExists !== undefined) {
-      existingGUIDS["specimen"] = specimenExists;
-      let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Specimen": "Specimen Name ${rowData.SpecimenName} for that Activity at Start Time ${rowData.ObservedDateTime} already exists in EnMoDS Specimen"}}`;
-      errorLogs.push(JSON.parse(errorLog));
+    if (validationApisCalled.some((item) => item.url === activityURL)) {
+      // activity url has been called before
+      let seenActivityUrl = validationApisCalled.find(
+        (item) => item.url === activityURL,
+      );
+
+      if (seenActivityUrl.count > 0) {
+        // activity exists in AQI
+        activityExists = true;
+        existingGUIDS["activity"] = seenActivityUrl.GUID;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
+        errorLogs.push(JSON.parse(errorLog));
+      }
+    } else {
+      const activityURLCalled = await this.aqiService.getFieldVisits(
+        rowNumber,
+        activityURL,
+      );
+      if (activityURLCalled.count > 0) {
+        // visit exists in AQI
+        visitExists = true;
+        existingGUIDS["activity"] = activityURLCalled.GUID;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
+        errorLogs.push(JSON.parse(errorLog));
+      }
+      validationApisCalled.push(activityURLCalled);
     }
 
     if (Object.keys(existingGUIDS).length > 0) {
@@ -1095,26 +1235,37 @@ export class FileParseValidateService {
      * Do an initial validation on the observation file. This will check the file has the right number of columns, the header names are correct and the order of the headers are right
      * Do a dry run of the observations
      */
+    const parser = parse({
+      columns: false,
+      trim: true,
+    });
+
+    let isFirstRow = true;
 
     fs.createReadStream(observationFilePath)
-      .pipe(csv())
-      .on("headers", (headers) => {
-        // First check: if the number of columns is correct
-        if (headers.length !== Object.keys(obsFile).length) {
-          let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Invalid number of columns. Expected 40, got ${headers.length}"}}`;
-          errorLogs.push(JSON.parse(errorLog));
-        }
+      .pipe(parser)
+      .on("data", (row) => {
+        if (isFirstRow) {
+          isFirstRow = false;
+          const expectedHeaders = Object.keys(obsFile);
 
-        // Second-Third check:
-        if (
-          !Object.keys(obsFile).every(
-            (header, rowNumber) => header === headers[rowNumber],
-          )
-        ) {
-          let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Headers do not match expected names or order. You can find the expected format here: https://bcenv-enmods-test.aqsamples.ca/import"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+          // First check: if the number of columns is correct
+          if (row.length !== expectedHeaders.length) {
+            let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Invalid number of columns. Expected 40, got ${row.length}"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+
+          // Second-Third check: headers match expected names and order
+          const headerMismatch = expectedHeaders.some(
+            (header, rowNumber) => header !== row[rowNumber],
+          );
+          if (headerMismatch) {
+            let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Headers do not match expected names or order. You can find the expected format here: https://bcenv-enmods-test.aqsamples.ca/import"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
         }
-      });
+      })
+      .on("end", () => {});
 
     const observationsErrors = await this.aqiService.importObservations(
       observationFilePath,
@@ -1171,7 +1322,7 @@ export class FileParseValidateService {
     return;
   }
 
-  async cleanRowBasedOnDataClassification(rowData: any) {
+  cleanRowBasedOnDataClassification(rowData: any) {
     let cleanedRow = rowData;
 
     cleanedRow.QCType = rowData.QCType.toUpperCase();
@@ -1239,6 +1390,7 @@ export class FileParseValidateService {
     allExistingRecords: any,
     originalFileName: any,
     rowNumber: any,
+    validationApisCalled: any,
   ) {
     const fieldVisitCustomAttributes: Partial<FieldVisits> = {
       PlanningStatus: "DONE",
@@ -1292,6 +1444,7 @@ export class FileParseValidateService {
     const recordLocalValidationResults = await this.localValidation(
       rowNumber,
       rowData,
+      validationApisCalled,
     );
 
     this.logger.log(`Finished local validation for row ${rowNumber}`);
@@ -1324,9 +1477,11 @@ export class FileParseValidateService {
   }
 
   async insertDataNonObservations(
+    rowNumber: number,
     rowData: any,
     GuidsToSave: any,
     fileName: string,
+    validationApisCalled: any,
   ) {
     const fieldVisitCustomAttributes: Partial<FieldVisits> = {
       PlanningStatus: "DONE",
@@ -1374,90 +1529,116 @@ export class FileParseValidateService {
      * Otherwise - do a POST with the respective object to the respective API; save the record into the db table (for future use) and save the GUID to the db table
      */
 
-    let visitExists = await this.aqiService.AQILookup("aqi_field_visits", [
+    const locationGUID = await this.queryCodeTables(
+      "LOCATIONS",
       rowData.LocationID,
-      rowData.FieldVisitStartTime,
-    ]);
+    );
+
+    const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
+    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}`;
     let visitInfo: any;
+    let activityInfo: any;
 
-    if (visitExists !== null && visitExists !== undefined) {
-      // send PUT to AQI and add visit data to activity
-      fieldVisit["id"] = visitExists;
-      await this.fieldVisitJson(fieldVisit, "put");
-      fieldActivity["fieldVisit"] = visitExists;
-      fieldActivity["LocationID"] = rowData.LocationID;
-      GuidsToSave["visits"].push(visitExists);
-    } else {
-      // send POST to AQI and add visit data to activity
-      visitInfo = await this.fieldVisitJson(fieldVisit, "post");
+    if (validationApisCalled.some((item) => item.url === visitURL)) {
+      // visit url has been called before
+      let seenVisitUrl = validationApisCalled.find(
+        (item) => item.url === visitURL,
+      );
 
-      // insert the visit record in the db table
-      try {
-        await this.prisma.$transaction(async (prisma) => {
-          await prisma.aqi_field_visits.create({
-            data: {
-              aqi_field_visits_id: visitInfo.fieldVisit,
-              aqi_field_visit_start_time: visitInfo.startTime,
-              aqi_location_custom_id: visitInfo.samplingLocation.custom_id,
-            },
-          });
-        });
-        this.logger.log("Visit record inserted in db successfully.");
+      if (seenVisitUrl.count > 0) {
+        // send PUT to AQI and add visit data to activity
+        fieldVisit["id"] = seenVisitUrl.GUID;
+        fieldActivity["fieldVisit"] = seenVisitUrl.GUID;
+        fieldActivity["LocationID"] = rowData.LocationID;
+        GuidsToSave["visits"].push(seenVisitUrl.GUID);
+      } else {
+        // send POST to AQI and add visit data to activity
+        visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
         fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
         fieldActivity["LocationID"] = rowData.LocationID;
         GuidsToSave["visits"].push(visitInfo.fieldVisit);
-      } catch (err) {
-        this.logger.error(`Error inserting visit record in db: ${err.message}`);
+        
+        seenVisitUrl.count = 1
+        seenVisitUrl.GUID = visitInfo.fieldVisit
       }
+    } else {
+      let visitExists = await this.aqiService.getFieldVisits(
+        rowNumber,
+        visitURL,
+      );
+      if (visitExists.count > 0) {
+        // send PUT to AQI and add visit data to activity
+        fieldVisit["id"] = visitExists.GUID;
+        fieldActivity["fieldVisit"] = visitExists.GUID;
+        fieldActivity["LocationID"] = rowData.LocationID;
+        GuidsToSave["visits"].push(visitExists.GUID);
+      } else {
+        // send POST to AQI and add visit data to activity
+        visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
+        fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
+        fieldActivity["LocationID"] = rowData.LocationID;
+        GuidsToSave["visits"].push(visitInfo.fieldVisit);
+      }
+
+      validationApisCalled.push(visitURL)
     }
 
     if (rowData.DataClassification !== "FIELD_RESULT") {
-      let activityExists = await this.aqiService.AQILookup(
-        "aqi_field_activities",
-        [rowData.ActivityName, rowData.ObservedDateTime, rowData.LocationID],
-      );
-      let activityInfo: any;
+      if (validationApisCalled.some((item) => item.url === activityURL)) {
+        // visit url has been called before
+        let seenActivityUrl = validationApisCalled.find(
+          (item) => item.url === activityURL,
+        );
 
-      if (activityExists !== null && activityExists !== undefined) {
-        // send PUT to AQI
-        fieldActivity["id"] = activityExists;
-        await this.fieldActivityJson(fieldActivity, "put");
-        specimen["activity"] = {
-          id: activityExists,
-          customId: rowData.ActivityName,
-          startTime: rowData.ObservedDateTime,
-        };
-        GuidsToSave["activities"].push(activityExists);
-      } else {
-        // send POST to AQI
-        activityInfo = await this.fieldActivityJson(fieldActivity, "post");
+        if (seenActivityUrl.count > 0) {
+          // send PUT to AQI
+          fieldActivity["id"] = seenActivityUrl.GUID;
+          specimen["activity"] = {
+            id: seenActivityUrl.GUID,
+            customId: rowData.ActivityName,
+            startTime: rowData.ObservedDateTime,
+          };
+          GuidsToSave["activities"].push(seenActivityUrl.GUID);
+        } else {
+          // send POST to AQI
+          activityInfo = await this.fieldActivityJson(
+            fieldActivity,
+            rowNumber,
+            "post",
+          );
 
-        // insert the activity record in the db table
-        try {
-          await this.prisma.$transaction(async (prisma) => {
-            await prisma.aqi_field_activities.create({
-              data: {
-                aqi_field_activities_id: activityInfo.activity.id,
-                aqi_field_activities_start_time:
-                  activityInfo.activity.startTime,
-                aqi_field_activities_custom_id: activityInfo.activity.customId,
-                aqi_location_custom_id: rowData.LocationID,
-                aqi_field_visit_start_time: activityInfo.activity.startTime,
-                create_user_id: fileName, //TODO: need to update this to the user who submitted the file
-                create_utc_timestamp: new Date(),
-                update_user_id: fileName, // TODO: need to update this to the user who submitted the file
-                update_utc_timestamp: new Date(),
-              },
-            });
-          });
-
-          this.logger.log("Activity record inserted in db successfully.");
           specimen["activity"] = activityInfo.activity;
           GuidsToSave["activities"].push(activityInfo.activity.id);
-        } catch (err) {
-          this.logger.error(
-            `Error inserting activity record in db: ${err.message}`,
+          seenActivityUrl.count = 1
+          seenActivityUrl.GUID = activityInfo.activity.id
+        }
+      } else {
+        let activityExists = await this.aqiService.getActivities(
+          rowNumber,
+          activityURL,
+        );
+
+        if (activityExists.count > 0) {
+          // send PUT to AQI
+          fieldActivity["id"] = activityExists.GUID;
+          specimen["activity"] = {
+            id: activityExists.GUID,
+            customId: rowData.ActivityName,
+            startTime: rowData.ObservedDateTime,
+          };
+          GuidsToSave["activities"].push(activityExists.GUID);
+        } else {
+          // send POST to AQI
+          activityInfo = await this.fieldActivityJson(
+            fieldActivity,
+            rowNumber,
+            "post",
           );
+
+          specimen["activity"] = activityInfo.activity;
+          GuidsToSave["activities"].push(activityInfo.activity.id);
+
+          validationApisCalled.push(activityURL)
         }
       }
     }
@@ -1466,44 +1647,13 @@ export class FileParseValidateService {
       rowData.DataClassification !== "VERTICAL_PROFILE" &&
       rowData.DataClassification !== "FIELD_RESULT"
     ) {
-      let specimenExists = await this.aqiService.AQILookup("aqi_specimens", [
-        rowData.SpecimenName,
-        rowData.ObservedDateTime,
-        rowData.ActivityName,
-        rowData.LocationID,
-      ]);
       let specimenInfo: any;
 
-      if (specimenExists !== null && specimenExists !== undefined) {
-        // send PUT to AQI
-        specimen["id"] = specimenExists;
-        await this.specimensJson(specimen, "put");
-        GuidsToSave["specimens"].push(specimenExists);
-      } else {
-        // send POST to AQI
-        specimenInfo = await this.specimensJson(specimen, "post");
-
-        // insert the specimen record in the db table
-        try {
-          await this.prisma.$transaction(async (prisma) => {
-            await this.prisma.aqi_specimens.create({
-              data: {
-                aqi_specimens_id: specimenInfo.specimen.id,
-                aqi_specimens_custom_id: specimenInfo.specimen.customId,
-                aqi_field_activities_start_time:
-                  specimenInfo.specimen.startTime,
-                aqi_field_activities_custom_id: rowData.ActivityName,
-                aqi_location_custom_id: rowData.LocationID,
-              },
-            });
-          });
-          this.logger.log("Specimen record inserted in db successfully.");
-          GuidsToSave["specimens"].push(specimenInfo.specimen.id);
-        } catch (err) {
-          this.logger.error(
-            `Error inserting specimen record in db: ${err.message}`,
-          );
-        }
+      // send POST to AQI
+      specimenInfo = await this.specimensJson(specimen, rowNumber, "post");
+      if (specimenInfo.specimen.id != "exists") {
+        // response true means that the specimen already exists for that activity -- essentially skipping that post and save here
+        GuidsToSave["specimens"].push(specimenInfo.specimen.id);
       }
     }
 
@@ -1659,6 +1809,77 @@ export class FileParseValidateService {
     return;
   }
 
+  async validateCSVRow(
+    row: any,
+    headers: any[],
+    rowNumber: number,
+    ministryContacts,
+    csvStream,
+    allNonObsErrors,
+    allExistingRecords,
+    originalFileName,
+    validationApisCalled,
+  ) {
+    try {
+      this.logger.log(`Started creating object for row ${rowNumber}`);
+      let rowData: Record<string, string> = {};
+      headers.forEach((header) => {
+        rowData[header] = String(row[header] ?? "").replace(/\r?\n/g, " ");
+      });
+
+      rowData = await this.cleanRowBasedOnDataClassification(rowData);
+      this.logger.log(`Finished creating object for row ${rowNumber}`);
+
+      this.logger.log(`Sent row ${rowNumber} for validation`);
+      await this.validateRow(
+        rowData,
+        ministryContacts,
+        csvStream,
+        allNonObsErrors,
+        allExistingRecords,
+        originalFileName,
+        rowNumber,
+        validationApisCalled,
+      );
+    } catch (err) {
+      this.logger.error("Error in async ops:", err.message);
+      throw err;
+    }
+  }
+
+  async importCSVRow(
+    row: any,
+    headers: any[],
+    rowNumber: number,
+    fileName: string,
+    GuidsToSave: any,
+    validationApisCalled,
+  ) {
+    try {
+      this.logger.log(`Started creating object for row ${rowNumber}`);
+      let rowData: Record<string, string> = {};
+      headers.forEach((header) => {
+        rowData[header] = String(row[header] ?? "").replace(/\r?\n/g, " ");
+      });
+
+      rowData = await this.cleanRowBasedOnDataClassification(rowData);
+      this.logger.log(`Finished creating object for row ${rowNumber}`);
+
+      this.logger.log(`Sent row ${rowNumber} for import`);
+      await this.insertDataNonObservations(
+        rowNumber,
+        rowData,
+        GuidsToSave,
+        fileName,
+        validationApisCalled,
+      );
+      this.logger.log(`Completed import for row ${rowNumber}`);
+    } catch (err) {
+      this.logger.error("Error in async ops:", err.message);
+      throw err;
+    }
+  }
+
   async parseFile(
     file: Readable,
     fileName: string,
@@ -1709,7 +1930,13 @@ export class FileParseValidateService {
     csvStream.pipe(writeStream);
     csvStream.write(headers);
 
+    let validationApisCalled = [];
+
     if (extention == ".xlsx") {
+      let batchSize = process.env.FILE_BATCH_SIZE;
+
+      let batch: any[] = [];
+      let rowIndex = 0;
       // set up the observation csv file for the AQI APIs
       const workbook = new ExcelJS.Workbook();
 
@@ -1722,6 +1949,36 @@ export class FileParseValidateService {
 
       const allNonObsErrors: any[] = [];
       const allExistingRecords: any[] = [];
+
+      // do a validation on the headers
+      const headerErrors = await this.checkHeaders(
+        worksheet.getRow(1).values as string[],
+        "xlsx",
+      );
+
+      if (headerErrors.length > 0) {
+        // there is an error in the headers. Report to the user and reject the file
+        const file_error_log_data = {
+          file_submission_id: file_submission_id,
+          file_name: fileName,
+          original_file_name: originalFileName,
+          file_operation_code: file_operation_code,
+          ministry_contact: null,
+          error_log: headerErrors,
+          create_utc_timestamp: new Date(),
+        };
+
+        await this.prisma.file_error_logs.create({
+          data: file_error_log_data,
+        });
+
+        await this.fileSubmissionsService.updateFileStatus(
+          file_submission_id,
+          "REJECTED",
+        );
+
+        return;
+      }
 
       console.time("Validation");
       for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
@@ -1742,14 +1999,14 @@ export class FileParseValidateService {
                 ? cellValue.result
                 : cellValue ?? "";
             return {
-              [header]: String(value),
+              [header]: String(value).replace(/\r?\n/g, " "),
             };
           })
           .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
         this.logger.log(`Created row object for row ${rowNumber}`);
 
-        rowData = await this.cleanRowBasedOnDataClassification(rowData);
+        rowData = this.cleanRowBasedOnDataClassification(rowData);
 
         await this.validateRow(
           rowData,
@@ -1759,6 +2016,7 @@ export class FileParseValidateService {
           allExistingRecords,
           originalFileName,
           rowNumber,
+          validationApisCalled,
         );
       }
       console.timeEnd("Validation");
@@ -1845,11 +2103,13 @@ export class FileParseValidateService {
           return;
         } else {
           console.time("ImportNonObs");
+          this.logger.log(`Starting the import process`);
           for (
             let rowNumber = 2;
             rowNumber <= worksheet.rowCount;
             rowNumber++
           ) {
+            this.logger.log(`Beginning processing row: ${rowNumber}`);
             const row = worksheet.getRow(rowNumber);
             let GuidsToSave = {
               visits: [],
@@ -1868,23 +2128,29 @@ export class FileParseValidateService {
                     ? cellValue.result
                     : cellValue ?? "";
                 return {
-                  [header]: String(value),
+                  [header]: String(value).replace(/\r?\n/g, " "),
                 };
               })
               .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
-            rowData = await this.cleanRowBasedOnDataClassification(rowData);
+            rowData = this.cleanRowBasedOnDataClassification(rowData);
+            this.logger.log(`Created row object for row ${rowNumber}`);
 
             // do the data insert logic here
+            this.logger.log(`Starting import for row ${rowNumber}`);
             await this.insertDataNonObservations(
+              rowNumber,
               rowData,
               GuidsToSave,
               fileName,
+              validationApisCalled,
             );
+            this.logger.log(`Completed import for row ${rowNumber}`);
           }
           console.timeEnd("ImportNonObs");
 
           console.time("ImportObs");
+          this.logger.log(`Starting import of observations`);
           await this.insertObservations(
             fileName,
             originalFileName,
@@ -1894,60 +2160,180 @@ export class FileParseValidateService {
             contactsAndValidationResults[0],
             contactsAndValidationResults[1],
           );
+          this.logger.log(`Completed import for observations`);
           console.timeEnd("ImportObs");
         }
       }
     } else if (extention == ".csv") {
       const allNonObsErrors: any[] = [];
       const allExistingRecords: any[] = [];
+      const headersForValidation: string[] = [];
       const headers: string[] = [];
 
-      file.pipe(csv()).on("headers", (csvHeaders) => {
-        headers.push(...csvHeaders.map((key) => key.replace(/\s+/g, "")));
-      });
+      let isFirstRow = true;
+      file
+        .pipe(
+          parse({
+            columns: false,
+            trim: true,
+          }),
+        )
+        .on("data", (row: string[]) => {
+          if (isFirstRow) {
+            isFirstRow = false;
+
+            headers.push(...row.map((key) => key.replace(/\s+/g, "")));
+            headersForValidation.push(...row);
+          }
+        })
+        .on("end", () => {
+          this.logger.log("Got the file headers");
+        })
+        .on("error", (err) => {
+          this.logger.error(
+            "Error while parsing file for headers:",
+            err.message,
+          );
+        });
 
       await new Promise((f) => setTimeout(f, 1000));
 
-      // re-fetch the file for validation purposes - cannot use previously fetched stream
+      // do a validation on the headers
+      const headerErrors = await this.checkHeaders(headersForValidation, "csv");
+
+      if (headerErrors.length > 0) {
+        // there is an error in the headers. Report to the user and reject the file
+        const file_error_log_data = {
+          file_submission_id: file_submission_id,
+          file_name: fileName,
+          original_file_name: originalFileName,
+          file_operation_code: file_operation_code,
+          ministry_contact: null,
+          error_log: headerErrors,
+          create_utc_timestamp: new Date(),
+        };
+
+        await this.prisma.file_error_logs.create({
+          data: file_error_log_data,
+        });
+
+        await this.fileSubmissionsService.updateFileStatus(
+          file_submission_id,
+          "REJECTED",
+        );
+
+        return;
+      }
+
+      // re-fetch the file for validation
       const rowValidationStream =
         await this.objectStoreService.getFileData(fileName);
 
-      const parser = rowValidationStream.pipe(csvParser({ headers }));
+      const parser = parse({
+        columns: headers,
+        trim: true,
+      });
 
-      let rowNumber = 0;
+      rowValidationStream.pipe(parser);
+
+      const startTime = Date.now();
+      let streamError = true;
+
+      // Set up the error and end handlers *before* piping
+      rowValidationStream.on("error", async (err) => {
+        const duration = Date.now() - startTime;
+        this.logger.error(`Stream error after ${duration}ms:`, err.message);
+        await this.fileSubmissionsService.updateFileStatus(
+          file_submission_id,
+          "ERROR",
+        );
+        streamError = true;
+      });
+
+      parser.on("error", (err) => {
+        streamError = true;
+        this.logger.error("Parser error:", err.message);
+      });
+
+      parser.on("end", () => {
+        this.logger.log("Finished parsing file.");
+      });
 
       console.time("Validation");
+      // Pipe immediately after setting up handlers
+
+      const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
+      let batch: any[] = [];
+      let rowNumber = 0;
+      let batchNumber = 1;
+
       for await (const row of parser) {
         rowNumber++;
 
-        if (rowNumber == 1) {
-          continue; // Skip header row
+        if (rowNumber === 1) {
+          continue;
         }
 
-        let rowData: Record<string, string> = {};
-        headers.forEach((header) => {
-          rowData[header] = String(row[header] ?? "");
-        });
+        this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
+        batch.push(row);
 
-        try {
-          rowData = await this.cleanRowBasedOnDataClassification(rowData);
-          if (rowNumber == 2 || rowNumber == 102) {
-            console.log(rowData);
+        if (batch.length === BATCH_SIZE) {
+          this.logger.log(`Created batch ${batchNumber}`);
+          this.logger.log(
+            `Starting to process batch ${batchNumber} ******************`,
+          );
+
+          for (const [index, row] of batch.entries()) {
+            let actualRowNumber =
+              index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+            await this.validateCSVRow(
+              row,
+              headers,
+              actualRowNumber,
+              ministryContacts,
+              csvStream,
+              allNonObsErrors,
+              allExistingRecords,
+              originalFileName,
+              validationApisCalled,
+            );
           }
-          this.logger.log(`Created row object for row ${rowNumber}`);
-          await this.validateRow(
-            rowData,
+          this.logger.log(
+            `Finished processing batch ${batchNumber} ******************`,
+          );
+
+          batchNumber++;
+          batch = [];
+        }
+      }
+
+      if (batch.length > 0) {
+        this.logger.log(
+          `Starting to process (final) batch ${batchNumber} ******************`,
+        );
+
+        for (const [index, row] of batch.entries()) {
+          let actualRowNumber =
+            index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+          await this.validateCSVRow(
+            row,
+            headers,
+            actualRowNumber,
             ministryContacts,
             csvStream,
             allNonObsErrors,
             allExistingRecords,
             originalFileName,
-            rowNumber,
+            validationApisCalled,
           );
-        } catch (error) {
-          this.logger.error(`Error Processing Row ${rowNumber}:`, error);
         }
+        this.logger.log(
+          `Finished processing (final) batch ${batchNumber} ******************`,
+        );
       }
+
+      this.logger.log(`✅ All done. Processed ${rowNumber} rows.`);
+
       console.timeEnd("Validation");
 
       csvStream.end();
@@ -2040,48 +2426,111 @@ export class FileParseValidateService {
            * Expand the returned list of object - this will be used for finding unique activities
            */
 
-          // re-fetch the file for validation purposes - cannot use previously fetched stream
+          // re-fetch the file for import purposes - cannot use previously fetched stream
           console.time("ImportNonObs");
-          const rowValidationStream =
+          this.logger.log(`Starting the import process`);
+          const rowImportStream =
             await this.objectStoreService.getFileData(fileName);
 
-          const parser = rowValidationStream.pipe(csvParser({ headers }));
+          const parser = parse({
+            columns: headers,
+            trim: true,
+          });
 
+          rowImportStream.on("error", (err) => {
+            this.logger.error("Stream error:", err.message);
+          });
+
+          parser.on("error", (err) => {
+            this.logger.error("Parser error:", err.message);
+          });
+
+          parser.on("end", () => {
+            this.logger.log("Finished parsing file.");
+          });
+
+          // Pipe + iterate
+          rowImportStream.pipe(parser);
+
+          const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
+          let batch: any[] = [];
           let rowNumber = 0;
+          let batchNumber = 1;
 
           for await (const row of parser) {
             rowNumber++;
 
-            if (rowNumber == 1) {
-              continue; // Skip header row
+            if (rowNumber === 1) {
+              continue;
             }
 
-            let GuidsToSave = {
-              visits: [],
-              activities: [],
-              specimens: [],
-              observations: [],
-            };
+            this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
+            batch.push(row);
 
-            let rowData: Record<string, string> = {};
-            headers.forEach((header) => {
-              rowData[header] = String(row[header] ?? "");
-            });
-
-            try {
-              rowData = await this.cleanRowBasedOnDataClassification(rowData);
-              // do the data insert logic here
-              await this.insertDataNonObservations(
-                rowData,
-                GuidsToSave,
-                fileName,
+            if (batch.length === BATCH_SIZE) {
+              this.logger.log(`Created batch ${batchNumber}`);
+              this.logger.log(
+                `Starting to process batch ${batchNumber} ******************`,
               );
-            } catch (error) {
-              this.logger.error(`Error Processing Row ${rowNumber}:`, error);
+
+              for (const [index, row] of batch.entries()) {
+                let actualRowNumber =
+                  index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+
+                let GuidsToSave = {
+                  visits: [],
+                  activities: [],
+                  specimens: [],
+                  observations: [],
+                };
+                await this.importCSVRow(
+                  row,
+                  headers,
+                  actualRowNumber,
+                  fileName,
+                  GuidsToSave,
+                  validationApisCalled,
+                );
+              }
+              this.logger.log(
+                `Finished processing batch ${batchNumber} ******************`,
+              );
+
+              batchNumber++;
+              batch = [];
             }
           }
 
+          if (batch.length > 0) {
+            this.logger.log(
+              `Starting to process (final) batch ${batchNumber} ******************`,
+            );
+
+            for (const [index, row] of batch.entries()) {
+              let actualRowNumber =
+                index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+              let GuidsToSave = {
+                visits: [],
+                activities: [],
+                specimens: [],
+                observations: [],
+              };
+              await this.importCSVRow(
+                row,
+                headers,
+                actualRowNumber,
+                fileName,
+                GuidsToSave,
+                validationApisCalled,
+              );
+            }
+            this.logger.log(
+              `Finished processing (final) batch ${batchNumber} ******************`,
+            );
+          }
           console.timeEnd("ImportNonObs");
+
+          this.logger.log(`Starting import of observations`);
 
           console.time("ImportObs");
           await this.insertObservations(
@@ -2093,6 +2542,8 @@ export class FileParseValidateService {
             contactsAndValidationResults[0],
             contactsAndValidationResults[1],
           );
+          this.logger.log(`Completed import of observations`);
+
           console.timeEnd("ImportObs");
         }
       }

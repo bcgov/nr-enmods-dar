@@ -10,6 +10,7 @@ import { ObjectStoreService } from "src/objectStore/objectStore.service";
 import { AqiApiService } from "src/aqi_api/aqi_api.service";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
+import { OperationLockService } from "src/operationLock/operationLock.service";
 
 @Injectable()
 export class FileSubmissionsService {
@@ -18,6 +19,7 @@ export class FileSubmissionsService {
     private prisma: PrismaService,
     private readonly objectStore: ObjectStoreService,
     private readonly aqiService: AqiApiService,
+    private readonly operationLockService: OperationLockService,
   ) {}
 
   async create(body: any, file: Express.Multer.File) {
@@ -50,6 +52,7 @@ export class FileSubmissionsService {
       body.agency ?? "SALUSSYSTEMS"; // TODO: change this once BCeID is set up
     createFileSubmissionDto.sample_count = 0;
     createFileSubmissionDto.result_count = 0;
+    // createFileSubmissionDto.file_row_count = body.file_row_count
     createFileSubmissionDto.organization_guid = body.orgGUID; // TODO: change this once BCeID is set up
     createFileSubmissionDto.create_user_id = body.userID;
     createFileSubmissionDto.create_utc_timestamp = new Date();
@@ -71,6 +74,7 @@ export class FileSubmissionsService {
       submitter_agency_name: createFileSubmissionDto.submitter_agency_name,
       sample_count: createFileSubmissionDto.sample_count,
       results_count: createFileSubmissionDto.result_count,
+      // file_row_count: parseInt(createFileSubmissionDto.file_row_count, 10),
       active_ind: createFileSubmissionDto.active_ind,
       error_log: createFileSubmissionDto.error_log,
       organization_guid: createFileSubmissionDto.organization_guid,
@@ -198,8 +202,6 @@ export class FileSubmissionsService {
     }
 
     if (body.submissionDateFrom && body.submissionDateTo) {
-      console.log(body.submissionDateFrom);
-      console.log(body.submissionDateTo);
       whereClause.submission_date = {
         gte: new Date(body.submissionDateFrom),
         lte: new Date(body.submissionDateTo),
@@ -258,7 +260,7 @@ export class FileSubmissionsService {
         select: selectColumns,
         where: whereClause,
         orderBy: {
-          create_utc_timestamp: "desc",
+          create_utc_timestamp: "asc",
         },
       }),
 
@@ -285,13 +287,25 @@ export class FileSubmissionsService {
     });
   }
 
-  update(id: number, updateFileSubmissionDto: UpdateFileSubmissionDto) {
-    return `This action updates a #${id} fileSubmission`;
+  async update(id: string, updateFileSubmissionDto: UpdateFileSubmissionDto) {
+    try {
+      const updateFileStatus = await this.prisma.file_submission.update({
+        where: {
+          submission_id: id,
+        },
+        data: {
+          submission_status_code:
+            updateFileSubmissionDto.submission_status_code,
+        },
+      });
+    } catch (err) {
+      this.logger.error(`Error updating file status: ${err.message}`);
+    }
   }
 
   async remove(file_name: string, id: string) {
     try {
-      await this.aqiService.deleteRelatedData(file_name);
+      await this.aqiService.deleteRelatedData(file_name, id);
       await this.prisma.$transaction(async (prisma) => {
         const updateFileStatus = await this.prisma.file_submission.update({
           where: {
@@ -303,9 +317,28 @@ export class FileSubmissionsService {
           },
         });
       });
+
+      // don't delete the imported GUIDs, can be used again for deletion if deletion failed
+      // await this.prisma.aqi_imported_data.deleteMany({
+      //   where: {
+      //     file_name: file_name,
+      //   },
+      // });
+
       return true;
     } catch (err) {
       this.logger.error(`Error deleting file: ${err.message}`);
+      await this.prisma.$transaction(async (prisma) => {
+        const updateFileStatus = await this.prisma.file_submission.update({
+          where: {
+            submission_id: id,
+          },
+          data: {
+            submission_status_code: "DEL ERROR",
+            update_utc_timestamp: new Date(),
+          },
+        });
+      });
       return false;
     }
   }
