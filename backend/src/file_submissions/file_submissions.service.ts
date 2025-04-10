@@ -83,7 +83,6 @@ export class FileSubmissionsService {
       update_user_id: createFileSubmissionDto.update_user_id,
       update_utc_timestamp: createFileSubmissionDto.update_utc_timestamp,
     };
-    console.log(newFilePostData);
 
     const newFile = await this.prisma.$transaction([
       this.prisma.file_submission.create({ data: newFilePostData }),
@@ -151,7 +150,6 @@ export class FileSubmissionsService {
       update_user_id: createFileSubmissionDto.update_user_id,
       update_utc_timestamp: createFileSubmissionDto.update_utc_timestamp,
     };
-    console.log(newFilePostData);
 
     const newFile = await this.prisma.$transaction([
       this.prisma.file_submission.create({ data: newFilePostData }),

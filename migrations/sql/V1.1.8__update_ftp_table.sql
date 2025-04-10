@@ -13,4 +13,5 @@ CREATE TABLE enmods.ftp_users (
 );
 
 
-insert into enmods.ftp_users (username, name, email, org_guid, create_user_id, create_utc_timestamp, update_user_id, update_utc_timestamp) values ('testorg', 'Test Organization', 'testorg@email.com', '56e90a60-b00f-4c78-9a88-4c32e6087829', 'system', NOW(), 'system', NOW());
+insert into enmods.ftp_users (username, name, email, org_guid, create_user_id, create_utc_timestamp, update_user_id, update_utc_timestamp) 
+values ('uploader1', 'test user', 'testuser@email.com', '56e90a60-b00f-4c78-9a88-4c32e6087829', 'system', NOW(), 'system', NOW());
