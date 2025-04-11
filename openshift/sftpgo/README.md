@@ -70,3 +70,14 @@ OpenShift port-forward to test sftp server locally ```oc port-forward svc/sftpgo
 OpenShift port-forward to access sftp gui locally ```oc port-forward svc/sftpgo 8080:8080```
 
 Remotely connect to pod shell ```oc exec -it <sftpgo-pod> -- /bin/bash``` 
+
+### Backend Environment Variables
+Add these to your .env file (anything FTP and not SFTP can be deleted):
+
+```
+SFTP_PATH
+SFTP_HOST
+SFTP_PORT
+SFTP_USERNAME
+SFTP_PRIVATE_KEY_BASE64
+```
