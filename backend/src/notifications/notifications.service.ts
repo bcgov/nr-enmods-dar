@@ -379,7 +379,7 @@ export class NotificationsService {
       file_name: fileName,
       user_account_name: username,
       location_ids: [],
-      file_status: "FAILED",
+      file_status: "REJECTED",
       errors: errors.join(","),
       warnings: "",
     };
@@ -401,17 +401,17 @@ export class NotificationsService {
    * @param errors
    * @param ministryContact
    */
-  async notifyFtpUserOfError(
+  async notifySftpUserOfError(
     username: string,
     fileName: string,
     errors: string[],
     ministryContact: string,
   ) {
-    const ftpUser = await this.prisma.ftp_users.findUnique({
+    const sftpUser = await this.prisma.sftp_users.findUnique({
       where: { username: username },
     });
     await this.notifyUserOfError(
-      ftpUser.email,
+      sftpUser.email,
       username,
       fileName,
       errors,
