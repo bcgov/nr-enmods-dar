@@ -638,7 +638,7 @@ export class CronJobService {
     }
   }
 
-  @Cron(CronExpression.EVERY_10_SECONDS) // every 2 hours
+  @Cron(CronExpression.EVERY_30_SECONDS) // every 2 hours
   private async beginDelete() {
     /*
     TODO:

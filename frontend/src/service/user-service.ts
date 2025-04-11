@@ -1,7 +1,9 @@
+import config from '@/config';
 import _kc from '../keycloak'
 
 export const AUTH_TOKEN = '__auth_token'
 
+const { KEYCLOAK_URL } = config;
 /**
  * Initializes Keycloak instance and calls the provided callback function if successfully authenticated.
  *
@@ -23,7 +25,11 @@ const initKeycloak = (
         if (route.startsWith('/unsubscribe/')) {
           onAuthenticatedCallback(true)
         } else {
-          window.location.href = _kc.createLoginUrl()
+          if (!config.KEYCLOAK_URL) {
+            console.error('Config.js not loaded. Aborting redirect.');
+            return;
+          }
+          window.location.href = _kc.createLoginUrl();
         }
       } else {
         localStorage.setItem(AUTH_TOKEN, `${_kc.token}`)

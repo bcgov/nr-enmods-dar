@@ -30,6 +30,7 @@ global:
     usersApiClientSecret: ~
     aqiBaseUrl: ~
     aqiAccessToken: ~
+    fileBatchSize: ~
     chesTokenUrl: ~
     chesEmailUrl: ~
     chesClientId: ~
@@ -122,7 +123,7 @@ backend:
   # Mount Persistent Volume Claim for the backend to store files
   persistence:
     enabled: true
-    accessMode: ReadWriteOnce
+    accessMode: ReadWriteMany
     size: 150Mi
     storageClassName: netapp-file-standard
     swapFiles:
@@ -301,7 +302,7 @@ bitnami-pg:
   image:
     registry: ghcr.io
     repository: bcgov/nr-containers/bitnami/postgresql
-    tag: 15.6.0
+    tag: 15.10.0
   auth:
     existingSecret: "{{ .Release.Name }}-database"
     username: "postgres"
@@ -322,7 +323,7 @@ bitnami-pg:
       storageClass: netapp-block-standard
       accessModes:
         - ReadWriteOnce
-      size: 256Mi
+      size: 512Mi
     containerSecurityContext:
       enabled: false
     podSecurityContext:
@@ -336,9 +337,6 @@ bitnami-pg:
       requests:
         cpu: 100m
         memory: 250Mi
-      limits:
-        cpu: 200m
-        memory: 500Mi
 
 backup:
   enabled: true
