@@ -29,16 +29,31 @@ spec:
             secretKeyRef:
               name: {{ .Chart.Name }}-sftp-secrets
               key: UPLOADER1_PUBLIC_KEY
+        - name: UPLOADER1_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Chart.Name }}-sftp-secrets
+              key: UPLOADER1_USERNAME
         - name: UPLOADER2_PUBLIC_KEY
           valueFrom:
             secretKeyRef:
               name: {{ .Chart.Name }}-sftp-secrets
               key: UPLOADER2_PUBLIC_KEY
+        - name: UPLOADER2_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Chart.Name }}-sftp-secrets
+              key: UPLOADER2_USERNAME
         - name: UPLOADER3_PUBLIC_KEY
           valueFrom:
             secretKeyRef:
               name: {{ .Chart.Name }}-sftp-secrets
               key: UPLOADER3_PUBLIC_KEY
+        - name: UPLOADER3_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Chart.Name }}-sftp-secrets
+              key: UPLOADER3_USERNAME
         - name: SERVICE_PUBLIC_KEY
           valueFrom:
             secretKeyRef:

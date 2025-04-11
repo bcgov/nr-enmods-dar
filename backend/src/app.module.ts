@@ -22,10 +22,10 @@ import { CronJobService } from "./cron-job/cron-job.service";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { AqiApiModule } from "./aqi_api/aqi_api.module";
 import { FileParseValidateModule } from "./file_parse_and_validation/file_parse_and_validation.module";
-import { FtpModule } from "./ftp/ftp.module";
-import { FileValidationModule } from './file_validation/file_validation.module';
+import { SftpModule } from "./sftp/sftp.module";
+import { FileValidationModule } from "./file_validation/file_validation.module";
 import { ObjectStoreModule } from "./objectStore/objectStore.module";
-import { FileErrorLogsModule } from './file_error_logs/file_error_logs.module';
+import { FileErrorLogsModule } from "./file_error_logs/file_error_logs.module";
 import { OperationLockService } from "./operationLock/operationLock.service";
 
 const DB_HOST = process.env.POSTGRES_HOST || "localhost";
@@ -72,7 +72,7 @@ function getMiddlewares() {
     FileStatusCodesModule,
     FileParseValidateModule,
     AqiApiModule,
-    FtpModule,
+    SftpModule,
     FileValidationModule,
     ObjectStoreModule,
     FileErrorLogsModule,

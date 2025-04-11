@@ -91,7 +91,7 @@ export class FileSubmissionsService {
     return newFile[0];
   }
 
-  async createWithFtp(
+  async createWithSftp(
     body: {
       userID: string;
       operation: string;
@@ -103,10 +103,10 @@ export class FileSubmissionsService {
     const createFileSubmissionDto = new CreateFileSubmissionDto();
 
     // Call to function that makes API call to save file in the S3 bucket via COMS
-    let newFileName = await saveToS3WithFtp(file);
+    let newFileName = await saveToS3WithSftp(file);
 
     // Creating file DTO and inserting it in the database with the file GUID from the S3 bucket
-    createFileSubmissionDto.submission_id = uuidv4(); // ftp to coms returns no coms submission id, generate random uuid instead
+    createFileSubmissionDto.submission_id = uuidv4(); // sftp to coms returns no coms submission id, generate random uuid instead
     createFileSubmissionDto.filename = newFileName;
     createFileSubmissionDto.original_filename = file.originalname;
     createFileSubmissionDto.submission_date = new Date();
@@ -425,7 +425,7 @@ async function saveToS3(token: any, file: Express.Multer.File) {
   return [fileGUID, newFileName];
 }
 
-async function saveToS3WithFtp(file: Express.Multer.File) {
+async function saveToS3WithSftp(file: Express.Multer.File) {
   const path = require("path");
   const originalFileName = file.originalname;
   const guid = crypto.randomUUID();
