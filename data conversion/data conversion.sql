@@ -499,7 +499,8 @@ select "Observation ID",
         "Tissue Type",
         "Lab Arrival Temperature",
         CASE
-            WHEN "Specimen Name" is null then ''
+            WHEN "Specimen Name" IS NULL AND "Data Classification" IN ('LAB', 'SURROGATE_RESULT') THEN to_char("Activity Name")
+            WHEN "Specimen Name" IS NULL THEN ''
             WHEN duplicate_row_number > 1 THEN "Specimen Name" || '-' || duplicate_row_number
             ELSE "Specimen Name"
         END AS "Specimen Name",
