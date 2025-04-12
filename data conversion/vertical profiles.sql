@@ -326,7 +326,20 @@ select "Observation ID",
         "QC Source Activity Name",
         "Composite Stat",
         ROW_NUMBER() OVER (
-            PARTITION BY "Location ID", "Field Visit Start Time", "Medium", "Depth Upper", "Activity Name", "Specimen Name", "Data Classification", "QC Type", "Observed Property ID"
+            PARTITION BY 
+                "Location ID",
+                "Field Visit Start Time",
+                "Medium",
+                "Depth Upper",
+                "Activity Name",
+                "Specimen Name",
+                "Data Classification",            
+                -- ignore the QC type in the deduplication logic in cases where the data classification is "FIELD_RESULT" or "VERTICAL_PROFILE"
+                CASE 
+                    WHEN "Data Classification" IN ('FIELD_RESULT', 'VERTICAL_PROFILE') THEN null
+                    ELSE "QC Type"
+                END, 
+                "Observed Property ID"
             ORDER BY "Field Visit Start Time"
         ) AS duplicate_row_number
 
@@ -427,5 +440,4 @@ AND ed.NewNameID is not null
         -- sort on monitoring location id and date, asc
         
         )
-        --where duplicate_row_number = 1
         order by "Location ID" asc, "Observed DateTime" asc

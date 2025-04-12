@@ -463,7 +463,19 @@ select "Observation ID",
         "Depth Upper",
         "Depth Lower",
         "Depth Unit",
-        "Observed DateTime",
+        CASE
+            WHEN "Data Classification" IN ('FIELD_RESULT', 'VERTICAL_PROFILE') THEN
+                TO_CHAR(
+                    TO_TIMESTAMP(SUBSTR("Observed DateTime", 1, 19), 'YYYY-MM-DD"T"HH24:MI:SS') 
+                        + NUMTODSINTERVAL(duplicate_row_number - 1, 'MINUTE'),
+                    'YYYY-MM-DD"T"HH24:MI:SS'
+                ) || '-08:00'
+            ELSE
+                TO_CHAR(
+                    TO_TIMESTAMP(SUBSTR("Observed DateTime", 1, 19), 'YYYY-MM-DD"T"HH24:MI:SS'),
+                    'YYYY-MM-DD"T"HH24:MI:SS'
+                ) || '-08:00'
+        END AS "Observed DateTime",
         "Observed Date Time End",
         "Observed Property ID",-- based on the analytical method and parameter code and unit
         "Result Value",
@@ -560,13 +572,28 @@ select "Observation ID",
         "QC Source Activity Name",
         "Composite Stat",
         ROW_NUMBER() OVER (
-            PARTITION BY "Location ID", "Field Visit Start Time", "Medium", "Depth Upper", "Activity Name", "Specimen Name", "Data Classification", "QC Type", "Observed Property ID"
+            PARTITION BY 
+                "Location ID", 
+                "Field Visit Start Time", 
+                "Medium", 
+                "Depth Upper", 
+                CASE 
+                    WHEN "Data Classification" IN ('FIELD_RESULT') THEN null
+                    ELSE "Activity Name"
+                END, 
+                "Specimen Name", 
+                "Data Classification", 
+                CASE 
+                    WHEN "Data Classification" IN ('FIELD_RESULT', 'VERTICAL_PROFILE') THEN null
+                    ELSE "QC Type"
+                END, 
+                "Observed Property ID"
             ORDER BY "Field Visit Start Time"
         ) AS duplicate_row_number
 from (
 
 -- water data
-
+/*
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -664,23 +691,24 @@ FROM -- water data
         and core."EMS Result Unit" = ed.Unit
 left outer join ems.unit_conversions_temp unit_conversion on core.result_unit_code = unit_conversion.target_unit_id and core.mdl_unit_code = unit_conversion.source_unit_id      
 where core.result_unit_code is not null and core.mdl_unit_code is not null
-        -- save result ids where the data can't be uploaded
-        -- sort on monitoring location id and date, asc
-    AND upper(core."Medium") like '%WATER%' -- try WATER-MARINE for a subset
+    AND (
+        upper(core."Medium") LIKE '%WATER%' 
+        OR core."Medium" = 'Solids - Soil'
+    )
     --AND core."Work Order Number" IN ( -- remove this to get all results
     --        SELECT
     --            to_char(l.req_id)
     --        FROM
     --            ems.reqs_to_load l)
-    --AND ed.NewNameID is not null
+    AND ed.NewNameID is not null
                 order by core."Location ID" asc, core."Observed DateTime" asc
 
 -- end water data
-
+*/
 /*
 union all -- air data
 */
-/*
+
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -960,7 +988,7 @@ where upper(core."Medium") like '%AIR%' -- try WATER-MARINE for a subset
     and core."Air Filter Size" is not null
     AND ed.NewNameID is not null
 -- end air filter size
-*/
+
 /*
 union -- taxonomic data - bio sample area
 
