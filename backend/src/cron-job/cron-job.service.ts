@@ -352,7 +352,7 @@ export class CronJobService {
     }
   }
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_30_MINUTES)
   private async fetchAQSSData() {
     if (!this.operationLockService.acquireLock("PULLDOWN")) {
       this.logger.log(
@@ -585,7 +585,7 @@ export class CronJobService {
     return filterArray(entries);
   }
 
-  @Cron(CronExpression.EVERY_30_SECONDS) // every 2 hours
+  @Cron(CronExpression.EVERY_MINUTE) // every 2 hours
   private async beginFileValidation() {
     /*
     TODO:
@@ -638,7 +638,7 @@ export class CronJobService {
     }
   }
 
-  @Cron(CronExpression.EVERY_30_SECONDS) // every 2 hours
+  @Cron(CronExpression.EVERY_5_MINUTES) // every 2 hours
   private async beginDelete() {
     /*
     TODO:
