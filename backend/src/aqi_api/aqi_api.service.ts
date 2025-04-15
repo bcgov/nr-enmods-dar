@@ -645,8 +645,6 @@ export class AqiApiService {
     
     [...localErrors, ...remoteErrors].forEach(mergeItem);
 
-    console.log(remoteErrors)
-
     return Array.from(map.values()).sort((a, b) => a.rowNum - b.rowNum);
   }
 
