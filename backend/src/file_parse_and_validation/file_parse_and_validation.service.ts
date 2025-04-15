@@ -1382,7 +1382,7 @@ export class FileParseValidateService {
     return cleanedRow;
   }
 
-  async validateRow(
+  async validateRowData(
     rowData: any,
     ministryContacts: any,
     csvStream: any,
@@ -1557,9 +1557,9 @@ export class FileParseValidateService {
         fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
         fieldActivity["LocationID"] = rowData.LocationID;
         GuidsToSave["visits"].push(visitInfo.fieldVisit);
-        
-        seenVisitUrl.count = 1
-        seenVisitUrl.GUID = visitInfo.fieldVisit
+
+        seenVisitUrl.count = 1;
+        seenVisitUrl.GUID = visitInfo.fieldVisit;
       }
     } else {
       let visitExists = await this.aqiService.getFieldVisits(
@@ -1580,7 +1580,7 @@ export class FileParseValidateService {
         GuidsToSave["visits"].push(visitInfo.fieldVisit);
       }
 
-      validationApisCalled.push(visitURL)
+      validationApisCalled.push(visitURL);
     }
 
     if (rowData.DataClassification !== "FIELD_RESULT") {
@@ -1609,8 +1609,8 @@ export class FileParseValidateService {
 
           specimen["activity"] = activityInfo.activity;
           GuidsToSave["activities"].push(activityInfo.activity.id);
-          seenActivityUrl.count = 1
-          seenActivityUrl.GUID = activityInfo.activity.id
+          seenActivityUrl.count = 1;
+          seenActivityUrl.GUID = activityInfo.activity.id;
         }
       } else {
         let activityExists = await this.aqiService.getActivities(
@@ -1638,7 +1638,7 @@ export class FileParseValidateService {
           specimen["activity"] = activityInfo.activity;
           GuidsToSave["activities"].push(activityInfo.activity.id);
 
-          validationApisCalled.push(activityURL)
+          validationApisCalled.push(activityURL);
         }
       }
     }
@@ -1809,7 +1809,7 @@ export class FileParseValidateService {
     return;
   }
 
-  async validateCSVRow(
+  async cleanAndValidate(
     row: any,
     headers: any[],
     rowNumber: number,
@@ -1819,19 +1819,41 @@ export class FileParseValidateService {
     allExistingRecords,
     originalFileName,
     validationApisCalled,
+    fileType,
   ) {
     try {
-      this.logger.log(`Started creating object for row ${rowNumber}`);
       let rowData: Record<string, string> = {};
-      headers.forEach((header) => {
-        rowData[header] = String(row[header] ?? "").replace(/\r?\n/g, " ");
-      });
+      this.logger.log(`Started creating object for row ${rowNumber}`);
+      if (fileType == ".xlsx") {
+        // Get the row values, remove the first empty cell, and map to headers
+        rowData = headers
+          .map((header, colNumber) => {
+            const cellValue: any = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
+            const value =
+              typeof cellValue === "object" &&
+              cellValue != null &&
+              "result" in cellValue
+                ? cellValue.result
+                : cellValue ?? "";
+            return {
+              [header]: String(value).replace(/\r?\n/g, " "),
+            };
+          })
+          .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
-      rowData = await this.cleanRowBasedOnDataClassification(rowData);
+        rowData = await this.cleanRowBasedOnDataClassification(rowData);
+      } else if (fileType == ".csv") {
+        headers.forEach((header) => {
+          rowData[header] = String(row[header] ?? "").replace(/\r?\n/g, " ");
+        });
+
+        rowData = await this.cleanRowBasedOnDataClassification(rowData);
+      }
+
       this.logger.log(`Finished creating object for row ${rowNumber}`);
 
       this.logger.log(`Sent row ${rowNumber} for validation`);
-      await this.validateRow(
+      await this.validateRowData(
         rowData,
         ministryContacts,
         csvStream,
@@ -1847,22 +1869,43 @@ export class FileParseValidateService {
     }
   }
 
-  async importCSVRow(
+  async importRow(
     row: any,
     headers: any[],
     rowNumber: number,
     fileName: string,
     GuidsToSave: any,
     validationApisCalled,
+    fileType,
   ) {
     try {
-      this.logger.log(`Started creating object for row ${rowNumber}`);
       let rowData: Record<string, string> = {};
-      headers.forEach((header) => {
-        rowData[header] = String(row[header] ?? "").replace(/\r?\n/g, " ");
-      });
+      this.logger.log(`Started creating object for row ${rowNumber}`);
+      if (fileType == ".xlsx") {
+        // Get the row values, remove the first empty cell, and map to headers
+        rowData = headers
+          .map((header, colNumber) => {
+            const cellValue: any = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
+            const value =
+              typeof cellValue === "object" &&
+              cellValue != null &&
+              "result" in cellValue
+                ? cellValue.result
+                : cellValue ?? "";
+            return {
+              [header]: String(value).replace(/\r?\n/g, " "),
+            };
+          })
+          .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
-      rowData = await this.cleanRowBasedOnDataClassification(rowData);
+        rowData = await this.cleanRowBasedOnDataClassification(rowData);
+      } else if (fileType == ".csv") {
+        headers.forEach((header) => {
+          rowData[header] = String(row[header] ?? "").replace(/\r?\n/g, " ");
+        });
+
+        rowData = await this.cleanRowBasedOnDataClassification(rowData);
+      }
       this.logger.log(`Finished creating object for row ${rowNumber}`);
 
       this.logger.log(`Sent row ${rowNumber} for import`);
@@ -1933,10 +1976,10 @@ export class FileParseValidateService {
     let validationApisCalled = [];
 
     if (extention == ".xlsx") {
-      let batchSize = process.env.FILE_BATCH_SIZE;
-
+      const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
       let batch: any[] = [];
-      let rowIndex = 0;
+      let batchNumber = 1;
+
       // set up the observation csv file for the AQI APIs
       const workbook = new ExcelJS.Workbook();
 
@@ -1988,37 +2031,66 @@ export class FileParseValidateService {
           return; // Skip header row
         }
 
-        // Get the row values, remove the first empty cell, and map to headers
-        let rowData: Record<string, string> = rowHeaders
-          .map((header, colNumber) => {
-            const cellValue: any = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
-            const value =
-              typeof cellValue === "object" &&
-              cellValue != null &&
-              "result" in cellValue
-                ? cellValue.result
-                : cellValue ?? "";
-            return {
-              [header]: String(value).replace(/\r?\n/g, " "),
-            };
-          })
-          .reduce((acc, curr) => ({ ...acc, ...curr }), {});
+        this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
+        batch.push(row);
 
-        this.logger.log(`Created row object for row ${rowNumber}`);
+        if (batch.length === BATCH_SIZE) {
+          this.logger.log(`Created batch ${batchNumber}`);
+          this.logger.log(
+            `Starting to process batch ${batchNumber} ******************`,
+          );
 
-        rowData = this.cleanRowBasedOnDataClassification(rowData);
+          for (const [index, row] of batch.entries()) {
+            let actualRowNumber =
+              index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+            await this.cleanAndValidate(
+              row,
+              rowHeaders,
+              actualRowNumber,
+              ministryContacts,
+              csvStream,
+              allNonObsErrors,
+              allExistingRecords,
+              originalFileName,
+              validationApisCalled,
+              extention,
+            );
+          }
+          this.logger.log(
+            `Finished processing batch ${batchNumber} ******************`,
+          );
 
-        await this.validateRow(
-          rowData,
-          ministryContacts,
-          csvStream,
-          allNonObsErrors,
-          allExistingRecords,
-          originalFileName,
-          rowNumber,
-          validationApisCalled,
+          batchNumber++;
+          batch = [];
+        }
+      }
+
+      if (batch.length > 0) {
+        this.logger.log(
+          `Starting to process (final) batch ${batchNumber} ******************`,
+        );
+
+        for (const [index, row] of batch.entries()) {
+          let actualRowNumber =
+            index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+          await this.cleanAndValidate(
+            row,
+            rowHeaders,
+            actualRowNumber,
+            ministryContacts,
+            csvStream,
+            allNonObsErrors,
+            allExistingRecords,
+            originalFileName,
+            validationApisCalled,
+            extention,
+          );
+        }
+        this.logger.log(
+          `Finished processing (final) batch ${batchNumber} ******************`,
         );
       }
+
       console.timeEnd("Validation");
 
       csvStream.end();
@@ -2102,6 +2174,10 @@ export class FileParseValidateService {
           console.timeEnd("ReportValidated");
           return;
         } else {
+          const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
+          let batch: any[] = [];
+          let batchNumber = 1;
+
           console.time("ImportNonObs");
           this.logger.log(`Starting the import process`);
           for (
@@ -2109,43 +2185,77 @@ export class FileParseValidateService {
             rowNumber <= worksheet.rowCount;
             rowNumber++
           ) {
-            this.logger.log(`Beginning processing row: ${rowNumber}`);
             const row = worksheet.getRow(rowNumber);
-            let GuidsToSave = {
-              visits: [],
-              activities: [],
-              specimens: [],
-              observations: [],
-            };
-            // Get the row values, remove the first empty cell, and map to headers
-            let rowData: Record<string, string> = rowHeaders
-              .map((header, colNumber) => {
-                const cellValue = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
-                const value =
-                  typeof cellValue === "object" &&
-                  cellValue != null &&
-                  "result" in cellValue
-                    ? cellValue.result
-                    : cellValue ?? "";
-                return {
-                  [header]: String(value).replace(/\r?\n/g, " "),
+
+            if (rowNumber === 1) {
+              return; // Skip header row
+            }
+
+            this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
+            batch.push(row);
+            this.logger.log(`Beginning processing row: ${rowNumber}`);
+
+            if (batch.length === BATCH_SIZE) {
+              this.logger.log(`Created batch ${batchNumber}`);
+              this.logger.log(
+                `Starting to process batch ${batchNumber} ******************`,
+              );
+
+              for (const [index, row] of batch.entries()) {
+                let actualRowNumber =
+                  index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+
+                let GuidsToSave = {
+                  visits: [],
+                  activities: [],
+                  specimens: [],
+                  observations: [],
                 };
-              })
-              .reduce((acc, curr) => ({ ...acc, ...curr }), {});
+                await this.importRow(
+                  row,
+                  rowHeaders,
+                  actualRowNumber,
+                  fileName,
+                  GuidsToSave,
+                  validationApisCalled,
+                  extention,
+                );
+              }
+              this.logger.log(
+                `Finished processing batch ${batchNumber} ******************`,
+              );
 
-            rowData = this.cleanRowBasedOnDataClassification(rowData);
-            this.logger.log(`Created row object for row ${rowNumber}`);
-
-            // do the data insert logic here
-            this.logger.log(`Starting import for row ${rowNumber}`);
-            await this.insertDataNonObservations(
-              rowNumber,
-              rowData,
-              GuidsToSave,
-              fileName,
-              validationApisCalled,
+              batchNumber++;
+              batch = [];
+            }
+          }
+          if (batch.length > 0) {
+            this.logger.log(
+              `Starting to process (final) batch ${batchNumber} ******************`,
             );
-            this.logger.log(`Completed import for row ${rowNumber}`);
+
+            for (const [index, row] of batch.entries()) {
+              let actualRowNumber =
+                index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+              let GuidsToSave = {
+                visits: [],
+                activities: [],
+                specimens: [],
+                observations: [],
+              };
+              await this.importRow(
+                row,
+                rowHeaders,
+                actualRowNumber,
+                fileName,
+                GuidsToSave,
+                validationApisCalled,
+                extention,
+              );
+            }
+            this.logger.log(
+              `Finished processing (final) batch ${batchNumber} ******************`,
+            );
           }
           console.timeEnd("ImportNonObs");
 
@@ -2286,7 +2396,7 @@ export class FileParseValidateService {
           for (const [index, row] of batch.entries()) {
             let actualRowNumber =
               index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
-            await this.validateCSVRow(
+            await this.cleanAndValidate(
               row,
               headers,
               actualRowNumber,
@@ -2296,6 +2406,7 @@ export class FileParseValidateService {
               allExistingRecords,
               originalFileName,
               validationApisCalled,
+              extention,
             );
           }
           this.logger.log(
@@ -2315,7 +2426,7 @@ export class FileParseValidateService {
         for (const [index, row] of batch.entries()) {
           let actualRowNumber =
             index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
-          await this.validateCSVRow(
+          await this.cleanAndValidate(
             row,
             headers,
             actualRowNumber,
@@ -2325,6 +2436,7 @@ export class FileParseValidateService {
             allExistingRecords,
             originalFileName,
             validationApisCalled,
+            extention,
           );
         }
         this.logger.log(
@@ -2483,13 +2595,14 @@ export class FileParseValidateService {
                   specimens: [],
                   observations: [],
                 };
-                await this.importCSVRow(
+                await this.importRow(
                   row,
                   headers,
                   actualRowNumber,
                   fileName,
                   GuidsToSave,
                   validationApisCalled,
+                  extention,
                 );
               }
               this.logger.log(
@@ -2515,13 +2628,14 @@ export class FileParseValidateService {
                 specimens: [],
                 observations: [],
               };
-              await this.importCSVRow(
+              await this.importRow(
                 row,
                 headers,
                 actualRowNumber,
                 fileName,
                 GuidsToSave,
                 validationApisCalled,
+                extention,
               );
             }
             this.logger.log(
