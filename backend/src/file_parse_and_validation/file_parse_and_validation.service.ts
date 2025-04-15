@@ -1808,6 +1808,10 @@ export class FileParseValidateService {
       }
     });
 
+    await this.notificationsService.notifyUserOfError(
+      file_submission_id,
+    );
+
     return;
   }
 
@@ -2137,7 +2141,11 @@ export class FileParseValidateService {
             this.logger.log(`Successfully cleaned up tempObsFiles.`);
           }
         });
+
         console.timeEnd("RejectFile");
+
+        await this.notificationsService.notifyUserOfError(file_submission_id);
+
         return;
       } else {
         /*
@@ -2174,6 +2182,11 @@ export class FileParseValidateService {
             }
           });
           console.timeEnd("ReportValidated");
+
+          await this.notificationsService.notifyUserOfError(
+            file_submission_id,
+          );
+
           return;
         } else {
           const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
@@ -2493,6 +2506,7 @@ export class FileParseValidateService {
           }
         });
         console.timeEnd("RejectFile");
+        await this.notificationsService.notifyUserOfError(file_submission_id);
         return;
       } else {
         /*
@@ -2530,6 +2544,10 @@ export class FileParseValidateService {
             }
           });
           console.timeEnd("ReportValidated");
+
+          await this.notificationsService.notifyUserOfError(
+            file_submission_id,
+          );
 
           return;
         } else {

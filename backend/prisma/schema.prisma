@@ -39,6 +39,7 @@ model file_submission {
   create_utc_timestamp   DateTime               @db.Timestamp(6)
   update_user_id         String                 @db.VarChar(200)
   update_utc_timestamp   DateTime               @db.Timestamp(6)
+  file_row_count         Int?
   data_submitter_email   String?                @db.VarChar(200)
   aqi_obs_status         aqi_obs_status[]
   file_error_logs        file_error_logs[]

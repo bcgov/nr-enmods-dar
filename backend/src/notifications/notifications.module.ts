@@ -2,13 +2,13 @@ import { Module } from "@nestjs/common";
 import { NotificationsController } from "./notifications.controller";
 import { NotificationsService } from "./notifications.service";
 import { HttpModule } from "@nestjs/axios";
-import { FileErrorLogsModule } from "src/file_error_logs/file_error_logs.module";
+import { FileErrorLogsService } from "src/file_error_logs/file_error_logs.service";
 import { FileSubmissionsModule } from "src/file_submissions/file_submissions.module";
 
 @Module({
-  imports: [HttpModule, FileErrorLogsModule, FileSubmissionsModule],
+  imports: [HttpModule, FileSubmissionsModule],
   controllers: [NotificationsController],
-  providers: [NotificationsService],
+  providers: [NotificationsService, FileErrorLogsService],
   exports: [NotificationsService],
 })
 export class NotificationsModule {}
