@@ -44,6 +44,65 @@ export type ResultsWithCount = {
   count: number;
 };
 
+export type FileHeaders = {
+  "Observation ID": string;
+  "Ministry Contact": string;
+  "Sampling Agency": string;
+  "Project": string;
+  "Work Order Number": string;
+  "Location ID": string;
+  "Field Visit Start Time": string;
+  "Field Visit End Time": string;
+  "Field Visit Participants": string;
+  "Field Visit Comments": string;
+  "Activity Comments": string;
+  "Field Filtered": string;
+  "Field Filtered Comment": string;
+  "Field Preservative": string;
+  "Field Device ID": string;
+  "Field Device Type": string;
+  "Sampling Context Tag": string;
+  "Collection Method": string;
+  "Medium": string;
+  "Depth Upper": string;
+  "Depth Lower": string;
+  "Depth Unit": string;
+  "Observed DateTime": string;
+  "Observed Date Time End": string;
+  "Observed Property ID": string;
+  "Result Value": string;
+  "Method Detection Limit": string;
+  "Method Reporting Limit": string;
+  "Result Unit": string;
+  "Detection Condition": string;
+  "Limit Type": string;
+  "Fraction": string;
+  "Data Classification": string;
+  "Source of Rounded Value": string;
+  "Rounded Value": string;
+  "Rounding Specification": string;
+  "Analyzing Agency": string;
+  "Analysis Method": string;
+  "Analyzed Date Time": string;
+  "Result Status": string;
+  "Result Grade": string;
+  "Activity ID": string;
+  "Activity Name": string;
+  "Tissue Type": string;
+  "Lab Arrival Temperature": string;
+  "Specimen Name": string;
+  "Lab Quality Flag": string;
+  "Lab Arrival Date and Time": string;
+  "Lab Prepared DateTime": string;
+  "Lab Sample ID": string;
+  "Lab Dilution Factor": string;
+  "Lab Comment": string;
+  "Lab Batch ID": string;
+  "QC Type": string;
+  "QC Source Activity Name": string;
+  "Composite Stat": string;
+};
+
 export type FieldVisits = {
   MinistryContact: string;
   SamplingAgency: string;
@@ -65,8 +124,9 @@ export type FieldActivities = {
   LocationID: string;
   ObservedDateTime: string;
   ObservedDateTimeEnd: string;
-  ActivityType: "SAMPLE_ROUTINE";
+  ActivityType: string;
   ActivityName: string;
+  ActivityComments: string;
   SamplingContextTag: string;
 };
 
@@ -121,8 +181,10 @@ export type Observations = {
   LabSampleID: string;
   LabDilutionFactor: string;
   LabComment: string;
+  LabBatchID: string;
   QCType: string;
   QCSourceActivityName: string;
+  CompositeStat: string;
 };
 
 export type ObservationFile = {
@@ -162,8 +224,11 @@ export type ObservationFile = {
   "Lab: Sample ID": string;
   "Lab: Dilution Factor": string;
   "Lab: Comment": string;
+  "EA_Lab Batch ID": string;
   "QC: Type": string;
   "QC: Source Sample ID": string;
+  "EA_Observation Composite Stat": string;
+  "EA_Upload File Name": string;
 };
 
 export type EmailTemplate = {

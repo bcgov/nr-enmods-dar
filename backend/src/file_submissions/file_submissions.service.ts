@@ -1,18 +1,23 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { CreateFileSubmissionDto } from "./dto/create-file_submission.dto";
 import { UpdateFileSubmissionDto } from "./dto/update-file_submission.dto";
 import { PrismaService } from "nestjs-prisma";
 import { FileResultsWithCount } from "src/interface/fileResultsWithCount";
-import { file_submission, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { FileInfo } from "src/types/types";
 import { randomUUID } from "crypto";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
+import { AqiApiService } from "src/aqi_api/aqi_api.service";
+import { OperationLockService } from "src/operationLock/operationLock.service";
 
 @Injectable()
 export class FileSubmissionsService {
+  private readonly logger = new Logger(FileSubmissionsService.name);
   constructor(
     private prisma: PrismaService,
     private readonly objectStore: ObjectStoreService,
+    private readonly aqiService: AqiApiService,
+    private readonly operationLockService: OperationLockService,
   ) {}
 
   async create(body: any, file: Express.Multer.File) {
@@ -44,6 +49,7 @@ export class FileSubmissionsService {
     createFileSubmissionDto.submitter_agency_name = "SALUSSYSTEMS"; // TODO: change this once BCeID is set up
     createFileSubmissionDto.sample_count = 0;
     createFileSubmissionDto.result_count = 0;
+    // createFileSubmissionDto.file_row_count = body.file_row_count
     createFileSubmissionDto.organization_guid = body.orgGUID; // TODO: change this once BCeID is set up
     createFileSubmissionDto.data_submitter_email = body.dataSubmitterEmail;
     createFileSubmissionDto.create_user_id = body.userID;
@@ -66,6 +72,7 @@ export class FileSubmissionsService {
       submitter_agency_name: createFileSubmissionDto.submitter_agency_name,
       sample_count: createFileSubmissionDto.sample_count,
       results_count: createFileSubmissionDto.result_count,
+      // file_row_count: parseInt(createFileSubmissionDto.file_row_count, 10),
       active_ind: createFileSubmissionDto.active_ind,
       error_log: createFileSubmissionDto.error_log,
       organization_guid: createFileSubmissionDto.organization_guid,
@@ -89,7 +96,7 @@ export class FileSubmissionsService {
         submission_status_code: {
           equals: submissionCode,
         },
-      },
+      }
     };
 
     const [results, count] = await this.prisma.$transaction([
@@ -115,6 +122,7 @@ export class FileSubmissionsService {
       submitter_user_id: {},
       submitter_agency_name: {},
       submission_status_code: {},
+      active_ind: true,
     };
 
     if (body.fileName) {
@@ -123,34 +131,43 @@ export class FileSubmissionsService {
       };
     }
 
-    if (body.submissionDateFrom) {
+    if (body.submissionDateFrom && body.submissionDateTo) {
+      whereClause.submission_date = {
+        gte: new Date(body.submissionDateFrom),
+        lte: new Date(body.submissionDateTo),
+      };
+    } else if (body.submissionDateFrom) {
       whereClause.submission_date = {
         gte: new Date(body.submissionDateFrom),
       };
-    }
-
-    if (body.submissionDateTo) {
+    } else if (body.submissionDateTo) {
       whereClause.submission_date = {
-        ...whereClause.submission_date,
         lte: new Date(body.submissionDateTo),
       };
     }
 
-    if (body.submitterUsername && body.submitterUsername != "ALL") {
+    if (body.submitterUsername) {
+      const usernames = body.submitterUsername
+        .split(",")
+        .map((item) => item.trim());
       whereClause.submitter_user_id = {
-        contains: body.submitterUsername,
+        in: usernames,
       };
     }
 
-    if (body.submitterAgency && body.submitterAgency != "ALL") {
+    if (body.submitterAgency) {
+      const agencies = body.submitterAgency
+        .split(",")
+        .map((item) => item.trim());
       whereClause.submitter_agency_name = {
-        contains: body.submitterAgency,
+        in: agencies,
       };
     }
 
-    if (body.fileStatus && body.fileStatus != "ALL") {
+    if (body.fileStatus) {
+      const statues = body.fileStatus.split(",").map((item) => item.trim());
       whereClause.submission_status_code = {
-        equals: body.fileStatus,
+        in: statues,
       };
     }
 
@@ -198,30 +215,87 @@ export class FileSubmissionsService {
   }
 
   async updateFileStatus(submission_id: string, status: string) {
-    await this.prisma.file_submission.update({
-      where: {
-        submission_id: submission_id,
-      },
-      data: {
-        submission_status_code: status,
-      },
+    await this.prisma.$transaction(async (prisma) => {
+      const updateStatus = await this.prisma.file_submission.update({
+        where: {
+          submission_id: submission_id,
+        },
+        data: {
+          submission_status_code: status,
+          update_utc_timestamp: new Date(),
+        },
+      });
     });
   }
 
-  update(id: number, updateFileSubmissionDto: UpdateFileSubmissionDto) {
-    return `This action updates a #${id} fileSubmission`;
+  async update(id: string, updateFileSubmissionDto: UpdateFileSubmissionDto) {
+    try {
+      const updateFileStatus = await this.prisma.file_submission.update({
+        where: {
+          submission_id: id,
+        },
+        data: {
+          submission_status_code:
+            updateFileSubmissionDto.submission_status_code,
+        },
+      });
+    } catch (err) {
+      this.logger.error(`Error updating file status: ${err.message}`);
+    }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} fileSubmission`;
+  async remove(file_name: string, id: string) {
+    try {
+      await this.aqiService.deleteRelatedData(file_name, id);
+      await this.prisma.$transaction(async (prisma) => {
+        const updateFileStatus = await this.prisma.file_submission.update({
+          where: {
+            submission_id: id,
+          },
+          data: {
+            submission_status_code: "DELETED",
+            update_utc_timestamp: new Date(),
+          },
+        });
+      });
+
+
+      // don't delete the imported GUIDs, can be used again for deletion if deletion failed
+      // await this.prisma.aqi_imported_data.deleteMany({
+      //   where: {
+      //     file_name: file_name,
+      //   },
+      // });
+
+      return true;
+    } catch (err) {
+      this.logger.error(`Error deleting file: ${err.message}`);
+      await this.prisma.$transaction(async (prisma) => {
+        const updateFileStatus = await this.prisma.file_submission.update({
+          where: {
+            submission_id: id,
+          },
+          data: {
+            submission_status_code: "DEL ERROR",
+            update_utc_timestamp: new Date(),
+          },
+        });
+      });
+      return false;
+    }
   }
 
   async getFromS3(fileName: string) {
     try {
-      const fileBinary = await this.objectStore.getFileData(fileName);
-      return fileBinary;
+      const fileStream = await this.objectStore.getFileData(fileName);
+      const fileBinary: Uint8Array[] = [];
+      return new Promise((resolve, reject) => {
+        fileStream.on("data", (chunk: Uint8Array) => fileBinary.push(chunk));
+        fileStream.on("end", () => resolve(Buffer.concat(fileBinary)));
+        fileStream.on("error", (err: Error) => reject(err));
+      });
     } catch (err) {
-      console.error(`Error fetching file from S3: ${err.message}`);
+      this.logger.error(`Error fetching file from S3: ${err.message}`);
       throw err;
     }
   }
@@ -244,7 +318,7 @@ async function grantBucketAccess(token: string) {
     data: {
       accessKeyId: process.env.OBJECTSTORE_ACCESS_KEY,
       bucket: process.env.OBJECTSTORE_BUCKET,
-      bucketName: process.env.OBJECTSTORE_BUCKET_NAME,
+      bucketName: process.env.OBJECTSTORE_BUCKET,
       endpoint: process.env.OBJECTSTORE_URL,
       secretAccessKey: process.env.OBJECTSTORE_SECRET_KEY,
       active: true,
@@ -255,10 +329,10 @@ async function grantBucketAccess(token: string) {
 
   await axios
     .request(config)
-    .then((res) => console.log(res))
+    .then((res) => res)
     .catch((err) => {
-      console.log("create bucket failed");
-      console.log(err);
+      this.logger.log("create bucket failed");
+      this.logger.log(err);
     });
 }
 

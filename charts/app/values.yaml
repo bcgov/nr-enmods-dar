@@ -3,7 +3,7 @@
 #-- global variables, can be accessed by sub-charts.
 global:
   #-- the registry where the images are stored. override during runtime for other registry at global level or individual level.
-  repository: ~ # provide the repo name from where images will be sourced for example bcgo
+  repository: bcgov/nr-endmods-dar ~ # provide the repo name from where images will be sourced for example bcgo
   #-- the registry where the images are stored. override during runtime for other registry at global level or individual level. default is ghcr.io
   registry: ghcr.io # ghcr.io for directly streaming from github container registry or "artifacts.developer.gov.bc.ca/github-docker-remote" for artifactory, or any other registry.
   #-- the tag of the image, it can be latest, 1.0.0 etc..., or the sha256 hash
@@ -17,6 +17,55 @@ global:
     databaseUser: ~
     databaseName: ~
     persist: true
+    #-- backend
+    prismaLogging: ~
+    keycloakClientId: ~
+    jwksUri: ~
+    jwtIssuer: ~
+    usersApiBaseUrl: ~
+    cssEnvironment: ~
+    integrationId: ~
+    usersApiTokenUrl: ~
+    usersApiClientId: ~
+    usersApiClientSecret: ~
+    aqiBaseUrl: ~
+    aqiAccessToken: ~
+    fileBatchSize: ~
+    chesTokenUrl: ~
+    chesEmailUrl: ~
+    chesClientId: ~
+    chesClientSecret: ~
+    webappUrl: ~
+    ftpPath: ~
+    ftpHost: ~
+    ftpPort: ~
+    ftpUser: ~
+    ftpPassword: ~
+    objectstoreBucketName: ~
+    #-- frontend
+    port: "3000"
+    apiName: ~
+    baseUrl: ~
+    reactAppApiUrl: "/api"
+    reactAppKeycloakUrl: ~
+    # reactAppKeycloakUrl2: ~
+    reactAppKeycloakRealm: ~
+    reactAppKeycloakClientId: ~
+    # reactAppKeycloakUser: ~
+    # reactAppKeycloakPassword: ~
+    #-- backup
+    backupDir: ~
+    backupStrategy: ~
+    numBackups: ~
+    dailyBackups: ~
+    weeklyBackups: ~
+    monthlyBackups: ~
+    #-- flyway
+    flywayLocations:
+      dev: "filesystem:/flyway/sql, filesystem:/flyway/sql-test"
+      test: "filesystem:/flyway/sql, filesystem:/flyway/sql-test"
+      prod: "filesystem:/flyway/sql"
+
   #-- domain of the application, it is required, apps.silver.devops.gov.bc.ca for silver cluster and apps.devops.gov.bc.ca for gold cluster
   domain: "apps.silver.devops.gov.bc.ca" # it is apps.gold.devops.gov.bc.ca for gold cluster
   #-- the database Alias gives a nice way to switch to different databases, crunchy, patroni ... etc.
@@ -37,6 +86,9 @@ backend:
     maxReplicas: 7
     #-- the target cpu utilization percentage, is from request cpu and NOT LIMIT CPU.
     targetCPUUtilizationPercentage: 80
+  env:
+    - name: NODE_OPTIONS
+      value: "--max-old-space-size=256"
   #-- vault, for injecting secrets from vault. it is optional and is an object. it creates an initContainer which reads from vault and app container can source those secrets. for referring to a working example with vault follow this link: https://github.com/bcgov/onroutebc/blob/main/charts/onroutebc/values.yaml#L171-L186
   vault:
     #-- enable or disable vault.
@@ -55,10 +107,10 @@ backend:
     resources:
       limits:
         cpu: 50m
-        memory: 50Mi
+        memory: 250Mi
       requests:
         cpu: 50m
-        memory: 25Mi
+        memory: 125Mi
   #-- the service for the component. for inter namespace communication, use the service name as the hostname.
   service:
     #-- the type of the service. it can be ClusterIP, NodePort, LoadBalancer, ExternalName. ClusterIP is the default and is recommended.
@@ -68,6 +120,45 @@ backend:
   pdb:
     enabled: false # enable it in PRODUCTION for having pod disruption budget.
     minAvailable: 1 # the minimum number of pods that must be available during the disruption budget.
+  # Mount Persistent Volume Claim for the backend to store files
+  persistence:
+    enabled: true
+    accessMode: ReadWriteMany
+    size: 150Mi
+    storageClassName: netapp-file-standard
+    swapFiles:
+      enabled: true
+      size: 250Mi # The size of the swap file, adjust as needed
+      storageClassName: netapp-file-standard # Or use your specific storage class
+
+  volumeMounts:
+    - name: obs-temp-files
+      mountPath: /app/src/tempObsFiles
+    - name: swap-volume
+      mountPath: /swap # Mount the PVC for swap files
+
+  volumes:
+    - name: obs-temp-files
+      persistentVolumeClaim:
+        claimName: obs-temp-files-pvc
+    - name: swap-volume
+      persistentVolumeClaim:
+        claimName: swap-files-pvc # Ensure this PVC is created for swap files
+  initContainers:
+    - name: setup-swap
+      image: alpine # Use a small Linux image like Alpine
+      command:
+        - sh
+        - -c
+        - |
+          # Create a 1GB swap file
+          dd if=/dev/zero of=/swap/swapfile bs=1M count=200
+          mkswap /swap/swapfile
+          chmod 600 /swap/swapfile
+          swapon /swap/swapfile
+      volumeMounts:
+        - name: swap-volume
+          mountPath: /swap
 
 frontend:
   # -- enable or disable a component deployment.
@@ -117,15 +208,15 @@ crunchy: # enable it for TEST and PROD, for PR based pipelines simply use single
   crunchyImage: artifacts.developer.gov.bc.ca/bcgov-docker-local/crunchy-postgres-gis:ubi8-15.2-3.3-0
 
   postgresVersion: 15
-  postGISVersion: '3.3'
+  postGISVersion: "3.3"
   imagePullPolicy: Always
   instances:
     name: ha # high availability
     replicas: 1 # 2 or 3 for high availability in TEST and PROD.
     metadata:
       annotations:
-        prometheus.io/scrape: 'true'
-        prometheus.io/port: '9187'
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9187"
     dataVolumeClaimSpec:
       storage: 120Mi
       storageClassName: netapp-block-standard
@@ -211,17 +302,17 @@ bitnami-pg:
   image:
     registry: ghcr.io
     repository: bcgov/nr-containers/bitnami/postgresql
-    tag: 15.6.0
+    tag: 15.10.0
   auth:
-    existingSecret: '{{ .Release.Name }}'
-    username: 'quickstart'
-    database: quickstart
+    existingSecret: "{{ .Release.Name }}-database"
+    username: "postgres"
+    database: postgres
   shmVolume:
     enabled: false
   backup:
     enabled: false
     cronjob:
-      containerSecurityContext: { }
+      containerSecurityContext: {}
       podSecurityContext:
         enabled: false
       storage:
@@ -232,7 +323,7 @@ bitnami-pg:
       storageClass: netapp-block-standard
       accessModes:
         - ReadWriteOnce
-      size: 100Mi
+      size: 512Mi
     containerSecurityContext:
       enabled: false
     podSecurityContext:
@@ -244,10 +335,7 @@ bitnami-pg:
           PGPASSWORD=$POSTGRES_PASSWORD psql -U postgres -d postgres -c "CREATE EXTENSION postgis;"
     resources:
       requests:
-        cpu: 50m
-        memory: 150Mi
-      limits:
-        cpu: 150m
+        cpu: 100m
         memory: 250Mi
 
 backup:
@@ -271,8 +359,8 @@ backup:
     startingDeadlineSeconds: 3600
   containers:
     - name: backup
-      registry: 'docker.io'
-      repository: 'bcgovimages' # example, it includes registry and repository
+      registry: "docker.io"
+      repository: "bcgovimages" # example, it includes registry and repository
       image: backup-container # the exact component name, be it backend, api-1 etc...
       tag: latest # the tag of the image, it can be latest, 1.0.0 etc..., or the sha256 hash
       command:
@@ -289,15 +377,15 @@ backup:
           - name: BACKUP_STRATEGY
             value: "rolling"
           - name: NUM_BACKUPS
-            value: '5'
+            value: "5"
           - name: DAILY_BACKUPS
-            value: '7'
+            value: "7"
           - name: WEEKLY_BACKUPS
-            value: '4'
+            value: "4"
           - name: MONTHLY_BACKUPS
-            value: '1'
+            value: "1"
           - name: DATABASE_SERVICE_NAME # depends on which chart being used, adjust accordingly.
-            value: '{{.Release.Name}}-{{.Values.global.databaseAlias}}'
+            value: "{{.Release.Name}}-{{.Values.global.databaseAlias}}"
           - name: DEFAULT_PORT
             value: "5432"
         fromGlobalSecret:

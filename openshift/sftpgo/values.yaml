@@ -1,0 +1,31 @@
+image:
+  repository: image-registry.openshift-image-registry.svc:5000/b9dd81-dev/sftpgo
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  controlPort: 2222
+
+deployment:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+sftp:
+  port: 2222
+  webport: 8080
+  directory: /srv/sftpgo
+  # uploader1:
+  #   publicKey: ""
+  # uploader2:
+  #   publicKey: ""
+  # uploader3:
+  #   publicKey: ""
+  # service:
+  #   publicKey: ""
+  # admin:
+  #   user: ""
+  #   password: ""

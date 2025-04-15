@@ -40,6 +40,7 @@ model file_submission {
   update_user_id         String                 @db.VarChar(200)
   update_utc_timestamp   DateTime               @db.Timestamp(6)
   data_submitter_email   String?                @db.VarChar(200)
+  aqi_obs_status         aqi_obs_status[]
   file_error_logs        file_error_logs[]
   file_operation_codes   file_operation_codes   @relation(fields: [file_operation_code], references: [file_operation_code], onDelete: NoAction, onUpdate: NoAction, map: "file_operation_code_fk")
   submission_status      submission_status_code @relation(fields: [submission_status_code], references: [submission_status_code], onDelete: NoAction, onUpdate: NoAction, map: "submission_status_code_fk")
@@ -57,16 +58,6 @@ model aqi_projects {
 
 model aqi_mediums {
   aqi_mediums_id       String   @id @db.Uuid
-  custom_id            String   @db.VarChar(200)
-  description          String?  @db.VarChar(2000)
-  create_user_id       String   @db.VarChar(200)
-  create_utc_timestamp DateTime @db.Timestamp(6)
-  update_user_id       String   @db.VarChar(200)
-  update_utc_timestamp DateTime @db.Timestamp(6)
-}
-
-model aqi_units {
-  aqi_units_id         String   @id @db.Uuid
   custom_id            String   @db.VarChar(200)
   description          String?  @db.VarChar(2000)
   create_user_id       String   @db.VarChar(200)
@@ -249,7 +240,7 @@ model file_error_logs {
   file_name            String?          @db.VarChar(200)
   original_file_name   String?          @db.VarChar(200)
   file_operation_code  String?          @db.VarChar(200)
-  ministry_contact     String?          @db.VarChar(200)
+  ministry_contact     Json?
   error_log            Json?
   create_utc_timestamp DateTime         @db.Timestamp(6)
   file_submission      file_submission? @relation(fields: [file_submission_id], references: [submission_id], onDelete: NoAction, onUpdate: NoAction, map: "file_submission_id_fk")
@@ -263,4 +254,64 @@ model aqi_data_classifications {
   create_utc_timestamp        DateTime @db.Timestamp(6)
   update_user_id              String   @db.VarChar(200)
   update_utc_timestamp        DateTime @db.Timestamp(6)
+}
+
+model aqi_imported_data {
+  aqi_imported_data_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  file_name            String?  @db.VarChar(200)
+  original_file_name   String?  @db.VarChar(200)
+  imported_guids       Json?
+  create_utc_timestamp DateTime @db.Timestamp(6)
+}
+
+model aqi_obs_status {
+  aqi_obs_status_id    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  file_submission_id   String?          @db.Uuid
+  file_name            String?          @db.VarChar(200)
+  file_operation       String?          @db.VarChar(200)
+  status_url           String?          @db.VarChar(750)
+  result_url           String?          @db.VarChar(750)
+  active_ind           Boolean          @default(true)
+  create_utc_timestamp DateTime         @db.Timestamp(6)
+  file_submission      file_submission? @relation(fields: [file_submission_id], references: [submission_id], onDelete: NoAction, onUpdate: NoAction, map: "file_submission_id_fk")
+}
+
+model aqi_analysis_methods {
+  aqi_analysis_methods_id String   @id @db.Uuid
+  method_id               String   @db.VarChar(200)
+  method_name             String?  @db.VarChar(2000)
+  method_context          String?  @db.VarChar(2000)
+  create_user_id          String   @db.VarChar(200)
+  create_utc_timestamp    DateTime @db.Timestamp(6)
+  update_user_id          String   @db.VarChar(200)
+  update_utc_timestamp    DateTime @db.Timestamp(6)
+}
+
+model aqi_units_xref {
+  edt_unit_guid        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ems_code             Int?
+  edt_unit_xref        String   @db.VarChar(255)
+  aqi_units_code       String   @db.VarChar(255)
+  create_user_id       String   @db.VarChar(200)
+  create_utc_timestamp DateTime @db.Timestamp(6)
+  update_user_id       String   @db.VarChar(200)
+  update_utc_timestamp DateTime @db.Timestamp(6)
+}
+
+model aqi_tissue_types {
+  aqi_tissue_types_id  String   @id @db.Uuid
+  custom_id            String   @db.VarChar(200)
+  create_user_id       String   @db.VarChar(200)
+  create_utc_timestamp DateTime @db.Timestamp(6)
+  update_user_id       String   @db.VarChar(200)
+  update_utc_timestamp DateTime @db.Timestamp(6)
+}
+
+model aqi_sampling_agency {
+  aqi_sampling_agency_id String   @id @db.Uuid
+  custom_id              String   @db.VarChar(200)
+  create_user_id         String   @db.VarChar(200)
+  create_utc_timestamp   DateTime @db.Timestamp(6)
+  update_user_id         String   @db.VarChar(200)
+  update_utc_timestamp   DateTime @db.Timestamp(6)
 }

@@ -20,5 +20,6 @@ export class CreateFileSubmissionDto extends PickType(FileSubmissionDto, [
   'create_utc_timestamp',
   'update_user_id',
   'update_utc_timestamp',
+  // 'file_row_count'
 
 ] as const) {}

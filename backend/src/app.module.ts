@@ -26,6 +26,7 @@ import { FtpModule } from "./ftp/ftp.module";
 import { FileValidationModule } from './file_validation/file_validation.module';
 import { ObjectStoreModule } from "./objectStore/objectStore.module";
 import { FileErrorLogsModule } from './file_error_logs/file_error_logs.module';
+import { OperationLockService } from "./operationLock/operationLock.service";
 
 const DB_HOST = process.env.POSTGRES_HOST || "localhost";
 const DB_USER = process.env.POSTGRES_USER || "postgres";
@@ -74,10 +75,10 @@ function getMiddlewares() {
     FtpModule,
     FileValidationModule,
     ObjectStoreModule,
-    FileErrorLogsModule
+    FileErrorLogsModule,
   ],
   controllers: [AppController, MetricsController, HealthController],
-  providers: [AppService, CronJobService],
+  providers: [AppService, CronJobService, OperationLockService],
 })
 export class AppModule {
   // let's add a middleware on all routes

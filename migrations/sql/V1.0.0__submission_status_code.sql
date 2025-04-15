@@ -69,4 +69,14 @@ values (
         (now() at time zone 'utc'),
         'VMANAWAT',
         (now() at time zone 'utc')
+    ),
+    (
+        'DELETED',
+        'Deleted',
+        25,
+        true,
+        'VMANAWAT',
+        (now() at time zone 'utc'),
+        'VMANAWAT',
+        (now() at time zone 'utc')
     );

@@ -1,20 +1,19 @@
-import { Module } from "@nestjs/common";
+import { forwardRef, Module } from '@nestjs/common';
 import { HttpModule } from "@nestjs/axios";
 import { FileParseValidateService } from "./file_parse_and_validation.service";
-import { AqiApiService } from "src/aqi_api/aqi_api.service";
-import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
 import { NotificationsService } from "src/notifications/notifications.service";
 import { ObjectStoreModule } from "src/objectStore/objectStore.module";
-import { FileErrorLogsModule } from "src/file_error_logs/file_error_logs.module";
+import { AqiApiModule } from '../aqi_api/aqi_api.module';
+import { FileSubmissionsModule } from '../file_submissions/file_submissions.module';
+import { OperationLockService } from 'src/operationLock/operationLock.service';
 
 @Module({
   providers: [
     FileParseValidateService,
-    FileSubmissionsService,
-    AqiApiService,
     NotificationsService,
+    OperationLockService
   ],
   exports: [FileParseValidateService],
-  imports: [HttpModule, ObjectStoreModule, FileErrorLogsModule],
+  imports: [HttpModule, FileSubmissionsModule, ObjectStoreModule, AqiApiModule],
 })
 export class FileParseValidateModule {}

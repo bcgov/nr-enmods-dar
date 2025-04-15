@@ -1,149 +1,236 @@
-import apiService from "@/service/api-service";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
 import DialogTitle from "@mui/material/DialogTitle";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableRow from "@mui/material/TableRow";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import { useEffect, useState } from "react";
 import { DeleteRounded, Description } from "@mui/icons-material";
 import _kc from "@/keycloak";
+import Select from "react-select";
 import {
   Box,
   FormControl,
   FormLabel,
   Grid,
   IconButton,
-  MenuItem,
-  Select,
   TextField,
   Typography,
 } from "@mui/material";
-import { FileStatusCode } from "@/types/types";
 import { getFileStatusCodes } from "@/common/manage-dropdowns";
 import {
+  deleteFile,
   downloadFile,
   downloadFileLogs,
   searchFiles,
+  updateFileStatus,
 } from "@/common/manage-files";
-
-const columns = [
-  {
-    field: "file_name",
-    headerName: "File Name",
-    sortable: true,
-    filterable: true,
-    flex: 1.5,
-    renderCell: (params) => (
-      <FormControl
-        style={{
-          cursor: "pointer",
-          textDecoration: "underline",
-          color: "blue",
-        }}
-        onClick={() =>
-          handleDownload(params.row.file_name, params.row.original_file_name)
-        }
-      >
-        {params.row.original_file_name}
-      </FormControl>
-    ),
-  },
-  {
-    field: "submission_date",
-    headerName: "Submission Date",
-    sortable: true,
-    filterable: true,
-    flex: 2,
-  },
-  {
-    field: "submitter_user_id",
-    headerName: "Submitter Username",
-    sortable: true,
-    filterable: true,
-    flex: 2,
-  },
-  {
-    field: "submitter_agency_name",
-    headerName: "Submitter Agency",
-    sortable: true,
-    filterable: true,
-    flex: 2,
-  },
-  {
-    field: "submission_status_code",
-    headerName: "Status",
-    sortable: true,
-    filterable: true,
-    flex: 1.5,
-  },
-  {
-    field: "sample_count",
-    headerName: "# Samples",
-    sortable: true,
-    filterable: true,
-    flex: 1,
-  },
-  {
-    field: "results_count",
-    headerName: "# Results",
-    sortable: true,
-    filterable: true,
-    flex: 1,
-  },
-  {
-    field: "delete",
-    headerName: "Delete",
-    flex: 0.75,
-    renderCell: (params) => (
-      <IconButton
-        color="primary"
-        onClick={() =>
-          handleDelete(params.row.file_name, params.row.submission_id)
-        }
-      >
-        <DeleteRounded />
-      </IconButton>
-    ),
-  },
-  {
-    field: "messages",
-    headerName: "Messages",
-    flex: 1,
-    renderCell: (params) => (
-      <IconButton
-        color="primary"
-        onClick={() =>
-          handleMessages(
-            params.row.submission_id,
-            params.row.original_file_name,
-          )
-        }
-      >
-        <Description />
-      </IconButton>
-    ),
-  },
-];
+import { getUsers } from "@/common/admin";
+import { jwtDecode, JwtPayload } from "jwt-decode";
 
 export default function Dashboard() {
+  const { open, currentItem, handleOpen, handleClose } = useHandleOpen();
+
+  const columns = [
+    {
+      field: "file_name",
+      headerName: "File Name",
+      sortable: true,
+      filterable: true,
+      flex: 1.5,
+      renderCell: (params: {
+        row: { file_name: string; original_file_name: string };
+      }) => (
+        <FormControl
+          style={{
+            cursor: "pointer",
+            textDecoration: "underline",
+            color: "blue",
+          }}
+          onClick={() =>
+            handleDownload(params.row.file_name, params.row.original_file_name)
+          }
+        >
+          {params.row.original_file_name}
+        </FormControl>
+      ),
+    },
+    {
+      field: "submission_date",
+      headerName: "Submission Date",
+      sortable: true,
+      filterable: true,
+      flex: 2,
+    },
+    {
+      field: "submitter_user_id",
+      headerName: "Submitter Username",
+      sortable: true,
+      filterable: true,
+      flex: 2,
+    },
+    {
+      field: "submitter_agency_name",
+      headerName: "Submitter Agency",
+      sortable: true,
+      filterable: true,
+      flex: 2,
+    },
+    {
+      field: "submission_status_code",
+      headerName: "Status",
+      sortable: true,
+      filterable: true,
+      flex: 1.5,
+    },
+    {
+      field: "sample_count",
+      headerName: "# Samples",
+      sortable: true,
+      filterable: true,
+      flex: 1,
+    },
+    {
+      field: "results_count",
+      headerName: "# Results",
+      sortable: true,
+      filterable: true,
+      flex: 1,
+    },
+    {
+      field: "delete",
+      headerName: "Delete",
+      flex: 0.75,
+      renderCell: (params: {
+        row: {
+          file_name: string;
+          original_file_name: string;
+          submission_id: string;
+          submission_status_code: string;
+        };
+      }) => {
+        const token: any = localStorage.getItem("__auth_token");
+        const decoded = jwtDecode<JwtPayload>(token);
+        let userRoles = decoded.client_roles;
+
+        if (
+          params.row.submission_status_code === "SUBMITTED" &&
+          userRoles.includes("Enmods Admin")
+        ) {
+          return (
+            <IconButton
+              color="primary"
+              onClick={() =>
+                handleOpen(
+                  params.row.original_file_name,
+                  params.row.submission_id,
+                  params.row.file_name,
+                )
+              }
+            >
+              <DeleteRounded />
+            </IconButton>
+          );
+        } else {
+          return (
+            <IconButton
+              color="primary"
+              disabled
+              onClick={() =>
+                handleOpen(
+                  params.row.original_file_name,
+                  params.row.submission_id,
+                  params.row.file_name,
+                )
+              }
+            >
+              <DeleteRounded />
+            </IconButton>
+          );
+        }
+      },
+    },
+    {
+      field: "messages",
+      headerName: "Messages",
+      flex: 1,
+      renderCell: (params: {
+        row: {
+          file_name: string;
+          original_file_name: string;
+          submission_id: string;
+          submission_status_code: string;
+        };
+      }) => {
+        if (
+          params.row.submission_status_code === "VALIDATED" ||
+          params.row.submission_status_code === "REJECTED" ||
+          params.row.submission_status_code === "SUBMITTED"
+        ) {
+          return (
+            <IconButton
+              color="primary"
+              onClick={() =>
+                handleMessages(
+                  params.row.submission_id,
+                  params.row.original_file_name,
+                )
+              }
+            >
+              <Description />
+            </IconButton>
+          );
+        } else {
+          return (
+            <IconButton
+              color="primary"
+              disabled
+              onClick={() =>
+                handleMessages(
+                  params.row.submission_id,
+                  params.row.original_file_name,
+                )
+              }
+            >
+              <Description />
+            </IconButton>
+          );
+        }
+      },
+    },
+  ];
+
   const [formData, setFormData] = useState({
     fileName: "",
     submissionDateTo: "",
     submissionDateFrom: "",
-    submitterUsername: "",
-    submitterAgency: "",
-    fileStatus: "",
+    submitterUsername: [],
+    submitterAgency: [],
+    fileStatus: [],
   });
 
-  const handleFormInputChange = (key, event) => {
+  const handleFormInputChange = (name: string, value: any) => {
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleMultiSelectChange = (name: string, selectedOptions: any) => {
+    const selectedValues = selectedOptions
+      ? selectedOptions.map((option: any) => option.value)
+      : [];
+    handleFormInputChange(name, selectedValues);
+  };
+
+  const handleClearSearch = () => {
     setFormData({
-      ...formData,
-      [key]: event.target.value,
+      fileName: "",
+      submissionDateTo: "",
+      submissionDateFrom: "",
+      submitterUsername: [],
+      submitterAgency: [],
+      fileStatus: [],
     });
   };
 
@@ -157,7 +244,10 @@ export default function Dashboard() {
     pageSize: 10,
   });
 
-  const handlePaginationChange = (params) => {
+  const handlePaginationChange = (params: {
+    pageSize: number;
+    page: number;
+  }) => {
     setTimeout(() => {
       if (params.pageSize != paginationModel.pageSize) {
         setPaginationModel({ page: 0, pageSize: params.pageSize });
@@ -191,35 +281,48 @@ export default function Dashboard() {
     });
   };
 
+  const agencyOptions: any = []; // TODO: get the EnMoDS agency list from an api call
+
+  const [users, setUsers] = useState({
+    items: [],
+  });
+
+  const userOptions = users.items.map((user) => ({
+    value: user.username,
+    label: user.name,
+  }));
+
+  const handleCloseAndSubmit = async () => {
+    handleClose();
+    await handleSearch(undefined);
+  };
+
   const [submissionStatusCodes, setSubmissionStatusCodes] = useState({
     items: [],
   });
 
-  const [selectedStatusCode, setSelectedStatusCode] = useState("ALL");
-  const [selectedSubmitterUserName, setSelectedSubmitterUserName] =
-    useState("ALL");
-  const [selectedSubmitterAgencyName, setSelectedSubmitterAgencyName] =
-    useState("ALL");
+  const statusOptions = submissionStatusCodes.items.map((status) => ({
+    value: status.submission_status_code,
+    label: status.description,
+  }));
 
-  const handleStatusChange = (event) => {
-    setSelectedStatusCode(event.target.value);
-    handleFormInputChange("fileStatus", event);
-  };
+  const setupDelete = async (submission_id: string) => {
+    const prevData = data.items;
+    let newData = prevData.map((row: any) =>
+      row.submission_id === submission_id
+        ? { ...row, ["submission_status_code"]: "DEL QUEUED" }
+        : row,
+    );
 
-  const handleUsernameChange = (event) => {
-    setSelectedSubmitterUserName(event.target.value);
-    handleFormInputChange("submitterUsername", event);
-  };
-
-  const handleAgencyChange = (event) => {
-    setSelectedSubmitterAgencyName(event.target.value);
-    handleFormInputChange("submitterAgency", event);
+    // update the status in the backend here
+    await handleFileStatus(submission_id, "DEL QUEUED")
+    await handleSearch(undefined)
   };
 
   useEffect(() => {
     async function fetchFileStatusCodes() {
-      await getFileStatusCodes().then((response) => {
-        const newSubmissionCodes = submissionStatusCodes.items;
+      await getFileStatusCodes().then((response: any) => {
+        const newSubmissionCodes: any = submissionStatusCodes.items;
         Object.keys(response).map((key) => {
           newSubmissionCodes[key] = response[key];
         });
@@ -233,16 +336,26 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    async function fetchUsers() {
+      await getUsers().then((response: any) => {
+        const newUsers: any = users.items;
+        Object.keys(response).map((key) => {
+          newUsers[key] = response[key];
+        });
+        setUsers({
+          items: newUsers,
+        });
+      });
+    }
+
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
     if (data.items.length > 0) {
       handleSearch(null);
     }
   }, [paginationModel]);
-
-  const [selectedRow, setSelectedRow] = useState<null | any[]>(null);
-
-  const handleClose = () => {
-    setSelectedRow(null);
-  };
 
   return (
     <>
@@ -254,7 +367,7 @@ export default function Dashboard() {
       >
         <Box>
           <Typography id="pageTitle" variant="h4">
-            Electronic Data Transfer - Dashboard
+            Dashboard
           </Typography>
         </Box>
 
@@ -271,11 +384,13 @@ export default function Dashboard() {
                   </FormLabel>
                   <TextField
                     id="file-name-input"
+                    name="fileName"
                     variant="outlined"
                     size="small"
                     sx={{ width: "650px" }}
-                    onChange={(event) =>
-                      handleFormInputChange("fileName", event)
+                    value={formData.fileName}
+                    onChange={(e) =>
+                      handleFormInputChange("fileName", e.target.value)
                     }
                   />
                 </Grid>
@@ -295,11 +410,16 @@ export default function Dashboard() {
                   </FormLabel>
                   <TextField
                     id="submission-date-from-input"
+                    name="submissionDateFrom"
                     variant="outlined"
                     size="small"
                     type="date"
-                    onChange={(event) =>
-                      handleFormInputChange("submissionDateFrom", event)
+                    value={formData.submissionDateFrom}
+                    onChange={(e) =>
+                      handleFormInputChange(
+                        "submissionDateFrom",
+                        e.target.value,
+                      )
                     }
                   />
                 </Grid>
@@ -313,10 +433,12 @@ export default function Dashboard() {
                   </FormLabel>
                   <TextField
                     id="submission-date-to-input"
+                    name="submissionDateTo"
                     size="small"
                     type="date"
-                    onChange={(event) =>
-                      handleFormInputChange("submissionDateTo", event)
+                    value={formData.submissionDateTo}
+                    onChange={(e) =>
+                      handleFormInputChange("submissionDateTo", e.target.value)
                     }
                   />
                 </Grid>
@@ -328,22 +450,27 @@ export default function Dashboard() {
                   >
                     Submitting Agency
                   </FormLabel>
-                  <FormControl id="submitting-agency-input">
+                  <FormControl>
                     <Select
-                      name="dropdown-agency"
-                      variant="outlined"
-                      size="small"
-                      sx={{ width: "645px" }}
-                      onChange={handleAgencyChange}
-                      value={selectedSubmitterAgencyName}
-                    >
-                      <MenuItem key="ALL" value="ALL">
-                        ALL
-                      </MenuItem>
-                      {/* TODO
-                        On page load query to find all the agencies and loop through them to render in dropdown                      
-                      */}
-                    </Select>
+                      isMulti
+                      name="submitterAgency"
+                      options={agencyOptions}
+                      styles={{
+                        container: (provided) => ({
+                          ...provided,
+                          width: "645px",
+                        }),
+                      }}
+                      value={userOptions.filter((option) =>
+                        formData.submitterAgency.includes(option.value),
+                      )}
+                      onChange={(selectedOptions) =>
+                        handleMultiSelectChange(
+                          "submitterAgency",
+                          selectedOptions,
+                        )
+                      }
+                    />
                   </FormControl>
                 </Grid>
 
@@ -356,20 +483,25 @@ export default function Dashboard() {
                   </FormLabel>
                   <FormControl id="submitting-user-input">
                     <Select
-                      name="dropdown-user"
-                      variant="outlined"
-                      size="small"
-                      sx={{ width: "645px" }}
-                      onChange={handleUsernameChange}
-                      value={selectedSubmitterUserName}
-                    >
-                      <MenuItem key="ALL" value="ALL">
-                        ALL
-                      </MenuItem>
-                      {/* TODO
-                        On page load query to find all the users and loop through them to render in dropdown                      
-                      */}
-                    </Select>
+                      isMulti
+                      name="submitterUsername"
+                      options={userOptions}
+                      styles={{
+                        container: (provided) => ({
+                          ...provided,
+                          width: "645px",
+                        }),
+                      }}
+                      value={userOptions.filter((option) =>
+                        formData.submitterUsername.includes(option.value),
+                      )}
+                      onChange={(selectedOptions) =>
+                        handleMultiSelectChange(
+                          "submitterUsername",
+                          selectedOptions,
+                        )
+                      }
+                    />
                   </FormControl>
                 </Grid>
 
@@ -382,37 +514,42 @@ export default function Dashboard() {
                   </FormLabel>
                   <FormControl id="file-status-code-input">
                     <Select
-                      name="dropdown-status"
-                      variant="outlined"
-                      size="small"
-                      sx={{ width: "645px" }}
-                      onChange={handleStatusChange}
-                      value={selectedStatusCode}
-                    >
-                      <MenuItem key="ALL" value="ALL">
-                        ALL
-                      </MenuItem>
-                      {submissionStatusCodes
-                        ? submissionStatusCodes.items.map((option) => (
-                            <MenuItem
-                              key={option.submission_status_code}
-                              value={option.submission_status_code}
-                            >
-                              {option.submission_status_code}
-                            </MenuItem>
-                          ))
-                        : ""}
-                    </Select>
+                      isMulti
+                      name="submitterUsername"
+                      options={statusOptions}
+                      styles={{
+                        container: (provided) => ({
+                          ...provided,
+                          width: "645px",
+                        }),
+                      }}
+                      value={statusOptions.filter((option) =>
+                        formData.fileStatus.includes(option.value),
+                      )}
+                      onChange={(selectedOptions) =>
+                        handleMultiSelectChange("fileStatus", selectedOptions)
+                      }
+                    />
                   </FormControl>
                 </Grid>
               </Grid>
             </FormControl>
-            <Box sx={{ paddingLeft: "735px" }}>
+            <Box sx={{ paddingLeft: "550px" }}>
               <Button
                 id="search-button"
                 type="submit"
                 color="primary"
                 variant="contained"
+                onClick={handleClearSearch}
+              >
+                Clear Search
+              </Button>
+              <Button
+                id="search-button"
+                type="submit"
+                color="primary"
+                variant="contained"
+                sx={{ ml: 5 }}
                 onClick={handleSearch}
               >
                 Search
@@ -448,24 +585,42 @@ export default function Dashboard() {
           // onRowClick={(params) => setSelectedRow(params.row)}
           sx={{ width: "1400px", height: `${paginationModel.pageSize * 100}` }}
         />
-        <Dialog open={!!selectedRow} onClose={handleClose}>
-          <DialogTitle>Row Details</DialogTitle>
-          <DialogContent>
-            <Table>
-              <TableBody>
-                {selectedRow &&
-                  Object.entries(selectedRow).map(([key, value]) => (
-                    <TableRow key={key}>
-                      <TableCell>{key}</TableCell>
-                      <TableCell>{value}</TableCell>
-                    </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
+      </div>
+
+      <div>
+        <Dialog open={open} onClose={handleClose}>
+          <DialogTitle>Delete File </DialogTitle>
+          <DialogContent sx={{ paddingTop: "24px" }}>
+            <Typography>
+              Are you sure you want to delete{" "}
+              {currentItem ? currentItem.original_file_name : ""} ?
+            </Typography>
           </DialogContent>
-          <DialogActions>
-            <Button variant="contained" color="secondary" onClick={handleClose}>
-              Close
+          <DialogActions sx={{ paddingBottom: "24px" }}>
+            <Button
+              onClick={handleClose}
+              variant="contained"
+              color="primary"
+              sx={{
+                backgroundColor: "gray",
+                color: "white",
+                "&:hover": {
+                  backgroundColor: "darkgray",
+                },
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="secondary"
+              onClick={() => {
+                setupDelete(currentItem.submission_id);
+                handleCloseAndSubmit()
+              }}
+              variant="contained"
+              autoFocus
+            >
+              Confirm
             </Button>
           </DialogActions>
         </Dialog>
@@ -474,12 +629,32 @@ export default function Dashboard() {
   );
 }
 
+function useHandleOpen() {
+  const [open, setOpen] = useState(false);
+  const [currentItem, setCurrentItem] = useState({});
+
+  const handleOpen = (
+    original_file_name: string,
+    submission_id: string,
+    file_name: string,
+  ) => {
+    setCurrentItem({ original_file_name, submission_id, file_name });
+    setOpen(true);
+  };
+  const handleClose = () => {
+    setOpen(false);
+    setCurrentItem(null);
+  };
+
+  return { open, currentItem, handleOpen, handleClose };
+}
+
 async function handleDownload(
   fileName: string,
   originalFileName: string,
 ): Promise<void> {
   const fileMimeType = getMimeType(fileName);
-  await downloadFile(fileName).then((response) => {
+  await downloadFile(fileName).then((response: any) => {
     const fileBuffer = new Uint8Array(response.data);
     const blob = new Blob([fileBuffer], { type: fileMimeType });
     const link = document.createElement("a");
@@ -501,7 +676,7 @@ async function handleMessages(
       ? fileNameParts.slice(0, -1).join(".")
       : original_file_name;
 
-  const errorMessages = await downloadFileLogs(submission_id);
+  const errorMessages: any = await downloadFileLogs(submission_id);
   const blob = new Blob([errorMessages], { type: "text/plain" });
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
@@ -511,9 +686,11 @@ async function handleMessages(
   document.body.removeChild(link); // Clean up
 }
 
-function handleDelete(fileName: string, submission_id: string): void {
-  console.log(fileName);
-  console.log(submission_id);
+async function handleFileStatus(
+  submission_id: string,
+  newStatus: string
+){
+  await updateFileStatus(submission_id, {submission_status_code: newStatus})
 }
 
 function getMimeType(fileName: string) {

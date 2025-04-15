@@ -40,6 +40,21 @@ spec:
               value: "http://{{ .Release.Name }}-backend"
             - name: LOG_LEVEL
               value: "info"
+            - name: KEYCLOAK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: react-app
+                  key: keycloak-url
+            - name: KEYCLOAK_REALM
+              valueFrom:
+                secretKeyRef:
+                  name: react-app
+                  key: keycloak-realm
+            - name: KEYCLOAK_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: react-app
+                  key: keycloak-client-id
           ports:
             - name: http
               containerPort: 3000
@@ -66,9 +81,6 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 5
           resources:
-            limits:
-              cpu: 100m
-              memory: 150Mi
             requests:
               cpu: 30m
               memory: 50Mi

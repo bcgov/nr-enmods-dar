@@ -34,18 +34,20 @@ export class ObjectStoreService {
         Authorization: `AWS ${this.accessKey}:${signature}`,
         Date: dateValue,
       };
-
+      
+      // getting the file as a stream from the object store 
       const response = await axios({
         method: "get",
         url: requestUrl,
         headers: headers,
-        responseType: "arraybuffer", // This is important for binary data
-      });
-
+        responseType: 'stream',
+      })
+      
       return response.data;
     } catch (error) {
-      console.error("Error fetching the file:", error.message);
-      // throw error;
+      this.logger.error('Error fetching the file:', error.message);
+      this.logger.log('ejofgeujfgeuifg2uifg2ui4g')
+      throw error;
     }
   }
 }
