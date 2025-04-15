@@ -585,7 +585,7 @@ export class CronJobService {
     return filterArray(entries);
   }
 
-  @Cron(CronExpression.EVERY_10_SECONDS) // every 2 hours
+  @Cron(CronExpression.EVERY_MINUTE) // every 2 hours
   private async beginFileValidation() {
     /*
     TODO:
