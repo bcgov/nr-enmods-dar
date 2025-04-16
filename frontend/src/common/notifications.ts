@@ -25,7 +25,6 @@ export async function getNotificationData(): Promise<NotificationInfo[]> {
   const getNotificationDataUrl: string = `${config.API_BASE_URL}/notifications`
   const getParameters = api.generateApiParameters(getNotificationDataUrl)
   const notificationData: NotificationInfo[] = await api.get(getParameters)
-  // console.log(notificationData)
   return notificationData
 }
 

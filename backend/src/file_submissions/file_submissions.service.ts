@@ -258,7 +258,7 @@ export class FileSubmissionsService {
         select: selectColumns,
         where: whereClause,
         orderBy: {
-          create_utc_timestamp: "asc",
+          create_utc_timestamp: "desc",
         },
       }),
 
