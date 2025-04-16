@@ -4,7 +4,6 @@ import SFTPClient from "ssh2-sftp-client";
 import * as dotenv from "dotenv";
 import { NotificationsService } from "src/notifications/notifications.service";
 import { PrismaService } from "nestjs-prisma";
-import { FileValidationService } from "src/file_validation/file_validation.service";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
 
 dotenv.config();
@@ -17,7 +16,6 @@ export class SftpService {
 
   constructor(
     private prisma: PrismaService,
-    private fileValidationService: FileValidationService,
     private notificationsService: NotificationsService,
     private fileSubmissionsService: FileSubmissionsService,
   ) {
