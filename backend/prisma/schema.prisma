@@ -39,6 +39,7 @@ model file_submission {
   create_utc_timestamp   DateTime               @db.Timestamp(6)
   update_user_id         String                 @db.VarChar(200)
   update_utc_timestamp   DateTime               @db.Timestamp(6)
+  file_row_count         Int?
   aqi_obs_status         aqi_obs_status[]
   file_error_logs        file_error_logs[]
   file_operation_codes   file_operation_codes   @relation(fields: [file_operation_code], references: [file_operation_code], onDelete: NoAction, onUpdate: NoAction, map: "file_operation_code_fk")
@@ -119,16 +120,6 @@ model notifications {
   id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                String   @unique @db.VarChar(200)
   enabled              Boolean  @default(true)
-  create_user_id       String   @db.VarChar(200)
-  create_utc_timestamp DateTime @db.Timestamp(6)
-  update_user_id       String   @db.VarChar(200)
-  update_utc_timestamp DateTime @db.Timestamp(6)
-}
-
-model ftp_users {
-  id                   Int      @id @default(autoincrement())
-  username             String   @unique @db.VarChar(200)
-  email                String   @db.VarChar(200)
   create_user_id       String   @db.VarChar(200)
   create_utc_timestamp DateTime @db.Timestamp(6)
   update_user_id       String   @db.VarChar(200)
@@ -313,4 +304,16 @@ model aqi_sampling_agency {
   create_utc_timestamp   DateTime @db.Timestamp(6)
   update_user_id         String   @db.VarChar(200)
   update_utc_timestamp   DateTime @db.Timestamp(6)
+}
+
+model sftp_users {
+  id                   Int       @id @default(autoincrement())
+  username             String    @unique @db.VarChar(255)
+  name                 String    @db.VarChar(255)
+  email                String    @db.VarChar(255)
+  org_guid             String    @db.Uuid
+  create_user_id       String?   @db.VarChar(255)
+  create_utc_timestamp DateTime? @default(now()) @db.Timestamp(6)
+  update_user_id       String?   @db.VarChar(255)
+  update_utc_timestamp DateTime? @db.Timestamp(6)
 }

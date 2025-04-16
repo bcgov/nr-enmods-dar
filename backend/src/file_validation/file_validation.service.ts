@@ -44,7 +44,7 @@ export class FileValidationService {
 
     if (errors.length > 0) {
       //   const ministryContact = ""; // should be obtained from file somehow
-      //   await this.notificationService.notifyFtpUserOfError(
+      //   await this.notificationService.notifySftpUserOfError(
       //     username,
       //     filename,
       //     errors,

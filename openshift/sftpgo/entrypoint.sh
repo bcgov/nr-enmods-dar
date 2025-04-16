@@ -1,4 +1,4 @@
-# #!/bin/sh
+#!/bin/sh
 
 export SFTPGO_DEFAULT_ADMIN_USERNAME=$ADMIN_USER
 export SFTPGO_DEFAULT_ADMIN_PASSWORD=$ADMIN_PASSWORD
@@ -31,29 +31,29 @@ cat > /srv/sftpgo/users.json <<EOF
 {
   "users": [
     {
-      "username": "uploader1",
+      "username": "$UPLOADER1_USERNAME",
       "password": "",
       "public_keys": ["$(echo "$UPLOADER1_PUBLIC_KEY" | tr -d '\n')"],
-      "home_dir": "/srv/sftpgo/data/uploader1",
-      "permissions": { "/": ["list", "download", "upload", "delete", "rename", "overwrite", "copy", "chtimes"], "/uploader1": ["*"] },
+      "home_dir": "/srv/sftpgo/data/$UPLOADER1_USERNAME",
+      "permissions": { "/": ["list", "download", "upload", "delete", "rename", "overwrite", "copy", "chtimes"], "/$UPLOADER1_USERNAME": ["*"] },
       "status": 1,
       "additional_info": ""
     },
     {
-      "username": "uploader2",
+      "username": "$UPLOADER2_USERNAME",
       "password": "",
       "public_keys": ["$(echo "$UPLOADER2_PUBLIC_KEY" | tr -d '\n')"],
-      "home_dir": "/srv/sftpgo/data/uploader2",
-      "permissions": { "/": ["list", "download", "upload", "delete", "rename", "overwrite", "copy", "chtimes"], "/uploader2": ["*"] },
+      "home_dir": "/srv/sftpgo/data/$UPLOADER2_USERNAME",
+      "permissions": { "/": ["list", "download", "upload", "delete", "rename", "overwrite", "copy", "chtimes"], "/$UPLOADER2_USERNAME": ["*"] },
       "status": 1,
       "additional_info": ""
     },
     {
-      "username": "uploader3",
+      "username": "$UPLOADER3_USERNAME",
       "password": "",
       "public_keys": ["$(echo "$UPLOADER3_PUBLIC_KEY" | tr -d '\n')"],
-      "home_dir": "/srv/sftpgo/data/uploader3",
-      "permissions": { "/": ["list", "download", "upload", "delete", "rename", "overwrite", "copy", "chtimes"], "/uploader3": ["*"] },
+      "home_dir": "/srv/sftpgo/data/$UPLOADER3_USERNAME",
+      "permissions": { "/": ["list", "download", "upload", "delete", "rename", "overwrite", "copy", "chtimes"], "/$UPLOADER3_USERNAME": ["*"] },
       "status": 1,
       "additional_info": ""
     },
