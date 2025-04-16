@@ -113,36 +113,22 @@ export class SftpService {
                     ? fileBuffer
                     : Buffer.from(fileBuffer);
                   // submit the file
-                  // TODO - Uncomment and test SFTP file submission into rest of the app
-                  // await this.fileSubmissionsService.createWithSftp(
-                  //   {
-                  //     userID: ftp_user.username,
-                  //     orgGUID: ftp_user.org_guid,
-                  //     agency: ftp_user.name,
-                  //     operation: "IMPORT",
-                  //   },
-                  //   {
-                  //     fieldname: file.name,
-                  //     originalname: file.name,
-                  //     encoding: "7bit",
-                  //     mimetype: "application/octet-stream",
-                  //     buffer: buffer,
-                  //     size: buffer.length,
-                  //   } as Express.Multer.File,
-                  // );
-
-                  // ~~~~~~~~~~~~~~~~~~~~~
-                  // TODO - delete this debug email
-                  const ministryContact = "";
-                  errors = ["Computer says no."];
-                  await this.notificationsService.notifySftpUserOfError(
-                    folder.name,
-                    file.name,
-                    errors,
-                    ministryContact,
+                  await this.fileSubmissionsService.createWithSftp(
+                    {
+                      userID: sftp_user.username,
+                      orgGUID: sftp_user.org_guid,
+                      agency: sftp_user.name,
+                      operation: "IMPORT",
+                    },
+                    {
+                      fieldname: file.name,
+                      originalname: file.name,
+                      encoding: "7bit",
+                      mimetype: "application/octet-stream",
+                      buffer: buffer,
+                      size: buffer.length,
+                    } as Express.Multer.File,
                   );
-                  // ~~~~~~~~~~~~~~~~~~~~~
-                  console.debug("File Test Successful");
                 }
               } catch (error) {
                 this.logger.error(
@@ -163,7 +149,7 @@ export class SftpService {
     }
   }
 
-  // @Cron("0 */10 * * * *")
+  @Cron("0 */10 * * * *")
   async handleCron() {
     this.logger.debug("START ################");
     this.logger.debug("######################");
