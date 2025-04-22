@@ -35,7 +35,7 @@ export type UserInfo = {
   firstName: string;
   lastName: string;
   company: string;
-  // idirUsername: string;
+  guidUsername: string;
   role: string[];
 };
 

@@ -52,16 +52,17 @@ export class AdminService {
       const returnData: UserInfo[] = [];
       const adminData = adminResponse.data.data;
       adminData.map((admin: any) => {
+        const adminId =
+          admin?.attributes?.idir_username?.[0] ||
+          admin?.attributes?.bceid_username[0];
         returnData.push({
-          username:
-            admin.attributes.idir_username[0] ||
-            admin.attributes.bceid_username[0],
+          username: adminId,
           email: admin.email,
           name: admin.firstName + " " + admin.lastName,
           firstName: admin.firstName,
           lastName: admin.lastName,
           company: "Not Implemented",
-          // idirUsername: admin.username,
+          guidUsername: admin.username,
           role: [Role.ENMODS_ADMIN],
         });
       });
@@ -78,15 +79,13 @@ export class AdminService {
           existingUser.role.push(Role.ENMODS_USER);
         } else {
           returnData.push({
-            username:
-            user?.attributes?.idir_username?.[0] ||
-            user?.attributes?.bceid_username[0],
+            username: userId,
             email: user.email,
             name: user.firstName + " " + user.lastName,
             firstName: user.firstName,
             lastName: user.lastName,
             company: "Not Implemented",
-            // idirUsername: user.username,
+            guidUsername: user.username,
             role: [Role.ENMODS_USER],
           });
         }
@@ -289,11 +288,6 @@ export class AdminService {
 
     const rolesToRemove = existingRoles.filter((role) => !roles.includes(role));
     const rolesToAdd = roles.filter((role) => !existingRoles.includes(role));
-
-    console.log(idirUsername)
-    console.log(rolesToAdd)
-    console.log(rolesToRemove)
-    console.log(bearerToken)
 
     for (let role of rolesToRemove) {
       if (role === Role.ENMODS_USER) {

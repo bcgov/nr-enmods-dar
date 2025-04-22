@@ -36,11 +36,12 @@ const EditRoles = ({
 
   const updateRolesHandler = async () => {
     if (userObject) {
+      console.log(userObject)
       setShowError(false)
       setLoading(true)
       try {
         await updateRoles(
-          userObject.username,
+          userObject.guidUsername,
           userObject.role,
           updatedRoles,
         )
