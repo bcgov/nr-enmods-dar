@@ -13,6 +13,18 @@ export type IdirUserInfo = {
   };
 };
 
+export type BCeIDUserInfo = {
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  attributes: {
+    bceid_user_guid: string[];
+    bceid_username: string[];
+    display_name: string[];
+  };
+};
+
 /**
  * Type returned to the frontend for displaying users on Admin page
  */
@@ -23,7 +35,7 @@ export type UserInfo = {
   firstName: string;
   lastName: string;
   company: string;
-  idirUsername: string;
+  // idirUsername: string;
   role: string[];
 };
 
@@ -48,7 +60,7 @@ export type FileHeaders = {
   "Observation ID": string;
   "Ministry Contact": string;
   "Sampling Agency": string;
-  "Project": string;
+  Project: string;
   "Work Order Number": string;
   "Location ID": string;
   "Field Visit Start Time": string;
@@ -63,7 +75,7 @@ export type FileHeaders = {
   "Field Device Type": string;
   "Sampling Context Tag": string;
   "Collection Method": string;
-  "Medium": string;
+  Medium: string;
   "Depth Upper": string;
   "Depth Lower": string;
   "Depth Unit": string;
@@ -76,7 +88,7 @@ export type FileHeaders = {
   "Result Unit": string;
   "Detection Condition": string;
   "Limit Type": string;
-  "Fraction": string;
+  Fraction: string;
   "Data Classification": string;
   "Source of Rounded Value": string;
   "Rounded Value": string;

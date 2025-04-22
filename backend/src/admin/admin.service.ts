@@ -2,7 +2,7 @@ import { HttpService } from "@nestjs/axios";
 import { Injectable } from "@nestjs/common";
 import { firstValueFrom } from "rxjs";
 import { Role } from "src/enum/role.enum";
-import { IdirUserInfo, UserInfo } from "src/types/types";
+import { BCeIDUserInfo, IdirUserInfo, UserInfo } from "src/types/types";
 import { UserRolesDto } from "./dto/user-roles.dto";
 
 @Injectable()
@@ -51,15 +51,17 @@ export class AdminService {
 
       const returnData: UserInfo[] = [];
       const adminData = adminResponse.data.data;
-      adminData.map((admin: IdirUserInfo) => {
+      adminData.map((admin: any) => {
         returnData.push({
-          username: admin.attributes.idir_username[0],
+          username:
+            admin.attributes.idir_username[0] ||
+            admin.attributes.bceid_username[0],
           email: admin.email,
           name: admin.firstName + " " + admin.lastName,
           firstName: admin.firstName,
           lastName: admin.lastName,
           company: "Not Implemented",
-          idirUsername: admin.username,
+          // idirUsername: admin.username,
           role: [Role.ENMODS_ADMIN],
         });
       });
@@ -67,21 +69,24 @@ export class AdminService {
         this.httpService.get(userUrl, config),
       );
       const userData = userResponse.data.data;
-      userData.map((user: IdirUserInfo) => {
-        const existingUser = returnData.find(
-          (u) => u.username === user.attributes.idir_username[0],
-        );
+      userData.map((user: any) => {
+        const userId =
+          user?.attributes?.idir_username?.[0] ||
+          user?.attributes?.bceid_username[0];
+        const existingUser = returnData.find((u) => u.username === userId);
         if (existingUser) {
           existingUser.role.push(Role.ENMODS_USER);
         } else {
           returnData.push({
-            username: user.attributes.idir_username[0],
+            username:
+            user?.attributes?.idir_username?.[0] ||
+            user?.attributes?.bceid_username[0],
             email: user.email,
             name: user.firstName + " " + user.lastName,
             firstName: user.firstName,
             lastName: user.lastName,
             company: "Not Implemented",
-            idirUsername: user.username,
+            // idirUsername: user.username,
             role: [Role.ENMODS_USER],
           });
         }
@@ -109,6 +114,32 @@ export class AdminService {
     };
 
     const searchData: IdirUserInfo[] = await firstValueFrom(
+      this.httpService.get(url, config),
+    )
+      .then((res) => {
+        return res.data.data;
+      })
+      .catch((err) => {
+        console.log(err.response.data);
+        throw new Error("No users found");
+      });
+    return searchData[0] || null;
+  }
+
+  /**
+   * finds a bceid user given their guid
+   *
+   * @param email
+   * @returns
+   */
+  async userGuidSearch(guid: string): Promise<any> {
+    const url = `${process.env.USERS_API_BASE_URL}/${process.env.CSS_ENVIRONMENT}/basic-business-bceid/users?&guid=${guid}`;
+    const bearerToken = await this.getToken();
+    const config = {
+      headers: { Authorization: "Bearer " + bearerToken },
+    };
+
+    const searchData: BCeIDUserInfo[] = await firstValueFrom(
       this.httpService.get(url, config),
     )
       .then((res) => {
@@ -258,6 +289,11 @@ export class AdminService {
 
     const rolesToRemove = existingRoles.filter((role) => !roles.includes(role));
     const rolesToAdd = roles.filter((role) => !existingRoles.includes(role));
+
+    console.log(idirUsername)
+    console.log(rolesToAdd)
+    console.log(rolesToRemove)
+    console.log(bearerToken)
 
     for (let role of rolesToRemove) {
       if (role === Role.ENMODS_USER) {

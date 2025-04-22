@@ -39,9 +39,8 @@ const EditRoles = ({
       setShowError(false)
       setLoading(true)
       try {
-        console.log(userObject.idirUsername)
         await updateRoles(
-          userObject.idirUsername,
+          userObject.username,
           userObject.role,
           updatedRoles,
         )
