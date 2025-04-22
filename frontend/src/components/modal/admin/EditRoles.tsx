@@ -36,7 +36,6 @@ const EditRoles = ({
 
   const updateRolesHandler = async () => {
     if (userObject) {
-      console.log(userObject)
       setShowError(false)
       setLoading(true)
       try {
