@@ -1573,12 +1573,18 @@ export class FileParseValidateService {
         fieldActivity["fieldVisit"] = seenVisitUrl.GUID;
         fieldActivity["LocationID"] = rowData.LocationID;
         GuidsToSave["visits"].push(seenVisitUrl.GUID);
+        this.logger.log(
+          `Added field visit GUID ${seenVisitUrl.GUID} to list of imported items`,
+        );
       } else {
         // send POST to AQI and add visit data to activity
         visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
         fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
         fieldActivity["LocationID"] = rowData.LocationID;
         GuidsToSave["visits"].push(visitInfo.fieldVisit);
+        this.logger.log(
+          `Added field visit GUID ${visitInfo.fieldVisit} to list of imported items`,
+        );
 
         seenVisitUrl.count = 1;
         seenVisitUrl.GUID = visitInfo.fieldVisit;
@@ -1594,12 +1600,18 @@ export class FileParseValidateService {
         fieldActivity["fieldVisit"] = visitExists.GUID;
         fieldActivity["LocationID"] = rowData.LocationID;
         GuidsToSave["visits"].push(visitExists.GUID);
+        this.logger.log(
+          `Added field visit GUID ${visitExists.GUID} to list of imported items`,
+        );
       } else {
         // send POST to AQI and add visit data to activity
         visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
         fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
         fieldActivity["LocationID"] = rowData.LocationID;
         GuidsToSave["visits"].push(visitInfo.fieldVisit);
+        this.logger.log(
+          `Added field visit GUID ${visitInfo.fieldVisit} to list of imported items`,
+        );
       }
 
       validationApisCalled.push(visitURL);
@@ -1621,6 +1633,9 @@ export class FileParseValidateService {
             startTime: rowData.ObservedDateTime,
           };
           GuidsToSave["activities"].push(seenActivityUrl.GUID);
+          this.logger.log(
+            `Added activity GUID ${seenActivityUrl.GUID} to list of imported items`,
+          );
         } else {
           // send POST to AQI
           activityInfo = await this.fieldActivityJson(
@@ -1631,6 +1646,10 @@ export class FileParseValidateService {
 
           specimen["activity"] = activityInfo.activity;
           GuidsToSave["activities"].push(activityInfo.activity.id);
+          this.logger.log(
+            `Added activity GUID ${activityInfo.activity.id} to list of imported items`,
+          );
+
           seenActivityUrl.count = 1;
           seenActivityUrl.GUID = activityInfo.activity.id;
         }
@@ -1649,6 +1668,9 @@ export class FileParseValidateService {
             startTime: rowData.ObservedDateTime,
           };
           GuidsToSave["activities"].push(activityExists.GUID);
+          this.logger.log(
+            `Added activity GUID ${activityExists.GUID} to list of imported items`,
+          );
         } else {
           // send POST to AQI
           activityInfo = await this.fieldActivityJson(
@@ -1659,6 +1681,9 @@ export class FileParseValidateService {
 
           specimen["activity"] = activityInfo.activity;
           GuidsToSave["activities"].push(activityInfo.activity.id);
+          this.logger.log(
+            `Added activity GUID ${activityInfo.activity.id} to list of imported items`,
+          );
 
           validationApisCalled.push(activityURL);
         }
@@ -1676,6 +1701,13 @@ export class FileParseValidateService {
       if (specimenInfo.specimen.id != "exists") {
         // response true means that the specimen already exists for that activity -- essentially skipping that post and save here
         GuidsToSave["specimens"].push(specimenInfo.specimen.id);
+        this.logger.log(
+          `Added specimen GUID ${specimenInfo.specimen.id} to list of imported items`,
+        );
+      } else {
+        this.logger.log(
+          `Added specimen GUID ${specimenInfo.specimen.id} to list of imported items`,
+        );
       }
     }
 
