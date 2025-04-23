@@ -764,6 +764,7 @@ export class FileParseValidateService {
     rowNumber: number,
     rowData: any,
     validationApisCalled: any,
+    fieldVisitStartTimes: any,
   ) {
     let errorLogs = [];
     let existingRecords = [];
@@ -1218,6 +1219,25 @@ export class FileParseValidateService {
       validationApisCalled.push(activityURLCalled);
     }
 
+    // check to see if a field visit for that given day already exists for the location
+    const rawDateFromRow = rowData.FieldVisitStartTime;
+    const formattedDateFromRow = rawDateFromRow.match(/^(.*?)T/)[1]; // without time
+
+    if (
+      !fieldVisitStartTimes.some((startTime) => startTime === rawDateFromRow)
+    ) {
+      if (
+        fieldVisitStartTimes.some(
+          (startTime) => startTime.match(/^(.*?)T/)[1] === formattedDateFromRow,
+        )
+      ) {
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Visit": "Cannot have more than one visit record on the same day (${rowData.FieldVisitStartTime}) for a location (${rowData.LocationID})"}}`;
+        errorLogs.push(JSON.parse(errorLog));
+      } else {
+        fieldVisitStartTimes.push(rawDateFromRow);
+      }
+    }
+
     if (Object.keys(existingGUIDS).length > 0) {
       existingRecords.push({ rowNum: rowNumber, existingGUIDS: existingGUIDS });
     }
@@ -1391,6 +1411,7 @@ export class FileParseValidateService {
     originalFileName: any,
     rowNumber: any,
     validationApisCalled: any,
+    fieldVisitStartTimes: any,
   ) {
     const fieldVisitCustomAttributes: Partial<FieldVisits> = {
       PlanningStatus: "DONE",
@@ -1445,6 +1466,7 @@ export class FileParseValidateService {
       rowNumber,
       rowData,
       validationApisCalled,
+      fieldVisitStartTimes,
     );
 
     this.logger.log(`Finished local validation for row ${rowNumber}`);
@@ -1819,6 +1841,7 @@ export class FileParseValidateService {
     allExistingRecords,
     originalFileName,
     validationApisCalled,
+    fieldVisitStartTimes,
     fileType,
   ) {
     try {
@@ -1862,6 +1885,7 @@ export class FileParseValidateService {
         originalFileName,
         rowNumber,
         validationApisCalled,
+        fieldVisitStartTimes,
       );
     } catch (err) {
       this.logger.error("Error in async ops:", err.message);
@@ -1974,6 +1998,7 @@ export class FileParseValidateService {
     csvStream.write(headers);
 
     let validationApisCalled = [];
+    let fieldVisitStartTimes = [];
 
     if (extention == ".xlsx") {
       const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
@@ -2053,6 +2078,7 @@ export class FileParseValidateService {
               allExistingRecords,
               originalFileName,
               validationApisCalled,
+              fieldVisitStartTimes,
               extention,
             );
           }
@@ -2083,6 +2109,7 @@ export class FileParseValidateService {
             allExistingRecords,
             originalFileName,
             validationApisCalled,
+            fieldVisitStartTimes,
             extention,
           );
         }
@@ -2406,6 +2433,7 @@ export class FileParseValidateService {
               allExistingRecords,
               originalFileName,
               validationApisCalled,
+              fieldVisitStartTimes,
               extention,
             );
           }
@@ -2436,6 +2464,7 @@ export class FileParseValidateService {
             allExistingRecords,
             originalFileName,
             validationApisCalled,
+            fieldVisitStartTimes,
             extention,
           );
         }
