@@ -885,20 +885,18 @@ export class FileParseValidateService {
       }
     }
 
-    if (rowData.hasOwnProperty("LocationID")) {
-      if (rowData["LocationID"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "Cannot be empty"}}`;
+    if (rowData.hasOwnProperty("LocationID") && rowData["LocationID"] != "") {
+      const present = await this.aqiService.databaseLookup(
+        "aqi_locations",
+        rowData.LocationID,
+      );
+      if (!present) {
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "${rowData.LocationID} not found in EnMoDS Locations"}}`;
         errorLogs.push(JSON.parse(errorLog));
-      } else {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_locations",
-          rowData.LocationID,
-        );
-        if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "${rowData.LocationID} not found in EnMoDS Locations"}}`;
-          errorLogs.push(JSON.parse(errorLog));
-        }
       }
+    } else {
+      let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "Cannot be empty"}}`;
+      errorLogs.push(JSON.parse(errorLog));
     }
 
     if (rowData.hasOwnProperty("FieldPreservative")) {
@@ -1153,88 +1151,92 @@ export class FileParseValidateService {
     }
 
     // check if the visit already exists -- check if visit timetsamp for that location already exists
-    const locationGUID = await this.queryCodeTables(
-      "LOCATIONS",
-      rowData.LocationID,
-    );
-
-    const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
-    let visitExists = false;
-    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}`;
-    let activityExists = false;
-
-    if (validationApisCalled.some((item) => item.url === visitURL)) {
-      // visit url has been called before
-      let seenVisitUrl = validationApisCalled.find(
-        (item) => item.url === visitURL,
+    if (rowData["LocationID"] != "") {
+      const locationGUID = await this.queryCodeTables(
+        "LOCATIONS",
+        rowData.LocationID,
       );
 
-      if (seenVisitUrl.count > 0) {
-        // visit exists in AQI
-        visitExists = true;
-        existingGUIDS["visit"] = seenVisitUrl.GUID;
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      }
-    } else {
-      const visitURLCalled = await this.aqiService.getFieldVisits(
-        rowNumber,
-        visitURL,
-      );
-      if (visitURLCalled.count > 0) {
-        // visit exists in AQI
-        visitExists = true;
-        existingGUIDS["visit"] = visitURLCalled.GUID;
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      }
-      validationApisCalled.push(visitURLCalled);
-    }
+      const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
+      let visitExists = false;
+      const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}`;
+      let activityExists = false;
 
-    if (validationApisCalled.some((item) => item.url === activityURL)) {
-      // activity url has been called before
-      let seenActivityUrl = validationApisCalled.find(
-        (item) => item.url === activityURL,
-      );
+      if (validationApisCalled.some((item) => item.url === visitURL)) {
+        // visit url has been called before
+        let seenVisitUrl = validationApisCalled.find(
+          (item) => item.url === visitURL,
+        );
 
-      if (seenActivityUrl.count > 0) {
-        // activity exists in AQI
-        activityExists = true;
-        existingGUIDS["activity"] = seenActivityUrl.GUID;
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      }
-    } else {
-      const activityURLCalled = await this.aqiService.getFieldVisits(
-        rowNumber,
-        activityURL,
-      );
-      if (activityURLCalled.count > 0) {
-        // visit exists in AQI
-        visitExists = true;
-        existingGUIDS["activity"] = activityURLCalled.GUID;
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      }
-      validationApisCalled.push(activityURLCalled);
-    }
-
-    // check to see if a field visit for that given day already exists for the location
-    const rawDateFromRow = rowData.FieldVisitStartTime;
-    const formattedDateFromRow = rawDateFromRow.match(/^(.*?)T/)[1]; // without time
-
-    if (
-      !fieldVisitStartTimes.some((startTime) => startTime === rawDateFromRow)
-    ) {
-      if (
-        fieldVisitStartTimes.some(
-          (startTime) => startTime.match(/^(.*?)T/)[1] === formattedDateFromRow,
-        )
-      ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Visit": "Cannot have more than one visit record on the same day (${rowData.FieldVisitStartTime}) for a location (${rowData.LocationID})"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+        if (seenVisitUrl.count > 0) {
+          // visit exists in AQI
+          visitExists = true;
+          existingGUIDS["visit"] = seenVisitUrl.GUID;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
       } else {
-        fieldVisitStartTimes.push(rawDateFromRow);
+        const visitURLCalled = await this.aqiService.getFieldVisits(
+          rowNumber,
+          visitURL,
+        );
+        if (visitURLCalled.count > 0) {
+          // visit exists in AQI
+          visitExists = true;
+          existingGUIDS["visit"] = visitURLCalled.GUID;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+        validationApisCalled.push(visitURLCalled);
+      }
+
+      if (validationApisCalled.some((item) => item.url === activityURL)) {
+        // activity url has been called before
+        let seenActivityUrl = validationApisCalled.find(
+          (item) => item.url === activityURL,
+        );
+
+        if (seenActivityUrl.count > 0) {
+          // activity exists in AQI
+          activityExists = true;
+          existingGUIDS["activity"] = seenActivityUrl.GUID;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+      } else {
+        const activityURLCalled = await this.aqiService.getFieldVisits(
+          rowNumber,
+          activityURL,
+        );
+        if (activityURLCalled.count > 0) {
+          // visit exists in AQI
+          visitExists = true;
+          existingGUIDS["activity"] = activityURLCalled.GUID;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+        validationApisCalled.push(activityURLCalled);
+      }
+    }
+
+    if (rowData.FieldVisitStartTime != ""){
+      // check to see if a field visit for that given day already exists for the location
+      const rawDateFromRow = rowData.FieldVisitStartTime;
+      const formattedDateFromRow = rawDateFromRow.match(/^(.*?)T/)[1]; // without time
+
+      if (
+        !fieldVisitStartTimes.some((startTime) => startTime === rawDateFromRow)
+      ) {
+        if (
+          fieldVisitStartTimes.some(
+            (startTime) => startTime.match(/^(.*?)T/)[1] === formattedDateFromRow,
+          )
+        ) {
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Visit": "Cannot have more than one visit record on the same day (${rowData.FieldVisitStartTime}) for a location (${rowData.LocationID})"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        } else {
+          fieldVisitStartTimes.push(rawDateFromRow);
+        }
       }
     }
 
@@ -1920,7 +1922,7 @@ export class FileParseValidateService {
         fieldVisitStartTimes,
       );
     } catch (err) {
-      this.logger.error("Error in async ops:", err.message);
+      this.logger.error("Error in validateRowData:", err.message, err.stack);
       throw err;
     }
   }
