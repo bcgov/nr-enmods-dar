@@ -1344,10 +1344,24 @@ export class FileParseValidateService {
     return;
   }
 
+  formulateActivityName(rowData){
+    let newActivityName = ""
+
+    const locnId = rowData.LocationID
+    const QCType = rowData.QCType.toUpperCase()
+    const medium = rowData.Medium
+    const observedTime = rowData.ObservedDateTime
+    const userActivityName = rowData.ActivityName
+
+    return newActivityName
+  }
+
   cleanRowBasedOnDataClassification(rowData: any) {
     let cleanedRow = rowData;
 
     cleanedRow.QCType = rowData.QCType.toUpperCase();
+
+    let concatActivityName = this.formulateActivityName(rowData)
 
     if (
       rowData.DataClassification == "LAB" ||
