@@ -1361,7 +1361,7 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      // cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
+      cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
 
       if (cleanedRow.QCType == "REGULAR") {
         // this is because AQI interprets a null value as REGULAR
@@ -1386,8 +1386,7 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      // cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
-      cleanedRow.ActivityName = "";
+      cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
       cleanedRow.TissueType = "";
       cleanedRow.LabArrivalTemperature = "";
       cleanedRow.SpecimenName = "";
