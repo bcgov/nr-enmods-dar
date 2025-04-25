@@ -1159,7 +1159,7 @@ export class FileParseValidateService {
 
       const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
       let visitExists = false;
-      const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}`;
+      const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
       let activityExists = false;
 
       if (validationApisCalled.some((item) => item.url === visitURL)) {
@@ -1204,7 +1204,7 @@ export class FileParseValidateService {
           errorLogs.push(JSON.parse(errorLog));
         }
       } else {
-        const activityURLCalled = await this.aqiService.getFieldVisits(
+        const activityURLCalled = await this.aqiService.getActivities(
           rowNumber,
           activityURL,
         );
@@ -1347,11 +1347,33 @@ export class FileParseValidateService {
   formulateActivityName(rowData){
     let newActivityName = ""
 
-    const locnId = rowData.LocationID
-    const QCType = rowData.QCType.toUpperCase()
-    const medium = rowData.Medium
-    const observedTime = rowData.ObservedDateTime
     const userActivityName = rowData.ActivityName
+    const QCType = rowData.QCType.toUpperCase()
+    const depthLower = rowData.DepthLower
+    const depthUpper = rowData.depthUpper
+    const medium = rowData.Medium
+    const locnId = rowData.LocationID
+    const observedTime = rowData.ObservedDateTime
+    const separator = " ; "
+
+    // General template for activity name: <User Supplied Activity Name><sep><QC Type><sep><Depth Upper><Hyphen><Depth Lower>m<sep><Medium><sep><Location ID><sep><Observed Datetime>
+    
+    // Case 1: Only depth lower missing - only use depth upper
+    if ((depthLower === "" || depthLower === undefined) && (depthUpper !== "" && depthUpper !== undefined)){
+      newActivityName = userActivityName + separator + QCType + separator + depthUpper + "m" + separator + medium + separator + locnId + separator + observedTime
+    // Case 2: Only depth upper missing - only use depth lower
+    }else if ((depthLower !== "" && depthLower !== undefined) && (depthUpper === "" || depthUpper === undefined)){
+      newActivityName = userActivityName + separator + QCType + separator + depthLower + "m" + separator + medium + separator + locnId + separator + observedTime
+    // Case 3: Both depths missing - don't include depth at all
+    }else if ((depthLower === "" || depthLower === undefined) && (depthUpper === "" || depthUpper === undefined)){
+      newActivityName = userActivityName + separator + QCType + separator + medium + separator + locnId + separator + observedTime
+    // Case 4: Activity name missing and the depths missing - don't include either of those
+    } else if ((userActivityName === "" || userActivityName === undefined) && (depthLower === "" || depthLower === undefined) && (depthUpper === "" || depthUpper === undefined)){
+      newActivityName = QCType + separator + medium + separator + locnId + separator + observedTime
+    // Case 5: All fields present
+    }else{
+      newActivityName = userActivityName + separator + QCType + separator + depthUpper + "-" + depthLower + "m" + separator + medium + separator + locnId + separator + observedTime
+    }
 
     return newActivityName
   }
@@ -1375,7 +1397,7 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
+      cleanedRow.ActivityName = concatActivityName; // TODO: this will need to uncommented after Jeremy is done testing
 
       if (cleanedRow.QCType == "REGULAR") {
         // this is because AQI interprets a null value as REGULAR
