@@ -1223,19 +1223,26 @@ export class FileParseValidateService {
       // check to see if a field visit for that given day already exists for the location
       const rawDateFromRow = rowData.FieldVisitStartTime;
       const formattedDateFromRow = rawDateFromRow.match(/^(.*?)T/)[1]; // without time
+      const locationID = rowData.LocationID
 
-      if (
-        !fieldVisitStartTimes.some((startTime) => startTime === rawDateFromRow)
-      ) {
-        if (
-          fieldVisitStartTimes.some(
-            (startTime) => startTime.match(/^(.*?)T/)[1] === formattedDateFromRow,
-          )
-        ) {
+      // Initialize an array for that location if it has not been checked
+      if (!fieldVisitStartTimes[locationID]){
+        fieldVisitStartTimes[locationID] = []
+      }
+
+
+      // Check to make sure that the exact timestamp DOES NOT exist for that location
+      if (!fieldVisitStartTimes[locationID].includes(rawDateFromRow)){
+        // check to see if a visit has already happened on that day - i.e. timestamp but only YYYY-MM-DD
+        const sameDayVisit = fieldVisitStartTimes[locationID].some(
+          (startTime) => startTime.match(/^(.*?)T/)[1] === formattedDateFromRow
+        )
+
+        if (sameDayVisit){
           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Visit": "Cannot have more than one visit record on the same day (${rowData.FieldVisitStartTime}) for a location (${rowData.LocationID})"}}`;
           errorLogs.push(JSON.parse(errorLog));
-        } else {
-          fieldVisitStartTimes.push(rawDateFromRow);
+        }else{
+          fieldVisitStartTimes[locationID].push(rawDateFromRow)
         }
       }
     }
@@ -1347,14 +1354,14 @@ export class FileParseValidateService {
   formulateActivityName(rowData){
     let newActivityName = ""
 
-    const userActivityName = rowData.ActivityName
-    const QCType = rowData.QCType.toUpperCase()
-    const depthLower = rowData.DepthLower
-    const depthUpper = rowData.depthUpper
-    const medium = rowData.Medium
-    const locnId = rowData.LocationID
-    const observedTime = rowData.ObservedDateTime
-    const separator = " ; "
+    const userActivityName = rowData.ActivityName?.trim() || ""
+    const QCType = rowData.QCType?.toUpperCase().trim() || ""
+    const depthLower = rowData.DepthLower?.trim() || ""
+    const depthUpper = rowData.depthUpper?.trim() || ""
+    const medium = rowData.Medium?.trim() || ""
+    const locnId = rowData.LocationID?.trim() || ""
+    const observedTime = rowData.ObservedDateTime?.trim() || ""
+    const separator = ";"
 
     // General template for activity name: <User Supplied Activity Name><sep><QC Type><sep><Depth Upper><Hyphen><Depth Lower>m<sep><Medium><sep><Location ID><sep><Observed Datetime>
     
@@ -1403,6 +1410,7 @@ export class FileParseValidateService {
         // this is because AQI interprets a null value as REGULAR
         cleanedRow.QCType = "";
       }
+      
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
@@ -1594,7 +1602,7 @@ export class FileParseValidateService {
     );
 
     const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
-    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}`;
+    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
     let visitInfo: any;
     let activityInfo: any;
 
@@ -2067,7 +2075,7 @@ export class FileParseValidateService {
     csvStream.write(headers);
 
     let validationApisCalled = [];
-    let fieldVisitStartTimes = [];
+    let fieldVisitStartTimes = {};
 
     if (extention == ".xlsx") {
       const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
