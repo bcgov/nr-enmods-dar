@@ -1159,7 +1159,7 @@ export class FileParseValidateService {
 
       const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
       let visitExists = false;
-      const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}`;
+      const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
       let activityExists = false;
 
       if (validationApisCalled.some((item) => item.url === visitURL)) {
@@ -1204,7 +1204,7 @@ export class FileParseValidateService {
           errorLogs.push(JSON.parse(errorLog));
         }
       } else {
-        const activityURLCalled = await this.aqiService.getFieldVisits(
+        const activityURLCalled = await this.aqiService.getActivities(
           rowNumber,
           activityURL,
         );
@@ -1223,19 +1223,26 @@ export class FileParseValidateService {
       // check to see if a field visit for that given day already exists for the location
       const rawDateFromRow = rowData.FieldVisitStartTime;
       const formattedDateFromRow = rawDateFromRow.match(/^(.*?)T/)[1]; // without time
+      const locationID = rowData.LocationID
 
-      if (
-        !fieldVisitStartTimes.some((startTime) => startTime === rawDateFromRow)
-      ) {
-        if (
-          fieldVisitStartTimes.some(
-            (startTime) => startTime.match(/^(.*?)T/)[1] === formattedDateFromRow,
-          )
-        ) {
+      // Initialize an array for that location if it has not been checked
+      if (!fieldVisitStartTimes[locationID]){
+        fieldVisitStartTimes[locationID] = []
+      }
+
+
+      // Check to make sure that the exact timestamp DOES NOT exist for that location
+      if (!fieldVisitStartTimes[locationID].includes(rawDateFromRow)){
+        // check to see if a visit has already happened on that day - i.e. timestamp but only YYYY-MM-DD
+        const sameDayVisit = fieldVisitStartTimes[locationID].some(
+          (startTime) => startTime.match(/^(.*?)T/)[1] === formattedDateFromRow
+        )
+
+        if (sameDayVisit){
           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Visit": "Cannot have more than one visit record on the same day (${rowData.FieldVisitStartTime}) for a location (${rowData.LocationID})"}}`;
           errorLogs.push(JSON.parse(errorLog));
-        } else {
-          fieldVisitStartTimes.push(rawDateFromRow);
+        }else{
+          fieldVisitStartTimes[locationID].push(rawDateFromRow)
         }
       }
     }
@@ -1344,10 +1351,46 @@ export class FileParseValidateService {
     return;
   }
 
+  formulateActivityName(rowData){
+    let newActivityName = ""
+
+    const userActivityName = rowData.ActivityName?.trim() || ""
+    const QCType = rowData.QCType?.toUpperCase().trim() || ""
+    const depthLower = rowData.DepthLower?.trim() || ""
+    const depthUpper = rowData.depthUpper?.trim() || ""
+    const medium = rowData.Medium?.trim() || ""
+    const locnId = rowData.LocationID?.trim() || ""
+    const observedTime = rowData.ObservedDateTime?.trim() || ""
+    const separator = ";"
+
+    // General template for activity name: <User Supplied Activity Name><sep><QC Type><sep><Depth Upper><Hyphen><Depth Lower>m<sep><Medium><sep><Location ID><sep><Observed Datetime>
+    
+    // Case 1: Only depth lower missing - only use depth upper
+    if ((depthLower === "" || depthLower === undefined) && (depthUpper !== "" && depthUpper !== undefined)){
+      newActivityName = userActivityName + separator + QCType + separator + depthUpper + "m" + separator + medium + separator + locnId + separator + observedTime
+    // Case 2: Only depth upper missing - only use depth lower
+    }else if ((depthLower !== "" && depthLower !== undefined) && (depthUpper === "" || depthUpper === undefined)){
+      newActivityName = userActivityName + separator + QCType + separator + depthLower + "m" + separator + medium + separator + locnId + separator + observedTime
+    // Case 3: Both depths missing - don't include depth at all
+    }else if ((depthLower === "" || depthLower === undefined) && (depthUpper === "" || depthUpper === undefined)){
+      newActivityName = userActivityName + separator + QCType + separator + medium + separator + locnId + separator + observedTime
+    // Case 4: Activity name missing and the depths missing - don't include either of those
+    } else if ((userActivityName === "" || userActivityName === undefined) && (depthLower === "" || depthLower === undefined) && (depthUpper === "" || depthUpper === undefined)){
+      newActivityName = QCType + separator + medium + separator + locnId + separator + observedTime
+    // Case 5: All fields present
+    }else{
+      newActivityName = userActivityName + separator + QCType + separator + depthUpper + "-" + depthLower + "m" + separator + medium + separator + locnId + separator + observedTime
+    }
+
+    return newActivityName
+  }
+
   cleanRowBasedOnDataClassification(rowData: any) {
     let cleanedRow = rowData;
 
     cleanedRow.QCType = rowData.QCType.toUpperCase();
+
+    let concatActivityName = this.formulateActivityName(rowData)
 
     if (
       rowData.DataClassification == "LAB" ||
@@ -1361,12 +1404,13 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      // cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
+      cleanedRow.ActivityName = concatActivityName; // TODO: this will need to uncommented after Jeremy is done testing
 
       if (cleanedRow.QCType == "REGULAR") {
         // this is because AQI interprets a null value as REGULAR
         cleanedRow.QCType = "";
       }
+      
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
@@ -1386,8 +1430,7 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      // cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
-      cleanedRow.ActivityName = "";
+      cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
       cleanedRow.TissueType = "";
       cleanedRow.LabArrivalTemperature = "";
       cleanedRow.SpecimenName = "";
@@ -1559,7 +1602,7 @@ export class FileParseValidateService {
     );
 
     const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
-    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}`;
+    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
     let visitInfo: any;
     let activityInfo: any;
 
@@ -2032,7 +2075,7 @@ export class FileParseValidateService {
     csvStream.write(headers);
 
     let validationApisCalled = [];
-    let fieldVisitStartTimes = [];
+    let fieldVisitStartTimes = {};
 
     if (extention == ".xlsx") {
       const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
