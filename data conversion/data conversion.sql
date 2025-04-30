@@ -463,19 +463,12 @@ select "Observation ID",
         "Depth Upper",
         "Depth Lower",
         "Depth Unit",
-        CASE
-            WHEN "Data Classification" IN ('FIELD_RESULT', 'VERTICAL_PROFILE') THEN
-                TO_CHAR(
+        TO_CHAR(
                     TO_TIMESTAMP(SUBSTR("Observed DateTime", 1, 19), 'YYYY-MM-DD"T"HH24:MI:SS') 
                         + NUMTODSINTERVAL(duplicate_row_number - 1, 'MINUTE'),
                     'YYYY-MM-DD"T"HH24:MI:SS'
-                ) || '-08:00'
-            ELSE
-                TO_CHAR(
-                    TO_TIMESTAMP(SUBSTR("Observed DateTime", 1, 19), 'YYYY-MM-DD"T"HH24:MI:SS'),
-                    'YYYY-MM-DD"T"HH24:MI:SS'
-                ) || '-08:00'
-        END AS "Observed DateTime",
+                ) || '-08:00' AS "Observed DateTime",
+        "Observed Date Time End",
         "Observed Date Time End",
         "Observed Property ID",-- based on the analytical method and parameter code and unit
         "Result Value",
@@ -594,7 +587,7 @@ select "Observation ID",
 from (
 
 -- water data
-/*
+
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -705,11 +698,11 @@ where core.result_unit_code is not null and core.mdl_unit_code is not null
                 order by core."Location ID" asc, core."Observed DateTime" asc
 
 -- end water data
-*/
+
 /*
 union all -- air data
 */
-
+/*
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -989,7 +982,7 @@ where upper(core."Medium") like '%AIR%' -- try WATER-MARINE for a subset
     and core."Air Filter Size" is not null
     AND ed.NewNameID is not null
 -- end air filter size
-
+*/
 /*
 union -- taxonomic data - bio sample area
 
