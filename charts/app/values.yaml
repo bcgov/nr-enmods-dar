@@ -25,6 +25,7 @@ global:
     usersApiBaseUrl: ~
     cssEnvironment: ~
     integrationId: ~
+    uploadFileApiKey: ~
     usersApiTokenUrl: ~
     usersApiClientId: ~
     usersApiClientSecret: ~
