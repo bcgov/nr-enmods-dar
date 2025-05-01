@@ -764,6 +764,7 @@ export class FileParseValidateService {
     rowNumber: number,
     rowData: any,
     validationApisCalled: any,
+    fieldVisitStartTimes: any,
   ) {
     let errorLogs = [];
     let existingRecords = [];
@@ -884,20 +885,18 @@ export class FileParseValidateService {
       }
     }
 
-    if (rowData.hasOwnProperty("LocationID")) {
-      if (rowData["LocationID"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "Cannot be empty"}}`;
+    if (rowData.hasOwnProperty("LocationID") && rowData["LocationID"] != "") {
+      const present = await this.aqiService.databaseLookup(
+        "aqi_locations",
+        rowData.LocationID,
+      );
+      if (!present) {
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "${rowData.LocationID} not found in EnMoDS Locations"}}`;
         errorLogs.push(JSON.parse(errorLog));
-      } else {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_locations",
-          rowData.LocationID,
-        );
-        if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "${rowData.LocationID} not found in EnMoDS Locations"}}`;
-          errorLogs.push(JSON.parse(errorLog));
-        }
       }
+    } else {
+      let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "Cannot be empty"}}`;
+      errorLogs.push(JSON.parse(errorLog));
     }
 
     if (rowData.hasOwnProperty("FieldPreservative")) {
@@ -1152,70 +1151,100 @@ export class FileParseValidateService {
     }
 
     // check if the visit already exists -- check if visit timetsamp for that location already exists
-    const locationGUID = await this.queryCodeTables(
-      "LOCATIONS",
-      rowData.LocationID,
-    );
-
-    const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
-    let visitExists = false;
-    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}`;
-    let activityExists = false;
-
-    if (validationApisCalled.some((item) => item.url === visitURL)) {
-      // visit url has been called before
-      let seenVisitUrl = validationApisCalled.find(
-        (item) => item.url === visitURL,
+    if (rowData["LocationID"] != "") {
+      const locationGUID = await this.queryCodeTables(
+        "LOCATIONS",
+        rowData.LocationID,
       );
 
-      if (seenVisitUrl.count > 0) {
-        // visit exists in AQI
-        visitExists = true;
-        existingGUIDS["visit"] = seenVisitUrl.GUID;
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+      const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
+      let visitExists = false;
+      const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
+      let activityExists = false;
+
+      if (validationApisCalled.some((item) => item.url === visitURL)) {
+        // visit url has been called before
+        let seenVisitUrl = validationApisCalled.find(
+          (item) => item.url === visitURL,
+        );
+
+        if (seenVisitUrl.count > 0) {
+          // visit exists in AQI
+          visitExists = true;
+          existingGUIDS["visit"] = seenVisitUrl.GUID;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+      } else {
+        const visitURLCalled = await this.aqiService.getFieldVisits(
+          rowNumber,
+          visitURL,
+        );
+        if (visitURLCalled.count > 0) {
+          // visit exists in AQI
+          visitExists = true;
+          existingGUIDS["visit"] = visitURLCalled.GUID;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+        validationApisCalled.push(visitURLCalled);
       }
-    } else {
-      const visitURLCalled = await this.aqiService.getFieldVisits(
-        rowNumber,
-        visitURL,
-      );
-      if (visitURLCalled.count > 0) {
-        // visit exists in AQI
-        visitExists = true;
-        existingGUIDS["visit"] = visitURLCalled.GUID;
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+
+      if (validationApisCalled.some((item) => item.url === activityURL)) {
+        // activity url has been called before
+        let seenActivityUrl = validationApisCalled.find(
+          (item) => item.url === activityURL,
+        );
+
+        if (seenActivityUrl.count > 0) {
+          // activity exists in AQI
+          activityExists = true;
+          existingGUIDS["activity"] = seenActivityUrl.GUID;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+      } else {
+        const activityURLCalled = await this.aqiService.getActivities(
+          rowNumber,
+          activityURL,
+        );
+        if (activityURLCalled.count > 0) {
+          // visit exists in AQI
+          visitExists = true;
+          existingGUIDS["activity"] = activityURLCalled.GUID;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+        validationApisCalled.push(activityURLCalled);
       }
-      validationApisCalled.push(visitURLCalled);
     }
 
-    if (validationApisCalled.some((item) => item.url === activityURL)) {
-      // activity url has been called before
-      let seenActivityUrl = validationApisCalled.find(
-        (item) => item.url === activityURL,
-      );
+    if (rowData.FieldVisitStartTime != ""){
+      // check to see if a field visit for that given day already exists for the location
+      const rawDateFromRow = rowData.FieldVisitStartTime;
+      const formattedDateFromRow = rawDateFromRow.match(/^(.*?)T/)[1]; // without time
+      const locationID = rowData.LocationID
 
-      if (seenActivityUrl.count > 0) {
-        // activity exists in AQI
-        activityExists = true;
-        existingGUIDS["activity"] = seenActivityUrl.GUID;
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+      // Initialize an array for that location if it has not been checked
+      if (!fieldVisitStartTimes[locationID]){
+        fieldVisitStartTimes[locationID] = []
       }
-    } else {
-      const activityURLCalled = await this.aqiService.getFieldVisits(
-        rowNumber,
-        activityURL,
-      );
-      if (activityURLCalled.count > 0) {
-        // visit exists in AQI
-        visitExists = true;
-        existingGUIDS["activity"] = activityURLCalled.GUID;
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+
+
+      // Check to make sure that the exact timestamp DOES NOT exist for that location
+      if (!fieldVisitStartTimes[locationID].includes(rawDateFromRow)){
+        // check to see if a visit has already happened on that day - i.e. timestamp but only YYYY-MM-DD
+        const sameDayVisit = fieldVisitStartTimes[locationID].some(
+          (startTime) => startTime.match(/^(.*?)T/)[1] === formattedDateFromRow
+        )
+
+        if (sameDayVisit){
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Visit": "Cannot have more than one visit record on the same day (${rowData.FieldVisitStartTime}) for a location (${rowData.LocationID})"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }else{
+          fieldVisitStartTimes[locationID].push(rawDateFromRow)
+        }
       }
-      validationApisCalled.push(activityURLCalled);
     }
 
     if (Object.keys(existingGUIDS).length > 0) {
@@ -1322,10 +1351,46 @@ export class FileParseValidateService {
     return;
   }
 
+  formulateActivityName(rowData){
+    let newActivityName = ""
+
+    const userActivityName = rowData.ActivityName?.trim() || ""
+    const QCType = rowData.QCType?.toUpperCase().trim() || ""
+    const depthLower = rowData.DepthLower?.trim() || ""
+    const depthUpper = rowData.depthUpper?.trim() || ""
+    const medium = rowData.Medium?.trim() || ""
+    const locnId = rowData.LocationID?.trim() || ""
+    const observedTime = rowData.ObservedDateTime?.trim() || ""
+    const separator = ";"
+
+    // General template for activity name: <User Supplied Activity Name><sep><QC Type><sep><Depth Upper><Hyphen><Depth Lower>m<sep><Medium><sep><Location ID><sep><Observed Datetime>
+    
+    // Case 1: Only depth lower missing - only use depth upper
+    if ((depthLower === "" || depthLower === undefined) && (depthUpper !== "" && depthUpper !== undefined)){
+      newActivityName = userActivityName + separator + QCType + separator + depthUpper + "m" + separator + medium + separator + locnId + separator + observedTime
+    // Case 2: Only depth upper missing - only use depth lower
+    }else if ((depthLower !== "" && depthLower !== undefined) && (depthUpper === "" || depthUpper === undefined)){
+      newActivityName = userActivityName + separator + QCType + separator + depthLower + "m" + separator + medium + separator + locnId + separator + observedTime
+    // Case 3: Both depths missing - don't include depth at all
+    }else if ((depthLower === "" || depthLower === undefined) && (depthUpper === "" || depthUpper === undefined)){
+      newActivityName = userActivityName + separator + QCType + separator + medium + separator + locnId + separator + observedTime
+    // Case 4: Activity name missing and the depths missing - don't include either of those
+    } else if ((userActivityName === "" || userActivityName === undefined) && (depthLower === "" || depthLower === undefined) && (depthUpper === "" || depthUpper === undefined)){
+      newActivityName = QCType + separator + medium + separator + locnId + separator + observedTime
+    // Case 5: All fields present
+    }else{
+      newActivityName = userActivityName + separator + QCType + separator + depthUpper + "-" + depthLower + "m" + separator + medium + separator + locnId + separator + observedTime
+    }
+
+    return newActivityName
+  }
+
   cleanRowBasedOnDataClassification(rowData: any) {
     let cleanedRow = rowData;
 
     cleanedRow.QCType = rowData.QCType.toUpperCase();
+
+    let concatActivityName = this.formulateActivityName(rowData)
 
     if (
       rowData.DataClassification == "LAB" ||
@@ -1339,12 +1404,13 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      // cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
+      cleanedRow.ActivityName = concatActivityName; // TODO: this will need to uncommented after Jeremy is done testing
 
       if (cleanedRow.QCType == "REGULAR") {
         // this is because AQI interprets a null value as REGULAR
         cleanedRow.QCType = "";
       }
+      
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
@@ -1364,8 +1430,7 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      // cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
-      cleanedRow.ActivityName = "";
+      cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
       cleanedRow.TissueType = "";
       cleanedRow.LabArrivalTemperature = "";
       cleanedRow.SpecimenName = "";
@@ -1391,6 +1456,7 @@ export class FileParseValidateService {
     originalFileName: any,
     rowNumber: any,
     validationApisCalled: any,
+    fieldVisitStartTimes: any,
   ) {
     const fieldVisitCustomAttributes: Partial<FieldVisits> = {
       PlanningStatus: "DONE",
@@ -1445,6 +1511,7 @@ export class FileParseValidateService {
       rowNumber,
       rowData,
       validationApisCalled,
+      fieldVisitStartTimes,
     );
 
     this.logger.log(`Finished local validation for row ${rowNumber}`);
@@ -1535,7 +1602,7 @@ export class FileParseValidateService {
     );
 
     const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
-    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}`;
+    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
     let visitInfo: any;
     let activityInfo: any;
 
@@ -1551,12 +1618,18 @@ export class FileParseValidateService {
         fieldActivity["fieldVisit"] = seenVisitUrl.GUID;
         fieldActivity["LocationID"] = rowData.LocationID;
         GuidsToSave["visits"].push(seenVisitUrl.GUID);
+        this.logger.log(
+          `Added field visit GUID ${seenVisitUrl.GUID} to list of imported items`,
+        );
       } else {
         // send POST to AQI and add visit data to activity
         visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
         fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
         fieldActivity["LocationID"] = rowData.LocationID;
         GuidsToSave["visits"].push(visitInfo.fieldVisit);
+        this.logger.log(
+          `Added field visit GUID ${visitInfo.fieldVisit} to list of imported items`,
+        );
 
         seenVisitUrl.count = 1;
         seenVisitUrl.GUID = visitInfo.fieldVisit;
@@ -1572,12 +1645,18 @@ export class FileParseValidateService {
         fieldActivity["fieldVisit"] = visitExists.GUID;
         fieldActivity["LocationID"] = rowData.LocationID;
         GuidsToSave["visits"].push(visitExists.GUID);
+        this.logger.log(
+          `Added field visit GUID ${visitExists.GUID} to list of imported items`,
+        );
       } else {
         // send POST to AQI and add visit data to activity
         visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
         fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
         fieldActivity["LocationID"] = rowData.LocationID;
         GuidsToSave["visits"].push(visitInfo.fieldVisit);
+        this.logger.log(
+          `Added field visit GUID ${visitInfo.fieldVisit} to list of imported items`,
+        );
       }
 
       validationApisCalled.push(visitURL);
@@ -1599,6 +1678,9 @@ export class FileParseValidateService {
             startTime: rowData.ObservedDateTime,
           };
           GuidsToSave["activities"].push(seenActivityUrl.GUID);
+          this.logger.log(
+            `Added activity GUID ${seenActivityUrl.GUID} to list of imported items`,
+          );
         } else {
           // send POST to AQI
           activityInfo = await this.fieldActivityJson(
@@ -1609,6 +1691,10 @@ export class FileParseValidateService {
 
           specimen["activity"] = activityInfo.activity;
           GuidsToSave["activities"].push(activityInfo.activity.id);
+          this.logger.log(
+            `Added activity GUID ${activityInfo.activity.id} to list of imported items`,
+          );
+
           seenActivityUrl.count = 1;
           seenActivityUrl.GUID = activityInfo.activity.id;
         }
@@ -1627,6 +1713,9 @@ export class FileParseValidateService {
             startTime: rowData.ObservedDateTime,
           };
           GuidsToSave["activities"].push(activityExists.GUID);
+          this.logger.log(
+            `Added activity GUID ${activityExists.GUID} to list of imported items`,
+          );
         } else {
           // send POST to AQI
           activityInfo = await this.fieldActivityJson(
@@ -1637,6 +1726,9 @@ export class FileParseValidateService {
 
           specimen["activity"] = activityInfo.activity;
           GuidsToSave["activities"].push(activityInfo.activity.id);
+          this.logger.log(
+            `Added activity GUID ${activityInfo.activity.id} to list of imported items`,
+          );
 
           validationApisCalled.push(activityURL);
         }
@@ -1654,6 +1746,13 @@ export class FileParseValidateService {
       if (specimenInfo.specimen.id != "exists") {
         // response true means that the specimen already exists for that activity -- essentially skipping that post and save here
         GuidsToSave["specimens"].push(specimenInfo.specimen.id);
+        this.logger.log(
+          `Added specimen GUID ${specimenInfo.specimen.id} to list of imported items`,
+        );
+      } else {
+        this.logger.log(
+          `Added specimen GUID ${specimenInfo.specimen.id} to list of imported items`,
+        );
       }
     }
 
@@ -1819,6 +1918,7 @@ export class FileParseValidateService {
     allExistingRecords,
     originalFileName,
     validationApisCalled,
+    fieldVisitStartTimes,
     fileType,
   ) {
     try {
@@ -1862,9 +1962,10 @@ export class FileParseValidateService {
         originalFileName,
         rowNumber,
         validationApisCalled,
+        fieldVisitStartTimes,
       );
     } catch (err) {
-      this.logger.error("Error in async ops:", err.message);
+      this.logger.error("Error in validateRowData:", err.message, err.stack);
       throw err;
     }
   }
@@ -1974,6 +2075,7 @@ export class FileParseValidateService {
     csvStream.write(headers);
 
     let validationApisCalled = [];
+    let fieldVisitStartTimes = {};
 
     if (extention == ".xlsx") {
       const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
@@ -2053,6 +2155,7 @@ export class FileParseValidateService {
               allExistingRecords,
               originalFileName,
               validationApisCalled,
+              fieldVisitStartTimes,
               extention,
             );
           }
@@ -2083,6 +2186,7 @@ export class FileParseValidateService {
             allExistingRecords,
             originalFileName,
             validationApisCalled,
+            fieldVisitStartTimes,
             extention,
           );
         }
@@ -2406,6 +2510,7 @@ export class FileParseValidateService {
               allExistingRecords,
               originalFileName,
               validationApisCalled,
+              fieldVisitStartTimes,
               extention,
             );
           }
@@ -2436,6 +2541,7 @@ export class FileParseValidateService {
             allExistingRecords,
             originalFileName,
             validationApisCalled,
+            fieldVisitStartTimes,
             extention,
           );
         }

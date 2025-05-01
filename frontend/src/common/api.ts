@@ -38,7 +38,7 @@ export const get = <T, M = {}>(
     if (params) {
       config.params = params;
     }
-
+debugger;
     axios
       .get(url, config)
       .then((response: AxiosResponse) => {

@@ -642,7 +642,7 @@ export class AqiApiService {
           : item,
       );
     };
-
+    
     [...localErrors, ...remoteErrors].forEach(mergeItem);
 
     return Array.from(map.values()).sort((a, b) => a.rowNum - b.rowNum);
