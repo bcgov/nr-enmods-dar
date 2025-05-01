@@ -47,9 +47,6 @@ spec:
             - name: FLYWAY_CONNECT_RETRIES
               value: "10"
           resources:
-            limits:
-              cpu: 500m
-              memory: 250Mi
             requests:
               cpu: 200m
               memory: 150Mi
@@ -92,12 +89,9 @@ spec:
             periodSeconds: 30
             timeoutSeconds: 5
           resources: # this is optional
-            limits:
-              cpu: 300m
-              memory: 400Mi
             requests:
               cpu: 100m
-              memory: 200Mi
+              memory: 500Mi
           volumeMounts:
             - name: obs-temp-files
               mountPath: /app/src/tempObsFiles
