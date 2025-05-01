@@ -1,68 +1,62 @@
-import config from '@/config';
-import _kc from '../keycloak'
+import _kc from "../keycloak";
 
-export const AUTH_TOKEN = '__auth_token'
+export const AUTH_TOKEN = "__auth_token";
 
-const { KEYCLOAK_URL } = config;
 /**
  * Initializes Keycloak instance and calls the provided callback function if successfully authenticated.
  *
  * @param onAuthenticatedCallback
  */
-const initKeycloak = (
+const initKeycloak = async (
   route: string,
   onAuthenticatedCallback: (authenticated: boolean) => void,
 ) => {
-  _kc
-    .init({
-      onLoad: 'check-sso',
-      pkceMethod: 'S256',
+  try {
+    const authenticated = await _kc.init({
+      onLoad: "check-sso",
+      pkceMethod: "S256",
       checkLoginIframe: false,
-    })
-    .then((authenticated) => {
-      if (!authenticated) {
-        console.log('User is not authenticated.')
-        if (route.startsWith('/unsubscribe/')) {
-          onAuthenticatedCallback(true)
-        } else {
-          if (!config.KEYCLOAK_URL) {
-            console.error('Config.js not loaded. Aborting redirect.');
-            return;
-          }
-          window.location.href = _kc.createLoginUrl();
-        }
+    });
+    if (!authenticated) {
+      console.log("User is not authenticated.");
+      if (route.startsWith("/unsubscribe/")) {
+        onAuthenticatedCallback(true);
       } else {
-        localStorage.setItem(AUTH_TOKEN, `${_kc.token}`)
+        window.location.href = await _kc.createLoginUrl();
       }
-      onAuthenticatedCallback(authenticated)
-    })
-    .catch(console.error)
+    } else {
+      localStorage.setItem(AUTH_TOKEN, `${_kc.token}`);
+    }
+    onAuthenticatedCallback(authenticated);
 
-  _kc.onTokenExpired = () => {
-    _kc.updateToken(5).then((refreshed) => {
-      if (refreshed) {
-        localStorage.setItem(AUTH_TOKEN, `${_kc.token}`)
-      }
-    })
+    _kc.onTokenExpired = () => {
+      _kc.updateToken(5).then((refreshed) => {
+        if (refreshed) {
+          localStorage.setItem(AUTH_TOKEN, `${_kc.token}`);
+        }
+      });
+    };
+  } catch (error) {
+    console.error("keycloak error", error);
   }
-}
+};
 
-const doLogin = _kc.login
+const doLogin = _kc.login;
 
-const doLogout = _kc.logout
+const doLogout = _kc.logout;
 
-const getToken = () => _kc.token
+const getToken = () => _kc.token;
 
-const isLoggedIn = () => !!_kc.token
+const isLoggedIn = () => !!_kc.token;
 
 const updateToken = (
   successCallback:
     | ((value: boolean) => boolean | PromiseLike<boolean>)
     | null
     | undefined,
-) => _kc.updateToken(5).then(successCallback).catch(doLogin)
+) => _kc.updateToken(5).then(successCallback).catch(doLogin);
 
-const getUsername = () => _kc.tokenParsed?.display_name
+const getUsername = () => _kc.tokenParsed?.display_name;
 
 /**
  * Determines if a user's role(s) overlap with the role on the private route.  The user's role is determined via jwt.client_roles
@@ -70,14 +64,14 @@ const getUsername = () => _kc.tokenParsed?.display_name
  * @returns True or false, inidicating if the user has the role or not.
  */
 const hasRole = (roles: any) => {
-  const jwt = _kc.tokenParsed
-  const userroles = jwt?.client_roles
+  const jwt = _kc.tokenParsed;
+  const userroles = jwt?.client_roles;
   const includesRoles =
-    typeof roles === 'string'
+    typeof roles === "string"
       ? userroles?.includes(roles)
-      : roles.some((r: any) => userroles?.includes(r))
-  return includesRoles
-}
+      : roles.some((r: any) => userroles?.includes(r));
+  return includesRoles;
+};
 
 const UserService = {
   initKeycloak,
@@ -88,6 +82,6 @@ const UserService = {
   updateToken,
   getUsername,
   hasRole,
-}
+};
 
-export default UserService
+export default UserService;
