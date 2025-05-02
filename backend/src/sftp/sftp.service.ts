@@ -33,6 +33,11 @@ export class SftpService {
     });
   }
 
+  async getSFTPUsers() {
+    console.log("getting sftp users");
+    return this.prisma.sftp_users.findMany();
+  }
+
   async connect() {
     try {
       const privateKey = Buffer.from(
