@@ -11,7 +11,7 @@ project using the ```oc project <enmods-project-name>``` command (```oc projects
 
 In this folder (nr-enmods-dar/openshift/sftpgo) run these commands:
 
-```oc new-build . --name=sftpgo --binary```
+```oc new-build . --name=sftpgo```
 
 ```oc start-build sftpgo --from-dir=. --follow```
 
