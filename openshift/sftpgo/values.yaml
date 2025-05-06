@@ -1,5 +1,5 @@
 image:
-  repository: image-registry.openshift-image-registry.svc:5000/b9dd81-dev/sftpgo
+  repository: image-registry.openshift-image-registry.svc:5000/b9dd81-test/sftpgo
   tag: latest
   pullPolicy: Always
 
