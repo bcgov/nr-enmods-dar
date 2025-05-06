@@ -9,7 +9,7 @@ export const sftpUserColumns = (handleOpenEdit: (username: string) => void) => [
   },
   {
     field: "username",
-    headerName: "User Name",
+    headerName: "Username",
     sortable: true,
     filterable: true,
     flex: 1,
