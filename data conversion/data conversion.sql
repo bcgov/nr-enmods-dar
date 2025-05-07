@@ -572,10 +572,10 @@ select "Observation ID",
                 "Medium", 
                 "Depth Upper", 
                 CASE 
-                    WHEN "Data Classification" IN ('FIELD_RESULT') THEN null
-                    ELSE "Activity Name"
+                    WHEN "Data Classification" IN ('FIELD_RESULT') THEN ''
+                    ELSE COALESCE(to_char("Activity Name"), '')
                 END, 
-                "Specimen Name", 
+                COALESCE("Specimen Name", ''),
                 "Data Classification", 
                 CASE 
                     WHEN "Data Classification" IN ('FIELD_RESULT', 'VERTICAL_PROFILE') THEN null
