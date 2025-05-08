@@ -597,6 +597,15 @@ export class CronJobService {
       return;
     }
 
+    // Healthcheck for AQI
+    const healthcheckUrl = process.env.AQI_BASE_URL + '/v1/status' 
+    let aqiStatus = await (await axios.get(healthcheckUrl)).status
+
+    if (aqiStatus != 200){
+      this.logger.warn(`Third party service, AQI, is currently unavailable. No files will be processed.`)
+      return
+    }
+
     let filesToValidate = await this.fileParser.getQueuedFiles();
 
     if (filesToValidate.length < 1) {

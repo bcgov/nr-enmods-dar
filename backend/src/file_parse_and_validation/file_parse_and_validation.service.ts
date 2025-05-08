@@ -1591,9 +1591,9 @@ export class FileParseValidateService {
 
     /*
      * for each of the components (visits, activities, specimens):
-     * make a DB call to see if that record already exists
-     * If exists - do a PUT with the respective object to the respective API
-     * Otherwise - do a POST with the respective object to the respective API; save the record into the db table (for future use) and save the GUID to the db table
+     * make a call to AQI to see if the data exists (if not already called then add that URL to the list of URLs)
+     * If exists - get the GUID and update the child object (if not the n-th child)
+     * Otherwise - do a POST with the respective object to the respective API; save the GUID to the db table and save the URL to the list of URLs
      */
 
     const locationGUID = await this.queryCodeTables(
@@ -1607,12 +1607,14 @@ export class FileParseValidateService {
     let activityInfo: any;
 
     if (validationApisCalled.some((item) => item.url === visitURL)) {
+      this.logger.log(`Visit URL seen, getting from lookup`);
       // visit url has been called before
       let seenVisitUrl = validationApisCalled.find(
         (item) => item.url === visitURL,
       );
 
       if (seenVisitUrl.count > 0) {
+        this.logger.log(`Visit URL seen, visit already exists`);
         // send PUT to AQI and add visit data to activity
         fieldVisit["id"] = seenVisitUrl.GUID;
         fieldActivity["fieldVisit"] = seenVisitUrl.GUID;
@@ -1622,7 +1624,10 @@ export class FileParseValidateService {
           `Added field visit GUID ${seenVisitUrl.GUID} to list of imported items`,
         );
       } else {
+        this.logger.log(`Visit URL seen, visit does not exist`);
+
         // send POST to AQI and add visit data to activity
+        this.logger.log("POSTED the visit");
         visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
         fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
         fieldActivity["LocationID"] = rowData.LocationID;
@@ -1631,15 +1636,21 @@ export class FileParseValidateService {
           `Added field visit GUID ${visitInfo.fieldVisit} to list of imported items`,
         );
 
+        this.logger.log(`Updating the seen URL`);
+
         seenVisitUrl.count = 1;
         seenVisitUrl.GUID = visitInfo.fieldVisit;
       }
     } else {
+      this.logger.log(`Visit URL not seen, making GET call`);
+
       let visitExists = await this.aqiService.getFieldVisits(
         rowNumber,
         visitURL,
       );
       if (visitExists.count > 0) {
+        this.logger.log(`Visit URL not seen, visit already exists`);
+
         // send PUT to AQI and add visit data to activity
         fieldVisit["id"] = visitExists.GUID;
         fieldActivity["fieldVisit"] = visitExists.GUID;
@@ -1649,6 +1660,8 @@ export class FileParseValidateService {
           `Added field visit GUID ${visitExists.GUID} to list of imported items`,
         );
       } else {
+        this.logger.log(`Visit URL not seen, visit does not exist`);
+
         // send POST to AQI and add visit data to activity
         visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
         fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
@@ -1658,6 +1671,8 @@ export class FileParseValidateService {
           `Added field visit GUID ${visitInfo.fieldVisit} to list of imported items`,
         );
       }
+
+      this.logger.log(`Added visist URL to seen list`);
 
       validationApisCalled.push(visitURL);
     }
