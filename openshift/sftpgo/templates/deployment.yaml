@@ -30,47 +30,47 @@ spec:
         - name: UPLOADER1_PUBLIC_KEY
           valueFrom:
             secretKeyRef:
-              name: {{ .Chart.Name }}-sftp-secrets
+              name: {{ .Chart.Name }}-secrets
               key: UPLOADER1_PUBLIC_KEY
         - name: UPLOADER1_USERNAME
           valueFrom:
             secretKeyRef:
-              name: {{ .Chart.Name }}-sftp-secrets
+              name: {{ .Chart.Name }}-secrets
               key: UPLOADER1_USERNAME
         - name: UPLOADER2_PUBLIC_KEY
           valueFrom:
             secretKeyRef:
-              name: {{ .Chart.Name }}-sftp-secrets
+              name: {{ .Chart.Name }}-secrets
               key: UPLOADER2_PUBLIC_KEY
         - name: UPLOADER2_USERNAME
           valueFrom:
             secretKeyRef:
-              name: {{ .Chart.Name }}-sftp-secrets
+              name: {{ .Chart.Name }}-secrets
               key: UPLOADER2_USERNAME
         - name: UPLOADER3_PUBLIC_KEY
           valueFrom:
             secretKeyRef:
-              name: {{ .Chart.Name }}-sftp-secrets
+              name: {{ .Chart.Name }}-secrets
               key: UPLOADER3_PUBLIC_KEY
         - name: UPLOADER3_USERNAME
           valueFrom:
             secretKeyRef:
-              name: {{ .Chart.Name }}-sftp-secrets
+              name: {{ .Chart.Name }}-secrets
               key: UPLOADER3_USERNAME
         - name: SERVICE_PUBLIC_KEY
           valueFrom:
             secretKeyRef:
-              name: {{ .Chart.Name }}-sftp-secrets
+              name: {{ .Chart.Name }}-secrets
               key: SERVICE_PUBLIC_KEY
         - name: ADMIN_USER
           valueFrom:
             secretKeyRef:
-              name: {{ .Chart.Name }}-sftp-secrets
+              name: {{ .Chart.Name }}-secrets
               key: ADMIN_USER
         - name: ADMIN_PASSWORD
           valueFrom:
             secretKeyRef:
-              name: {{ .Chart.Name }}-sftp-secrets
+              name: {{ .Chart.Name }}-secrets
               key: ADMIN_PASSWORD
         resources:
           {{- toYaml .Values.deployment.resources | nindent 10 }}
