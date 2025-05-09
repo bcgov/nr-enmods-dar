@@ -463,12 +463,13 @@ select "Observation ID",
         "Depth Upper",
         "Depth Lower",
         "Depth Unit",
-        TO_CHAR(
-                    TO_TIMESTAMP(SUBSTR("Observed DateTime", 1, 19), 'YYYY-MM-DD"T"HH24:MI:SS') 
-                        + NUMTODSINTERVAL(duplicate_row_number - 1, 'MINUTE'),
-                    'YYYY-MM-DD"T"HH24:MI:SS'
-                ) || '-08:00' AS "Observed DateTime",
-        "Observed Date Time End",
+        TO_CHAR (
+            TO_TIMESTAMP (
+                SUBSTR ("Observed DateTime", 1, 19),
+                'YYYY-MM-DD"T"HH24:MI:SS'
+            ) + NUMTODSINTERVAL (duplicate_row_number - 1, 'SECOND'),
+            'YYYY-MM-DD"T"HH24:MI:SS'
+        ) || '-08:00' AS "Observed DateTime",
         "Observed Date Time End",
         "Observed Property ID",-- based on the analytical method and parameter code and unit
         "Result Value",
@@ -582,7 +583,7 @@ select "Observation ID",
                     ELSE "QC Type"
                 END, 
                 "Observed Property ID"
-            ORDER BY "Field Visit Start Time"
+            ORDER BY TO_TIMESTAMP(SUBSTR("Observed DateTime", 1, 19), 'YYYY-MM-DD"T"HH24:MI:SS')
         ) AS duplicate_row_number
 from (
 
@@ -1843,8 +1844,9 @@ where --upper(core."Medium") like '%WATER - WASTE%' -- try WATER-MARINE for a su
 --upper(core."Collection Method") like '%CONTINUOUS%'
         core.CONTINUOUS_MINIMUM is not null
         AND ed.NewNameID is not null
--- end continuous
 */
+-- end continuous
+
 ))
         --where duplicate_row_number =1
         where "Observed Property ID" is not null

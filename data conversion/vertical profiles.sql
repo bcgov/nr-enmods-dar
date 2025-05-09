@@ -241,7 +241,7 @@ select
         TO_TIMESTAMP (
             SUBSTR ("Observed DateTime", 1, 19),
             'YYYY-MM-DD"T"HH24:MI:SS'
-        ) + NUMTODSINTERVAL (duplicate_row_number - 1, 'MINUTE'),
+        ) + NUMTODSINTERVAL (duplicate_row_number - 1, 'SECOND'),
         'YYYY-MM-DD"T"HH24:MI:SS'
     ) || '-08:00' AS "Observed DateTime",
     "Observed Date Time End",
@@ -343,21 +343,21 @@ from
             "QC Source Activity Name",
             "Composite Stat",
             ROW_NUMBER() OVER (
-                PARTITION BY
-                    "Location ID",
-                    "Field Visit Start Time",
-                    "Medium",
-                    "Depth Upper",
-                    COALESCE("Activity Name", ''),
-                    COALESCE("Specimen Name", ''),
-                    "Data Classification",
-                    CASE
-                        WHEN "Data Classification" IN ('FIELD_RESULT', 'VERTICAL_PROFILE') THEN null
-                        ELSE COALESCE("QC Type", '')
-                    END,
-                    "Observed Property ID"
-                ORDER BY
-                    "Field Visit Start Time"
+              PARTITION BY
+                "Location ID",
+                "Field Visit Start Time",
+                "Medium",
+                "Depth Upper",
+                COALESCE("Activity Name", ''),
+                COALESCE("Specimen Name", ''),
+                "Data Classification",
+                CASE
+                  WHEN "Data Classification" IN ('FIELD_RESULT', 'VERTICAL_PROFILE') THEN null
+                  ELSE COALESCE("QC Type", '')
+                END,
+                "Observed Property ID"
+              ORDER BY
+                TO_TIMESTAMP(SUBSTR("Observed DateTime", 1, 19), 'YYYY-MM-DD"T"HH24:MI:SS')
             ) AS duplicate_row_number
         from
             (
@@ -456,7 +456,6 @@ from
                     AND ed.NewNameID is not null
                     --and "Location ID" = 'E273783'
                     --and ed.NewNameId = 'Temperature (temp.)'
-                    --and "Result Value" in (13.42,13.38)
                     --and "Depth Upper" = 0.5
             )
             -- save result ids where the data can't be uploaded
