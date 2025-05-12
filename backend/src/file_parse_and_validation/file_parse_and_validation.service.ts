@@ -412,10 +412,6 @@ export class FileParseValidateService {
       startTime: postData.startTime,
     });
 
-    if (row_number === 187) {
-      postData.samplingLocation = null;
-    }
-
     if (apiType === "post") {
       Object.assign(currentVisitAndLoc, {
         fieldVisit: await this.aqiService.fieldVisits(row_number, postData),
