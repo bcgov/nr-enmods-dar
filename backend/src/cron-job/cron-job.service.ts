@@ -597,13 +597,15 @@ export class CronJobService {
       return;
     }
 
-    // Healthcheck for AQI
-    const healthcheckUrl = process.env.AQI_BASE_URL + '/v1/status' 
-    let aqiStatus = await (await axios.get(healthcheckUrl)).status
+    // Healthcheck for AQI before all files are picked up for processing
+    const healthcheckUrl = process.env.AQI_BASE_URL + "/v1/status";
+    let aqiStatus = await (await axios.get(healthcheckUrl)).status;
 
-    if (aqiStatus != 200){
-      this.logger.warn(`Third party service, AQI, is currently unavailable. No files will be processed.`)
-      return
+    if (aqiStatus != 200) {
+      this.logger.warn(
+        `Third party service, AQI, is currently unavailable. No files will be processed.`,
+      );
+      return;
     }
 
     let filesToValidate = await this.fileParser.getQueuedFiles();
@@ -625,6 +627,17 @@ export class CronJobService {
     try {
       for (const file of files) {
         try {
+          // Healthcheck for AQI before every file
+          const healthcheckUrl = process.env.AQI_BASE_URL + "/v1/status";
+          let aqiStatus = await (await axios.get(healthcheckUrl)).status;
+
+          if (aqiStatus != 200) {
+            this.logger.warn(
+              `Third party service, AQI, is currently unavailable. No files will be processed.`,
+            );
+            return;
+          }
+
           const fileStream = await this.objectStore.getFileData(file.file_name);
           this.logger.log(`SENT FILE: ${file.file_name}`);
 
@@ -633,7 +646,7 @@ export class CronJobService {
             file.file_name,
             file.original_file_name,
             file.submission_id,
-            file.file_operation_code, 
+            file.file_operation_code,
           );
 
           this.logger.log(`File ${file.file_name} processed successfully.`);

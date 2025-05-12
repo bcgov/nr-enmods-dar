@@ -205,6 +205,8 @@ const obsFile: ObservationFile = {
   "EA_Upload File Name": "",
 };
 
+let partialUpload = false;
+
 @Injectable()
 export class FileParseValidateService {
   private readonly logger = new Logger(FileParseValidateService.name);
@@ -409,6 +411,10 @@ export class FileParseValidateService {
       samplingLocation: postData.samplingLocation,
       startTime: postData.startTime,
     });
+
+    if (row_number === 187) {
+      postData.samplingLocation = null;
+    }
 
     if (apiType === "post") {
       Object.assign(currentVisitAndLoc, {
@@ -1219,30 +1225,29 @@ export class FileParseValidateService {
       }
     }
 
-    if (rowData.FieldVisitStartTime != ""){
+    if (rowData.FieldVisitStartTime != "") {
       // check to see if a field visit for that given day already exists for the location
       const rawDateFromRow = rowData.FieldVisitStartTime;
       const formattedDateFromRow = rawDateFromRow.match(/^(.*?)T/)[1]; // without time
-      const locationID = rowData.LocationID
+      const locationID = rowData.LocationID;
 
       // Initialize an array for that location if it has not been checked
-      if (!fieldVisitStartTimes[locationID]){
-        fieldVisitStartTimes[locationID] = []
+      if (!fieldVisitStartTimes[locationID]) {
+        fieldVisitStartTimes[locationID] = [];
       }
 
-
       // Check to make sure that the exact timestamp DOES NOT exist for that location
-      if (!fieldVisitStartTimes[locationID].includes(rawDateFromRow)){
+      if (!fieldVisitStartTimes[locationID].includes(rawDateFromRow)) {
         // check to see if a visit has already happened on that day - i.e. timestamp but only YYYY-MM-DD
         const sameDayVisit = fieldVisitStartTimes[locationID].some(
-          (startTime) => startTime.match(/^(.*?)T/)[1] === formattedDateFromRow
-        )
+          (startTime) => startTime.match(/^(.*?)T/)[1] === formattedDateFromRow,
+        );
 
-        if (sameDayVisit){
+        if (sameDayVisit) {
           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Visit": "Cannot have more than one visit record on the same day (${rowData.FieldVisitStartTime}) for a location (${rowData.LocationID})"}}`;
           errorLogs.push(JSON.parse(errorLog));
-        }else{
-          fieldVisitStartTimes[locationID].push(rawDateFromRow)
+        } else {
+          fieldVisitStartTimes[locationID].push(rawDateFromRow);
         }
       }
     }
@@ -1351,38 +1356,107 @@ export class FileParseValidateService {
     return;
   }
 
-  formulateActivityName(rowData){
-    let newActivityName = ""
+  formulateActivityName(rowData) {
+    let newActivityName = "";
 
-    const userActivityName = rowData.ActivityName?.trim() || ""
-    const QCType = rowData.QCType?.toUpperCase().trim() || ""
-    const depthLower = rowData.DepthLower?.trim() || ""
-    const depthUpper = rowData.depthUpper?.trim() || ""
-    const medium = rowData.Medium?.trim() || ""
-    const locnId = rowData.LocationID?.trim() || ""
-    const observedTime = rowData.ObservedDateTime?.trim() || ""
-    const separator = ";"
+    const userActivityName = rowData.ActivityName?.trim() || "";
+    const QCType = rowData.QCType?.toUpperCase().trim() || "";
+    const depthLower = rowData.DepthLower?.trim() || "";
+    const depthUpper = rowData.depthUpper?.trim() || "";
+    const medium = rowData.Medium?.trim() || "";
+    const locnId = rowData.LocationID?.trim() || "";
+    const observedTime = rowData.ObservedDateTime?.trim() || "";
+    const separator = ";";
 
     // General template for activity name: <User Supplied Activity Name><sep><QC Type><sep><Depth Upper><Hyphen><Depth Lower>m<sep><Medium><sep><Location ID><sep><Observed Datetime>
-    
+
     // Case 1: Only depth lower missing - only use depth upper
-    if ((depthLower === "" || depthLower === undefined) && (depthUpper !== "" && depthUpper !== undefined)){
-      newActivityName = userActivityName + separator + QCType + separator + depthUpper + "m" + separator + medium + separator + locnId + separator + observedTime
-    // Case 2: Only depth upper missing - only use depth lower
-    }else if ((depthLower !== "" && depthLower !== undefined) && (depthUpper === "" || depthUpper === undefined)){
-      newActivityName = userActivityName + separator + QCType + separator + depthLower + "m" + separator + medium + separator + locnId + separator + observedTime
-    // Case 3: Both depths missing - don't include depth at all
-    }else if ((depthLower === "" || depthLower === undefined) && (depthUpper === "" || depthUpper === undefined)){
-      newActivityName = userActivityName + separator + QCType + separator + medium + separator + locnId + separator + observedTime
-    // Case 4: Activity name missing and the depths missing - don't include either of those
-    } else if ((userActivityName === "" || userActivityName === undefined) && (depthLower === "" || depthLower === undefined) && (depthUpper === "" || depthUpper === undefined)){
-      newActivityName = QCType + separator + medium + separator + locnId + separator + observedTime
-    // Case 5: All fields present
-    }else{
-      newActivityName = userActivityName + separator + QCType + separator + depthUpper + "-" + depthLower + "m" + separator + medium + separator + locnId + separator + observedTime
+    if (
+      (depthLower === "" || depthLower === undefined) &&
+      depthUpper !== "" &&
+      depthUpper !== undefined
+    ) {
+      newActivityName =
+        userActivityName +
+        separator +
+        QCType +
+        separator +
+        depthUpper +
+        "m" +
+        separator +
+        medium +
+        separator +
+        locnId +
+        separator +
+        observedTime;
+      // Case 2: Only depth upper missing - only use depth lower
+    } else if (
+      depthLower !== "" &&
+      depthLower !== undefined &&
+      (depthUpper === "" || depthUpper === undefined)
+    ) {
+      newActivityName =
+        userActivityName +
+        separator +
+        QCType +
+        separator +
+        depthLower +
+        "m" +
+        separator +
+        medium +
+        separator +
+        locnId +
+        separator +
+        observedTime;
+      // Case 3: Both depths missing - don't include depth at all
+    } else if (
+      (depthLower === "" || depthLower === undefined) &&
+      (depthUpper === "" || depthUpper === undefined)
+    ) {
+      newActivityName =
+        userActivityName +
+        separator +
+        QCType +
+        separator +
+        medium +
+        separator +
+        locnId +
+        separator +
+        observedTime;
+      // Case 4: Activity name missing and the depths missing - don't include either of those
+    } else if (
+      (userActivityName === "" || userActivityName === undefined) &&
+      (depthLower === "" || depthLower === undefined) &&
+      (depthUpper === "" || depthUpper === undefined)
+    ) {
+      newActivityName =
+        QCType +
+        separator +
+        medium +
+        separator +
+        locnId +
+        separator +
+        observedTime;
+      // Case 5: All fields present
+    } else {
+      newActivityName =
+        userActivityName +
+        separator +
+        QCType +
+        separator +
+        depthUpper +
+        "-" +
+        depthLower +
+        "m" +
+        separator +
+        medium +
+        separator +
+        locnId +
+        separator +
+        observedTime;
     }
 
-    return newActivityName
+    return newActivityName;
   }
 
   cleanRowBasedOnDataClassification(rowData: any) {
@@ -1390,7 +1464,7 @@ export class FileParseValidateService {
 
     cleanedRow.QCType = rowData.QCType.toUpperCase();
 
-    let concatActivityName = this.formulateActivityName(rowData)
+    let concatActivityName = this.formulateActivityName(rowData);
 
     if (
       rowData.DataClassification == "LAB" ||
@@ -1410,7 +1484,6 @@ export class FileParseValidateService {
         // this is because AQI interprets a null value as REGULAR
         cleanedRow.QCType = "";
       }
-      
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
@@ -1629,6 +1702,12 @@ export class FileParseValidateService {
         // send POST to AQI and add visit data to activity
         this.logger.log("POSTED the visit");
         visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
+
+        if (visitInfo.fieldVisit === "partialUpload") {
+          partialUpload = true;
+          return;
+        }
+
         fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
         fieldActivity["LocationID"] = rowData.LocationID;
         GuidsToSave["visits"].push(visitInfo.fieldVisit);
@@ -2032,11 +2111,57 @@ export class FileParseValidateService {
         fileName,
         validationApisCalled,
       );
+      if (partialUpload) {
+        await this.rollBackPartialUpload(GuidsToSave, fileName);
+        this.logger.warn("Deleted the partially imported data");
+        return;
+      }
       this.logger.log(`Completed import for row ${rowNumber}`);
     } catch (err) {
       this.logger.error("Error in async ops:", err.message);
       throw err;
     }
+  }
+
+  async rollBackPartialUpload(GuidsToSave, fileName) {
+    // get the partially imported guids
+    const partiallyImportedGUIDS = await this.prisma.aqi_imported_data.findMany(
+      {
+        where: {
+          file_name: fileName,
+        },
+        select: {
+          aqi_imported_data_id: true,
+          imported_guids: true,
+        },
+      },
+    );
+
+    let partiallyImportedSpecimens =
+      partiallyImportedGUIDS[0].imported_guids["specimens"];
+    let partiallyImportedActivitiess =
+      partiallyImportedGUIDS[0].imported_guids["activities"];
+    let partiallyImportedVisits =
+      partiallyImportedGUIDS[0].imported_guids["visits"];
+
+    let mergedSpecimens = [
+      ...partiallyImportedSpecimens,
+      ...GuidsToSave.specimens,
+    ];
+    let mergedActivities = [
+      ...partiallyImportedActivitiess,
+      ...GuidsToSave.activities,
+    ];
+    let mergedVisits = [...partiallyImportedVisits, ...GuidsToSave.visits];
+
+    //delete the partially imported specimens
+    await this.aqiService.SpecimenDelete(mergedSpecimens, []);
+
+    //delete the partially imported activities
+    await this.aqiService.ActivityDelete(mergedActivities, []);
+
+    //delete the partially imported visits
+    await this.aqiService.VisitDelete(mergedVisits, []);
   }
 
   async parseFile(
@@ -2339,7 +2464,21 @@ export class FileParseValidateService {
                   validationApisCalled,
                   extention,
                 );
+
+                // if a partial upload then stop processing the batch and return
+                if (partialUpload) {
+                  this.logger.warn(
+                    `Partial upload detected, stopped processing the batch`,
+                  );
+                  break;
+                }
               }
+
+              // leave the for loop for row iteration
+              if (partialUpload) {
+                break;
+              }
+
               this.logger.log(
                 `Finished processing batch ${batchNumber} ******************`,
               );
@@ -2348,7 +2487,7 @@ export class FileParseValidateService {
               batch = [];
             }
           }
-          if (batch.length > 0) {
+          if (!partialUpload && batch.length > 0) {
             this.logger.log(
               `Starting to process (final) batch ${batchNumber} ******************`,
             );
@@ -2371,12 +2510,29 @@ export class FileParseValidateService {
                 validationApisCalled,
                 extention,
               );
+              // if a partial upload then stop processing the batch and do the rollback
+              if (partialUpload) {
+                this.logger.warn(
+                  `Partial upload detected, stopped processing the batch`,
+                );
+                this.rollBackPartialUpload(GuidsToSave, file_submission_id);
+                break;
+              }
             }
+
             this.logger.log(
               `Finished processing (final) batch ${batchNumber} ******************`,
             );
           }
           console.timeEnd("ImportNonObs");
+
+          if (partialUpload) {
+            await this.fileSubmissionsService.updateFileStatus(
+              file_submission_id,
+              "ERROR",
+            );
+            return;
+          }
 
           console.time("ImportObs");
           this.logger.log(`Starting import of observations`);
@@ -2725,7 +2881,22 @@ export class FileParseValidateService {
                   validationApisCalled,
                   extention,
                 );
+
+                // if a partial upload then stop processing the batch
+                if (partialUpload) {
+                  this.logger.warn(
+                    `Partial upload detected, stopped processing the batch`,
+                  );
+
+                  break;
+                }
               }
+
+              // leave the for loop for row iteration
+              if (partialUpload) {
+                break;
+              }
+
               this.logger.log(
                 `Finished processing batch ${batchNumber} ******************`,
               );
@@ -2735,7 +2906,7 @@ export class FileParseValidateService {
             }
           }
 
-          if (batch.length > 0) {
+          if (!partialUpload && batch.length > 0) {
             this.logger.log(
               `Starting to process (final) batch ${batchNumber} ******************`,
             );
@@ -2758,12 +2929,27 @@ export class FileParseValidateService {
                 validationApisCalled,
                 extention,
               );
+              // if a partial upload then stop processing the batch
+              if (partialUpload) {
+                this.logger.warn(
+                  `Partial upload detected, stopped processing the batch`,
+                );
+                break;
+              }
             }
             this.logger.log(
               `Finished processing (final) batch ${batchNumber} ******************`,
             );
           }
           console.timeEnd("ImportNonObs");
+
+          if (partialUpload) {
+            await this.fileSubmissionsService.updateFileStatus(
+              file_submission_id,
+              "ERROR",
+            );
+            return;
+          }
 
           this.logger.log(`Starting import of observations`);
 

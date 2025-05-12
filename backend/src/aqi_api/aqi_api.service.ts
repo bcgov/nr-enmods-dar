@@ -33,9 +33,11 @@ export class AqiApiService {
       return response.data.id;
     } catch (err) {
       this.logger.error(
-        `RowNum: ${rowNumber} -> API CALL TO POST Field Visits failed: `,
+        `RowNum: ${rowNumber} -> API CALL TO POST Field Visits failed, resulting in partial upload for the file: `,
         err.response.data.message,
       );
+
+      return "partialUpload"
     }
   }
 
