@@ -5,7 +5,8 @@ WITH raw_core_data AS (
          m.enmods_medium AS medium,
          result.CONTINUOUS_MINIMUM,
          ed.NewNameID,
-         smpl.CLCT_METHD_CD
+         smpl.CLCT_METHD_CD,
+         result.meas_unit_cd AS result_unit_code
   FROM ems_samples smpl
     LEFT JOIN ems_results result ON smpl.id = result.smpl_id
     LEFT JOIN ems_monitoring_locations mloc ON smpl.mon_locn_id = mloc.id
@@ -26,7 +27,8 @@ tagged_data AS (
     CONTINUOUS_MINIMUM,
     NewNameID,
     CLCT_METHD_CD,
-    
+    result_unit_code,
+
     CASE WHEN locntyp_cd LIKE 'D%' OR locntyp_cd LIKE 'P%' THEN 1 ELSE 0 END AS flag_locntyp,
     CASE WHEN NOT (
         UPPER(medium) LIKE '%WATER%' OR 
@@ -35,9 +37,26 @@ tagged_data AS (
         UPPER(medium) = 'ANIMAL' OR 
         UPPER(medium) = 'PLANT'
     ) THEN 1 ELSE 0 END AS flag_medium,
-    
     CASE WHEN CLCT_METHD_CD IN ('CMON', 'C03', 'C01') AND CONTINUOUS_MINIMUM IS NULL THEN 1 ELSE 0 END AS flag_continuous,
-    CASE WHEN NewNameID IS NULL THEN 1 ELSE 0 END AS flag_newnameid
+    CASE WHEN NewNameID IS NULL THEN 1 ELSE 0 END AS flag_newnameid,
+    -- water records with no unit code
+    CASE 
+      WHEN result_unit_code IS NOT NULL 
+        AND (
+          UPPER(medium) LIKE '%WATER%' 
+          OR medium = 'Solids - Soil'
+        ) THEN 1 
+      ELSE 0 
+    END AS water_unit_combo,
+    -- air records with no unit code
+    CASE 
+      WHEN result_unit_code IS NOT NULL 
+        AND (
+          UPPER(medium) LIKE '%AIR%' 
+        ) THEN 1 
+      ELSE 0 
+    END AS water_unit_combo
+
   FROM raw_core_data
 ),
 -- intermediate select excluding records counted twice
@@ -51,11 +70,10 @@ final_counts AS (
     SUM(
       CASE
         WHEN flag_locntyp = 1 OR flag_medium = 1 OR flag_continuous = 1 OR flag_newnameid = 1
-        THEN 1
-        ELSE 0
+        THEN 1 ELSE 0
       END
-    ) AS total_excluded
-
+    ) AS total_excluded_distinct,
+    SUM(water_unit_combo) AS count_valid_unit_and_medium
   FROM tagged_data
 )
 SELECT 
@@ -64,6 +82,7 @@ SELECT
   excluded_due_to_medium,
   excluded_due_to_continuous,
   excluded_due_to_missing_observed_property,
-  total_excluded,
-  ROUND(total_excluded * 100.0 / total_raw, 2) AS percent_excluded
+  total_excluded_distinct,
+  ROUND(total_excluded_distinct * 100.0 / total_raw, 2) AS percent_excluded,
+  count_valid_unit_and_medium
 FROM final_counts;
