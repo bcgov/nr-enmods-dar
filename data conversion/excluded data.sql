@@ -1,3 +1,4 @@
+-- all data, no filters applied
 WITH raw_core_data AS (
   SELECT smpl.id,
          mloc.locntyp_cd,
@@ -39,6 +40,7 @@ tagged_data AS (
     CASE WHEN NewNameID IS NULL THEN 1 ELSE 0 END AS flag_newnameid
   FROM raw_core_data
 ),
+-- intermediate select excluding records counted twice
 final_counts AS (
   SELECT
     COUNT(*) AS total_raw,
