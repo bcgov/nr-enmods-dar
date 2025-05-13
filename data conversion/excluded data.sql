@@ -54,7 +54,7 @@ final_counts AS (
         THEN 1
         ELSE 0
       END
-    ) AS total_excluded_distinct
+    ) AS total_excluded
 
   FROM tagged_data
 )
@@ -64,6 +64,6 @@ SELECT
   excluded_due_to_medium,
   excluded_due_to_continuous,
   excluded_due_to_missing_observed_property,
-  total_excluded_distinct,
-  ROUND(total_excluded_distinct * 100.0 / total_raw, 2) AS percent_excluded
+  total_excluded,
+  ROUND(total_excluded * 100.0 / total_raw, 2) AS percent_excluded
 FROM final_counts;
