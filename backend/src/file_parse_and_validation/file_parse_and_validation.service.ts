@@ -1744,6 +1744,10 @@ export class FileParseValidateService {
 
         // send POST to AQI and add visit data to activity
         visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
+        if (visitInfo.fieldVisit === "partialUpload") {
+          partialUpload = true;
+          return;
+        }
         fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
         fieldActivity["LocationID"] = rowData.LocationID;
         GuidsToSave["visits"].push(visitInfo.fieldVisit);
@@ -1784,6 +1788,11 @@ export class FileParseValidateService {
             "post",
           );
 
+          if (activityInfo.activity === "partialUpload") {
+            partialUpload = true;
+            return;
+          }
+
           specimen["activity"] = activityInfo.activity;
           GuidsToSave["activities"].push(activityInfo.activity.id);
           this.logger.log(
@@ -1819,6 +1828,11 @@ export class FileParseValidateService {
             "post",
           );
 
+          if (activityInfo.activity === "partialUpload") {
+            partialUpload = true;
+            return;
+          }
+
           specimen["activity"] = activityInfo.activity;
           GuidsToSave["activities"].push(activityInfo.activity.id);
           this.logger.log(
@@ -1838,6 +1852,10 @@ export class FileParseValidateService {
 
       // send POST to AQI
       specimenInfo = await this.specimensJson(specimen, rowNumber, "post");
+      if (specimenInfo.specimen.id === "partialUpload") {
+        partialUpload = true;
+        return;
+      }
       if (specimenInfo.specimen.id != "exists") {
         // response true means that the specimen already exists for that activity -- essentially skipping that post and save here
         GuidsToSave["specimens"].push(specimenInfo.specimen.id);

@@ -121,6 +121,8 @@ export class AqiApiService {
         `RowNum: ${rowNumber} -> API CALL TO POST Activities failed: `,
         err.response.data.message,
       );
+
+      return "partialUpload"
     }
   }
 
@@ -165,6 +167,9 @@ export class AqiApiService {
           `RowNum: ${rowNumber} -> API CALL TO POST Specimens failed: `,
           err.response.data.message,
         );
+
+        return "partialUpload"
+
       }
     }
   }
