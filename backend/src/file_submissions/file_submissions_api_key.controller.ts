@@ -1,17 +1,12 @@
 import {
   Controller,
-  Get,
   Post,
   Body,
-  Patch,
-  Param,
-  Delete,
   UseInterceptors,
   UploadedFile,
   ParseFilePipe,
   MaxFileSizeValidator,
   UseGuards,
-  Res,
 } from "@nestjs/common";
 import { FileSubmissionsService } from "./file_submissions.service";
 import { CreateFileSubmissionDto } from "./dto/create-file_submission.dto";
@@ -29,10 +24,12 @@ import { SanitizeService } from "src/sanitize/sanitize.service";
 import { FileInfo } from "src/types/types";
 import { OperationLockService } from "src/operationLock/operationLock.service";
 import { ApiKeyGuard } from "src/auth/apikey.guard";
+import { Public } from "src/auth/decorators/public.decorator";
 
 @ApiTags("file_submissions_api_key")
 @Controller({ path: "file_submissions_api_key", version: "1" })
 @UseGuards(ApiKeyGuard)
+@Public()
 export class FileSubmissionsAPIController {
   constructor(
     private readonly fileSubmissionsService: FileSubmissionsService,
@@ -41,6 +38,7 @@ export class FileSubmissionsAPIController {
   ) {}
 
   @Post()
+  @Public()
   @UseGuards(ApiKeyGuard)
   @UseInterceptors(FileInterceptor("file"))
   async create(
