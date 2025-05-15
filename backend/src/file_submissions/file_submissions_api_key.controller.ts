@@ -33,7 +33,7 @@ import { ApiKeyGuard } from "src/auth/apikey.guard";
 @ApiTags("file_submissions_api_key")
 @Controller({ path: "file_submissions_api_key", version: "1" })
 @UseGuards(ApiKeyGuard)
-export class FileSubmissionsController {
+export class FileSubmissionsAPIController {
   constructor(
     private readonly fileSubmissionsService: FileSubmissionsService,
     private readonly sanitizeService: SanitizeService,
