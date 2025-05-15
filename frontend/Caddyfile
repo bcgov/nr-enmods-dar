@@ -41,6 +41,7 @@
 		header_up Host {http.reverse_proxy.upstream.hostport}
 		header_up X-Real-IP {remote_host}
 		header_up X-Forwarded-For {remote_host}
+		header_up X-API-Key {$FRONTEND_API_KEY}
 	}
 	header {
 		X-Frame-Options "SAMEORIGIN"
