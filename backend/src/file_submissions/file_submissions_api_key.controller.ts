@@ -50,6 +50,22 @@ export class FileSubmissionsAPIController {
     file: Express.Multer.File,
     @Body() body: any,
   ) {
-    return this.fileSubmissionsService.create(body, file);
+    // submit the file
+    await this.fileSubmissionsService.createWithSftp(
+      {
+        userID: body.username,
+        orgGUID: body.org_guid,
+        agency: body.name,
+        operation: "IMPORT",
+      },
+      {
+        fieldname: file.filename,
+        originalname: file.originalname,
+        encoding: "7bit",
+        mimetype: "application/octet-stream",
+        buffer: file.buffer,
+        size: file.buffer.length,
+      } as Express.Multer.File,
+    );
   }
 }
