@@ -24,6 +24,13 @@ export class AqiApiService {
     });
   }
 
+  async healthCheck(){
+    const healthcheckUrl = process.env.AQI_BASE_URL + "/v1/status";
+    let aqiStatus = (await axios.get(healthcheckUrl)).status;
+
+    return aqiStatus
+  }
+
   async fieldVisits(rowNumber: number, body: any) {
     try {
       const response = await this.axiosInstance.post("/v1/fieldvisits", body);

@@ -206,6 +206,7 @@ const obsFile: ObservationFile = {
 };
 
 let partialUpload = false;
+let rollBackHalted = false;
 
 @Injectable()
 export class FileParseValidateService {
@@ -221,6 +222,10 @@ export class FileParseValidateService {
 
   async getQueuedFiles() {
     return this.fileSubmissionsService.findByCode("QUEUED");
+  }
+
+  async getRollBackFiles() {
+    return this.fileSubmissionsService.findByCode("ROLLBACK");
   }
 
   async getFilesToDelete() {
@@ -2091,6 +2096,10 @@ export class FileParseValidateService {
     GuidsToSave: any,
     validationApisCalled,
     fileType,
+    file_submission_id,
+    original_file_name,
+    file_operation_code,
+    ministry_contacts,
   ) {
     try {
       let rowData: Record<string, string> = {};
@@ -2131,7 +2140,14 @@ export class FileParseValidateService {
         validationApisCalled,
       );
       if (partialUpload) {
-        await this.rollBackPartialUpload(GuidsToSave, fileName);
+        await this.rollBackPartialUpload(
+          GuidsToSave,
+          fileName,
+          file_submission_id,
+          original_file_name,
+          file_operation_code,
+          ministry_contacts,
+        );
         this.logger.warn("Deleted the partially imported data");
         return;
       }
@@ -2142,7 +2158,14 @@ export class FileParseValidateService {
     }
   }
 
-  async rollBackPartialUpload(GuidsToSave, fileName) {
+  async rollBackPartialUpload(
+    GuidsToSave,
+    fileName,
+    file_submission_id,
+    originalFileName,
+    file_operation_code,
+    ministryContacts,
+  ) {
     // get the partially imported guids
     const partiallyImportedGUIDS = await this.prisma.aqi_imported_data.findMany(
       {
@@ -2173,6 +2196,60 @@ export class FileParseValidateService {
     ];
     let mergedVisits = [...partiallyImportedVisits, ...GuidsToSave.visits];
 
+    // do a health check here. if fails then save these guids to imported guids, set the status of file to ROLLBACK, set an error message for that import
+
+    let aqiStatus = await this.aqiService.healthCheck();
+
+    if (aqiStatus != 200) {
+      rollBackHalted = true;
+      this.logger.warn(
+        `Third party service, AQI, is currently unavailable. Rollback will be halted.`,
+      );
+
+      await this.fileSubmissionsService.updateFileStatus(
+        file_submission_id,
+        "ROLLBACK",
+      );
+
+      let rollbackError = [];
+    let errorMessage = `{"rowNum": "N/A", "type": "ERROR", "message": {"Rollback": "Error in importing the file, rollback required. AQI is currently unavailable. Rollback will be halted until AQI is back up and running."}}`;
+    rollbackError.push(JSON.parse(errorMessage));
+      const file_error_log_data = {
+        file_submission_id: file_submission_id,
+        file_name: fileName,
+        original_file_name: originalFileName,
+        file_operation_code: file_operation_code,
+        ministry_contact: ministryContacts,
+        error_log: rollbackError,
+        create_utc_timestamp: new Date(),
+      };
+
+      await this.prisma.file_error_logs.create({
+        data: file_error_log_data,
+      });
+
+      let newPartialGuids = {
+        visits: Array.from(new Set([...(mergedVisits || [])])),
+        activities: Array.from(new Set([...(mergedActivities || [])])),
+        specimens: Array.from(new Set([...(mergedSpecimens || [])])),
+        observations: Array.from(new Set([])),
+      };
+
+      await this.prisma.$transaction(async (prisma) => {
+        await this.prisma.aqi_imported_data.update({
+          where: {
+            aqi_imported_data_id:
+              partiallyImportedGUIDS[0].aqi_imported_data_id,
+          },
+          data: {
+            imported_guids: newPartialGuids,
+          },
+        });
+      });
+
+      return;
+    }
+
     //delete the partially imported specimens
     await this.aqiService.SpecimenDelete(mergedSpecimens, []);
 
@@ -2181,6 +2258,24 @@ export class FileParseValidateService {
 
     //delete the partially imported visits
     await this.aqiService.VisitDelete(mergedVisits, []);
+
+    // set an error message for a successfull rollback
+    let rollbackError = [];
+    let errorMessage = `{"rowNum": "N/A", "type": "ERROR", "message": {"Rollback": "Something went wrong trying to insert data into AQI. The file had to be rolled back. Please re-upload the file."}}`;
+    rollbackError.push(JSON.parse(errorMessage));
+    const file_error_log_data = {
+      file_submission_id: file_submission_id,
+      file_name: fileName,
+      original_file_name: originalFileName,
+      file_operation_code: file_operation_code,
+      ministry_contact: ministryContacts,
+      error_log: rollbackError,
+      create_utc_timestamp: new Date(),
+    };
+
+    await this.prisma.file_error_logs.create({
+      data: file_error_log_data,
+    });
   }
 
   async parseFile(
@@ -2482,6 +2577,10 @@ export class FileParseValidateService {
                   GuidsToSave,
                   validationApisCalled,
                   extention,
+                  file_submission_id,
+                  originalFileName,
+                  file_operation_code,
+                  ministryContacts,
                 );
 
                 // if a partial upload then stop processing the batch and return
@@ -2528,13 +2627,16 @@ export class FileParseValidateService {
                 GuidsToSave,
                 validationApisCalled,
                 extention,
+                file_submission_id,
+                originalFileName,
+                file_operation_code,
+                ministryContacts,
               );
               // if a partial upload then stop processing the batch and do the rollback
               if (partialUpload) {
                 this.logger.warn(
                   `Partial upload detected, stopped processing the batch`,
                 );
-                this.rollBackPartialUpload(GuidsToSave, file_submission_id);
                 break;
               }
             }
@@ -2546,10 +2648,12 @@ export class FileParseValidateService {
           console.timeEnd("ImportNonObs");
 
           if (partialUpload) {
-            await this.fileSubmissionsService.updateFileStatus(
-              file_submission_id,
-              "ERROR",
-            );
+            if (!rollBackHalted) {
+              await this.fileSubmissionsService.updateFileStatus(
+                file_submission_id,
+                "ERROR",
+              );
+            }
             return;
           }
 
@@ -2899,6 +3003,10 @@ export class FileParseValidateService {
                   GuidsToSave,
                   validationApisCalled,
                   extention,
+                  file_submission_id,
+                  originalFileName,
+                  file_operation_code,
+                  ministryContacts,
                 );
 
                 // if a partial upload then stop processing the batch
@@ -2947,6 +3055,10 @@ export class FileParseValidateService {
                 GuidsToSave,
                 validationApisCalled,
                 extention,
+                file_submission_id,
+                originalFileName,
+                file_operation_code,
+                ministryContacts,
               );
               // if a partial upload then stop processing the batch
               if (partialUpload) {
@@ -2963,10 +3075,12 @@ export class FileParseValidateService {
           console.timeEnd("ImportNonObs");
 
           if (partialUpload) {
-            await this.fileSubmissionsService.updateFileStatus(
-              file_submission_id,
-              "ERROR",
-            );
+            if (!rollBackHalted) {
+              await this.fileSubmissionsService.updateFileStatus(
+                file_submission_id,
+                "ERROR",
+              );
+            }
             return;
           }
 

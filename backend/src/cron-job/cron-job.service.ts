@@ -599,13 +599,24 @@ export class CronJobService {
 
     // Healthcheck for AQI before all files are picked up for processing
     const healthcheckUrl = process.env.AQI_BASE_URL + "/v1/status";
-    let aqiStatus = await (await axios.get(healthcheckUrl)).status;
+    let aqiStatus = (await axios.get(healthcheckUrl)).status;
 
     if (aqiStatus != 200) {
       this.logger.warn(
         `Third party service, AQI, is currently unavailable. No files will be processed.`,
       );
       return;
+    }
+
+    // check to see if any files need to be rolledback
+    let filesToRollBack = await this.fileParser.getRollBackFiles();
+
+    if (filesToRollBack.length > 0) {
+      this.logger.warn(
+        `${filesToRollBack.length} files need rollback. Cannot process any new files until rollbacks have completed.`,
+      );
+
+      await this.rollBackFiles(filesToRollBack);
     }
 
     let filesToValidate = await this.fileParser.getQueuedFiles();
@@ -629,7 +640,7 @@ export class CronJobService {
         try {
           // Healthcheck for AQI before every file
           const healthcheckUrl = process.env.AQI_BASE_URL + "/v1/status";
-          let aqiStatus = await (await axios.get(healthcheckUrl)).status;
+          let aqiStatus = (await axios.get(healthcheckUrl)).status;
 
           if (aqiStatus != 200) {
             this.logger.warn(
@@ -713,5 +724,59 @@ export class CronJobService {
       this.operationLockService.releaseLock("DELETE");
       return;
     }
+  }
+
+  async rollBackFiles(files) {
+    this.logger.warn(`Starting rollback............`);
+    for (const file of files) {
+      try {
+        await this.prisma.$transaction(async (prisma) => {
+          const updateFileStatus = await this.prisma.file_submission.update({
+            where: {
+              submission_id: file.submission_id,
+            },
+            data: {
+              submission_status_code: "DELETING",
+              update_utc_timestamp: new Date(),
+            },
+          });
+        });
+        await this.fileParser.deleteFile(file.file_name, file.submission_id);
+
+        this.logger.log(`File ${file.file_name} rolledback successfully.`);
+        await this.prisma.$transaction(async (prisma) => {
+          const updateFileStatus = await this.prisma.file_submission.update({
+            where: {
+              submission_id: file.submission_id,
+            },
+            data: {
+              submission_status_code: "ERROR",
+              update_utc_timestamp: new Date(),
+            },
+          });
+        });
+
+        let rollbackError = [];
+        let errorMessage = `{"rowNum": "N/A", "type": "ERROR", "message": {"Rollback": "This file has been rolled back. Please re-upload the file."}}`;
+        rollbackError.push(JSON.parse(errorMessage));
+        const file_error_log_data = {
+          file_submission_id: file.submission_id,
+          file_name: file.fileName,
+          original_file_name: file.original_file_name,
+          file_operation_code: file.file_operation_code,
+          ministry_contact: [],
+          error_log: rollbackError,
+
+          create_utc_timestamp: new Date(),
+        };
+
+        await this.prisma.file_error_logs.create({
+          data: file_error_log_data,
+        });
+      } catch (err) {
+        this.logger.error(`Error rolling back file ${file.file_name}: ${err}`);
+      }
+    }
+    this.logger.warn(`Finished rolling back files.........`);
   }
 }
