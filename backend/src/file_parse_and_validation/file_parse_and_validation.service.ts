@@ -2212,8 +2212,8 @@ export class FileParseValidateService {
       );
 
       let rollbackError = [];
-    let errorMessage = `{"rowNum": "N/A", "type": "ERROR", "message": {"Rollback": "Error in importing the file, rollback required. AQI is currently unavailable. Rollback will be halted until AQI is back up and running."}}`;
-    rollbackError.push(JSON.parse(errorMessage));
+      let errorMessage = `{"rowNum": "N/A", "type": "ERROR", "message": {"Rollback": "Error in importing the file, rollback required. AQI is currently unavailable. Rollback will be halted until AQI is back up and running."}}`;
+      rollbackError.push(JSON.parse(errorMessage));
       const file_error_log_data = {
         file_submission_id: file_submission_id,
         file_name: fileName,
@@ -2741,21 +2741,22 @@ export class FileParseValidateService {
         columns: headers,
         trim: true,
       });
-
       rowValidationStream.pipe(parser);
 
       const startTime = Date.now();
-      let streamError = true;
+      let streamError = false;
 
       // Set up the error and end handlers *before* piping
       rowValidationStream.on("error", async (err) => {
         const duration = Date.now() - startTime;
         this.logger.error(`Stream error after ${duration}ms:`, err.message);
+        this.logger.error(`full error: ${err}`);
         await this.fileSubmissionsService.updateFileStatus(
           file_submission_id,
           "ERROR",
         );
         streamError = true;
+        return;
       });
 
       parser.on("error", (err) => {
@@ -2780,6 +2781,10 @@ export class FileParseValidateService {
 
         if (rowNumber === 1) {
           continue;
+        }
+
+        if (streamError) {
+          return;
         }
 
         this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
@@ -2823,6 +2828,10 @@ export class FileParseValidateService {
         );
 
         for (const [index, row] of batch.entries()) {
+          if (streamError) {
+            return;
+          }
+
           let actualRowNumber =
             index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
           await this.cleanAndValidate(
@@ -2949,11 +2958,24 @@ export class FileParseValidateService {
             trim: true,
           });
 
-          rowImportStream.on("error", (err) => {
-            this.logger.error("Stream error:", err.message);
+          const startTime = Date.now();
+          let streamError = false;
+
+          // Set up the error and end handlers *before* piping
+          rowImportStream.on("error", async (err) => {
+            const duration = Date.now() - startTime;
+            this.logger.error(`Stream error after ${duration}ms:`, err.message);
+            this.logger.error(`full error: ${err}`);
+            await this.fileSubmissionsService.updateFileStatus(
+              file_submission_id,
+              "ERROR",
+            );
+            streamError = true;
+            return;
           });
 
           parser.on("error", (err) => {
+            streamError = true;
             this.logger.error("Parser error:", err.message);
           });
 
@@ -2974,6 +2996,10 @@ export class FileParseValidateService {
 
             if (rowNumber === 1) {
               continue;
+            }
+
+            if (streamError) {
+              partialUpload = true;
             }
 
             this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
@@ -3037,6 +3063,10 @@ export class FileParseValidateService {
             this.logger.log(
               `Starting to process (final) batch ${batchNumber} ******************`,
             );
+
+            if (streamError) {
+              partialUpload = true;
+            }
 
             for (const [index, row] of batch.entries()) {
               let actualRowNumber =
