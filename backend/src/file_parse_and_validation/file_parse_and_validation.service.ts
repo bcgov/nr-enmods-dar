@@ -1586,6 +1586,9 @@ export class FileParseValidateService {
      */
 
     this.logger.log(`Started local validation for row ${rowNumber}`);
+    if (rowNumber == 3350){
+      console.log(rowData)
+    }
     const recordLocalValidationResults = await this.localValidation(
       rowNumber,
       rowData,
