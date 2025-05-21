@@ -1523,10 +1523,11 @@ export class FileParseValidateService {
       cleanedRow.CompositeStat = "";
     }
 
+    // if any \t character found, escape it
     const cleanSpecialChars: any = {}
     for (const [key, value] of Object.entries(cleanedRow)){
       if (typeof value === 'string'){
-        cleanSpecialChars[key] = value.replace(/[\t\n]/g, '');
+        cleanSpecialChars[key] = value.replace(/\t/g, '\\t');
       }else{
         cleanSpecialChars[key] = value
       }
