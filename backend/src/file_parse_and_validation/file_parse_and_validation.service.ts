@@ -3017,6 +3017,7 @@ export class FileParseValidateService {
             }
 
             if (streamError) {
+              this.logger.warn('There was a stream error, flagging a partial upload')
               partialUpload = true;
             }
 
@@ -3068,6 +3069,7 @@ export class FileParseValidateService {
 
               // leave the for loop for row iteration
               if (partialUpload) {
+                this.logger.warn('Partial upload, breaking out of loop')
                 break;
               }
 
