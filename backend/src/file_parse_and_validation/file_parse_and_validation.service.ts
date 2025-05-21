@@ -3017,7 +3017,9 @@ export class FileParseValidateService {
             }
 
             if (streamError) {
-              this.logger.warn('There was a stream error, flagging a partial upload')
+              this.logger.warn(
+                "There was a stream error, flagging a partial upload",
+              );
               partialUpload = true;
             }
 
@@ -3065,11 +3067,17 @@ export class FileParseValidateService {
                     break;
                   }
                 }
+              } else {
+                this.logger.warn(
+                  `Partial upload detected, stopped processing the batch`,
+                );
+
+                break;
               }
 
               // leave the for loop for row iteration
               if (partialUpload) {
-                this.logger.warn('Partial upload, breaking out of loop')
+                this.logger.warn("Partial upload, breaking out of loop");
                 break;
               }
 
@@ -3088,39 +3096,48 @@ export class FileParseValidateService {
             );
 
             if (streamError) {
+              this.logger.warn(
+                "There was a stream error, flagging a partial upload",
+              );
               partialUpload = true;
             }
 
-            for (const [index, row] of batch.entries()) {
-              let actualRowNumber =
-                index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
-              let GuidsToSave = {
-                visits: [],
-                activities: [],
-                specimens: [],
-                observations: [],
-              };
+            if (!partialUpload) {
+              for (const [index, row] of batch.entries()) {
+                let actualRowNumber =
+                  index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+                let GuidsToSave = {
+                  visits: [],
+                  activities: [],
+                  specimens: [],
+                  observations: [],
+                };
 
-              await this.importRow(
-                row,
-                headers,
-                actualRowNumber,
-                fileName,
-                GuidsToSave,
-                validationApisCalled,
-                extention,
-                file_submission_id,
-                originalFileName,
-                file_operation_code,
-                ministryContacts,
-              );
-              // if a partial upload then stop processing the batch
-              if (partialUpload) {
-                this.logger.warn(
-                  `Partial upload detected, stopped processing the batch`,
+                await this.importRow(
+                  row,
+                  headers,
+                  actualRowNumber,
+                  fileName,
+                  GuidsToSave,
+                  validationApisCalled,
+                  extention,
+                  file_submission_id,
+                  originalFileName,
+                  file_operation_code,
+                  ministryContacts,
                 );
-                break;
+                // if a partial upload then stop processing the batch
+                if (partialUpload) {
+                  this.logger.warn(
+                    `Partial upload detected, stopped processing the batch`,
+                  );
+                  break;
+                }
               }
+            } else {
+              this.logger.warn(
+                `Partial upload detected, stopped processing the batch`,
+              );
             }
             this.logger.log(
               `Finished processing (final) batch ${batchNumber} ******************`,
