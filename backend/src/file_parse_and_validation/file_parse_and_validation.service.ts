@@ -1523,17 +1523,7 @@ export class FileParseValidateService {
       cleanedRow.CompositeStat = "";
     }
 
-    // if any \t character found, escape it
-    const cleanSpecialChars: any = {}
-    for (const [key, value] of Object.entries(cleanedRow)){
-      if (typeof value === 'string'){
-        cleanSpecialChars[key] = value.replace(/\t/g, '\\t');
-      }else{
-        cleanSpecialChars[key] = value
-      }
-    }
-
-    return cleanSpecialChars;
+    return cleanedRow;
   }
 
   async validateRowData(
@@ -1550,6 +1540,16 @@ export class FileParseValidateService {
     const fieldVisitCustomAttributes: Partial<FieldVisits> = {
       PlanningStatus: "DONE",
     };
+
+    // if any \t character found, escape it
+    const cleanSpecialChars: any = {};
+    for (const [key, value] of Object.entries(rowData)) {
+      if (typeof value === "string") {
+        cleanSpecialChars[key] = value.replace(/\t/g, "\\t");
+      } else {
+        cleanSpecialChars[key] = value;
+      }
+    }
 
     /*
      * From the input file get all the atrributes and values for each sub section - Visits, Activities, Specimens and Observations
