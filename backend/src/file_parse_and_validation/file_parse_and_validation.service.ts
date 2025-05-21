@@ -2760,6 +2760,10 @@ export class FileParseValidateService {
       rowValidationStream.on("error", async (err) => {
         const duration = Date.now() - startTime;
         this.logger.error(`Stream error after ${duration}ms:`, err.message);
+        this.logger.error(`Name: ${err.name}`);
+        this.logger.error(`Code: ${err.code}`);
+        this.logger.error(`Stack: ${err.stack}`);
+
         this.logger.error(`full error: ${err}`);
         await this.fileSubmissionsService.updateFileStatus(
           file_submission_id,
@@ -2975,6 +2979,10 @@ export class FileParseValidateService {
           rowImportStream.on("error", async (err) => {
             const duration = Date.now() - startTime;
             this.logger.error(`Stream error after ${duration}ms:`, err.message);
+            this.logger.error(`Name: ${err.name}`);
+            this.logger.error(`Code: ${err.code}`);
+            this.logger.error(`Stack: ${err.stack}`);
+
             this.logger.error(`full error: ${err}`);
             await this.fileSubmissionsService.updateFileStatus(
               file_submission_id,
