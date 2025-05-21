@@ -3021,19 +3021,22 @@ export class FileParseValidateService {
                   specimens: [],
                   observations: [],
                 };
-                await this.importRow(
-                  row,
-                  headers,
-                  actualRowNumber,
-                  fileName,
-                  GuidsToSave,
-                  validationApisCalled,
-                  extention,
-                  file_submission_id,
-                  originalFileName,
-                  file_operation_code,
-                  ministryContacts,
-                );
+
+                if (!streamError) {
+                  await this.importRow(
+                    row,
+                    headers,
+                    actualRowNumber,
+                    fileName,
+                    GuidsToSave,
+                    validationApisCalled,
+                    extention,
+                    file_submission_id,
+                    originalFileName,
+                    file_operation_code,
+                    ministryContacts,
+                  );
+                }
 
                 // if a partial upload then stop processing the batch
                 if (partialUpload) {
@@ -3077,19 +3080,22 @@ export class FileParseValidateService {
                 specimens: [],
                 observations: [],
               };
-              await this.importRow(
-                row,
-                headers,
-                actualRowNumber,
-                fileName,
-                GuidsToSave,
-                validationApisCalled,
-                extention,
-                file_submission_id,
-                originalFileName,
-                file_operation_code,
-                ministryContacts,
-              );
+
+              if (!streamError) {
+                await this.importRow(
+                  row,
+                  headers,
+                  actualRowNumber,
+                  fileName,
+                  GuidsToSave,
+                  validationApisCalled,
+                  extention,
+                  file_submission_id,
+                  originalFileName,
+                  file_operation_code,
+                  ministryContacts,
+                );
+              }
               // if a partial upload then stop processing the batch
               if (partialUpload) {
                 this.logger.warn(
