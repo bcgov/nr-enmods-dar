@@ -1523,7 +1523,16 @@ export class FileParseValidateService {
       cleanedRow.CompositeStat = "";
     }
 
-    return cleanedRow;
+    const cleanSpecialChars: any = {}
+    for (const [key, value] of Object.entries(cleanedRow)){
+      if (typeof value === 'string'){
+        cleanSpecialChars[key] = value.replace(/[\t\n]/g, '');
+      }else{
+        cleanSpecialChars[key] = value
+      }
+    }
+
+    return cleanSpecialChars;
   }
 
   async validateRowData(
@@ -1586,9 +1595,6 @@ export class FileParseValidateService {
      */
 
     this.logger.log(`Started local validation for row ${rowNumber}`);
-    if (rowNumber == 3350){
-      console.log(rowData)
-    }
     const recordLocalValidationResults = await this.localValidation(
       rowNumber,
       rowData,
