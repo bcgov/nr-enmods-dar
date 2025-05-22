@@ -131,13 +131,13 @@ export class AdminService {
    * @param email
    * @returns
    */
-  async userGuidSearch(guid: string): Promise<any> {
-    const url = `${process.env.USERS_API_BASE_URL}/${process.env.CSS_ENVIRONMENT}/basic-business-bceid/users?&guid=${guid}`;
+  async userGuidSearch(email: string): Promise<any> {
+    const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.integration_id}/${process.env.CSS_ENVIRONMENT}/bceid/users?bceidType=both&email=${email}`;
     const bearerToken = await this.getToken();
     const config = {
       headers: { Authorization: "Bearer " + bearerToken },
     };
-
+    console.log(bearerToken)
     const searchData: BCeIDUserInfo[] = await firstValueFrom(
       this.httpService.get(url, config),
     )
@@ -148,6 +148,8 @@ export class AdminService {
         console.log(err.response.data);
         throw new Error("No users found");
       });
+
+    console.log(searchData[0])
     return searchData[0] || null;
   }
 

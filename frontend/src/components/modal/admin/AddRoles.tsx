@@ -34,7 +34,6 @@ const AddRoles = ({
   onHide,
 }: AddRolesProps) => {
   const [email, setEmail] = useState<string>("");
-  const [guid, setGUID] = useState<string>("");
   const [userObject, setUserObject] = useState<
     IdirUserInfo | BCeIDUserInfo | null
   >(null);
@@ -52,7 +51,7 @@ const AddRoles = ({
       if (accountType === "IDIR") {
         data = await findIdirUser(email);
       } else {
-        data = await findBCeIDUser(guid);
+        data = await findBCeIDUser(email);
       }
       const userId =
         data?.attributes?.idir_username?.[0] ||
@@ -144,41 +143,23 @@ const AddRoles = ({
           <MenuItem value="IDIR">IDIR</MenuItem>
           <MenuItem value="BCeID">BCeID</MenuItem>
         </Select>
-        {accountType === "IDIR" ? (
-          <TextField
-            id="searchEmail"
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              setGUID("");
-            }}
-            fullWidth
-            margin="normal"
-            sx={{
-              marginBottom: 1,
-            }}
-            color="primary"
-          />
-        ) : (
-          <TextField
-            id="searchBceidGUID"
-            label="GUID"
-            type="text"
-            value={guid}
-            onChange={(e) => {
-              setGUID(e.target.value);
-              setEmail("");
-            }}
-            fullWidth
-            margin="normal"
-            sx={{
-              marginBottom: 1,
-            }}
-            color="primary"
-          />
-        )}
+
+        <TextField
+          id="searchEmail"
+          label="Email"
+          type="email"
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+          }}
+          fullWidth
+          margin="normal"
+          sx={{
+            marginBottom: 1,
+          }}
+          color="primary"
+        />
+
         <Button
           variant="contained"
           color="primary"

@@ -16,9 +16,9 @@ export async function findIdirUser(email: string): Promise<IdirUserInfo> {
   return userData;
 }
 
-export async function findBCeIDUser(guid: string): Promise<BCeIDUserInfo> {
-  const searchGuidUrl: string = `${config.API_BASE_URL}/admin/user-guid-search`;
-  const postParameters = api.generateApiParameters(searchGuidUrl, { guid });
+export async function findBCeIDUser(email: string): Promise<BCeIDUserInfo> {
+  const searchGuidUrl: string = `${config.API_BASE_URL}/admin/user-bceid-email-search`;
+  const postParameters = api.generateApiParameters(searchGuidUrl, { email });
   const userData: BCeIDUserInfo = await api.post(postParameters);
   return userData;
 }
