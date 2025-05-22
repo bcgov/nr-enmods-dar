@@ -1541,6 +1541,16 @@ export class FileParseValidateService {
       PlanningStatus: "DONE",
     };
 
+    // if any \t character found, escape it
+    const cleanSpecialChars: any = {};
+    for (const [key, value] of Object.entries(rowData)) {
+      if (typeof value === "string") {
+        cleanSpecialChars[key] = value.replace(/\t/g, "\\t");
+      } else {
+        cleanSpecialChars[key] = value;
+      }
+    }
+
     /*
      * From the input file get all the atrributes and values for each sub section - Visits, Activities, Specimens and Observations
      */
@@ -2733,9 +2743,9 @@ export class FileParseValidateService {
         return;
       }
 
-      // re-fetch the file for validation
-      const rowValidationStream =
-        await this.objectStoreService.getFileData(fileName);
+      // re-fetch the file from the temp directory for validation
+      const fileStreamPath = path.join("./src/tempObsFiles/", fileName);
+      const rowValidationStream = fs.createReadStream(fileStreamPath);
 
       const parser = parse({
         columns: headers,
@@ -2744,23 +2754,23 @@ export class FileParseValidateService {
       rowValidationStream.pipe(parser);
 
       const startTime = Date.now();
-      let streamError = false;
 
       // Set up the error and end handlers *before* piping
       rowValidationStream.on("error", async (err) => {
         const duration = Date.now() - startTime;
         this.logger.error(`Stream error after ${duration}ms:`, err.message);
+        this.logger.error(`Name: ${err.name}`);
+        this.logger.error(`Stack: ${err.stack}`);
+
         this.logger.error(`full error: ${err}`);
         await this.fileSubmissionsService.updateFileStatus(
           file_submission_id,
           "ERROR",
         );
-        streamError = true;
         return;
       });
 
       parser.on("error", (err) => {
-        streamError = true;
         this.logger.error("Parser error:", err.message);
       });
 
@@ -2781,10 +2791,6 @@ export class FileParseValidateService {
 
         if (rowNumber === 1) {
           continue;
-        }
-
-        if (streamError) {
-          return;
         }
 
         this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
@@ -2828,10 +2834,6 @@ export class FileParseValidateService {
         );
 
         for (const [index, row] of batch.entries()) {
-          if (streamError) {
-            return;
-          }
-
           let actualRowNumber =
             index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
           await this.cleanAndValidate(
@@ -2950,8 +2952,8 @@ export class FileParseValidateService {
           // re-fetch the file for import purposes - cannot use previously fetched stream
           console.time("ImportNonObs");
           this.logger.log(`Starting the import process`);
-          const rowImportStream =
-            await this.objectStoreService.getFileData(fileName);
+          const fileStreamPath = path.join("./src/tempObsFiles/", fileName);
+          const rowImportStream = fs.createReadStream(fileStreamPath);
 
           const parser = parse({
             columns: headers,
@@ -2959,23 +2961,23 @@ export class FileParseValidateService {
           });
 
           const startTime = Date.now();
-          let streamError = false;
 
           // Set up the error and end handlers *before* piping
           rowImportStream.on("error", async (err) => {
             const duration = Date.now() - startTime;
             this.logger.error(`Stream error after ${duration}ms:`, err.message);
+            this.logger.error(`Name: ${err.name}`);
+            this.logger.error(`Stack: ${err.stack}`);
+
             this.logger.error(`full error: ${err}`);
             await this.fileSubmissionsService.updateFileStatus(
               file_submission_id,
               "ERROR",
             );
-            streamError = true;
             return;
           });
 
           parser.on("error", (err) => {
-            streamError = true;
             this.logger.error("Parser error:", err.message);
           });
 
@@ -2998,10 +3000,6 @@ export class FileParseValidateService {
               continue;
             }
 
-            if (streamError) {
-              partialUpload = true;
-            }
-
             this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
             batch.push(row);
 
@@ -3021,6 +3019,7 @@ export class FileParseValidateService {
                   specimens: [],
                   observations: [],
                 };
+
                 await this.importRow(
                   row,
                   headers,
@@ -3047,6 +3046,7 @@ export class FileParseValidateService {
 
               // leave the for loop for row iteration
               if (partialUpload) {
+                this.logger.warn("Partial upload, breaking out of loop");
                 break;
               }
 
@@ -3064,10 +3064,6 @@ export class FileParseValidateService {
               `Starting to process (final) batch ${batchNumber} ******************`,
             );
 
-            if (streamError) {
-              partialUpload = true;
-            }
-
             for (const [index, row] of batch.entries()) {
               let actualRowNumber =
                 index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
@@ -3077,6 +3073,7 @@ export class FileParseValidateService {
                 specimens: [],
                 observations: [],
               };
+
               await this.importRow(
                 row,
                 headers,
@@ -3098,6 +3095,7 @@ export class FileParseValidateService {
                 break;
               }
             }
+
             this.logger.log(
               `Finished processing (final) batch ${batchNumber} ******************`,
             );
