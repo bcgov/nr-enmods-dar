@@ -207,6 +207,7 @@ const obsFile: ObservationFile = {
 
 let partialUpload = false;
 let rollBackHalted = false;
+let streamError = false;
 
 @Injectable()
 export class FileParseValidateService {
@@ -2754,7 +2755,6 @@ export class FileParseValidateService {
       rowValidationStream.pipe(parser);
 
       const startTime = Date.now();
-      let streamError = false;
 
       // Set up the error and end handlers *before* piping
       rowValidationStream.on("error", async (err) => {
@@ -2973,7 +2973,6 @@ export class FileParseValidateService {
           });
 
           const startTime = Date.now();
-          let streamError = false;
 
           // Set up the error and end handlers *before* piping
           rowImportStream.on("error", async (err) => {
@@ -3032,47 +3031,39 @@ export class FileParseValidateService {
                 `Starting to process batch ${batchNumber} ******************`,
               );
 
-              if (!partialUpload) {
-                for (const [index, row] of batch.entries()) {
-                  let actualRowNumber =
-                    index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+              for (const [index, row] of batch.entries()) {
+                let actualRowNumber =
+                  index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
 
-                  let GuidsToSave = {
-                    visits: [],
-                    activities: [],
-                    specimens: [],
-                    observations: [],
-                  };
+                let GuidsToSave = {
+                  visits: [],
+                  activities: [],
+                  specimens: [],
+                  observations: [],
+                };
 
-                  await this.importRow(
-                    row,
-                    headers,
-                    actualRowNumber,
-                    fileName,
-                    GuidsToSave,
-                    validationApisCalled,
-                    extention,
-                    file_submission_id,
-                    originalFileName,
-                    file_operation_code,
-                    ministryContacts,
-                  );
-
-                  // if a partial upload then stop processing the batch
-                  if (partialUpload) {
-                    this.logger.warn(
-                      `Partial upload detected, stopped processing the batch`,
-                    );
-
-                    break;
-                  }
-                }
-              } else {
-                this.logger.warn(
-                  `Partial upload detected, stopped processing the batch`,
+                await this.importRow(
+                  row,
+                  headers,
+                  actualRowNumber,
+                  fileName,
+                  GuidsToSave,
+                  validationApisCalled,
+                  extention,
+                  file_submission_id,
+                  originalFileName,
+                  file_operation_code,
+                  ministryContacts,
                 );
 
-                break;
+                // if a partial upload then stop processing the batch
+                if (partialUpload) {
+                  this.logger.warn(
+                    `Partial upload detected, stopped processing the batch`,
+                  );
+
+                  break;
+                }
               }
 
               // leave the for loop for row iteration
@@ -3102,43 +3093,38 @@ export class FileParseValidateService {
               partialUpload = true;
             }
 
-            if (!partialUpload) {
-              for (const [index, row] of batch.entries()) {
-                let actualRowNumber =
-                  index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
-                let GuidsToSave = {
-                  visits: [],
-                  activities: [],
-                  specimens: [],
-                  observations: [],
-                };
+            for (const [index, row] of batch.entries()) {
+              let actualRowNumber =
+                index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+              let GuidsToSave = {
+                visits: [],
+                activities: [],
+                specimens: [],
+                observations: [],
+              };
 
-                await this.importRow(
-                  row,
-                  headers,
-                  actualRowNumber,
-                  fileName,
-                  GuidsToSave,
-                  validationApisCalled,
-                  extention,
-                  file_submission_id,
-                  originalFileName,
-                  file_operation_code,
-                  ministryContacts,
-                );
-                // if a partial upload then stop processing the batch
-                if (partialUpload) {
-                  this.logger.warn(
-                    `Partial upload detected, stopped processing the batch`,
-                  );
-                  break;
-                }
-              }
-            } else {
-              this.logger.warn(
-                `Partial upload detected, stopped processing the batch`,
+              await this.importRow(
+                row,
+                headers,
+                actualRowNumber,
+                fileName,
+                GuidsToSave,
+                validationApisCalled,
+                extention,
+                file_submission_id,
+                originalFileName,
+                file_operation_code,
+                ministryContacts,
               );
+              // if a partial upload then stop processing the batch
+              if (partialUpload) {
+                this.logger.warn(
+                  `Partial upload detected, stopped processing the batch`,
+                );
+                break;
+              }
             }
+
             this.logger.log(
               `Finished processing (final) batch ${batchNumber} ******************`,
             );
