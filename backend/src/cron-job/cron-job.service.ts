@@ -6,6 +6,7 @@ import { FileParseValidateService } from "src/file_parse_and_validation/file_par
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
 import { OperationLockService } from "src/operationLock/operationLock.service";
 import * as fs from "fs";
+import path from "path";
 
 /**
  * Cron Job service for filling code tables with data from AQI API
@@ -649,11 +650,36 @@ export class CronJobService {
             return;
           }
 
+          /*
+           * stream the entire file into the temp directory
+           * check if the directory exists and create the file path,
+           */
+
+          const outputDirectory = "./src/tempObsFiles/";
+          fs.mkdirSync(outputDirectory, { recursive: true });
+          const filePath = path.join(outputDirectory, file.file_name);
+
+          //get the file from objectstore
           const fileStream = await this.objectStore.getFileData(file.file_name);
+
+          const writer = fs.createWriteStream(filePath);
+          fileStream.pipe(writer);
+
+          await new Promise((resolve, reject) => {
+            writer.on("finish", resolve);
+            writer.on("error", reject);
+          });
+
+          this.logger.log(
+            "File saved to temp directory, ready to be read and parsed.",
+          );
+
+          //stream the file FROM the temp directory to send to the parsing function
+          const fileReadStream = fs.createReadStream(filePath);
           this.logger.log(`SENT FILE: ${file.file_name}`);
 
           await this.fileParser.parseFile(
-            fileStream,
+            fileReadStream,
             file.file_name,
             file.original_file_name,
             file.submission_id,
@@ -661,6 +687,14 @@ export class CronJobService {
           );
 
           this.logger.log(`File ${file.file_name} processed successfully.`);
+          //remove the file from the temp directory once processed
+          fs.unlink(filePath, (err) => {
+            if (err) {
+              this.logger.error(`Error cleaning up file`, err);
+            } else {
+              this.logger.log(`Successfully cleaned up file.`);
+            }
+          });
         } catch (err) {
           this.logger.error(`Error processing file ${file.file_name}: ${err}`);
         }
