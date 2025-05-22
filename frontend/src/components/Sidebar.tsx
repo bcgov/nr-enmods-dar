@@ -7,7 +7,7 @@ import Roles from "../roles";
 const topics = [
   { name: "Submit", link: "/submit", adminOnly: false },
   { name: "Dashboard", link: "/dashboard", adminOnly: false },
-  { name: "Web User - FTP User Links", link: "/", adminOnly: true },
+  { name: "Web User - FTP User Links", link: "/sftp", adminOnly: true },
   { name: "Admin", link: "/admin", adminOnly: true },
 ];
 
@@ -29,7 +29,12 @@ const Sidebar = () => {
   return (
     <List component="nav" aria-label="secondary mailbox folders">
       {filteredTopics.map((topic, index) => (
-        <ListItemButton sx={{ width: "75%", }} key={index} component={Link} to={topic.link}>
+        <ListItemButton
+          sx={{ width: "75%" }}
+          key={index}
+          component={Link}
+          to={topic.link}
+        >
           <ListItemText primary={topic.name} />
         </ListItemButton>
       ))}

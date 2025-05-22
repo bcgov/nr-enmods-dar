@@ -1,5 +1,5 @@
 image:
-  repository: image-registry.openshift-image-registry.svc:5000/b9dd81-dev/sftpgo
+  repository: image-registry.openshift-image-registry.svc:5000/b9dd81-test/sftpgo
   tag: latest
   pullPolicy: Always
 
@@ -18,14 +18,17 @@ sftp:
   port: 2222
   webport: 8080
   directory: /srv/sftpgo
-  # uploader1:
-  #   publicKey: ""
-  # uploader2:
-  #   publicKey: ""
-  # uploader3:
-  #   publicKey: ""
-  # service:
-  #   publicKey: ""
-  # admin:
-  #   user: ""
-  #   password: ""
+  uploader1:
+    publicKey: ""
+    username: ""
+  uploader2:
+    publicKey: ""
+    username: ""
+  uploader3:
+    publicKey: ""
+    username: ""
+  service:
+    publicKey: ""
+  admin:
+    user: ""
+    password: ""

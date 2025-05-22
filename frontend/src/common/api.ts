@@ -38,7 +38,6 @@ export const get = <T, M = {}>(
     if (params) {
       config.params = params;
     }
-
     axios
       .get(url, config)
       .then((response: AxiosResponse) => {

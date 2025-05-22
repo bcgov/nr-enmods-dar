@@ -1,7 +1,7 @@
-import { Button, Tabs, Tab, TextField, Typography } from "@mui/material";
+import { Button, Tabs, Tab, Typography } from "@mui/material";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
-import { ChangeEvent, useEffect, useState } from "react";
-import { Box, height } from "@mui/system";
+import { useEffect, useState } from "react";
+import { Box } from "@mui/system";
 import { getUsers } from "@/common/admin";
 import type { NotificationInfo, UserInfo } from "@/types/types";
 import AddRoles from "@/components/modal/admin/AddRoles";
@@ -13,7 +13,6 @@ import UserService from "@/service/user-service";
 import { jwtDecode } from "jwt-decode";
 import {
   getNotificationData,
-  testEmail,
   updateNotification,
 } from "@/common/notifications";
 
@@ -29,15 +28,6 @@ export default function AdminPage() {
     [],
   );
   const [username, setUsername] = useState("");
-
-  // debug code, delete this later
-  const [testEmailValue, setTestEmailValue] = useState(
-    "mtennant@salussystems.com",
-  );
-  const handleTestEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setTestEmailValue(event.target.value);
-  };
-  //
 
   useEffect(() => {
     const token = UserService.getToken();
@@ -113,10 +103,6 @@ export default function AdminPage() {
     newValue: number,
   ): void => {
     setSelectedTab(newValue);
-  };
-
-  const testEmailHandler = async () => {
-    await testEmail(testEmailValue);
   };
 
   return (

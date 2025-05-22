@@ -5,7 +5,8 @@
   "scripts": {
     "prisma-generate": "prisma generate",
     "prebuild": "rimraf dist",
-    "build": "nest build",
+    "build": "prisma generate && nest build",
+    "deploy": "npm ci --ignore-scripts --no-update-notifier && npm run build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -38,7 +39,6 @@
     "@prisma/client": "^5.7.0",
     "@types/multer": "^1.4.11",
     "axios": "^1.7.2",
-    "basic-ftp": "^5.0.5",
     "class-validator": "^0.14.1",
     "csv-parse": "^5.6.0",
     "csv-parser": "^3.0.0",
@@ -62,7 +62,9 @@
     "rimraf": "^5.0.0",
     "rxjs": "^7.8.0",
     "sanitize-html": "^2.13.0",
+    "ssh2-sftp-client": "^12.0.0",
     "swagger-ui-express": "^5.0.0",
+    "uuid": "^11.0.5",
     "winston": "^3.11.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },

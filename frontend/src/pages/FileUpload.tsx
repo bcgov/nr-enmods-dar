@@ -101,7 +101,6 @@ function FileUpload() {
         return;
       }
     }
-
     setFiles(files);
     selectedFiles = Array.from(files);
 
@@ -350,7 +349,7 @@ function FileUpload() {
 
             {expandList && (
               <div className="file-list">
-                <List sx={{ height: "100dvh", overflow: "auto" }}>
+                <List sx={{ height: "45vh", overflow: "auto" }}>
                   {selectedFiles.length > 0 && selectedFiles.length <= 10
                     ? selectedFiles.map((file, index) => (
                         <ListItem key={index}>
@@ -532,38 +531,40 @@ function FileUpload() {
                     </Button>
                   </DialogActions>
                 </Dialog>
-
-                <div className="all-file-action">
-                  <Box sx={{ paddingTop: "20px" }}>
-                    {files && selectedFiles.length > 0 ? (
-                      <ButtonGroup variant="text" style={{ color: "black" }}>
-                        <Button
-                          id={"all-files-validate"}
-                          variant="contained"
-                          color="secondary"
-                          onClick={() => {
-                            validateAllFiles(files);
-                          }}
-                        >
-                          Validate All
-                        </Button>
-                        <Button
-                          id={"all-files-submit"}
-                          variant="contained"
-                          color="secondary"
-                          onClick={() => {
-                            submitAllFiles(files);
-                          }}
-                        >
-                          Submit All
-                        </Button>
-                      </ButtonGroup>
-                    ) : (
-                      ""
-                    )}
-                  </Box>
-                </div>
               </div>
+            )}
+
+            {expandList && (
+              <div className="all-file-action">
+              <Box sx={{ padding: "40px" }}>
+                {files && selectedFiles.length > 0 ? (
+                  <ButtonGroup variant="text" style={{ color: "black" }}>
+                    <Button
+                      id={"all-files-validate"}
+                      variant="contained"
+                      color="secondary"
+                      onClick={() => {
+                        validateAllFiles(files);
+                      }}
+                    >
+                      Validate All
+                    </Button>
+                    <Button
+                      id={"all-files-submit"}
+                      variant="contained"
+                      color="secondary"
+                      onClick={() => {
+                        submitAllFiles(files);
+                      }}
+                    >
+                      Submit All
+                    </Button>
+                  </ButtonGroup>
+                ) : (
+                  ""
+                )}
+              </Box>
+            </div>
             )}
 
             {!expandList && (
