@@ -3131,5 +3131,7 @@ export class FileParseValidateService {
       }
     }
     console.timeEnd("parseFile");
+    partialUpload = false
+    rollBackHalted = false
   }
 }
