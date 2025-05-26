@@ -3130,6 +3130,8 @@ export class FileParseValidateService {
         }
       }
     }
+    partialUpload = false
+    rollBackHalted = false
     console.timeEnd("parseFile");
   }
 }
