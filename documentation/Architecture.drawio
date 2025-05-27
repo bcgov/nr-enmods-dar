@@ -166,6 +166,20 @@
             <mxPoint x="2" y="9" as="offset" />
           </mxGeometry>
         </mxCell>
+        <mxCell id="nCuoO0bw3HB3Iz4VNYSG-57" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.7;entryDx=0;entryDy=0;" edge="1" parent="1" source="nCuoO0bw3HB3Iz4VNYSG-55" target="nCuoO0bw3HB3Iz4VNYSG-8">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="210" y="415" />
+              <mxPoint x="210" y="330" />
+              <mxPoint x="410" y="330" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nCuoO0bw3HB3Iz4VNYSG-58" value="&lt;div&gt;Upload via&amp;nbsp;&lt;/div&gt;&lt;div&gt;API Key&lt;/div&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="nCuoO0bw3HB3Iz4VNYSG-57">
+          <mxGeometry x="-0.7385" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
         <mxCell id="nCuoO0bw3HB3Iz4VNYSG-55" value="External Lab Applications" style="verticalAlign=top;align=left;spacingTop=8;spacingLeft=2;spacingRight=12;shape=cube;size=10;direction=south;fontStyle=4;html=1;rounded=0;shadow=0;comic=0;labelBackgroundColor=none;strokeWidth=1;fontFamily=Verdana;fontSize=12" vertex="1" parent="1">
           <mxGeometry x="-220" y="335" width="330" height="160" as="geometry" />
         </mxCell>
