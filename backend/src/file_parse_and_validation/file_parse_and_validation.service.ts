@@ -2159,6 +2159,8 @@ export class FileParseValidateService {
           ministry_contacts,
         );
         this.logger.warn("Deleted the partially imported data");
+        partialUpload = false;
+        rollBackHalted = false;
         return;
       }
       this.logger.log(`Completed import for row ${rowNumber}`);
