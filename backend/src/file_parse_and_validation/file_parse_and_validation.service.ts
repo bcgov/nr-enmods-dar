@@ -2297,6 +2297,8 @@ export class FileParseValidateService {
     file_submission_id: string,
     file_operation_code: string,
   ) {
+    partialUpload = false
+    rollBackHalted = false
     console.time("parseFile");
 
     const path = require("path");
@@ -3133,5 +3135,7 @@ export class FileParseValidateService {
       }
     }
     console.timeEnd("parseFile");
+    partialUpload = false
+    rollBackHalted = false
   }
 }
