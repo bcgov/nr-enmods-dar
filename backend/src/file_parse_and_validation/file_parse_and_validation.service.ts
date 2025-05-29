@@ -207,6 +207,8 @@ const obsFile: ObservationFile = {
 
 let partialUpload = false;
 let rollBackHalted = false;
+let validationApisCalled = [];
+let fieldVisitStartTimes = {};
 
 @Injectable()
 export class FileParseValidateService {
@@ -771,12 +773,7 @@ export class FileParseValidateService {
     return headerErrors;
   }
 
-  async localValidation(
-    rowNumber: number,
-    rowData: any,
-    validationApisCalled: any,
-    fieldVisitStartTimes: any,
-  ) {
+  async localValidation(rowNumber: number, rowData: any) {
     let errorLogs = [];
     let existingRecords = [];
     // for (const [index, record] of allRecords.entries()) {
@@ -1167,7 +1164,7 @@ export class FileParseValidateService {
         "LOCATIONS",
         rowData.LocationID,
       );
-      if (locationGUID.hasOwnProperty["samplingLocation"]) {
+      if (locationGUID.hasOwnProperty("samplingLocation")) {
         const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
         let visitExists = false;
         const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
@@ -1534,8 +1531,6 @@ export class FileParseValidateService {
     allExistingRecords: any,
     originalFileName: any,
     rowNumber: any,
-    validationApisCalled: any,
-    fieldVisitStartTimes: any,
   ) {
     const fieldVisitCustomAttributes: Partial<FieldVisits> = {
       PlanningStatus: "DONE",
@@ -1599,8 +1594,6 @@ export class FileParseValidateService {
     const recordLocalValidationResults = await this.localValidation(
       rowNumber,
       rowData,
-      validationApisCalled,
-      fieldVisitStartTimes,
     );
 
     this.logger.log(`Finished local validation for row ${rowNumber}`);
@@ -1637,7 +1630,6 @@ export class FileParseValidateService {
     rowData: any,
     GuidsToSave: any,
     fileName: string,
-    validationApisCalled: any,
   ) {
     const fieldVisitCustomAttributes: Partial<FieldVisits> = {
       PlanningStatus: "DONE",
@@ -2045,8 +2037,6 @@ export class FileParseValidateService {
     allNonObsErrors,
     allExistingRecords,
     originalFileName,
-    validationApisCalled,
-    fieldVisitStartTimes,
     fileType,
   ) {
     try {
@@ -2089,8 +2079,6 @@ export class FileParseValidateService {
         allExistingRecords,
         originalFileName,
         rowNumber,
-        validationApisCalled,
-        fieldVisitStartTimes,
       );
     } catch (err) {
       this.logger.error("Error in validateRowData:", err.message, err.stack);
@@ -2104,7 +2092,6 @@ export class FileParseValidateService {
     rowNumber: number,
     fileName: string,
     GuidsToSave: any,
-    validationApisCalled,
     fileType,
     file_submission_id,
     original_file_name,
@@ -2147,7 +2134,6 @@ export class FileParseValidateService {
         rowData,
         GuidsToSave,
         fileName,
-        validationApisCalled,
       );
       if (partialUpload) {
         await this.rollBackPartialUpload(
@@ -2297,8 +2283,11 @@ export class FileParseValidateService {
     file_submission_id: string,
     file_operation_code: string,
   ) {
-    partialUpload = false
-    rollBackHalted = false
+    partialUpload = false;
+    rollBackHalted = false;
+    validationApisCalled = [];
+    fieldVisitStartTimes = {};
+
     console.time("parseFile");
 
     const path = require("path");
@@ -2341,9 +2330,6 @@ export class FileParseValidateService {
     const csvStream = format({ headers: true, quoteColumns: true });
     csvStream.pipe(writeStream);
     csvStream.write(headers);
-
-    let validationApisCalled = [];
-    let fieldVisitStartTimes = {};
 
     if (extention == ".xlsx") {
       const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
@@ -2422,8 +2408,6 @@ export class FileParseValidateService {
               allNonObsErrors,
               allExistingRecords,
               originalFileName,
-              validationApisCalled,
-              fieldVisitStartTimes,
               extention,
             );
           }
@@ -2453,8 +2437,6 @@ export class FileParseValidateService {
             allNonObsErrors,
             allExistingRecords,
             originalFileName,
-            validationApisCalled,
-            fieldVisitStartTimes,
             extention,
           );
         }
@@ -2589,7 +2571,6 @@ export class FileParseValidateService {
                   actualRowNumber,
                   fileName,
                   GuidsToSave,
-                  validationApisCalled,
                   extention,
                   file_submission_id,
                   originalFileName,
@@ -2639,7 +2620,6 @@ export class FileParseValidateService {
                 actualRowNumber,
                 fileName,
                 GuidsToSave,
-                validationApisCalled,
                 extention,
                 file_submission_id,
                 originalFileName,
@@ -2818,8 +2798,6 @@ export class FileParseValidateService {
               allNonObsErrors,
               allExistingRecords,
               originalFileName,
-              validationApisCalled,
-              fieldVisitStartTimes,
               extention,
             );
           }
@@ -2849,8 +2827,6 @@ export class FileParseValidateService {
             allNonObsErrors,
             allExistingRecords,
             originalFileName,
-            validationApisCalled,
-            fieldVisitStartTimes,
             extention,
           );
         }
@@ -2954,6 +2930,8 @@ export class FileParseValidateService {
            */
 
           // re-fetch the file for import purposes - cannot use previously fetched stream
+          console.log(validationApisCalled);
+
           console.time("ImportNonObs");
           this.logger.log(`Starting the import process`);
           const fileStreamPath = path.join("./src/tempObsFiles/", fileName);
@@ -3030,7 +3008,6 @@ export class FileParseValidateService {
                   actualRowNumber,
                   fileName,
                   GuidsToSave,
-                  validationApisCalled,
                   extention,
                   file_submission_id,
                   originalFileName,
@@ -3084,7 +3061,6 @@ export class FileParseValidateService {
                 actualRowNumber,
                 fileName,
                 GuidsToSave,
-                validationApisCalled,
                 extention,
                 file_submission_id,
                 originalFileName,
@@ -3135,7 +3111,7 @@ export class FileParseValidateService {
       }
     }
     console.timeEnd("parseFile");
-    partialUpload = false
-    rollBackHalted = false
+    partialUpload = false;
+    rollBackHalted = false;
   }
 }
