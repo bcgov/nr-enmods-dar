@@ -49,7 +49,7 @@ export class FileSubmissionsService {
     ).submission_status_code;
     createFileSubmissionDto.file_operation_code = body.operation;
     createFileSubmissionDto.submitter_agency_name =
-      body.agency ?? "SALUSSYSTEMS"; // TODO: change this once BCeID is set up
+      body.agency ?? "SALUSSYSTEMS"; // TODO: change this once BCeID is set up, if null use the user name
     createFileSubmissionDto.sample_count = 0;
     createFileSubmissionDto.result_count = 0;
     // createFileSubmissionDto.file_row_count = body.file_row_count
@@ -118,7 +118,7 @@ export class FileSubmissionsService {
     ).submission_status_code;
     createFileSubmissionDto.file_operation_code = body.operation;
     createFileSubmissionDto.submitter_agency_name =
-      body.agency ?? "SALUSSYSTEMS"; // TODO: change this once BCeID is set up
+      body.agency ?? "SALUSSYSTEMS"; // TODO: change this once BCeID is set up, if NULL use the user name
     createFileSubmissionDto.sample_count = 0;
     createFileSubmissionDto.result_count = 0;
     createFileSubmissionDto.organization_guid = uuidv4(); // TODO: change this once BCeID is set up
