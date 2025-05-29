@@ -317,3 +317,18 @@ model sftp_users {
   update_user_id       String?   @db.VarChar(255)
   update_utc_timestamp DateTime? @db.Timestamp(6)
 }
+
+model importer_benchmark {
+  submission_id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  file_name              String   @db.VarChar(200)
+  original_file_name     String   @db.VarChar(200)
+  submission_date        DateTime @db.Timestamp(6)
+  submission_status_code String   @db.VarChar(10)
+  sample_count           Int?
+  results_count          Int?
+  local_validation_time  Int?
+  obs_validation_time    Int?
+  local_import_time      Int?
+  obs_import_time        Int?
+  total_time             Int?
+}
