@@ -207,6 +207,20 @@ const obsFile: ObservationFile = {
 
 let partialUpload = false;
 let rollBackHalted = false;
+let validationApisCalled = [];
+let fieldVisitStartTimes = {};
+let startValidation = 0,
+  endValidation = 0,
+  startObsValidation = 0,
+  endObsValidation = 0,
+  startRejectFile = 0,
+  endRejectFile = 0,
+  startReportValidated = 0,
+  endReportValidated = 0,
+  startImportNonObs = 0,
+  endImportNonObs = 0,
+  startImportObs = 0,
+  endImportObs = 0;
 
 @Injectable()
 export class FileParseValidateService {
@@ -771,12 +785,7 @@ export class FileParseValidateService {
     return headerErrors;
   }
 
-  async localValidation(
-    rowNumber: number,
-    rowData: any,
-    validationApisCalled: any,
-    fieldVisitStartTimes: any,
-  ) {
+  async localValidation(rowNumber: number, rowData: any) {
     let errorLogs = [];
     let existingRecords = [];
     // for (const [index, record] of allRecords.entries()) {
@@ -1167,7 +1176,7 @@ export class FileParseValidateService {
         "LOCATIONS",
         rowData.LocationID,
       );
-      if (locationGUID.hasOwnProperty["samplingLocation"]) {
+      if (locationGUID.hasOwnProperty("samplingLocation")) {
         const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
         let visitExists = false;
         const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
@@ -1534,8 +1543,6 @@ export class FileParseValidateService {
     allExistingRecords: any,
     originalFileName: any,
     rowNumber: any,
-    validationApisCalled: any,
-    fieldVisitStartTimes: any,
   ) {
     const fieldVisitCustomAttributes: Partial<FieldVisits> = {
       PlanningStatus: "DONE",
@@ -1599,8 +1606,6 @@ export class FileParseValidateService {
     const recordLocalValidationResults = await this.localValidation(
       rowNumber,
       rowData,
-      validationApisCalled,
-      fieldVisitStartTimes,
     );
 
     this.logger.log(`Finished local validation for row ${rowNumber}`);
@@ -1637,7 +1642,6 @@ export class FileParseValidateService {
     rowData: any,
     GuidsToSave: any,
     fileName: string,
-    validationApisCalled: any,
   ) {
     const fieldVisitCustomAttributes: Partial<FieldVisits> = {
       PlanningStatus: "DONE",
@@ -2045,8 +2049,6 @@ export class FileParseValidateService {
     allNonObsErrors,
     allExistingRecords,
     originalFileName,
-    validationApisCalled,
-    fieldVisitStartTimes,
     fileType,
   ) {
     try {
@@ -2089,8 +2091,6 @@ export class FileParseValidateService {
         allExistingRecords,
         originalFileName,
         rowNumber,
-        validationApisCalled,
-        fieldVisitStartTimes,
       );
     } catch (err) {
       this.logger.error("Error in validateRowData:", err.message, err.stack);
@@ -2104,7 +2104,6 @@ export class FileParseValidateService {
     rowNumber: number,
     fileName: string,
     GuidsToSave: any,
-    validationApisCalled,
     fileType,
     file_submission_id,
     original_file_name,
@@ -2147,7 +2146,6 @@ export class FileParseValidateService {
         rowData,
         GuidsToSave,
         fileName,
-        validationApisCalled,
       );
       if (partialUpload) {
         await this.rollBackPartialUpload(
@@ -2290,6 +2288,44 @@ export class FileParseValidateService {
     });
   }
 
+  async benchmarkImport(file_submission_id, fileName, originalFileName) {
+    // all times in ms, divide by 1000 to make them in s
+    const validationTime = (endValidation - startValidation) / 1000;
+    const obsValidationTime = (endObsValidation - startObsValidation) / 1000;
+    const importTime = (endImportNonObs - startImportNonObs) / 1000;
+    const obsImportTime = (endImportObs - startImportObs) / 1000;
+    const totalTime =
+      validationTime + obsValidationTime + importTime + obsImportTime;
+
+    const fileInfo = await this.prisma.file_submission.findFirst({
+      select: {
+        sample_count: true,
+        results_count: true,
+        submission_date: true,
+        submission_status_code: true,
+      },
+      where: {
+        submission_id: file_submission_id,
+      },
+    });
+
+    await this.prisma.importer_benchmark.create({
+      data: {
+        submission_id: file_submission_id,
+        file_name: fileName,
+        original_file_name: originalFileName,
+        submission_date: fileInfo.submission_date,
+        submission_status_code: fileInfo.submission_status_code,
+        sample_count: fileInfo.sample_count,
+        results_count: fileInfo.results_count,
+        local_validation_time: validationTime,
+        obs_validation_time: obsValidationTime,
+        local_import_time: importTime,
+        obs_import_time: obsImportTime,
+        total_time: totalTime,
+      },
+    });
+  }
   async parseFile(
     file: Readable,
     fileName: string,
@@ -2297,9 +2333,13 @@ export class FileParseValidateService {
     file_submission_id: string,
     file_operation_code: string,
   ) {
-    partialUpload = false
-    rollBackHalted = false
+    partialUpload = false;
+    rollBackHalted = false;
+    validationApisCalled = [];
+    fieldVisitStartTimes = {};
+
     console.time("parseFile");
+    const startParseFile = performance.now();
 
     const path = require("path");
     const extention = path.extname(fileName);
@@ -2341,9 +2381,6 @@ export class FileParseValidateService {
     const csvStream = format({ headers: true, quoteColumns: true });
     csvStream.pipe(writeStream);
     csvStream.write(headers);
-
-    let validationApisCalled = [];
-    let fieldVisitStartTimes = {};
 
     if (extention == ".xlsx") {
       const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
@@ -2389,11 +2426,16 @@ export class FileParseValidateService {
           file_submission_id,
           "REJECTED",
         );
-
+        await this.benchmarkImport(
+          file_submission_id,
+          fileName,
+          originalFileName,
+        );
         return;
       }
 
       console.time("Validation");
+      startValidation = performance.now();
       for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
         const row = worksheet.getRow(rowNumber);
 
@@ -2422,8 +2464,6 @@ export class FileParseValidateService {
               allNonObsErrors,
               allExistingRecords,
               originalFileName,
-              validationApisCalled,
-              fieldVisitStartTimes,
               extention,
             );
           }
@@ -2453,8 +2493,6 @@ export class FileParseValidateService {
             allNonObsErrors,
             allExistingRecords,
             originalFileName,
-            validationApisCalled,
-            fieldVisitStartTimes,
             extention,
           );
         }
@@ -2464,9 +2502,11 @@ export class FileParseValidateService {
       }
 
       console.timeEnd("Validation");
+      endValidation = performance.now();
 
       csvStream.end();
       console.time("obsValidation");
+      startObsValidation = performance.now();
       const contactsAndValidationResults = await this.finalValidationStep(
         ministryContacts,
         filePath,
@@ -2475,6 +2515,7 @@ export class FileParseValidateService {
         allNonObsErrors,
       );
       console.timeEnd("obsValidation");
+      endObsValidation = performance.now();
 
       const hasError = contactsAndValidationResults[1].some(
         (item) => item.type === "ERROR",
@@ -2491,6 +2532,7 @@ export class FileParseValidateService {
          * Send the an email to the submitter and the ministry contact that is inside the file
          */
         console.time("RejectFile");
+        startRejectFile = performance.now();
         await this.rejectFileAndLogErrors(
           file_submission_id,
           fileName,
@@ -2508,6 +2550,13 @@ export class FileParseValidateService {
           }
         });
         console.timeEnd("RejectFile");
+        endRejectFile = performance.now();
+        await this.benchmarkImport(
+          file_submission_id,
+          fileName,
+          originalFileName,
+        );
+
         return;
       } else {
         /*
@@ -2516,6 +2565,7 @@ export class FileParseValidateService {
          */
         // If there are no errors or warnings
         console.time("ReportValidated");
+        startReportValidated = performance.now();
         if (file_operation_code === "VALIDATE") {
           const file_error_log_data = {
             file_submission_id: file_submission_id,
@@ -2544,6 +2594,13 @@ export class FileParseValidateService {
             }
           });
           console.timeEnd("ReportValidated");
+          endReportValidated = performance.now();
+          await this.benchmarkImport(
+            file_submission_id,
+            fileName,
+            originalFileName,
+          );
+
           return;
         } else {
           const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
@@ -2551,6 +2608,7 @@ export class FileParseValidateService {
           let batchNumber = 1;
 
           console.time("ImportNonObs");
+          startImportNonObs = performance.now();
           this.logger.log(`Starting the import process`);
           for (
             let rowNumber = 2;
@@ -2589,7 +2647,6 @@ export class FileParseValidateService {
                   actualRowNumber,
                   fileName,
                   GuidsToSave,
-                  validationApisCalled,
                   extention,
                   file_submission_id,
                   originalFileName,
@@ -2639,7 +2696,6 @@ export class FileParseValidateService {
                 actualRowNumber,
                 fileName,
                 GuidsToSave,
-                validationApisCalled,
                 extention,
                 file_submission_id,
                 originalFileName,
@@ -2660,6 +2716,7 @@ export class FileParseValidateService {
             );
           }
           console.timeEnd("ImportNonObs");
+          endImportNonObs = performance.now();
 
           if (partialUpload) {
             if (!rollBackHalted) {
@@ -2672,6 +2729,7 @@ export class FileParseValidateService {
           }
 
           console.time("ImportObs");
+          startImportObs = performance.now();
           this.logger.log(`Starting import of observations`);
           await this.insertObservations(
             fileName,
@@ -2684,6 +2742,7 @@ export class FileParseValidateService {
           );
           this.logger.log(`Completed import for observations`);
           console.timeEnd("ImportObs");
+          endImportObs = performance.now();
         }
       }
     } else if (extention == ".csv") {
@@ -2743,6 +2802,11 @@ export class FileParseValidateService {
           file_submission_id,
           "REJECTED",
         );
+        await this.benchmarkImport(
+          file_submission_id,
+          fileName,
+          originalFileName,
+        );
 
         return;
       }
@@ -2783,6 +2847,7 @@ export class FileParseValidateService {
       });
 
       console.time("Validation");
+      startValidation = performance.now();
       // Pipe immediately after setting up handlers
 
       const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
@@ -2818,8 +2883,6 @@ export class FileParseValidateService {
               allNonObsErrors,
               allExistingRecords,
               originalFileName,
-              validationApisCalled,
-              fieldVisitStartTimes,
               extention,
             );
           }
@@ -2849,8 +2912,6 @@ export class FileParseValidateService {
             allNonObsErrors,
             allExistingRecords,
             originalFileName,
-            validationApisCalled,
-            fieldVisitStartTimes,
             extention,
           );
         }
@@ -2862,9 +2923,11 @@ export class FileParseValidateService {
       this.logger.log(`✅ All done. Processed ${rowNumber} rows.`);
 
       console.timeEnd("Validation");
+      endValidation = performance.now();
 
       csvStream.end();
       console.time("obsValidation");
+      startObsValidation = performance.now();
       const contactsAndValidationResults = await this.finalValidationStep(
         ministryContacts,
         filePath,
@@ -2873,6 +2936,7 @@ export class FileParseValidateService {
         allNonObsErrors,
       );
       console.timeEnd("obsValidation");
+      endObsValidation = performance.now();
 
       const hasError = contactsAndValidationResults[1].some(
         (item) => item.type === "ERROR",
@@ -2889,6 +2953,7 @@ export class FileParseValidateService {
          * Send the an email to the submitter and the ministry contact that is inside the file
          */
         console.time("RejectFile");
+        startRejectFile = performance.now();
         await this.rejectFileAndLogErrors(
           file_submission_id,
           fileName,
@@ -2906,6 +2971,13 @@ export class FileParseValidateService {
           }
         });
         console.timeEnd("RejectFile");
+        endRejectFile = performance.now();
+        await this.benchmarkImport(
+          file_submission_id,
+          fileName,
+          originalFileName,
+        );
+
         return;
       } else {
         /*
@@ -2914,6 +2986,7 @@ export class FileParseValidateService {
          */
         // If there are no errors or warnings
         console.time("ReportValidated");
+        startReportValidated = performance.now();
 
         if (file_operation_code === "VALIDATE") {
           const file_error_log_data = {
@@ -2943,6 +3016,12 @@ export class FileParseValidateService {
             }
           });
           console.timeEnd("ReportValidated");
+          endReportValidated = performance.now();
+          await this.benchmarkImport(
+            file_submission_id,
+            fileName,
+            originalFileName,
+          );
 
           return;
         } else {
@@ -2955,6 +3034,7 @@ export class FileParseValidateService {
 
           // re-fetch the file for import purposes - cannot use previously fetched stream
           console.time("ImportNonObs");
+          startImportNonObs = performance.now();
           this.logger.log(`Starting the import process`);
           const fileStreamPath = path.join("./src/tempObsFiles/", fileName);
           const rowImportStream = fs.createReadStream(fileStreamPath);
@@ -3030,7 +3110,6 @@ export class FileParseValidateService {
                   actualRowNumber,
                   fileName,
                   GuidsToSave,
-                  validationApisCalled,
                   extention,
                   file_submission_id,
                   originalFileName,
@@ -3084,7 +3163,6 @@ export class FileParseValidateService {
                 actualRowNumber,
                 fileName,
                 GuidsToSave,
-                validationApisCalled,
                 extention,
                 file_submission_id,
                 originalFileName,
@@ -3105,6 +3183,7 @@ export class FileParseValidateService {
             );
           }
           console.timeEnd("ImportNonObs");
+          endImportNonObs = performance.now();
 
           if (partialUpload) {
             if (!rollBackHalted) {
@@ -3119,6 +3198,7 @@ export class FileParseValidateService {
           this.logger.log(`Starting import of observations`);
 
           console.time("ImportObs");
+          startImportObs = performance.now();
           await this.insertObservations(
             fileName,
             originalFileName,
@@ -3131,11 +3211,13 @@ export class FileParseValidateService {
           this.logger.log(`Completed import of observations`);
 
           console.timeEnd("ImportObs");
+          endImportObs = performance.now();
         }
       }
     }
     console.timeEnd("parseFile");
-    partialUpload = false
-    rollBackHalted = false
+    await this.benchmarkImport(file_submission_id, fileName, originalFileName);
+    partialUpload = false;
+    rollBackHalted = false;
   }
 }
