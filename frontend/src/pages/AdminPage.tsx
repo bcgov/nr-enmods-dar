@@ -132,13 +132,13 @@ export default function AdminPage() {
             color: selectedTab === 0 ? "black" : "lightgray",
           }}
         />
-        <Tab
+        {/* <Tab
           id="companyTab"
           label="Company"
           style={{
             color: selectedTab === 1 ? "black" : "lightgray",
           }}
-        />
+        /> */}
         <Tab
           label="Notifications"
           style={{ color: selectedTab === 2 ? "black" : "lightgray" }}
@@ -171,7 +171,7 @@ export default function AdminPage() {
           />
         )}
       </Box>
-      <Box
+      {/* <Box
         role="tabpanel"
         hidden={selectedTab !== 1}
         id={`tabpanel-1`}
@@ -193,15 +193,15 @@ export default function AdminPage() {
             getRowId={(row) => row["id"]}
           />
         )}
-      </Box>
+      </Box> */}
       <Box
         role="tabpanel"
-        hidden={selectedTab !== 2}
+        hidden={selectedTab !== 1}
         id={`tabpanel-2`}
         aria-labelledby={`tab-2`}
         style={{ height: 400, width: "100%" }}
       >
-        {selectedTab === 2 && (
+        {selectedTab === 1 && (
           <DataGrid
             slots={{ toolbar: GridToolbar }}
             slotProps={{
