@@ -53,7 +53,7 @@ export class FileSubmissionsService {
     createFileSubmissionDto.sample_count = 0;
     createFileSubmissionDto.result_count = 0;
     // createFileSubmissionDto.file_row_count = body.file_row_count
-    createFileSubmissionDto.organization_guid = body.orgGUID; // TODO: change this once BCeID is set up
+    createFileSubmissionDto.organization_guid = body.orgGUID;
     createFileSubmissionDto.create_user_id = body.userID;
     createFileSubmissionDto.create_utc_timestamp = new Date();
     createFileSubmissionDto.update_user_id = body.userID;
@@ -121,7 +121,7 @@ export class FileSubmissionsService {
       body.agency ?? "SALUSSYSTEMS"; // TODO: change this once BCeID is set up, if NULL use the user name
     createFileSubmissionDto.sample_count = 0;
     createFileSubmissionDto.result_count = 0;
-    createFileSubmissionDto.organization_guid = uuidv4(); // TODO: change this once BCeID is set up
+    createFileSubmissionDto.organization_guid = uuidv4();
     createFileSubmissionDto.create_user_id = body.userID;
     createFileSubmissionDto.create_utc_timestamp = new Date();
     createFileSubmissionDto.update_user_id = body.userID;

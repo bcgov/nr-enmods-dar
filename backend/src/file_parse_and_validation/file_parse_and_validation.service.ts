@@ -2288,6 +2288,44 @@ export class FileParseValidateService {
     });
   }
 
+  async benchmarkImport(file_submission_id, fileName, originalFileName) {
+    // all times in ms, divide by 1000 to make them in s
+    const validationTime = (endValidation - startValidation) / 1000;
+    const obsValidationTime = (endObsValidation - startObsValidation) / 1000;
+    const importTime = (endImportNonObs - startImportNonObs) / 1000;
+    const obsImportTime = (endImportObs - startImportObs) / 1000;
+    const totalTime =
+      validationTime + obsValidationTime + importTime + obsImportTime;
+
+    const fileInfo = await this.prisma.file_submission.findFirst({
+      select: {
+        sample_count: true,
+        results_count: true,
+        submission_date: true,
+        submission_status_code: true,
+      },
+      where: {
+        submission_id: file_submission_id,
+      },
+    });
+
+    await this.prisma.importer_benchmark.create({
+      data: {
+        submission_id: file_submission_id,
+        file_name: fileName,
+        original_file_name: originalFileName,
+        submission_date: fileInfo.submission_date,
+        submission_status_code: fileInfo.submission_status_code,
+        sample_count: fileInfo.sample_count,
+        results_count: fileInfo.results_count,
+        local_validation_time: validationTime,
+        obs_validation_time: obsValidationTime,
+        local_import_time: importTime,
+        obs_import_time: obsImportTime,
+        total_time: totalTime,
+      },
+    });
+  }
   async parseFile(
     file: Readable,
     fileName: string,
@@ -2388,7 +2426,11 @@ export class FileParseValidateService {
           file_submission_id,
           "REJECTED",
         );
-
+        await this.benchmarkImport(
+          file_submission_id,
+          fileName,
+          originalFileName,
+        );
         return;
       }
 
@@ -2509,6 +2551,12 @@ export class FileParseValidateService {
         });
         console.timeEnd("RejectFile");
         endRejectFile = performance.now();
+        await this.benchmarkImport(
+          file_submission_id,
+          fileName,
+          originalFileName,
+        );
+
         return;
       } else {
         /*
@@ -2547,6 +2595,12 @@ export class FileParseValidateService {
           });
           console.timeEnd("ReportValidated");
           endReportValidated = performance.now();
+          await this.benchmarkImport(
+            file_submission_id,
+            fileName,
+            originalFileName,
+          );
+
           return;
         } else {
           const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
@@ -2748,6 +2802,11 @@ export class FileParseValidateService {
           file_submission_id,
           "REJECTED",
         );
+        await this.benchmarkImport(
+          file_submission_id,
+          fileName,
+          originalFileName,
+        );
 
         return;
       }
@@ -2913,6 +2972,12 @@ export class FileParseValidateService {
         });
         console.timeEnd("RejectFile");
         endRejectFile = performance.now();
+        await this.benchmarkImport(
+          file_submission_id,
+          fileName,
+          originalFileName,
+        );
+
         return;
       } else {
         /*
@@ -2952,6 +3017,11 @@ export class FileParseValidateService {
           });
           console.timeEnd("ReportValidated");
           endReportValidated = performance.now();
+          await this.benchmarkImport(
+            file_submission_id,
+            fileName,
+            originalFileName,
+          );
 
           return;
         } else {
@@ -3146,45 +3216,7 @@ export class FileParseValidateService {
       }
     }
     console.timeEnd("parseFile");
-    // all times in ms, divide by 1000 to make them in s
-    const endParseFile = performance.now();
-    const parseFileTime = endParseFile - startParseFile;
-    const validationTime = (endValidation - startValidation)/1000;
-    const obsValidationTime = (endObsValidation - startObsValidation)/1000;
-    const importTime = (endImportNonObs - startImportNonObs)/1000;
-    const obsImportTime = (endImportObs - startImportObs)/1000;
-    const totalTime =
-      (validationTime + obsValidationTime + importTime + obsImportTime);
-
-    const fileInfo = await this.prisma.file_submission.findFirst({
-      select: {
-        sample_count: true,
-        results_count: true,
-        submission_date: true,
-        submission_status_code: true,
-      },
-      where: {
-        submission_id: file_submission_id,
-      },
-    });
-
-    await this.prisma.importer_benchmark.create({
-      data: {
-        submission_id: file_submission_id,
-        file_name: fileName,
-        original_file_name: originalFileName,
-        submission_date: fileInfo.submission_date,
-        submission_status_code: fileInfo.submission_status_code,
-        sample_count: fileInfo.sample_count,
-        results_count: fileInfo.results_count,
-        local_validation_time: validationTime,
-        obs_validation_time: obsValidationTime,
-        local_import_time: importTime,
-        obs_import_time: obsImportTime,
-        total_time: totalTime,
-      },
-    });
-
+    await this.benchmarkImport(file_submission_id, fileName, originalFileName);
     partialUpload = false;
     rollBackHalted = false;
   }
