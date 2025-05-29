@@ -52,25 +52,43 @@ export class AdminService {
       const returnData: UserInfo[] = [];
       const adminData = adminResponse.data.data;
       adminData.map((admin: any) => {
+        let accountType = admin?.username?.endsWith("@idir") ? "idir" : "bceid";
         const adminId =
           admin?.attributes?.idir_username?.[0] ||
           admin?.attributes?.bceid_username[0];
-        returnData.push({
-          username: adminId,
-          email: admin.email,
-          name: admin.firstName + " " + admin.lastName,
-          firstName: admin.firstName,
-          lastName: admin.lastName,
-          company: "Not Implemented",
-          guidUsername: admin.username,
-          role: [Role.ENMODS_ADMIN],
-        });
+
+        if (accountType === "idir") {
+          returnData.push({
+            username: adminId,
+            email: admin.email,
+            name: admin.firstName + " " + admin.lastName,
+            firstName: admin.firstName,
+            lastName: admin.lastName,
+            company: "Not Implemented",
+            guidUsername: admin.username,
+            role: [Role.ENMODS_ADMIN],
+          });
+        } else {
+          const [firstName, lastName] =
+            admin?.attributes?.display_name[0].split(" ", 2);
+          returnData.push({
+            username: adminId,
+            email: admin.email,
+            name: firstName + " " + lastName,
+            firstName: firstName,
+            lastName: lastName,
+            company: admin?.attributes?.bceid_business_name,
+            guidUsername: admin.username,
+            role: [Role.ENMODS_ADMIN],
+          });
+        }
       });
       const userResponse = await firstValueFrom(
         this.httpService.get(userUrl, config),
       );
       const userData = userResponse.data.data;
       userData.map((user: any) => {
+        let accountType = user?.username?.endsWith("@idir") ? "idir" : "bceid";
         const userId =
           user?.attributes?.idir_username?.[0] ||
           user?.attributes?.bceid_username[0];
@@ -78,16 +96,31 @@ export class AdminService {
         if (existingUser) {
           existingUser.role.push(Role.ENMODS_USER);
         } else {
-          returnData.push({
-            username: userId,
-            email: user.email,
-            name: user.firstName + " " + user.lastName,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            company: "Not Implemented",
-            guidUsername: user.username,
-            role: [Role.ENMODS_USER],
-          });
+          if (accountType === "idir") {
+            returnData.push({
+              username: userId,
+              email: user.email,
+              name: user.firstName + " " + user.lastName,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              company: "Not Implemented",
+              guidUsername: user.username,
+              role: [Role.ENMODS_USER],
+            });
+          } else {
+            const [firstName, lastName] =
+              user?.attributes?.display_name[0].split(" ", 2);
+            returnData.push({
+              username: userId,
+              email: user.email,
+              name: firstName + " " + lastName,
+              firstName: firstName,
+              lastName: lastName,
+              company: user?.attributes?.bceid_business_name,
+              guidUsername: user.username,
+              role: [Role.ENMODS_USER],
+            });
+          }
         }
       });
       return returnData;
@@ -126,18 +159,17 @@ export class AdminService {
   }
 
   /**
-   * finds a bceid user given their guid
+   * finds a bceid user given their email
    *
    * @param email
    * @returns
    */
-  async userGuidSearch(email: string): Promise<any> {
+  async bceidUserEmailSearch(email: string): Promise<any> {
     const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.integration_id}/${process.env.CSS_ENVIRONMENT}/bceid/users?bceidType=both&email=${email}`;
     const bearerToken = await this.getToken();
     const config = {
       headers: { Authorization: "Bearer " + bearerToken },
     };
-    console.log(bearerToken)
     const searchData: BCeIDUserInfo[] = await firstValueFrom(
       this.httpService.get(url, config),
     )
@@ -149,7 +181,7 @@ export class AdminService {
         throw new Error("No users found");
       });
 
-    console.log(searchData[0])
+    console.log(searchData[0]);
     return searchData[0] || null;
   }
 

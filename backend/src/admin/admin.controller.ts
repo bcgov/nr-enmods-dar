@@ -28,7 +28,7 @@ export class AdminController {
   @Post("user-bceid-email-search")
   @Roles(Role.ENMODS_ADMIN)
   userGuidSearch(@Body() body: { email: string }): Promise<BCeIDUserInfo> {
-    return this.adminService.userGuidSearch(body.email);
+    return this.adminService.bceidUserEmailSearch(body.email);
   }
 
   @Post("add-roles")
