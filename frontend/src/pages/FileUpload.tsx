@@ -406,7 +406,7 @@ function FileUpload() {
 
             {expandList && (
               <div className="file-list">
-                <List sx={{ height: "45vh", overflow: "auto" }}>
+                <List sx={{ height: "40vh", overflow: "auto" }}>
                   {selectedFiles.length > 0 && selectedFiles.length <= 10
                     ? selectedFiles.map((file, index) => (
                         <ListItem key={index}>
@@ -593,7 +593,7 @@ function FileUpload() {
 
             {expandList && (
               <div className="all-file-action">
-                <Box sx={{ padding: "40px" }}>
+                <Box sx={{ padding: "10px" }}>
                   {files && selectedFiles.length > 0 ? (
                     <ButtonGroup variant="text" style={{ color: "black" }}>
                       <Button
