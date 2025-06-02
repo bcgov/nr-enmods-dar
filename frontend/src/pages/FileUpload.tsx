@@ -126,7 +126,7 @@ function FileUpload() {
         userId = null;
       var JWT = jwtDecode(UserService.getToken()?.toString());
 
-      if (JWT.identity_provider === "bciedboth") {
+      if (JWT.identity_provider === "bceidboth") {
         orgGUID = JWT.bceid_business_guid;
         agency = JWT.bceid_business_name;
         userId = JWT.bceid_username;
@@ -163,7 +163,7 @@ function FileUpload() {
           agency = null,
           userId = null;
         var JWT = jwtDecode(UserService.getToken()?.toString());
-        if (JWT.identity_provider === "bciedboth") {
+        if (JWT.identity_provider === "bceidboth") {
           orgGUID = JWT.bceid_business_guid;
           agency = JWT.bceid_business_name;
           userId = JWT.bceid_username;
@@ -200,7 +200,7 @@ function FileUpload() {
         userId = null;
       var JWT = jwtDecode(UserService.getToken()?.toString());
 
-      if (JWT.identity_provider === "bciedboth") {
+      if (JWT.identity_provider === "bceidboth") {
         orgGUID = JWT.bceid_business_guid;
         agency = JWT.bceid_business_name;
         userId = JWT.bceid_username;
@@ -237,7 +237,7 @@ function FileUpload() {
           agency = null,
           userId = null;
         var JWT = jwtDecode(UserService.getToken()?.toString());
-        if (JWT.identity_provider === "bciedboth") {
+        if (JWT.identity_provider === "bceidboth") {
           orgGUID = JWT.bceid_business_guid;
           agency = JWT.bceid_business_name;
           userId = JWT.bceid_username;
