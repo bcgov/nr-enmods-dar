@@ -64,7 +64,7 @@ export class AdminService {
             name: admin.firstName + " " + admin.lastName,
             firstName: admin.firstName,
             lastName: admin.lastName,
-            company: "Not Implemented",
+            company: adminId,
             guidUsername: admin.username,
             role: [Role.ENMODS_ADMIN],
           });
@@ -103,7 +103,7 @@ export class AdminService {
               name: user.firstName + " " + user.lastName,
               firstName: user.firstName,
               lastName: user.lastName,
-              company: "Not Implemented",
+              company: userId,
               guidUsername: user.username,
               role: [Role.ENMODS_USER],
             });
