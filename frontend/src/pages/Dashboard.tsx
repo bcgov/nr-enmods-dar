@@ -27,6 +27,7 @@ import {
 } from "@/common/manage-files";
 import { getUsers } from "@/common/admin";
 import { jwtDecode, JwtPayload } from "jwt-decode";
+import UserService from "@/service/user-service";
 
 export default function Dashboard() {
   const { open, currentItem, handleOpen, handleClose } = useHandleOpen();
@@ -270,6 +271,10 @@ export default function Dashboard() {
       requestData.append(key, formData[key]);
     }
 
+    // before sending the formdata, add the organization guid to the body
+    var JWT = jwtDecode(UserService.getToken()?.toString());
+    requestData.append("organization_guid", JWT.bceid_business_guid || null);
+
     requestData.append("page", paginationModel.page);
     requestData.append("pageSize", paginationModel.pageSize);
 
@@ -317,8 +322,8 @@ export default function Dashboard() {
     );
 
     // update the status in the backend here
-    await handleFileStatus(submission_id, "DEL QUEUED")
-    await handleSearch(undefined)
+    await handleFileStatus(submission_id, "DEL QUEUED");
+    await handleSearch(undefined);
   };
 
   useEffect(() => {
@@ -617,7 +622,7 @@ export default function Dashboard() {
               color="secondary"
               onClick={() => {
                 setupDelete(currentItem.submission_id);
-                handleCloseAndSubmit()
+                handleCloseAndSubmit();
               }}
               variant="contained"
               autoFocus
@@ -688,11 +693,8 @@ async function handleMessages(
   document.body.removeChild(link); // Clean up
 }
 
-async function handleFileStatus(
-  submission_id: string,
-  newStatus: string
-){
-  await updateFileStatus(submission_id, {submission_status_code: newStatus})
+async function handleFileStatus(submission_id: string, newStatus: string) {
+  await updateFileStatus(submission_id, { submission_status_code: newStatus });
 }
 
 function getMimeType(fileName: string) {

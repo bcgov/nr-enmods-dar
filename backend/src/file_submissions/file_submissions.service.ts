@@ -11,6 +11,7 @@ import { AqiApiService } from "src/aqi_api/aqi_api.service";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import { OperationLockService } from "src/operationLock/operationLock.service";
+import { equals } from "class-validator";
 
 @Injectable()
 export class FileSubmissionsService {
@@ -48,12 +49,12 @@ export class FileSubmissionsService {
       })
     ).submission_status_code;
     createFileSubmissionDto.file_operation_code = body.operation;
-    createFileSubmissionDto.submitter_agency_name =
-      body.agency
+    createFileSubmissionDto.submitter_agency_name = body.agency;
     createFileSubmissionDto.sample_count = 0;
     createFileSubmissionDto.result_count = 0;
     // createFileSubmissionDto.file_row_count = body.file_row_count
-    createFileSubmissionDto.organization_guid = body.orgGUID === 'null' ? null : body.orgGUID;
+    createFileSubmissionDto.organization_guid =
+      body.orgGUID === "null" ? null : body.orgGUID;
     createFileSubmissionDto.create_user_id = body.userID;
     createFileSubmissionDto.create_utc_timestamp = new Date();
     createFileSubmissionDto.update_user_id = body.userID;
@@ -117,8 +118,7 @@ export class FileSubmissionsService {
       })
     ).submission_status_code;
     createFileSubmissionDto.file_operation_code = body.operation;
-    createFileSubmissionDto.submitter_agency_name =
-      body.agency
+    createFileSubmissionDto.submitter_agency_name = body.agency;
     createFileSubmissionDto.sample_count = 0;
     createFileSubmissionDto.result_count = 0;
     createFileSubmissionDto.organization_guid = uuidv4();
@@ -190,6 +190,7 @@ export class FileSubmissionsService {
       submitter_user_id: {},
       submitter_agency_name: {},
       submission_status_code: {},
+      OR: [], // this is for the organization guid
       active_ind: true,
     };
 
@@ -237,6 +238,23 @@ export class FileSubmissionsService {
       whereClause.submission_status_code = {
         in: statues,
       };
+    }
+
+    if (body.organization_guid !== "null") {
+      whereClause.OR = [
+        {
+          organization_guid: { equals: body.organization_guid },
+        },
+        {
+          organization_guid: null,
+        },
+      ];
+    } else {
+      whereClause.OR = [
+        {
+          organization_guid: null,
+        },
+      ];
     }
 
     const selectColumns = {
