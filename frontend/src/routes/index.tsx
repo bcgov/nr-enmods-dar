@@ -19,7 +19,7 @@ export default function AppRoutes() {
 
         <Route
           element={
-            <ProtectedRoutes roles={[Roles.ENMODS_ADMIN, Roles.ENMODS_USER]} />
+            <ProtectedRoutes roles={[Roles.ENMODS_ADMIN, Roles.ENMODS_USER, Roles.ENMODS_DELETE]} />
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />

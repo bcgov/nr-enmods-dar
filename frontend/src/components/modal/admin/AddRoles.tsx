@@ -247,6 +247,19 @@ const AddRoles = ({
               }
               label={Roles.ENMODS_ADMIN}
             />
+            <FormControlLabel
+              id="ENMODS_DELETE"
+              control={
+                <Checkbox
+                  checked={rolesToAdd.includes(Roles.ENMODS_DELETE)}
+                  onChange={handleRoleChange}
+                  name={Roles.ENMODS_DELETE}
+                  disabled={loading || !userObject}
+                  color="primary"
+                />
+              }
+              label={Roles.ENMODS_DELETE}
+            />
           </FormGroup>
         </FormControl>
 

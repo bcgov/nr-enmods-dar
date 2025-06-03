@@ -41,6 +41,7 @@ export class AdminService {
     const bearerToken = await this.getToken();
     const adminUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/roles/${Role.ENMODS_ADMIN}/users`;
     const userUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/roles/${Role.ENMODS_USER}/users`;
+    const deleteUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/roles/${Role.ENMODS_DELETE}/users`;
     const config = {
       headers: { Authorization: "Bearer " + bearerToken },
     };
@@ -119,6 +120,46 @@ export class AdminService {
               company: user?.attributes?.bceid_business_name,
               guidUsername: user.username,
               role: [Role.ENMODS_USER],
+            });
+          }
+        }
+      });
+      const deleteResponse = await firstValueFrom(
+        this.httpService.get(deleteUrl, config),
+      );
+      const deleteData = deleteResponse.data.data;
+      deleteData.map((deleteUser: any) => {
+        let accountType = deleteUser?.username?.endsWith("@idir") ? "idir" : "bceid";
+        const userId =
+          deleteUser?.attributes?.idir_username?.[0] ||
+          deleteUser?.attributes?.bceid_username[0];
+        const existingUser = returnData.find((u) => u.username === userId);
+        if (existingUser) {
+          existingUser.role.push(Role.ENMODS_USER);
+        } else {
+          if (accountType === "idir") {
+            returnData.push({
+              username: userId,
+              email: deleteUser.email,
+              name: deleteUser.firstName + " " + deleteUser.lastName,
+              firstName: deleteUser.firstName,
+              lastName: deleteUser.lastName,
+              company: userId,
+              guidUsername: deleteUser.username,
+              role: [Role.ENMODS_DELETE],
+            });
+          } else {
+            const [firstName, lastName] =
+              deleteUser?.attributes?.display_name[0].split(" ", 2);
+            returnData.push({
+              username: userId,
+              email: deleteUser.email,
+              name: firstName + " " + lastName,
+              firstName: firstName,
+              lastName: lastName,
+              company: deleteUser?.attributes?.bceid_business_name,
+              guidUsername: deleteUser.username,
+              role: [Role.ENMODS_DELETE],
             });
           }
         }
@@ -297,6 +338,27 @@ export class AdminService {
             throw new Error(`Failed to remove ${Role.ENMODS_ADMIN} role`);
           });
       }
+      if (role === Role.ENMODS_DELETE) {
+        const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/user-role-mappings`;
+        await firstValueFrom(
+          this.httpService.post(
+            url,
+            {
+              roleName: Role.ENMODS_DELETE,
+              username: userRolesDto.idirUsername,
+              operation: "del",
+            },
+            config,
+          ),
+        )
+          .then((res) => {
+            return res.data;
+          })
+          .catch((err) => {
+            console.log(err);
+            throw new Error(`Failed to remove ${Role.ENMODS_DELETE} role`);
+          });
+      }
     }
     return null;
   }
@@ -361,6 +423,25 @@ export class AdminService {
             console.log(err);
             throw new Error(`Failed to remove ${Role.ENMODS_ADMIN} role`);
           });
+      }else if (role === Role.ENMODS_DELETE) {
+        await firstValueFrom(
+          this.httpService.post(
+            url,
+            {
+              roleName: Role.ENMODS_DELETE,
+              username: idirUsername,
+              operation: "del",
+            },
+            config,
+          ),
+        )
+          .then((res) => {
+            return res.data;
+          })
+          .catch((err) => {
+            console.log(err);
+            throw new Error(`Failed to remove ${Role.ENMODS_DELETE} role`);
+          });
       }
     }
 
@@ -402,6 +483,25 @@ export class AdminService {
           .catch((err) => {
             console.log(err);
             throw new Error(`Failed to remove ${Role.ENMODS_ADMIN} role`);
+          });
+      }else if (role === Role.ENMODS_DELETE) {
+        await firstValueFrom(
+          this.httpService.post(
+            url,
+            {
+              roleName: Role.ENMODS_DELETE,
+              username: idirUsername,
+              operation: "add",
+            },
+            config,
+          ),
+        )
+          .then((res) => {
+            return res.data;
+          })
+          .catch((err) => {
+            console.log(err);
+            throw new Error(`Failed to remove ${Role.ENMODS_DELETE} role`);
           });
       }
     }

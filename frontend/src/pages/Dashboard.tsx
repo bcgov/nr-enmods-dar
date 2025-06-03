@@ -116,7 +116,7 @@ export default function Dashboard() {
 
         if (
           params.row.submission_status_code === "SUBMITTED" &&
-          userRoles.includes("Enmods Admin")
+          (userRoles.includes("Enmods Admin") || userRoles.includes("Enmods Delete"))
         ) {
           return (
             <IconButton
