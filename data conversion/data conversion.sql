@@ -3,7 +3,7 @@ WITH core_data AS (
     SELECT DISTINCT
         ps.first_name || ' ' || ps.last_name                         AS "Ministry Contact",
         cl.id || ' - ' || cl.name                                    AS "Sampling Agency",
-        'BCLMN'                                                      AS "Project",
+        case when aqs_project.EMS_CODE is null then null else 'BCLMN' end AS "Project",
         smpl.requisition_id                                          AS "Work Order Number",
         smpl.mon_locn_id                                             AS "Location ID",
         to_char(eal.earlieststarttime, 'YYYY-MM-DD"T"HH24:MI:SS') || '-08:00'    AS "Field Visit Start Time",
@@ -81,16 +81,23 @@ WITH core_data AS (
             else
                 to_char(smpl.collection_end_date, 'YYYY-MM-DD"T"HH24:MI:SS') || '-08:00'
         end AS "Observed Date Time End",        
-        result.result_numeric                                        AS "Result Value",
+        case when result.result_text = '''C'''
+            then null
+            else
+                result.result_numeric 
+        end AS "Result Value",
         result.method_detect_limit                                   AS "Method Detection Limit",
         d.METHOD_DETECT_LIMIT   AS "Method Detection Limit Source 2",        
         NULL                                                         AS "Method Reporting Limit", -- leave as blank
         aqs_units.AQS_NAME_ON_IMPORT                                                AS "Result Unit",
         mu.short_name AS "EMS Result Unit",
         mu_mdl.short_name                                            AS "MDL Unit",
+        result.result_text,
         CASE
             WHEN result.result_letter = '<' THEN
                 'NOT_DETECTED'
+            WHEN result.result_text = '''C''' then
+                'NOT_SAMPLED'
             ELSE
                 NULL
         END                                                          AS "Detection Condition",
@@ -196,6 +203,7 @@ WITH core_data AS (
         LEFT JOIN ems_parm_dicts d on d.parm_cd = result.parm_cd
                 AND d.anal_method_cd = result.anal_method_cd
         LEFT JOIN ems.AQS_UNITS_TEMP aqs_units ON aqs_units.EMS_CODE = d.meas_unit_cd
+        LEFT JOIN ems.AQS_UNITS_TEMP aqs_project ON to_char(aqs_project.EMS_CODE) = to_char(smpl.requisition_id)
         LEFT JOIN ems_measurment_units mu ON mu.code = d.meas_unit_cd
         LEFT JOIN ems_measurment_units mu_mdl ON mu_mdl.code = result.meas_unit_cd
         LEFT JOIN ems_tides tide ON smpl.tide_cd = tide.code
@@ -233,7 +241,7 @@ sample_data AS (
     SELECT DISTINCT
         ps.first_name || ' ' || ps.last_name                         AS "Ministry Contact",
         cl.id || ' - ' || cl.name                                    AS "Sampling Agency",
-        'BCLMN'                                                      AS "Project",
+        case when aqs_project.EMS_CODE is null then null else 'BCLMN' end AS "Project",
         smpl.requisition_id                                          AS "Work Order Number",
         smpl.mon_locn_id                                             AS "Location ID",
         to_char(eal.earlieststarttime, 'YYYY-MM-DD"T"HH24:MI:SS') || '-08:00'    AS "Field Visit Start Time",
@@ -412,6 +420,7 @@ sample_data AS (
                                                                 AND smpl.smpl_st_cd = m.state
                                                                 AND smpl.smpl_desc_cd = m.descriptor
         LEFT JOIN ems_tides tide ON smpl.tide_cd = tide.code
+        LEFT JOIN ems.AQS_UNITS_TEMP aqs_project ON to_char(aqs_project.EMS_CODE) = to_char(smpl.requisition_id)
         LEFT JOIN ems_measurment_units flow_unit ON flow_unit.code = smpl.flow_unit_cd
         LEFT JOIN ems_tissue_types tt ON smpl.tissue_typ_cd = tt.code
         LEFT JOIN ems_species sp ON smpl.species_cd = sp.code
@@ -511,6 +520,10 @@ select "Observation ID",
         "QC Type",
         "QC Source Activity Name",
         "Composite Stat"
+        ,
+                "DEBUGGING PARM_CD",
+        "DEBUGGING ANALYSIS METHOD",
+        "DEBUGGING_EMS_RESULT_UNIT"
 
 from(
 select "Observation ID",
@@ -588,6 +601,10 @@ select "Observation ID",
                 "Observed Property ID"
             ORDER BY TO_TIMESTAMP(SUBSTR("Observed DateTime", 1, 19), 'YYYY-MM-DD"T"HH24:MI:SS')
         ) AS duplicate_row_number
+        ,
+        "DEBUGGING PARM_CD",
+        "DEBUGGING ANALYSIS METHOD",
+        "DEBUGGING_EMS_RESULT_UNIT"
 from (
 
 -- water data
@@ -699,14 +716,15 @@ where core.result_unit_code is not null and core.mdl_unit_code is not null
     --        FROM
     --            ems.reqs_to_load l)
     AND ed.NewNameID is not null
+    and ((core."Result Value" is not null) or (core.result_text = '''C'''))
                 order by core."Location ID" asc, core."Observed DateTime" asc
-*/
--- end water data
 
+-- end water data
+*/
 /*
 union all -- air data
 */
-
+/*
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -785,10 +803,10 @@ SELECT
         core."QC Source Activity Name",
         core."Composite Stat"
         --debugging
-        --,
-        --core.parm_cd,
-        --core."Analysis Method",
-        --core."EMS Result Unit"
+        ,
+        core.parm_cd as "DEBUGGING PARM_CD",
+        core."Analysis Method" as "DEBUGGING ANALYSIS METHOD",
+        core."EMS Result Unit" as "DEBUGGING_EMS_RESULT_UNIT"
 FROM -- air data
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -800,6 +818,7 @@ where core.result_unit_code is not null and core.mdl_unit_code is not null
         -- sort on monitoring location id and date, asc
     AND upper(core."Medium") like '%AIR%' -- try WATER-MARINE for a subset
     AND ed.NewNameID is not null
+    and ((core."Result Value" is not null) or (core.result_text = '''C'''))
     -- end air data
     
 union -- flow volume
@@ -878,10 +897,10 @@ SELECT
         core."QC Source Activity Name",
         core."Composite Stat"-- ea on observation level in enmods.  "Minimum, mean, and average... not used for lakes, but will be required on other extracts).  This will be in the results table.  Blank for lakes.
         --debugging
-        --,
-        --core.parm_cd,
-        --core."Analysis Method",
-        --core."EMS Result Unit"
+        ,
+        core.parm_cd as "DEBUGGING PARM_CD",
+        core."Analysis Method" as "DEBUGGING ANALYSIS METHOD",
+        core."EMS Result Unit" as "DEBUGGING_EMS_RESULT_UNIT"
 FROM -- water data - air flow volume
     sample_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -970,10 +989,10 @@ SELECT
         core."QC Source Activity Name",
         core."Composite Stat"
         --debugging
-        --,
-        --core.parm_cd,
-        --core."Analysis Method",
-        --core."EMS Result Unit"
+        ,
+        core.parm_cd as "DEBUGGING PARM_CD",
+        core."Analysis Method" as "DEBUGGING ANALYSIS METHOD",
+        core."EMS Result Unit" as "DEBUGGING_EMS_RESULT_UNIT"
 FROM -- air flow volume
     sample_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -986,7 +1005,7 @@ where upper(core."Medium") like '%AIR%' -- try WATER-MARINE for a subset
     and core."Air Filter Size" is not null
     AND ed.NewNameID is not null
 -- end air filter size
-
+*/
 /*
 union -- taxonomic data - bio sample area
 
@@ -1577,7 +1596,7 @@ and (nvl(core.weight_from,0)) > 0
 */
 -- begin continuous data
 -- union -- continuous data - CONTINUOUS_AVERAGE
-/*
+
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -1653,10 +1672,10 @@ SELECT
         core."QC Source Activity Name",
         'Mean' as "Composite Stat"
         --debugging
-        --,
-        --core.parm_cd,
-        --core."Analysis Method",
-        --core."EMS Result Unit"
+        ,
+        core.parm_cd as "DEBUGGING PARM_CD",
+        core."Analysis Method" as "DEBUGGING ANALYSIS METHOD",
+        core."EMS Result Unit" as "DEBUGGING_EMS_RESULT_UNIT"
 FROM
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -1667,6 +1686,7 @@ where --upper(core."Medium") like '%WATER - WASTE%' -- try WATER-MARINE for a su
 --upper(core."Collection Method") like '%CONTINUOUS%'
     core.CONTINUOUS_AVERAGE is not null
     AND ed.NewNameID is not null
+    
 union  -- continuous data - CONTINUOUS_MAXIMUM
 SELECT
         ''  as "Observation ID",
@@ -1743,10 +1763,10 @@ SELECT
         core."QC Source Activity Name",
         'Maximum' as "Composite Stat"
         --debugging
-        --,
-        --core.parm_cd,
-        --core."Analysis Method",
-        --core."EMS Result Unit"
+        ,
+        core.parm_cd as "DEBUGGING PARM_CD",
+        core."Analysis Method" as "DEBUGGING ANALYSIS METHOD",
+        core."EMS Result Unit" as "DEBUGGING_EMS_RESULT_UNIT"
 FROM
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -1833,10 +1853,10 @@ SELECT
         core."QC Source Activity Name",
         'Minimum' as "Composite Stat"
         --debugging
-        --,
-        --core.parm_cd,
-        --core."Analysis Method",
-        --core."EMS Result Unit"
+        ,
+        core.parm_cd as "DEBUGGING PARM_CD",
+        core."Analysis Method" as "DEBUGGING ANALYSIS METHOD",
+        core."EMS Result Unit" as "DEBUGGING_EMS_RESULT_UNIT"
 FROM
     core_data core
     left outer JOIN OBSERVED_PROPERTIES_FOR_ETL ed on core.parm_cd = ed.Parm_code
@@ -1847,7 +1867,8 @@ where --upper(core."Medium") like '%WATER - WASTE%' -- try WATER-MARINE for a su
 --upper(core."Collection Method") like '%CONTINUOUS%'
         core.CONTINUOUS_MINIMUM is not null
         AND ed.NewNameID is not null
-*/
+        
+
 -- end continuous
 
 ))

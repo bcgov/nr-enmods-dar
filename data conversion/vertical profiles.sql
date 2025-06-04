@@ -86,7 +86,11 @@ WITH
                     'YYYY-MM-DD"T"HH24:MI:SS'
                 ) || '-08:00'
             end AS "Observed Date Time End",
-            result.result_numeric AS "Result Value",
+            case when result.result_text = '''C'''
+                then null
+                else
+                    result.result_numeric 
+            end AS "Result Value",
             result.method_detect_limit AS "Method Detection Limit",
             d.METHOD_DETECT_LIMIT AS "Method Detection Limit Source 2",
             NULL AS "Method Reporting Limit", -- leave as blank
@@ -95,6 +99,8 @@ WITH
             mu_mdl.short_name AS "MDL Unit",
             CASE
                 WHEN result.result_letter = '<' THEN 'NOT_DETECTED'
+                WHEN result.result_text = '''C''' then
+                    'NOT_SAMPLED'
                 ELSE NULL
             END AS "Detection Condition",
             NULL AS "Limit Type",
@@ -213,6 +219,7 @@ WITH
         WHERE
             mloc.locntyp_cd NOT LIKE 'D%' -- needed for all queries
             AND mloc.locntyp_cd NOT LIKE 'P%'
+            and ((result.result_numeric is not null) or (result.result_text = '''C'''))
     )
 select
     "Observation ID",
