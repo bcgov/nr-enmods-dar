@@ -13,6 +13,18 @@ export type IdirUserInfo = {
   };
 };
 
+export type BCeIDUserInfo = {
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  attributes: {
+    bceid_user_guid: string[];
+    bceid_username: string[];
+    display_name: string[];
+  };
+};
+
 /**
  * Type used for displaying users on Admin page
  */
@@ -23,19 +35,8 @@ export type UserInfo = {
   firstName: string;
   lastName: string;
   company: string;
-  idirUsername: string;
+  guidUsername: string;
   role: string[];
-};
-
-/**
- * Type used for displaying sftp users on SFTP page
- */
-export type SFTPUserInfo = {
-  id: string;
-  username: string;
-  name: string;
-  email: string;
-  org_guid: string; // probably won't use
 };
 
 /**

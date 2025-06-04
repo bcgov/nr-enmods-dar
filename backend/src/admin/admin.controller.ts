@@ -5,7 +5,7 @@ import { Role } from "src/enum/role.enum";
 import { JwtRoleGuard } from "src/auth/jwtrole.guard";
 import { JwtAuthGuard } from "src/auth/jwtauth.guard";
 import { UserRolesDto } from "./dto/user-roles.dto";
-import { IdirUserInfo } from "src/types/types";
+import { BCeIDUserInfo, IdirUserInfo } from "src/types/types";
 
 @Controller("admin")
 @UseGuards(JwtAuthGuard)
@@ -23,6 +23,12 @@ export class AdminController {
   @Roles(Role.ENMODS_ADMIN)
   userEmailSearch(@Body() body: { email: string }): Promise<IdirUserInfo> {
     return this.adminService.userEmailSearch(body.email);
+  }
+
+  @Post("user-bceid-email-search")
+  @Roles(Role.ENMODS_ADMIN)
+  userGuidSearch(@Body() body: { email: string }): Promise<BCeIDUserInfo> {
+    return this.adminService.bceidUserEmailSearch(body.email);
   }
 
   @Post("add-roles")
