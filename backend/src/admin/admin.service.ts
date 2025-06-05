@@ -50,6 +50,9 @@ export class AdminService {
         this.httpService.get(adminUrl, config),
       );
 
+      // TODO: Check to see what the account type is of the logged in user, based on that pass along an additional filter of the business name. This is to ensure that bceid users can only see users in their company
+
+
       const returnData: UserInfo[] = [];
       const adminData = adminResponse.data.data;
       adminData.map((admin: any) => {
@@ -206,7 +209,7 @@ export class AdminService {
    * @returns
    */
   async bceidUserEmailSearch(email: string): Promise<any> {
-    const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/bceid/users?bceidType=both&email=${email}`;
+    const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.integration_id}/${process.env.CSS_ENVIRONMENT}/bceid/users?bceidType=both&email=${email}`;
     const bearerToken = await this.getToken();
     const config = {
       headers: { Authorization: "Bearer " + bearerToken },
@@ -221,8 +224,6 @@ export class AdminService {
         console.log(err.response.data);
         throw new Error("No users found");
       });
-
-      console.log(searchData[0])
 
     return searchData[0] || null;
   }
