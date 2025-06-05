@@ -38,7 +38,6 @@ export class AdminService {
    * @returns all users with specified roles users
    */
   async findAll(): Promise<any[]> {
-    console.log('here')
     const bearerToken = await this.getToken();
     const adminUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/roles/${Role.ENMODS_ADMIN}/users`;
     const userUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/roles/${Role.ENMODS_USER}/users`;
@@ -207,6 +206,7 @@ export class AdminService {
    * @returns
    */
   async bceidUserEmailSearch(email: string): Promise<any> {
+    console.log('here')
     const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.integration_id}/${process.env.CSS_ENVIRONMENT}/bceid/users?bceidType=both&email=${email}`;
     const bearerToken = await this.getToken();
     const config = {
