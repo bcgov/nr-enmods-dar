@@ -209,7 +209,7 @@ export class AdminService {
    * @returns
    */
   async bceidUserEmailSearch(email: string): Promise<any> {
-    const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.integration_id}/${process.env.CSS_ENVIRONMENT}/bceid/users?bceidType=both&email=${email}`;
+    const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/bceid/users?bceidType=both&email=${email}`;
     const bearerToken = await this.getToken();
     const config = {
       headers: { Authorization: "Bearer " + bearerToken },
