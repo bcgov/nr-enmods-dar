@@ -50,6 +50,9 @@ export class AdminService {
         this.httpService.get(adminUrl, config),
       );
 
+      // TODO: Check to see what the account type is of the logged in user, based on that pass along an additional filter of the business name. This is to ensure that bceid users can only see users in their company
+
+
       const returnData: UserInfo[] = [];
       const adminData = adminResponse.data.data;
       adminData.map((admin: any) => {
