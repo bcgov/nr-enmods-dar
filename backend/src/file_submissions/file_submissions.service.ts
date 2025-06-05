@@ -85,11 +85,14 @@ export class FileSubmissionsService {
       update_utc_timestamp: createFileSubmissionDto.update_utc_timestamp,
     };
 
-    const newFile = await this.prisma.$transaction([
-      this.prisma.file_submission.create({ data: newFilePostData }),
-    ]);
+    console.log(body)
 
-    return newFile[0];
+    // const newFile = await this.prisma.$transaction([
+    //   this.prisma.file_submission.create({ data: newFilePostData }),
+    // ]);
+
+    // return newFile[0];
+    return null
   }
 
   async createWithSftp(
