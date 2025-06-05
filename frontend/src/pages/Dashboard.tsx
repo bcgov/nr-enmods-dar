@@ -9,6 +9,7 @@ import { DeleteRounded, Description } from "@mui/icons-material";
 import _kc from "@/keycloak";
 import Select from "react-select";
 import {
+  Alert,
   Box,
   FormControl,
   FormLabel,
@@ -25,7 +26,7 @@ import {
   searchFiles,
   updateFileStatus,
 } from "@/common/manage-files";
-import { getUsers } from "@/common/admin";
+import { getAqiStatus, getUsers } from "@/common/admin";
 import { jwtDecode, JwtPayload } from "jwt-decode";
 import UserService from "@/service/user-service";
 
@@ -116,7 +117,8 @@ export default function Dashboard() {
 
         if (
           params.row.submission_status_code === "SUBMITTED" &&
-          (userRoles.includes("Enmods Admin") || userRoles.includes("Enmods Delete"))
+          (userRoles.includes("Enmods Admin") ||
+            userRoles.includes("Enmods Delete"))
         ) {
           return (
             <IconButton
@@ -247,6 +249,8 @@ export default function Dashboard() {
     pageSize: 10,
   });
 
+  const [aqiOutage, setAqiOutage] = useState(false);
+
   const handlePaginationChange = (params: {
     pageSize: number;
     page: number;
@@ -364,8 +368,30 @@ export default function Dashboard() {
     }
   }, [paginationModel]);
 
+  useEffect(() => {
+    async function AQIHealthcheck() {
+      await getAqiStatus().then((response: any) => {
+        if (response) {
+          setAqiOutage(true);
+        } else {
+          setAqiOutage(false);
+        }
+      });
+    }
+    AQIHealthcheck();
+  });
+
   return (
     <>
+      <div
+      style={{width: "100%", marginLeft: "4em" }}>
+        {aqiOutage && (
+          <Alert severity="error">
+            AQI is currently down. All files uploaded will be put in the queue
+            and processed when AQI is back up and running.
+          </Alert>
+        )}
+      </div>
       <div
         style={{
           width: "90%",
