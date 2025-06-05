@@ -1574,7 +1574,7 @@ export class FileParseValidateService {
     }
 
     if (rowData.DataClassification == "FIELD_RESULT") {
-      // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this
+      // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this   
       rowData.SpecimenName = "";
       rowData.ActivityName == "";
     }
