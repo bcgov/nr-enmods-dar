@@ -25,6 +25,8 @@ export class FileSubmissionsService {
 
   async create(body: any, file: Express.Multer.File) {
     const createFileSubmissionDto = new CreateFileSubmissionDto();
+    console.log(body)
+
     /*
       TODO:
       - Create a record in the S3 bucket for this file, use the newly created file GUID when inserting the file to the db and for future reference
@@ -84,8 +86,6 @@ export class FileSubmissionsService {
       update_user_id: createFileSubmissionDto.update_user_id,
       update_utc_timestamp: createFileSubmissionDto.update_utc_timestamp,
     };
-
-    console.log(body)
 
     // const newFile = await this.prisma.$transaction([
     //   this.prisma.file_submission.create({ data: newFilePostData }),
