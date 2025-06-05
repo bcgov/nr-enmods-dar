@@ -68,7 +68,7 @@ const AddRoles = ({
         }
       }
     } catch (error) {
-      setError("An error occurred during removal.");
+      setError("An error occurred.");
       setShowError(true);
     } finally {
       setLoading(false);
