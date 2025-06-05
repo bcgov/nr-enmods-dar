@@ -13,7 +13,7 @@ import { FileStatusCode } from './dto/file_status_codes.dto';
 @Controller({ path: "file_status_codes", version: "1" })
 @UseGuards(JwtAuthGuard)
 @UseGuards(JwtRoleGuard)
-@Roles(Role.ENMODS_ADMIN, Role.ENMODS_USER)
+@Roles(Role.ENMODS_ADMIN, Role.ENMODS_USER, Role.ENMODS_DELETE)
 export class FileStatusCodesController {
   constructor(private readonly fileStatusCodesService: FileStatusCodesService) {}
 
