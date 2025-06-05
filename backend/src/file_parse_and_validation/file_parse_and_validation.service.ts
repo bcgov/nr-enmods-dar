@@ -751,7 +751,6 @@ export class FileParseValidateService {
         Object.assign(filteredObj, customAttributes);
       }
     }
-
     return filteredObj;
   }
 
@@ -1865,7 +1864,8 @@ export class FileParseValidateService {
 
     if (
       rowData.DataClassification !== "VERTICAL_PROFILE" &&
-      rowData.DataClassification !== "FIELD_RESULT"
+      rowData.DataClassification !== "FIELD_RESULT" &&
+      rowData.DataClassification !== "ACTIVITY_RESULT"
     ) {
       let specimenInfo: any;
 
