@@ -25,7 +25,6 @@ export class FileSubmissionsService {
 
   async create(body: any, file: Express.Multer.File) {
     const createFileSubmissionDto = new CreateFileSubmissionDto();
-    console.log(body)
 
     /*
       TODO:
@@ -87,12 +86,11 @@ export class FileSubmissionsService {
       update_utc_timestamp: createFileSubmissionDto.update_utc_timestamp,
     };
 
-    // const newFile = await this.prisma.$transaction([
-    //   this.prisma.file_submission.create({ data: newFilePostData }),
-    // ]);
+    const newFile = await this.prisma.$transaction([
+      this.prisma.file_submission.create({ data: newFilePostData }),
+    ]);
 
-    // return newFile[0];
-    return null
+    return newFile[0];
   }
 
   async createWithSftp(
@@ -105,6 +103,7 @@ export class FileSubmissionsService {
     file: Express.Multer.File,
   ) {
     const createFileSubmissionDto = new CreateFileSubmissionDto();
+
 
     // Call to function that makes API call to save file in the S3 bucket via COMS
     let newFileName = await saveToS3WithSftp(file);
@@ -121,10 +120,10 @@ export class FileSubmissionsService {
       })
     ).submission_status_code;
     createFileSubmissionDto.file_operation_code = body.operation;
-    createFileSubmissionDto.submitter_agency_name = body.agency;
+    createFileSubmissionDto.submitter_agency_name = body.agency === undefined ? body.userID : body.agency;
     createFileSubmissionDto.sample_count = 0;
     createFileSubmissionDto.result_count = 0;
-    createFileSubmissionDto.organization_guid = uuidv4();
+    createFileSubmissionDto.organization_guid = body.orgGUID === undefined ? null : body.orgGUID;
     createFileSubmissionDto.create_user_id = body.userID;
     createFileSubmissionDto.create_utc_timestamp = new Date();
     createFileSubmissionDto.update_user_id = body.userID;
