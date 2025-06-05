@@ -222,6 +222,8 @@ export class AdminService {
         throw new Error("No users found");
       });
 
+      console.log(searchData[0])
+
     return searchData[0] || null;
   }
 
