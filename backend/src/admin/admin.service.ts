@@ -209,6 +209,8 @@ export class AdminService {
     console.log('here')
     const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.integration_id}/${process.env.CSS_ENVIRONMENT}/bceid/users?bceidType=both&email=${email}`;
     const bearerToken = await this.getToken();
+    console.log(url)
+    console.log(bearerToken)
     const config = {
       headers: { Authorization: "Bearer " + bearerToken },
     };
