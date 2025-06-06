@@ -6,7 +6,7 @@ WITH
         SELECT DISTINCT
             ps.first_name || ' ' || ps.last_name AS "Ministry Contact",
             cl.id || ' - ' || cl.name AS "Sampling Agency",
-            'TEST-VERTICAL-PROFILES' AS "Project", --anything not lakes should be hardcoded to either blank or something
+            case when aqs_project.EMS_CODE is null then null else 'BCLMN' end AS "Project",
             smpl.requisition_id AS "Work Order Number",
             smpl.mon_locn_id AS "Location ID",
             to_char (eal.earlieststarttime, 'YYYY-MM-DD"T"HH24:MI:SS') || '-08:00' AS "Field Visit Start Time",
@@ -187,6 +187,7 @@ WITH
             LEFT JOIN ems_parm_dicts d on d.parm_cd = result.parm_cd
             AND d.anal_method_cd = result.anal_method_cd
             LEFT JOIN ems.AQS_UNITS_TEMP aqs_units ON aqs_units.EMS_CODE = d.meas_unit_cd
+            LEFT JOIN ems.AQS_UNITS_TEMP aqs_project ON to_char(aqs_project.EMS_CODE) = to_char(smpl.requisition_id)
             LEFT JOIN ems_measurment_units mu ON mu.code = d.meas_unit_cd
             LEFT JOIN ems_measurment_units mu_mdl ON mu_mdl.code = result.meas_unit_cd
             LEFT JOIN ems_tides tide ON smpl.tide_cd = tide.code

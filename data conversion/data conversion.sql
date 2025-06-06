@@ -608,7 +608,7 @@ select "Observation ID",
 from (
 
 -- water data
-/*
+
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -693,11 +693,9 @@ SELECT
         core."Composite Stat"
         --debugging
         ,
-        core.parm_cd as "DEBUGGING parm_cd",
+        core.parm_cd as "DEBUGGING PARM_CD",
         core."Analysis Method" as "DEBUGGING ANALYSIS METHOD",
-        core."EMS Result Unit" as "DEBUGGING RESULT UNIT",
-        core."Analyzed Date Time" as "DEBUGGING ANALYZSED DATE TIME",
-        core."Observed DateTime" as "DEBUGGING OBSERVED DATE TIME"
+        core."EMS Result Unit" as "DEBUGGING_EMS_RESULT_UNIT"
 
 FROM -- water data
     core_data core
@@ -720,7 +718,7 @@ where core.result_unit_code is not null and core.mdl_unit_code is not null
                 order by core."Location ID" asc, core."Observed DateTime" asc
 
 -- end water data
-*/
+
 /*
 union all -- air data
 */
@@ -1596,7 +1594,7 @@ and (nvl(core.weight_from,0)) > 0
 */
 -- begin continuous data
 -- union -- continuous data - CONTINUOUS_AVERAGE
-
+/*
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -1868,7 +1866,7 @@ where --upper(core."Medium") like '%WATER - WASTE%' -- try WATER-MARINE for a su
         core.CONTINUOUS_MINIMUM is not null
         AND ed.NewNameID is not null
         
-
+*/
 -- end continuous
 
 ))
