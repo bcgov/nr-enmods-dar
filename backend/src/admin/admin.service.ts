@@ -4,6 +4,7 @@ import { firstValueFrom } from "rxjs";
 import { Role } from "src/enum/role.enum";
 import { BCeIDUserInfo, IdirUserInfo, UserInfo } from "src/types/types";
 import { UserRolesDto } from "./dto/user-roles.dto";
+import axios from "axios";
 
 @Injectable()
 export class AdminService {
@@ -51,7 +52,6 @@ export class AdminService {
       );
 
       // TODO: Check to see what the account type is of the logged in user, based on that pass along an additional filter of the business name. This is to ensure that bceid users can only see users in their company
-
 
       const returnData: UserInfo[] = [];
       const adminData = adminResponse.data.data;
@@ -132,7 +132,9 @@ export class AdminService {
       );
       const deleteData = deleteResponse.data.data;
       deleteData.map((deleteUser: any) => {
-        let accountType = deleteUser?.username?.endsWith("@idir") ? "idir" : "bceid";
+        let accountType = deleteUser?.username?.endsWith("@idir")
+          ? "idir"
+          : "bceid";
         const userId =
           deleteUser?.attributes?.idir_username?.[0] ||
           deleteUser?.attributes?.bceid_username[0];
@@ -172,6 +174,28 @@ export class AdminService {
       console.log("Error findAll Admin");
       console.log(err.response?.data || err.message);
       throw err;
+    }
+  }
+
+  /**
+   * Checks to see if AQI is active
+   *
+   * @returns all true or false
+   */
+  async getAqiStatus(): Promise<Boolean> {
+    const healthcheckUrl = process.env.AQI_BASE_URL + "/v1/status";
+    let aqiStatus = null;
+    try {
+      aqiStatus = (await axios.get(healthcheckUrl)).status;
+      console.log(aqiStatus);
+    } catch (err) {
+      aqiStatus = err.response.status;
+    }
+
+    if (aqiStatus == 200){
+      return false
+    }else{
+      return true
     }
   }
 
@@ -426,7 +450,7 @@ export class AdminService {
             console.log(err);
             throw new Error(`Failed to remove ${Role.ENMODS_ADMIN} role`);
           });
-      }else if (role === Role.ENMODS_DELETE) {
+      } else if (role === Role.ENMODS_DELETE) {
         await firstValueFrom(
           this.httpService.post(
             url,
@@ -487,7 +511,7 @@ export class AdminService {
             console.log(err);
             throw new Error(`Failed to remove ${Role.ENMODS_ADMIN} role`);
           });
-      }else if (role === Role.ENMODS_DELETE) {
+      } else if (role === Role.ENMODS_DELETE) {
         await firstValueFrom(
           this.httpService.post(
             url,

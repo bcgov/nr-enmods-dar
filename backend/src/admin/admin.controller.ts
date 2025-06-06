@@ -19,6 +19,12 @@ export class AdminController {
     return this.adminService.findAll();
   }
 
+  @Get("getStatus")
+  @Roles(Role.ENMODS_ADMIN, Role.ENMODS_USER, Role.ENMODS_DELETE)
+  getStatus(): Promise<Boolean> {
+    return this.adminService.getAqiStatus()
+  }
+
   @Post("user-email-search")
   @Roles(Role.ENMODS_ADMIN)
   userEmailSearch(@Body() body: { email: string }): Promise<IdirUserInfo> {

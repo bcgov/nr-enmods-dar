@@ -23,6 +23,13 @@ export async function findBCeIDUser(email: string): Promise<BCeIDUserInfo> {
   return userData;
 }
 
+export async function getAqiStatus(): Promise<Boolean> {
+  const aqiStatusUrl: string = `${config.API_BASE_URL}/admin/getStatus`
+  const getParameters = api.generateApiParameters(aqiStatusUrl)
+  const status: Boolean = await api.get(getParameters)
+  return status
+}
+
 /**
  * Adds roles to a user given their IDIR username and an array of roles to add.
  * (currently unused)

@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Alert,
 } from "@mui/material";
 import { useEffect, useState } from "react";
 import { FileUploader } from "react-drag-drop-files";
@@ -29,6 +30,7 @@ import { insertFile } from "@/common/manage-files";
 import UserService from "@/service/user-service";
 import ExcelJS from "exceljs";
 import Papa from "papaparse";
+import { getAqiStatus } from "@/common/admin";
 
 const fileTypes = ["xlsx", "csv", "txt"];
 let selectedFiles: any[] = [];
@@ -270,6 +272,9 @@ function FileUpload() {
     setExpandList(!expandList);
   };
 
+  const [aqiOutage, setAqiOutage] = useState(false);
+
+
   const [checkedItems, setCheckedItems] = useState({
     master: true,
     items: [],
@@ -307,8 +312,29 @@ function FileUpload() {
     selectedFiles = [];
   }, []);
 
+  useEffect(() => {
+    async function AQIHealthcheck() {
+      await getAqiStatus().then((response: any) => {
+        if (response) {
+          setAqiOutage(true);
+        } else {
+          setAqiOutage(false);
+        }
+      });
+    }
+    AQIHealthcheck();
+  });
+
   return (
     <>
+      <div style={{ width: "100%", marginLeft: "4em" }}>
+        {aqiOutage && (
+          <Alert severity="error">
+            AQI is currently down. All files uploaded will be put in the queue
+            and processed when AQI is back up and running.
+          </Alert>
+        )}
+      </div>
       <div>
         <div style={{ marginLeft: "4em", width: "100%" }}>
           <Box sx={{ width: "1200px" }}>
