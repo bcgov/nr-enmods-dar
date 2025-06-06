@@ -332,3 +332,20 @@ model importer_benchmark {
   obs_import_time        Int?
   total_time             Int?
 }
+
+model api_keys {
+  api_key_id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  api_key            String   @unique @db.VarChar(255)
+  username           String?  @db.VarChar(200)
+  email_address      String?  @db.VarChar(200)
+  organization_name  String?  @db.VarChar(512)
+  last_used_date     DateTime? @db.Timestamp(6)
+  usage_count        Int      @default(0)
+  revoked_date       DateTime? @db.Timestamp(6)
+  revoked_by         String?  @db.VarChar(512)
+  enabled_ind        Boolean  @default(true)
+  create_user_id     String   @db.VarChar(200)
+  create_utc_timestamp DateTime @db.Timestamp(6)
+  update_user_id     String   @db.VarChar(200)
+  update_utc_timestamp DateTime @db.Timestamp(6)
+}
