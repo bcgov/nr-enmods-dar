@@ -3,7 +3,7 @@ WHERE ems_code IN (11, 12, 34, 48, 058, 61, 62, 27, 263, 270, 310, 311, 49, 59, 
 
 UPDATE enmods.aqi_units_xref
 SET edt_unit_xref = 'g'
-WHERE edt_unit_code = 'g';
+WHERE edt_unit_guid = 'b7d92d67-8935-4ee1-8a48-f2f70a7c1454';
 
 
 INSERT INTO enmods.aqi_units_xref(
