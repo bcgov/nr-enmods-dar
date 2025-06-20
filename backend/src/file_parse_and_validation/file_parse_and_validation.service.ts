@@ -1510,7 +1510,8 @@ export class FileParseValidateService {
 
     if (
       rowData.DataClassification == "LAB" ||
-      rowData.DataClassification == "SURROGATE_RESULT"
+      rowData.DataClassification == "SURROGATE_RESULT" ||
+      rowData.DataClassification == "FIELD_SURVEY"
     ) {
       cleanedRow.ObservationID = "";
       cleanedRow.FieldDeviceID = "";
@@ -1529,7 +1530,6 @@ export class FileParseValidateService {
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
-      rowData.DataClassification == "FIELD_SURVEY" ||
       rowData.DataClassification == "VERTICAL_PROFILE"
     ) {
       cleanedRow.ObservationID = "";
