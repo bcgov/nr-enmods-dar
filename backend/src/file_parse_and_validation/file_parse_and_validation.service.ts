@@ -733,7 +733,8 @@ export class FileParseValidateService {
           });
         } else if (
           row["DataClassification"] == "LAB" ||
-          row["DataClassification"] == "FIELD_RESULT"
+          row["DataClassification"] == "FIELD_RESULT" ||
+          row["DataClassification"] == "ACTIVITY_RESULT"
         ) {
           if (row["QCType"] == "") {
             Object.assign(filteredObj, { ActivityType: "SAMPLE_ROUTINE" });
