@@ -733,7 +733,7 @@ export class FileParseValidateService {
     newObs["EA_Upload File Name"] = originalFileName; // this is needed for deletion purposes
 
     return newObs;
-  }
+  }  
 
   filterFile<T>(row: any, keys, customAttributes): Partial<T> {
     const filteredObj: Partial<T> = {};
