@@ -363,6 +363,11 @@ export class FileSubmissionsService {
 
   async getFromS3(fileName: string) {
     try {
+      // Validate fileName to prevent SSRF attacks
+      const isValidFileName = /^[a-zA-Z0-9_\-\.]+$/.test(fileName);
+      if (!isValidFileName) {
+        throw new Error("Invalid file name provided.");
+      }
       const fileStream = await this.objectStore.getFileData(fileName);
       const fileBinary: Uint8Array[] = [];
       return new Promise((resolve, reject) => {
@@ -416,9 +421,10 @@ async function saveToS3(token: any, file: Express.Multer.File) {
   const path = require("path");
   let fileGUID = null;
   const originalFileName = file.originalname;
+  const sanitizedFileName =originalFileName.replace(/[^a-zA-Z0-9_.-]/g, "")
   const guid = crypto.randomUUID();
-  const extention = path.extname(originalFileName);
-  const baseName = path.basename(originalFileName, extention);
+  const extention = path.extname(sanitizedFileName);
+  const baseName = path.basename(sanitizedFileName, extention);
   const newFileName = `${baseName}-${guid}${extention}`;
 
   const axios = require("axios");
