@@ -472,8 +472,17 @@ async function saveToS3WithSftp(file: Express.Multer.File) {
   const OBJECTSTORE_SECRET_KEY = process.env.OBJECTSTORE_SECRET_KEY;
   const OBJECTSTORE_BUCKET = process.env.OBJECTSTORE_BUCKET;
 
-  if (!OBJECTSTORE_URL || !OBJECTSTORE_URL.startsWith("https://trusted-objectstore.com")) {
-    throw new Error("Objectstore Host Not Defined or Invalid");
+   if (!OBJECTSTORE_URL) {
+    throw new Error("Objectstore Host Not Defined");
+  }
+  const allowedHosts = [process.env.OBJECTSTORE_URL];
+  try {
+    const parsedUrl = new URL(OBJECTSTORE_URL);
+    if (!allowedHosts.includes(parsedUrl.hostname)) {
+      throw new Error("Objectstore Host Invalid");
+    }
+  } catch (error) {
+    throw new Error("Objectstore URL is malformed or invalid");
   }
 
   const dateValue = new Date().toUTCString();
