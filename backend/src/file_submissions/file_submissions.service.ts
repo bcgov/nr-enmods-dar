@@ -454,9 +454,10 @@ async function saveToS3(token: any, file: Express.Multer.File) {
 async function saveToS3WithSftp(file: Express.Multer.File) {
   const path = require("path");
   const originalFileName = file.originalname;
+  const sanitizedFileName = originalFileName.replace(/[^a-zA-Z0-9_\-\.]/g, "");
   const guid = crypto.randomUUID();
-  const extension = path.extname(originalFileName);
-  const baseName = path.basename(originalFileName, extension);
+  const extension = path.extname(sanitizedFileName);
+  const baseName = path.basename(sanitizedFileName, extension);
   const newFileName = `${baseName}-${guid}${extension}`;
 
   const OBJECTSTORE_URL = process.env.OBJECTSTORE_URL;
