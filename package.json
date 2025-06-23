@@ -1,7 +1,9 @@
 {
   "dependencies": {
+    "@babel/runtime": "^7.26.10",
     "@fortawesome/react-fontawesome": "^0.2.2",
     "@mui/x-data-grid": "^7.10.0",
+    "@nestjs/common": "^10.4.16",
     "@nestjs/passport": "^10.0.3",
     "dotenv": "^16.4.5",
     "jwks-rsa": "^3.1.0",
