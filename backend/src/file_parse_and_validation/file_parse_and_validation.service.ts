@@ -206,6 +206,23 @@ const obsFile: ObservationFile = {
   "EA_Upload File Name": "",
 };
 
+let partialUpload = false;
+let rollBackHalted = false;
+let validationApisCalled = [];
+let fieldVisitStartTimes = {};
+let startValidation = 0,
+  endValidation = 0,
+  startObsValidation = 0,
+  endObsValidation = 0,
+  startRejectFile = 0,
+  endRejectFile = 0,
+  startReportValidated = 0,
+  endReportValidated = 0,
+  startImportNonObs = 0,
+  endImportNonObs = 0,
+  startImportObs = 0,
+  endImportObs = 0;
+
 @Injectable()
 export class FileParseValidateService {
   private readonly logger = new Logger(FileParseValidateService.name);
@@ -221,6 +238,10 @@ export class FileParseValidateService {
 
   async getQueuedFiles() {
     return this.fileSubmissionsService.findByCode("QUEUED");
+  }
+
+  async getRollBackFiles() {
+    return this.fileSubmissionsService.findByCode("ROLLBACK");
   }
 
   async getFilesToDelete() {
@@ -244,12 +265,16 @@ export class FileParseValidateService {
             aqi_locations_id: true,
           },
         });
-        return {
-          samplingLocation: {
-            id: locID[0].aqi_locations_id,
-            custom_id: param,
-          },
-        };
+        if (locID.length == 0) {
+          return {};
+        } else {
+          return {
+            samplingLocation: {
+              id: locID[0].aqi_locations_id,
+              custom_id: param,
+            },
+          };
+        }
       case "PROJECT":
         let projectID = await this.prisma.aqi_projects.findMany({
           where: {
@@ -762,11 +787,7 @@ export class FileParseValidateService {
     return headerErrors;
   }
 
-  async localValidation(
-    rowNumber: number,
-    rowData: any,
-    validationApisCalled: any,
-  ) {
+  async localValidation(rowNumber: number, rowData: any) {
     let errorLogs = [];
     let existingRecords = [];
     // for (const [index, record] of allRecords.entries()) {
@@ -886,20 +907,18 @@ export class FileParseValidateService {
       }
     }
 
-    if (rowData.hasOwnProperty("LocationID")) {
-      if (rowData["LocationID"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "Cannot be empty"}}`;
+    if (rowData.hasOwnProperty("LocationID") && rowData["LocationID"] != "") {
+      const present = await this.aqiService.databaseLookup(
+        "aqi_locations",
+        rowData.LocationID,
+      );
+      if (!present) {
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "${rowData.LocationID} not found in EnMoDS Locations"}}`;
         errorLogs.push(JSON.parse(errorLog));
-      } else {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_locations",
-          rowData.LocationID,
-        );
-        if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "${rowData.LocationID} not found in EnMoDS Locations"}}`;
-          errorLogs.push(JSON.parse(errorLog));
-        }
       }
+    } else {
+      let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "Cannot be empty"}}`;
+      errorLogs.push(JSON.parse(errorLog));
     }
 
     if (rowData.hasOwnProperty("FieldPreservative")) {
@@ -1154,70 +1173,100 @@ export class FileParseValidateService {
     }
 
     // check if the visit already exists -- check if visit timetsamp for that location already exists
-    const locationGUID = await this.queryCodeTables(
-      "LOCATIONS",
-      rowData.LocationID,
-    );
-
-    const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
-    let visitExists = false;
-    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}`;
-    let activityExists = false;
-
-    if (validationApisCalled.some((item) => item.url === visitURL)) {
-      // visit url has been called before
-      let seenVisitUrl = validationApisCalled.find(
-        (item) => item.url === visitURL,
+    if (rowData["LocationID"] != "") {
+      const locationGUID = await this.queryCodeTables(
+        "LOCATIONS",
+        rowData.LocationID,
       );
+      if (locationGUID.hasOwnProperty("samplingLocation")) {
+        const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
+        let visitExists = false;
+        const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
+        let activityExists = false;
 
-      if (seenVisitUrl.count > 0) {
-        // visit exists in AQI
-        visitExists = true;
-        existingGUIDS["visit"] = seenVisitUrl.GUID;
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+        if (validationApisCalled.some((item) => item.url === visitURL)) {
+          // visit url has been called before
+          let seenVisitUrl = validationApisCalled.find(
+            (item) => item.url === visitURL,
+          );
+
+          if (seenVisitUrl.count > 0) {
+            // visit exists in AQI
+            visitExists = true;
+            existingGUIDS["visit"] = seenVisitUrl.GUID;
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+        } else {
+          const visitURLCalled = await this.aqiService.getFieldVisits(
+            rowNumber,
+            visitURL,
+          );
+          if (visitURLCalled.count > 0) {
+            // visit exists in AQI
+            visitExists = true;
+            existingGUIDS["visit"] = visitURLCalled.GUID;
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+          validationApisCalled.push(visitURLCalled);
+        }
+
+        if (validationApisCalled.some((item) => item.url === activityURL)) {
+          // activity url has been called before
+          let seenActivityUrl = validationApisCalled.find(
+            (item) => item.url === activityURL,
+          );
+
+          if (seenActivityUrl.count > 0) {
+            // activity exists in AQI
+            activityExists = true;
+            existingGUIDS["activity"] = seenActivityUrl.GUID;
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+        } else {
+          const activityURLCalled = await this.aqiService.getActivities(
+            rowNumber,
+            activityURL,
+          );
+          if (activityURLCalled.count > 0) {
+            // visit exists in AQI
+            visitExists = true;
+            existingGUIDS["activity"] = activityURLCalled.GUID;
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+          validationApisCalled.push(activityURLCalled);
+        }
       }
-    } else {
-      const visitURLCalled = await this.aqiService.getFieldVisits(
-        rowNumber,
-        visitURL,
-      );
-      if (visitURLCalled.count > 0) {
-        // visit exists in AQI
-        visitExists = true;
-        existingGUIDS["visit"] = visitURLCalled.GUID;
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      }
-      validationApisCalled.push(visitURLCalled);
     }
 
-    if (validationApisCalled.some((item) => item.url === activityURL)) {
-      // activity url has been called before
-      let seenActivityUrl = validationApisCalled.find(
-        (item) => item.url === activityURL,
-      );
+    if (rowData.FieldVisitStartTime != "") {
+      // check to see if a field visit for that given day already exists for the location
+      const rawDateFromRow = rowData.FieldVisitStartTime;
+      const formattedDateFromRow = rawDateFromRow.match(/^(.*?)T/)[1]; // without time
+      const locationID = rowData.LocationID;
 
-      if (seenActivityUrl.count > 0) {
-        // activity exists in AQI
-        activityExists = true;
-        existingGUIDS["activity"] = seenActivityUrl.GUID;
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+      // Initialize an array for that location if it has not been checked
+      if (!fieldVisitStartTimes[locationID]) {
+        fieldVisitStartTimes[locationID] = [];
       }
-    } else {
-      const activityURLCalled = await this.aqiService.getFieldVisits(
-        rowNumber,
-        activityURL,
-      );
-      if (activityURLCalled.count > 0) {
-        // visit exists in AQI
-        visitExists = true;
-        existingGUIDS["activity"] = activityURLCalled.GUID;
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+
+      // Check to make sure that the exact timestamp DOES NOT exist for that location
+      if (!fieldVisitStartTimes[locationID].includes(rawDateFromRow)) {
+        // check to see if a visit has already happened on that day - i.e. timestamp but only YYYY-MM-DD
+        const sameDayVisit = fieldVisitStartTimes[locationID].some(
+          (startTime) => startTime.match(/^(.*?)T/)[1] === formattedDateFromRow,
+        );
+
+        if (sameDayVisit) {
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Visit": "Cannot have more than one visit record on the same day (${rowData.FieldVisitStartTime}) for a location (${rowData.LocationID})"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        } else {
+          fieldVisitStartTimes[locationID].push(rawDateFromRow);
+        }
       }
-      validationApisCalled.push(activityURLCalled);
     }
 
     if (Object.keys(existingGUIDS).length > 0) {
@@ -1324,10 +1373,115 @@ export class FileParseValidateService {
     return;
   }
 
+  formulateActivityName(rowData) {
+    let newActivityName = "";
+
+    const userActivityName = rowData.ActivityName?.trim() || "";
+    const QCType = rowData.QCType?.toUpperCase().trim() || "";
+    const depthLower = rowData.DepthLower?.trim() || "";
+    const depthUpper = rowData.depthUpper?.trim() || "";
+    const medium = rowData.Medium?.trim() || "";
+    const locnId = rowData.LocationID?.trim() || "";
+    const observedTime = rowData.ObservedDateTime?.trim() || "";
+    const separator = ";";
+
+    // General template for activity name: <User Supplied Activity Name><sep><QC Type><sep><Depth Upper><Hyphen><Depth Lower>m<sep><Medium><sep><Location ID><sep><Observed Datetime>
+
+    // Case 1: Only depth lower missing - only use depth upper
+    if (
+      (depthLower === "" || depthLower === undefined) &&
+      depthUpper !== "" &&
+      depthUpper !== undefined
+    ) {
+      newActivityName =
+        userActivityName +
+        separator +
+        QCType +
+        separator +
+        depthUpper +
+        "m" +
+        separator +
+        medium +
+        separator +
+        locnId +
+        separator +
+        observedTime;
+      // Case 2: Only depth upper missing - only use depth lower
+    } else if (
+      depthLower !== "" &&
+      depthLower !== undefined &&
+      (depthUpper === "" || depthUpper === undefined)
+    ) {
+      newActivityName =
+        userActivityName +
+        separator +
+        QCType +
+        separator +
+        depthLower +
+        "m" +
+        separator +
+        medium +
+        separator +
+        locnId +
+        separator +
+        observedTime;
+      // Case 3: Both depths missing - don't include depth at all
+    } else if (
+      (depthLower === "" || depthLower === undefined) &&
+      (depthUpper === "" || depthUpper === undefined)
+    ) {
+      newActivityName =
+        userActivityName +
+        separator +
+        QCType +
+        separator +
+        medium +
+        separator +
+        locnId +
+        separator +
+        observedTime;
+      // Case 4: Activity name missing and the depths missing - don't include either of those
+    } else if (
+      (userActivityName === "" || userActivityName === undefined) &&
+      (depthLower === "" || depthLower === undefined) &&
+      (depthUpper === "" || depthUpper === undefined)
+    ) {
+      newActivityName =
+        QCType +
+        separator +
+        medium +
+        separator +
+        locnId +
+        separator +
+        observedTime;
+      // Case 5: All fields present
+    } else {
+      newActivityName =
+        userActivityName +
+        separator +
+        QCType +
+        separator +
+        depthUpper +
+        "-" +
+        depthLower +
+        "m" +
+        separator +
+        medium +
+        separator +
+        locnId +
+        separator +
+        observedTime;
+    }
+
+    return newActivityName;
+  }
+
   cleanRowBasedOnDataClassification(rowData: any) {
     let cleanedRow = rowData;
 
     cleanedRow.QCType = rowData.QCType.toUpperCase();
+
+    let concatActivityName = this.formulateActivityName(rowData);
 
     if (
       rowData.DataClassification == "LAB" ||
@@ -1341,7 +1495,7 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      // cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
+      cleanedRow.ActivityName = concatActivityName; // TODO: this will need to uncommented after Jeremy is done testing
 
       if (cleanedRow.QCType == "REGULAR") {
         // this is because AQI interprets a null value as REGULAR
@@ -1366,8 +1520,7 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      // cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
-      cleanedRow.ActivityName = "";
+      cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
       cleanedRow.TissueType = "";
       cleanedRow.LabArrivalTemperature = "";
       cleanedRow.SpecimenName = "";
@@ -1392,11 +1545,20 @@ export class FileParseValidateService {
     allExistingRecords: any,
     originalFileName: any,
     rowNumber: any,
-    validationApisCalled: any,
   ) {
     const fieldVisitCustomAttributes: Partial<FieldVisits> = {
       PlanningStatus: "DONE",
     };
+
+    // if any \t character found, escape it
+    const cleanSpecialChars: any = {};
+    for (const [key, value] of Object.entries(rowData)) {
+      if (typeof value === "string") {
+        cleanSpecialChars[key] = value.replace(/\t/g, "\\t");
+      } else {
+        cleanSpecialChars[key] = value;
+      }
+    }
 
     /*
      * From the input file get all the atrributes and values for each sub section - Visits, Activities, Specimens and Observations
@@ -1446,7 +1608,6 @@ export class FileParseValidateService {
     const recordLocalValidationResults = await this.localValidation(
       rowNumber,
       rowData,
-      validationApisCalled,
     );
 
     this.logger.log(`Finished local validation for row ${rowNumber}`);
@@ -1483,7 +1644,6 @@ export class FileParseValidateService {
     rowData: any,
     GuidsToSave: any,
     fileName: string,
-    validationApisCalled: any,
   ) {
     const fieldVisitCustomAttributes: Partial<FieldVisits> = {
       PlanningStatus: "DONE",
@@ -1526,9 +1686,9 @@ export class FileParseValidateService {
 
     /*
      * for each of the components (visits, activities, specimens):
-     * make a DB call to see if that record already exists
-     * If exists - do a PUT with the respective object to the respective API
-     * Otherwise - do a POST with the respective object to the respective API; save the record into the db table (for future use) and save the GUID to the db table
+     * make a call to AQI to see if the data exists (if not already called then add that URL to the list of URLs)
+     * If exists - get the GUID and update the child object (if not the n-th child)
+     * Otherwise - do a POST with the respective object to the respective API; save the GUID to the db table and save the URL to the list of URLs
      */
 
     const locationGUID = await this.queryCodeTables(
@@ -1537,50 +1697,87 @@ export class FileParseValidateService {
     );
 
     const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
-    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}`;
+    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
     let visitInfo: any;
     let activityInfo: any;
 
     if (validationApisCalled.some((item) => item.url === visitURL)) {
+      this.logger.log(`Visit URL seen, getting from lookup`);
       // visit url has been called before
       let seenVisitUrl = validationApisCalled.find(
         (item) => item.url === visitURL,
       );
 
       if (seenVisitUrl.count > 0) {
+        this.logger.log(`Visit URL seen, visit already exists`);
         // send PUT to AQI and add visit data to activity
         fieldVisit["id"] = seenVisitUrl.GUID;
         fieldActivity["fieldVisit"] = seenVisitUrl.GUID;
         fieldActivity["LocationID"] = rowData.LocationID;
         GuidsToSave["visits"].push(seenVisitUrl.GUID);
+        this.logger.log(
+          `Added field visit GUID ${seenVisitUrl.GUID} to list of imported items`,
+        );
       } else {
+        this.logger.log(`Visit URL seen, visit does not exist`);
+
         // send POST to AQI and add visit data to activity
+        this.logger.log("POSTED the visit");
         visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
+
+        if (visitInfo.fieldVisit === "partialUpload") {
+          partialUpload = true;
+          return;
+        }
+
         fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
         fieldActivity["LocationID"] = rowData.LocationID;
         GuidsToSave["visits"].push(visitInfo.fieldVisit);
+        this.logger.log(
+          `Added field visit GUID ${visitInfo.fieldVisit} to list of imported items`,
+        );
+
+        this.logger.log(`Updating the seen URL`);
 
         seenVisitUrl.count = 1;
         seenVisitUrl.GUID = visitInfo.fieldVisit;
       }
     } else {
+      this.logger.log(`Visit URL not seen, making GET call`);
+
       let visitExists = await this.aqiService.getFieldVisits(
         rowNumber,
         visitURL,
       );
       if (visitExists.count > 0) {
+        this.logger.log(`Visit URL not seen, visit already exists`);
+
         // send PUT to AQI and add visit data to activity
         fieldVisit["id"] = visitExists.GUID;
         fieldActivity["fieldVisit"] = visitExists.GUID;
         fieldActivity["LocationID"] = rowData.LocationID;
         GuidsToSave["visits"].push(visitExists.GUID);
+        this.logger.log(
+          `Added field visit GUID ${visitExists.GUID} to list of imported items`,
+        );
       } else {
+        this.logger.log(`Visit URL not seen, visit does not exist`);
+
         // send POST to AQI and add visit data to activity
         visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
+        if (visitInfo.fieldVisit === "partialUpload") {
+          partialUpload = true;
+          return;
+        }
         fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
         fieldActivity["LocationID"] = rowData.LocationID;
         GuidsToSave["visits"].push(visitInfo.fieldVisit);
+        this.logger.log(
+          `Added field visit GUID ${visitInfo.fieldVisit} to list of imported items`,
+        );
       }
+
+      this.logger.log(`Added visist URL to seen list`);
 
       validationApisCalled.push(visitURL);
     }
@@ -1601,6 +1798,9 @@ export class FileParseValidateService {
             startTime: rowData.ObservedDateTime,
           };
           GuidsToSave["activities"].push(seenActivityUrl.GUID);
+          this.logger.log(
+            `Added activity GUID ${seenActivityUrl.GUID} to list of imported items`,
+          );
         } else {
           // send POST to AQI
           activityInfo = await this.fieldActivityJson(
@@ -1609,8 +1809,17 @@ export class FileParseValidateService {
             "post",
           );
 
+          if (activityInfo.activity === "partialUpload") {
+            partialUpload = true;
+            return;
+          }
+
           specimen["activity"] = activityInfo.activity;
           GuidsToSave["activities"].push(activityInfo.activity.id);
+          this.logger.log(
+            `Added activity GUID ${activityInfo.activity.id} to list of imported items`,
+          );
+
           seenActivityUrl.count = 1;
           seenActivityUrl.GUID = activityInfo.activity.id;
         }
@@ -1629,6 +1838,9 @@ export class FileParseValidateService {
             startTime: rowData.ObservedDateTime,
           };
           GuidsToSave["activities"].push(activityExists.GUID);
+          this.logger.log(
+            `Added activity GUID ${activityExists.GUID} to list of imported items`,
+          );
         } else {
           // send POST to AQI
           activityInfo = await this.fieldActivityJson(
@@ -1637,8 +1849,16 @@ export class FileParseValidateService {
             "post",
           );
 
+          if (activityInfo.activity === "partialUpload") {
+            partialUpload = true;
+            return;
+          }
+
           specimen["activity"] = activityInfo.activity;
           GuidsToSave["activities"].push(activityInfo.activity.id);
+          this.logger.log(
+            `Added activity GUID ${activityInfo.activity.id} to list of imported items`,
+          );
 
           validationApisCalled.push(activityURL);
         }
@@ -1653,9 +1873,20 @@ export class FileParseValidateService {
 
       // send POST to AQI
       specimenInfo = await this.specimensJson(specimen, rowNumber, "post");
+      if (specimenInfo.specimen.id === "partialUpload") {
+        partialUpload = true;
+        return;
+      }
       if (specimenInfo.specimen.id != "exists") {
         // response true means that the specimen already exists for that activity -- essentially skipping that post and save here
         GuidsToSave["specimens"].push(specimenInfo.specimen.id);
+        this.logger.log(
+          `Added specimen GUID ${specimenInfo.specimen.id} to list of imported items`,
+        );
+      } else {
+        this.logger.log(
+          `Added specimen GUID ${specimenInfo.specimen.id} to list of imported items`,
+        );
       }
     }
 
@@ -1824,7 +2055,6 @@ export class FileParseValidateService {
     allNonObsErrors,
     allExistingRecords,
     originalFileName,
-    validationApisCalled,
     fileType,
   ) {
     try {
@@ -1867,10 +2097,9 @@ export class FileParseValidateService {
         allExistingRecords,
         originalFileName,
         rowNumber,
-        validationApisCalled,
       );
     } catch (err) {
-      this.logger.error("Error in async ops:", err.message);
+      this.logger.error("Error in validateRowData:", err.message, err.stack);
       throw err;
     }
   }
@@ -1881,8 +2110,11 @@ export class FileParseValidateService {
     rowNumber: number,
     fileName: string,
     GuidsToSave: any,
-    validationApisCalled,
     fileType,
+    file_submission_id,
+    original_file_name,
+    file_operation_code,
+    ministry_contacts,
   ) {
     try {
       let rowData: Record<string, string> = {};
@@ -1920,8 +2152,21 @@ export class FileParseValidateService {
         rowData,
         GuidsToSave,
         fileName,
-        validationApisCalled,
       );
+      if (partialUpload) {
+        await this.rollBackPartialUpload(
+          GuidsToSave,
+          fileName,
+          file_submission_id,
+          original_file_name,
+          file_operation_code,
+          ministry_contacts,
+        );
+        this.logger.warn("Deleted the partially imported data");
+        partialUpload = false;
+        rollBackHalted = false;
+        return;
+      }
       this.logger.log(`Completed import for row ${rowNumber}`);
     } catch (err) {
       this.logger.error("Error in async ops:", err.message);
@@ -1929,6 +2174,164 @@ export class FileParseValidateService {
     }
   }
 
+  async rollBackPartialUpload(
+    GuidsToSave,
+    fileName,
+    file_submission_id,
+    originalFileName,
+    file_operation_code,
+    ministryContacts,
+  ) {
+    // get the partially imported guids
+    const partiallyImportedGUIDS = await this.prisma.aqi_imported_data.findMany(
+      {
+        where: {
+          file_name: fileName,
+        },
+        select: {
+          aqi_imported_data_id: true,
+          imported_guids: true,
+        },
+      },
+    );
+
+    let partiallyImportedSpecimens =
+      partiallyImportedGUIDS[0].imported_guids["specimens"];
+    let partiallyImportedActivitiess =
+      partiallyImportedGUIDS[0].imported_guids["activities"];
+    let partiallyImportedVisits =
+      partiallyImportedGUIDS[0].imported_guids["visits"];
+
+    let mergedSpecimens = [
+      ...partiallyImportedSpecimens,
+      ...GuidsToSave.specimens,
+    ];
+    let mergedActivities = [
+      ...partiallyImportedActivitiess,
+      ...GuidsToSave.activities,
+    ];
+    let mergedVisits = [...partiallyImportedVisits, ...GuidsToSave.visits];
+
+    // do a health check here. if fails then save these guids to imported guids, set the status of file to ROLLBACK, set an error message for that import
+
+    let aqiStatus = await this.aqiService.healthCheck();
+
+    if (aqiStatus != 200) {
+      rollBackHalted = true;
+      this.logger.warn(
+        `Third party service, AQI, is currently unavailable. Rollback will be halted.`,
+      );
+
+      await this.fileSubmissionsService.updateFileStatus(
+        file_submission_id,
+        "ROLLBACK",
+      );
+
+      let rollbackError = [];
+      let errorMessage = `{"rowNum": "N/A", "type": "ERROR", "message": {"Rollback": "Error in importing the file, rollback required. AQI is currently unavailable. Rollback will be halted until AQI is back up and running."}}`;
+      rollbackError.push(JSON.parse(errorMessage));
+      const file_error_log_data = {
+        file_submission_id: file_submission_id,
+        file_name: fileName,
+        original_file_name: originalFileName,
+        file_operation_code: file_operation_code,
+        ministry_contact: ministryContacts,
+        error_log: rollbackError,
+        create_utc_timestamp: new Date(),
+      };
+
+      await this.prisma.file_error_logs.create({
+        data: file_error_log_data,
+      });
+
+      let newPartialGuids = {
+        visits: Array.from(new Set([...(mergedVisits || [])])),
+        activities: Array.from(new Set([...(mergedActivities || [])])),
+        specimens: Array.from(new Set([...(mergedSpecimens || [])])),
+        observations: Array.from(new Set([])),
+      };
+
+      await this.prisma.$transaction(async (prisma) => {
+        await this.prisma.aqi_imported_data.update({
+          where: {
+            aqi_imported_data_id:
+              partiallyImportedGUIDS[0].aqi_imported_data_id,
+          },
+          data: {
+            imported_guids: newPartialGuids,
+          },
+        });
+      });
+
+      return;
+    }
+
+    //delete the partially imported specimens
+    await this.aqiService.SpecimenDelete(mergedSpecimens, []);
+
+    //delete the partially imported activities
+    await this.aqiService.ActivityDelete(mergedActivities, []);
+
+    //delete the partially imported visits
+    await this.aqiService.VisitDelete(mergedVisits, []);
+
+    // set an error message for a successfull rollback
+    let rollbackError = [];
+    let errorMessage = `{"rowNum": "N/A", "type": "ERROR", "message": {"Rollback": "Something went wrong trying to insert data into AQI. The file had to be rolled back. Please re-upload the file."}}`;
+    rollbackError.push(JSON.parse(errorMessage));
+    const file_error_log_data = {
+      file_submission_id: file_submission_id,
+      file_name: fileName,
+      original_file_name: originalFileName,
+      file_operation_code: file_operation_code,
+      ministry_contact: ministryContacts,
+      error_log: rollbackError,
+      create_utc_timestamp: new Date(),
+    };
+
+    await this.prisma.file_error_logs.create({
+      data: file_error_log_data,
+    });
+  }
+
+  async benchmarkImport(file_submission_id, fileName, originalFileName) {
+    // all times in ms, divide by 1000 to make them in s
+    const validationTime = (endValidation - startValidation) / 1000;
+    const obsValidationTime = (endObsValidation - startObsValidation) / 1000;
+    const importTime = (endImportNonObs - startImportNonObs) / 1000;
+    const obsImportTime = (endImportObs - startImportObs) / 1000;
+    const totalTime =
+      validationTime + obsValidationTime + importTime + obsImportTime;
+
+    const fileInfo = await this.prisma.file_submission.findFirst({
+      select: {
+        sample_count: true,
+        results_count: true,
+        submission_date: true,
+        submission_status_code: true,
+      },
+      where: {
+        submission_id: file_submission_id,
+      },
+    });
+
+    await this.prisma.importer_benchmark.create({
+      data: {
+        submission_id: file_submission_id,
+        file_name: fileName,
+        original_file_name: originalFileName,
+        submission_date: fileInfo.submission_date,
+        submission_status_code: fileInfo.submission_status_code,
+        sample_count: fileInfo.sample_count,
+        results_count: fileInfo.results_count,
+        local_validation_time: validationTime,
+        obs_validation_time: obsValidationTime,
+        local_import_time: importTime,
+        obs_import_time: obsImportTime,
+        total_time: totalTime,
+      },
+    });
+  }
   async parseFile(
     file: Readable,
     fileName: string,
@@ -1936,7 +2339,13 @@ export class FileParseValidateService {
     file_submission_id: string,
     file_operation_code: string,
   ) {
+    partialUpload = false;
+    rollBackHalted = false;
+    validationApisCalled = [];
+    fieldVisitStartTimes = {};
+
     console.time("parseFile");
+    const startParseFile = performance.now();
 
     const path = require("path");
     const extention = path.extname(fileName);
@@ -1978,8 +2387,6 @@ export class FileParseValidateService {
     const csvStream = format({ headers: true, quoteColumns: true });
     csvStream.pipe(writeStream);
     csvStream.write(headers);
-
-    let validationApisCalled = [];
 
     if (extention == ".xlsx") {
       const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
@@ -2025,11 +2432,16 @@ export class FileParseValidateService {
           file_submission_id,
           "REJECTED",
         );
-
+        await this.benchmarkImport(
+          file_submission_id,
+          fileName,
+          originalFileName,
+        );
         return;
       }
 
       console.time("Validation");
+      startValidation = performance.now();
       for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
         const row = worksheet.getRow(rowNumber);
 
@@ -2058,7 +2470,6 @@ export class FileParseValidateService {
               allNonObsErrors,
               allExistingRecords,
               originalFileName,
-              validationApisCalled,
               extention,
             );
           }
@@ -2088,7 +2499,6 @@ export class FileParseValidateService {
             allNonObsErrors,
             allExistingRecords,
             originalFileName,
-            validationApisCalled,
             extention,
           );
         }
@@ -2098,9 +2508,11 @@ export class FileParseValidateService {
       }
 
       console.timeEnd("Validation");
+      endValidation = performance.now();
 
       csvStream.end();
       console.time("obsValidation");
+      startObsValidation = performance.now();
       const contactsAndValidationResults = await this.finalValidationStep(
         ministryContacts,
         filePath,
@@ -2109,6 +2521,7 @@ export class FileParseValidateService {
         allNonObsErrors,
       );
       console.timeEnd("obsValidation");
+      endObsValidation = performance.now();
 
       const hasError = contactsAndValidationResults[1].some(
         (item) => item.type === "ERROR",
@@ -2125,6 +2538,7 @@ export class FileParseValidateService {
          * Send the an email to the submitter and the ministry contact that is inside the file
          */
         console.time("RejectFile");
+        startRejectFile = performance.now();
         await this.rejectFileAndLogErrors(
           file_submission_id,
           fileName,
@@ -2145,6 +2559,12 @@ export class FileParseValidateService {
         console.timeEnd("RejectFile");
 
         await this.notificationsService.notifyUserOfError(file_submission_id);
+        endRejectFile = performance.now();
+        await this.benchmarkImport(
+          file_submission_id,
+          fileName,
+          originalFileName,
+        );
 
         return;
       } else {
@@ -2154,6 +2574,7 @@ export class FileParseValidateService {
          */
         // If there are no errors or warnings
         console.time("ReportValidated");
+        startReportValidated = performance.now();
         if (file_operation_code === "VALIDATE") {
           const file_error_log_data = {
             file_submission_id: file_submission_id,
@@ -2184,7 +2605,12 @@ export class FileParseValidateService {
           console.timeEnd("ReportValidated");
 
           await this.notificationsService.notifyUserOfError(
+            file_submission_id)
+          endReportValidated = performance.now();
+          await this.benchmarkImport(
             file_submission_id,
+            fileName,
+            originalFileName,
           );
 
           return;
@@ -2194,6 +2620,7 @@ export class FileParseValidateService {
           let batchNumber = 1;
 
           console.time("ImportNonObs");
+          startImportNonObs = performance.now();
           this.logger.log(`Starting the import process`);
           for (
             let rowNumber = 2;
@@ -2232,10 +2659,27 @@ export class FileParseValidateService {
                   actualRowNumber,
                   fileName,
                   GuidsToSave,
-                  validationApisCalled,
                   extention,
+                  file_submission_id,
+                  originalFileName,
+                  file_operation_code,
+                  ministryContacts,
                 );
+
+                // if a partial upload then stop processing the batch and return
+                if (partialUpload) {
+                  this.logger.warn(
+                    `Partial upload detected, stopped processing the batch`,
+                  );
+                  break;
+                }
               }
+
+              // leave the for loop for row iteration
+              if (partialUpload) {
+                break;
+              }
+
               this.logger.log(
                 `Finished processing batch ${batchNumber} ******************`,
               );
@@ -2244,7 +2688,7 @@ export class FileParseValidateService {
               batch = [];
             }
           }
-          if (batch.length > 0) {
+          if (!partialUpload && batch.length > 0) {
             this.logger.log(
               `Starting to process (final) batch ${batchNumber} ******************`,
             );
@@ -2264,17 +2708,40 @@ export class FileParseValidateService {
                 actualRowNumber,
                 fileName,
                 GuidsToSave,
-                validationApisCalled,
                 extention,
+                file_submission_id,
+                originalFileName,
+                file_operation_code,
+                ministryContacts,
               );
+              // if a partial upload then stop processing the batch and do the rollback
+              if (partialUpload) {
+                this.logger.warn(
+                  `Partial upload detected, stopped processing the batch`,
+                );
+                break;
+              }
             }
+
             this.logger.log(
               `Finished processing (final) batch ${batchNumber} ******************`,
             );
           }
           console.timeEnd("ImportNonObs");
+          endImportNonObs = performance.now();
+
+          if (partialUpload) {
+            if (!rollBackHalted) {
+              await this.fileSubmissionsService.updateFileStatus(
+                file_submission_id,
+                "ERROR",
+              );
+            }
+            return;
+          }
 
           console.time("ImportObs");
+          startImportObs = performance.now();
           this.logger.log(`Starting import of observations`);
           await this.insertObservations(
             fileName,
@@ -2287,6 +2754,7 @@ export class FileParseValidateService {
           );
           this.logger.log(`Completed import for observations`);
           console.timeEnd("ImportObs");
+          endImportObs = performance.now();
         }
       }
     } else if (extention == ".csv") {
@@ -2346,37 +2814,43 @@ export class FileParseValidateService {
           file_submission_id,
           "REJECTED",
         );
+        await this.benchmarkImport(
+          file_submission_id,
+          fileName,
+          originalFileName,
+        );
 
         return;
       }
 
-      // re-fetch the file for validation
-      const rowValidationStream =
-        await this.objectStoreService.getFileData(fileName);
+      // re-fetch the file from the temp directory for validation
+      const fileStreamPath = path.join("./src/tempObsFiles/", fileName);
+      const rowValidationStream = fs.createReadStream(fileStreamPath);
 
       const parser = parse({
         columns: headers,
         trim: true,
       });
-
       rowValidationStream.pipe(parser);
 
       const startTime = Date.now();
-      let streamError = true;
 
       // Set up the error and end handlers *before* piping
       rowValidationStream.on("error", async (err) => {
         const duration = Date.now() - startTime;
         this.logger.error(`Stream error after ${duration}ms:`, err.message);
+        this.logger.error(`Name: ${err.name}`);
+        this.logger.error(`Stack: ${err.stack}`);
+
+        this.logger.error(`full error: ${err}`);
         await this.fileSubmissionsService.updateFileStatus(
           file_submission_id,
           "ERROR",
         );
-        streamError = true;
+        return;
       });
 
       parser.on("error", (err) => {
-        streamError = true;
         this.logger.error("Parser error:", err.message);
       });
 
@@ -2385,6 +2859,7 @@ export class FileParseValidateService {
       });
 
       console.time("Validation");
+      startValidation = performance.now();
       // Pipe immediately after setting up handlers
 
       const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
@@ -2420,7 +2895,6 @@ export class FileParseValidateService {
               allNonObsErrors,
               allExistingRecords,
               originalFileName,
-              validationApisCalled,
               extention,
             );
           }
@@ -2450,7 +2924,6 @@ export class FileParseValidateService {
             allNonObsErrors,
             allExistingRecords,
             originalFileName,
-            validationApisCalled,
             extention,
           );
         }
@@ -2462,9 +2935,11 @@ export class FileParseValidateService {
       this.logger.log(`✅ All done. Processed ${rowNumber} rows.`);
 
       console.timeEnd("Validation");
+      endValidation = performance.now();
 
       csvStream.end();
       console.time("obsValidation");
+      startObsValidation = performance.now();
       const contactsAndValidationResults = await this.finalValidationStep(
         ministryContacts,
         filePath,
@@ -2473,6 +2948,7 @@ export class FileParseValidateService {
         allNonObsErrors,
       );
       console.timeEnd("obsValidation");
+      endObsValidation = performance.now();
 
       const hasError = contactsAndValidationResults[1].some(
         (item) => item.type === "ERROR",
@@ -2489,6 +2965,7 @@ export class FileParseValidateService {
          * Send the an email to the submitter and the ministry contact that is inside the file
          */
         console.time("RejectFile");
+        startRejectFile = performance.now();
         await this.rejectFileAndLogErrors(
           file_submission_id,
           fileName,
@@ -2507,6 +2984,13 @@ export class FileParseValidateService {
         });
         console.timeEnd("RejectFile");
         await this.notificationsService.notifyUserOfError(file_submission_id);
+        endRejectFile = performance.now();
+        await this.benchmarkImport(
+          file_submission_id,
+          fileName,
+          originalFileName,
+        );
+
         return;
       } else {
         /*
@@ -2515,6 +2999,7 @@ export class FileParseValidateService {
          */
         // If there are no errors or warnings
         console.time("ReportValidated");
+        startReportValidated = performance.now();
 
         if (file_operation_code === "VALIDATE") {
           const file_error_log_data = {
@@ -2544,6 +3029,12 @@ export class FileParseValidateService {
             }
           });
           console.timeEnd("ReportValidated");
+          endReportValidated = performance.now();
+          await this.benchmarkImport(
+            file_submission_id,
+            fileName,
+            originalFileName,
+          );
 
           await this.notificationsService.notifyUserOfError(
             file_submission_id,
@@ -2560,17 +3051,31 @@ export class FileParseValidateService {
 
           // re-fetch the file for import purposes - cannot use previously fetched stream
           console.time("ImportNonObs");
+          startImportNonObs = performance.now();
           this.logger.log(`Starting the import process`);
-          const rowImportStream =
-            await this.objectStoreService.getFileData(fileName);
+          const fileStreamPath = path.join("./src/tempObsFiles/", fileName);
+          const rowImportStream = fs.createReadStream(fileStreamPath);
 
           const parser = parse({
             columns: headers,
             trim: true,
           });
 
-          rowImportStream.on("error", (err) => {
-            this.logger.error("Stream error:", err.message);
+          const startTime = Date.now();
+
+          // Set up the error and end handlers *before* piping
+          rowImportStream.on("error", async (err) => {
+            const duration = Date.now() - startTime;
+            this.logger.error(`Stream error after ${duration}ms:`, err.message);
+            this.logger.error(`Name: ${err.name}`);
+            this.logger.error(`Stack: ${err.stack}`);
+
+            this.logger.error(`full error: ${err}`);
+            await this.fileSubmissionsService.updateFileStatus(
+              file_submission_id,
+              "ERROR",
+            );
+            return;
           });
 
           parser.on("error", (err) => {
@@ -2615,16 +3120,36 @@ export class FileParseValidateService {
                   specimens: [],
                   observations: [],
                 };
+
                 await this.importRow(
                   row,
                   headers,
                   actualRowNumber,
                   fileName,
                   GuidsToSave,
-                  validationApisCalled,
                   extention,
+                  file_submission_id,
+                  originalFileName,
+                  file_operation_code,
+                  ministryContacts,
                 );
+
+                // if a partial upload then stop processing the batch
+                if (partialUpload) {
+                  this.logger.warn(
+                    `Partial upload detected, stopped processing the batch`,
+                  );
+
+                  break;
+                }
               }
+
+              // leave the for loop for row iteration
+              if (partialUpload) {
+                this.logger.warn("Partial upload, breaking out of loop");
+                break;
+              }
+
               this.logger.log(
                 `Finished processing batch ${batchNumber} ******************`,
               );
@@ -2634,7 +3159,7 @@ export class FileParseValidateService {
             }
           }
 
-          if (batch.length > 0) {
+          if (!partialUpload && batch.length > 0) {
             this.logger.log(
               `Starting to process (final) batch ${batchNumber} ******************`,
             );
@@ -2648,25 +3173,49 @@ export class FileParseValidateService {
                 specimens: [],
                 observations: [],
               };
+
               await this.importRow(
                 row,
                 headers,
                 actualRowNumber,
                 fileName,
                 GuidsToSave,
-                validationApisCalled,
                 extention,
+                file_submission_id,
+                originalFileName,
+                file_operation_code,
+                ministryContacts,
               );
+              // if a partial upload then stop processing the batch
+              if (partialUpload) {
+                this.logger.warn(
+                  `Partial upload detected, stopped processing the batch`,
+                );
+                break;
+              }
             }
+
             this.logger.log(
               `Finished processing (final) batch ${batchNumber} ******************`,
             );
           }
           console.timeEnd("ImportNonObs");
+          endImportNonObs = performance.now();
+
+          if (partialUpload) {
+            if (!rollBackHalted) {
+              await this.fileSubmissionsService.updateFileStatus(
+                file_submission_id,
+                "ERROR",
+              );
+            }
+            return;
+          }
 
           this.logger.log(`Starting import of observations`);
 
           console.time("ImportObs");
+          startImportObs = performance.now();
           await this.insertObservations(
             fileName,
             originalFileName,
@@ -2679,9 +3228,13 @@ export class FileParseValidateService {
           this.logger.log(`Completed import of observations`);
 
           console.timeEnd("ImportObs");
+          endImportObs = performance.now();
         }
       }
     }
     console.timeEnd("parseFile");
+    await this.benchmarkImport(file_submission_id, fileName, originalFileName);
+    partialUpload = false;
+    rollBackHalted = false;
   }
 }

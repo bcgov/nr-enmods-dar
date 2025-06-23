@@ -6,6 +6,7 @@ import Dashboard from "@/pages/Dashboard";
 import AdminPage from "@/pages/AdminPage";
 import FileUpload from "@/pages/FileUpload";
 import Unsubscribe from "@/pages/Unsubscribe";
+import SFTPUserPage from "@/pages/SFTPUserPage";
 
 export default function AppRoutes() {
   return (
@@ -13,11 +14,12 @@ export default function AppRoutes() {
       <Routes>
         <Route element={<ProtectedRoutes roles={[Roles.ENMODS_ADMIN]} />}>
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/sftp" element={<SFTPUserPage />} />
         </Route>
 
         <Route
           element={
-            <ProtectedRoutes roles={[Roles.ENMODS_ADMIN, Roles.ENMODS_USER]} />
+            <ProtectedRoutes roles={[Roles.ENMODS_ADMIN, Roles.ENMODS_USER, Roles.ENMODS_DELETE]} />
           }
         >
           <Route path="/dashboard" element={<Dashboard />} />

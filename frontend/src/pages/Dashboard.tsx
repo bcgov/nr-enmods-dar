@@ -9,6 +9,7 @@ import { DeleteRounded, Description } from "@mui/icons-material";
 import _kc from "@/keycloak";
 import Select from "react-select";
 import {
+  Alert,
   Box,
   FormControl,
   FormLabel,
@@ -25,8 +26,9 @@ import {
   searchFiles,
   updateFileStatus,
 } from "@/common/manage-files";
-import { getUsers } from "@/common/admin";
+import { getAqiStatus, getUsers } from "@/common/admin";
 import { jwtDecode, JwtPayload } from "jwt-decode";
+import UserService from "@/service/user-service";
 
 export default function Dashboard() {
   const { open, currentItem, handleOpen, handleClose } = useHandleOpen();
@@ -115,7 +117,8 @@ export default function Dashboard() {
 
         if (
           params.row.submission_status_code === "SUBMITTED" &&
-          userRoles.includes("Enmods Admin")
+          (userRoles.includes("Enmods Admin") ||
+            userRoles.includes("Enmods Delete"))
         ) {
           return (
             <IconButton
@@ -165,7 +168,9 @@ export default function Dashboard() {
         if (
           params.row.submission_status_code === "VALIDATED" ||
           params.row.submission_status_code === "REJECTED" ||
-          params.row.submission_status_code === "SUBMITTED"
+          params.row.submission_status_code === "SUBMITTED" ||
+          params.row.submission_status_code === "ERROR" ||
+          params.row.submission_status_code === "ROLLBACK"
         ) {
           return (
             <IconButton
@@ -244,6 +249,8 @@ export default function Dashboard() {
     pageSize: 10,
   });
 
+  const [aqiOutage, setAqiOutage] = useState(false);
+
   const handlePaginationChange = (params: {
     pageSize: number;
     page: number;
@@ -267,6 +274,10 @@ export default function Dashboard() {
     for (var key in formData) {
       requestData.append(key, formData[key]);
     }
+
+    // before sending the formdata, add the organization guid to the body
+    var JWT = jwtDecode(UserService.getToken()?.toString());
+    requestData.append("organization_guid", JWT.bceid_business_guid || null);
 
     requestData.append("page", paginationModel.page);
     requestData.append("pageSize", paginationModel.pageSize);
@@ -315,8 +326,8 @@ export default function Dashboard() {
     );
 
     // update the status in the backend here
-    await handleFileStatus(submission_id, "DEL QUEUED")
-    await handleSearch(undefined)
+    await handleFileStatus(submission_id, "DEL QUEUED");
+    await handleSearch(undefined);
   };
 
   useEffect(() => {
@@ -357,8 +368,30 @@ export default function Dashboard() {
     }
   }, [paginationModel]);
 
+  useEffect(() => {
+    async function AQIHealthcheck() {
+      await getAqiStatus().then((response: any) => {
+        if (response) {
+          setAqiOutage(true);
+        } else {
+          setAqiOutage(false);
+        }
+      });
+    }
+    AQIHealthcheck();
+  });
+
   return (
     <>
+      <div
+      style={{width: "100%", marginLeft: "4em" }}>
+        {aqiOutage && (
+          <Alert severity="error">
+            AQI is currently down. All files uploaded will be put in the queue
+            and processed when AQI is back up and running.
+          </Alert>
+        )}
+      </div>
       <div
         style={{
           width: "90%",
@@ -615,7 +648,7 @@ export default function Dashboard() {
               color="secondary"
               onClick={() => {
                 setupDelete(currentItem.submission_id);
-                handleCloseAndSubmit()
+                handleCloseAndSubmit();
               }}
               variant="contained"
               autoFocus
@@ -686,11 +719,8 @@ async function handleMessages(
   document.body.removeChild(link); // Clean up
 }
 
-async function handleFileStatus(
-  submission_id: string,
-  newStatus: string
-){
-  await updateFileStatus(submission_id, {submission_status_code: newStatus})
+async function handleFileStatus(submission_id: string, newStatus: string) {
+  await updateFileStatus(submission_id, { submission_status_code: newStatus });
 }
 
 function getMimeType(fileName: string) {

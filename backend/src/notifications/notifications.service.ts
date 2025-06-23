@@ -370,7 +370,7 @@ export class NotificationsService {
    * @param errors
    * @param ministryContact
    */
-  async notifyFtpUserOfError(
+  async notifySftpUserOfError(
     username: string,
     fileName: string,
     errors: string[],

@@ -22,10 +22,10 @@ import { CronJobService } from "./cron-job/cron-job.service";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { AqiApiModule } from "./aqi_api/aqi_api.module";
 import { FileParseValidateModule } from "./file_parse_and_validation/file_parse_and_validation.module";
-import { FtpModule } from "./ftp/ftp.module";
-import { FileValidationModule } from './file_validation/file_validation.module';
+import { SftpModule } from "./sftp/sftp.module";
+import { FileValidationModule } from "./file_validation/file_validation.module";
 import { ObjectStoreModule } from "./objectStore/objectStore.module";
-import { FileErrorLogsModule } from './file_error_logs/file_error_logs.module';
+import { FileErrorLogsModule } from "./file_error_logs/file_error_logs.module";
 import { OperationLockService } from "./operationLock/operationLock.service";
 
 const DB_HOST = process.env.POSTGRES_HOST || "localhost";
@@ -33,7 +33,7 @@ const DB_USER = process.env.POSTGRES_USER || "postgres";
 const DB_PWD = encodeURIComponent(process.env.POSTGRES_PASSWORD || "default"); // this needs to be encoded, if the password contains special characters it will break connection string.
 const DB_PORT = process.env.POSTGRES_PORT || 5432;
 const DB_NAME = process.env.POSTGRES_DATABASE || "postgres";
-const DB_SCHEMA = process.env.POSTGRES_SCHEMA || "users";
+const DB_SCHEMA = process.env.POSTGRES_SCHEMA || "enmods";
 const dataSourceURL = `postgresql://${DB_USER}:${DB_PWD}@${DB_HOST}:${DB_PORT}/${DB_NAME}?schema=${DB_SCHEMA}&connection_limit=5`;
 
 function getMiddlewares() {
@@ -72,7 +72,7 @@ function getMiddlewares() {
     FileStatusCodesModule,
     FileParseValidateModule,
     AqiApiModule,
-    FtpModule,
+    SftpModule,
     FileValidationModule,
     ObjectStoreModule,
     FileErrorLogsModule,

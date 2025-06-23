@@ -1,19 +1,33 @@
-import type { IdirUserInfo, UserInfo } from '@/types/types'
-import config from '../config'
-import * as api from './api'
+import type { BCeIDUserInfo, IdirUserInfo, UserInfo } from "@/types/types";
+import config from "../config";
+import * as api from "./api";
 
 export async function getUsers(): Promise<UserInfo[]> {
-  const adminDataUrl: string = `${config.API_BASE_URL}/admin`
-  const getParameters = api.generateApiParameters(adminDataUrl)
-  const adminData: UserInfo[] = await api.get(getParameters)
-  return adminData
+  const adminDataUrl: string = `${config.API_BASE_URL}/admin`;
+  const getParameters = api.generateApiParameters(adminDataUrl);
+  const adminData: UserInfo[] = await api.get(getParameters);
+  return adminData;
 }
 
 export async function findIdirUser(email: string): Promise<IdirUserInfo> {
-  const searchEmailUrl: string = `${config.API_BASE_URL}/admin/user-email-search`
-  const postParameters = api.generateApiParameters(searchEmailUrl, { email })
-  const userData: IdirUserInfo = await api.post(postParameters)
-  return userData
+  const searchEmailUrl: string = `${config.API_BASE_URL}/admin/user-email-search`;
+  const postParameters = api.generateApiParameters(searchEmailUrl, { email });
+  const userData: IdirUserInfo = await api.post(postParameters);
+  return userData;
+}
+
+export async function findBCeIDUser(email: string): Promise<BCeIDUserInfo> {
+  const searchGuidUrl: string = `${config.API_BASE_URL}/admin/user-bceid-email-search`;
+  const postParameters = api.generateApiParameters(searchGuidUrl, { email });
+  const userData: BCeIDUserInfo = await api.post(postParameters);
+  return userData;
+}
+
+export async function getAqiStatus(): Promise<Boolean> {
+  const aqiStatusUrl: string = `${config.API_BASE_URL}/admin/getStatus`
+  const getParameters = api.generateApiParameters(aqiStatusUrl)
+  const status: Boolean = await api.get(getParameters)
+  return status
 }
 
 /**
@@ -26,12 +40,12 @@ export async function addRoles(
   idirUsername: string,
   roles: string[],
 ): Promise<void> {
-  const addRolesUrl: string = `${config.API_BASE_URL}/admin/add-roles`
+  const addRolesUrl: string = `${config.API_BASE_URL}/admin/add-roles`;
   const postParameters = api.generateApiParameters(addRolesUrl, {
     idirUsername,
     roles,
-  })
-  await api.post(postParameters)
+  });
+  await api.post(postParameters);
 }
 
 /**
@@ -43,12 +57,12 @@ export async function removeRoles(
   idirUsername: string,
   roles: string[],
 ): Promise<void> {
-  const removeRolesUrl: string = `${config.API_BASE_URL}/admin/remove-roles`
+  const removeRolesUrl: string = `${config.API_BASE_URL}/admin/remove-roles`;
   const postParameters = api.generateApiParameters(removeRolesUrl, {
     idirUsername,
     roles,
-  })
-  await api.post(postParameters)
+  });
+  await api.post(postParameters);
 }
 
 /**
@@ -62,11 +76,11 @@ export async function updateRoles(
   existingRoles: string[],
   roles: string[],
 ): Promise<void> {
-  const updateRolesUrl: string = `${config.API_BASE_URL}/admin/update-roles`
+  const updateRolesUrl: string = `${config.API_BASE_URL}/admin/update-roles`;
   const postParameters = api.generateApiParameters(updateRolesUrl, {
     idirUsername,
     existingRoles,
     roles,
-  })
-  await api.post(postParameters)
+  });
+  await api.post(postParameters);
 }

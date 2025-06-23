@@ -24,6 +24,13 @@ export class AqiApiService {
     });
   }
 
+  async healthCheck(){
+    const healthcheckUrl = process.env.AQI_BASE_URL + "/v1/status";
+    let aqiStatus = (await axios.get(healthcheckUrl)).status;
+
+    return aqiStatus
+  }
+
   async fieldVisits(rowNumber: number, body: any) {
     try {
       const response = await this.axiosInstance.post("/v1/fieldvisits", body);
@@ -33,9 +40,11 @@ export class AqiApiService {
       return response.data.id;
     } catch (err) {
       this.logger.error(
-        `RowNum: ${rowNumber} -> API CALL TO POST Field Visits failed: `,
+        `RowNum: ${rowNumber} -> API CALL TO POST Field Visits failed, resulting in partial upload for the file: `,
         err.response.data.message,
       );
+
+      return "partialUpload"
     }
   }
 
@@ -119,6 +128,8 @@ export class AqiApiService {
         `RowNum: ${rowNumber} -> API CALL TO POST Activities failed: `,
         err.response.data.message,
       );
+
+      return "partialUpload"
     }
   }
 
@@ -163,6 +174,9 @@ export class AqiApiService {
           `RowNum: ${rowNumber} -> API CALL TO POST Specimens failed: `,
           err.response.data.message,
         );
+
+        return "partialUpload"
+
       }
     }
   }
@@ -642,7 +656,7 @@ export class AqiApiService {
           : item,
       );
     };
-
+    
     [...localErrors, ...remoteErrors].forEach(mergeItem);
 
     return Array.from(map.values()).sort((a, b) => a.rowNum - b.rowNum);

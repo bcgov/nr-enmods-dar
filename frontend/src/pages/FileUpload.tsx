@@ -14,6 +14,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Alert,
 } from "@mui/material";
 import { useEffect, useState } from "react";
 import { FileUploader } from "react-drag-drop-files";
@@ -28,7 +29,8 @@ import { jwtDecode } from "jwt-decode";
 import { insertFile } from "@/common/manage-files";
 import UserService from "@/service/user-service";
 import ExcelJS from "exceljs";
-import Papa from "papaparse"
+import Papa from "papaparse";
+import { getAqiStatus } from "@/common/admin";
 
 const fileTypes = ["xlsx", "csv", "txt"];
 let selectedFiles: any[] = [];
@@ -51,26 +53,26 @@ function FileUpload() {
   };
 
   async function getRowCount(file: any): Promise<number> {
-    if (file.name.endsWith(".xlsx")){
+    if (file.name.endsWith(".xlsx")) {
       const buffer = await file.arrayBuffer();
-      const workbook = new ExcelJS.Workbook()
-      await workbook.xlsx.load(buffer)
-      const worksheet = workbook.worksheets[0]
-      return worksheet.rowCount
-    }else if (file.name.endsWith(".csv")){
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(buffer);
+      const worksheet = workbook.worksheets[0];
+      return worksheet.rowCount;
+    } else if (file.name.endsWith(".csv")) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (event) => {
-          if (!event.target?.result) return reject
+          if (!event.target?.result) return reject;
           const csvText = event.target.result as string;
-          const { data } = Papa.parse(csvText)
-          resolve(data.length)
-        }
-        reader.onerror = () => reject(reader.error)
-        reader.readAsText(file)
-      })
+          const { data } = Papa.parse(csvText);
+          resolve(data.length);
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsText(file);
+      });
     }
-    return 0
+    return 0;
   }
 
   const handleFileSelect = async (files) => {
@@ -90,18 +92,18 @@ function FileUpload() {
     }
 
     // check for max number of rows
-    for (const file of selectedFilesForValidation){
-      const rowCount = await getRowCount(file)
+    for (const file of selectedFilesForValidation) {
+      const rowCount = await getRowCount(file);
 
-      if (rowCount > 10000){
+      if (rowCount > 10000) {
         confirm(
           "File contains more than 10,000 rows. Make sure file has at most 10,000 rows and try again:\n" +
-            file.name + `, rows found: ${rowCount}`,
+            file.name +
+            `, rows found: ${rowCount}`,
         );
         return;
       }
     }
-
     setFiles(files);
     selectedFiles = Array.from(files);
 
@@ -121,13 +123,28 @@ function FileUpload() {
     if (file) {
       // const rowCount = await getRowCount(file)
       const formData = new FormData();
+      let orgGUID = null,
+        agency = null,
+        userId = null;
       var JWT = jwtDecode(UserService.getToken()?.toString());
+
+      if (JWT.identity_provider === "bceidboth") {
+        orgGUID = JWT.bceid_business_guid;
+        agency = JWT.bceid_business_name;
+        userId = JWT.bceid_username;
+      } else {
+        agency = JWT.idir_username;
+        userId = JWT.idir_username;
+      }
+
+      // let agency = JWT.bceid_business_name || JWT.
       formData.append("file", file);
       formData.append("operation", "VALIDATE");
       // formData.append("file_row_count", rowCount)
-      formData.append("userID", JWT.idir_username); // TODO: This will need to be updated based on BCeID
-      formData.append("orgGUID", JWT.idir_user_guid); // TODO: This will need to be updated based on BCeID and company GUID
       formData.append('dataSubmitterEmail', JWT.email);
+      formData.append("userID", userId);
+      formData.append("orgGUID", orgGUID);
+      formData.append("agency", agency);
       formData.append("token", UserService.getToken()?.toString());
 
       await insertFile(formData).then((response) => {
@@ -145,13 +162,26 @@ function FileUpload() {
       Object.entries(files).forEach(async ([key, value], index) => {
         // const rowCount = await getRowCount(value)
         const formData = new FormData();
+        let orgGUID = null,
+          agency = null,
+          userId = null;
         var JWT = jwtDecode(UserService.getToken()?.toString());
+        if (JWT.identity_provider === "bceidboth") {
+          orgGUID = JWT.bceid_business_guid;
+          agency = JWT.bceid_business_name;
+          userId = JWT.bceid_username;
+        } else {
+          agency = JWT.idir_username;
+          userId = JWT.idir_username;
+        }
+
         formData.append("file", value);
         formData.append("operation", "VALIDATE");
         // formData.append("file_row_count", rowCount)
-        formData.append("userID", JWT.idir_username); // TODO: This will need to be updated based on BCeID
-        formData.append("orgGUID", JWT.idir_user_guid); // TODO: This will need to be updated based on BCeID and company GUID
         formData.append('dataSubmitterEmail', JWT.email);
+        formData.append("userID", userId);
+        formData.append("orgGUID", orgGUID);
+        formData.append("agency", agency);
         formData.append("token", UserService.getToken()?.toString());
 
         await insertFile(formData).then(async (response) => {
@@ -169,13 +199,28 @@ function FileUpload() {
     if (file) {
       // const rowCount = await getRowCount(file)
       const formData = new FormData();
+      let orgGUID = null,
+        agency = null,
+        userId = null;
       var JWT = jwtDecode(UserService.getToken()?.toString());
+
+      if (JWT.identity_provider === "bceidboth") {
+        orgGUID = JWT.bceid_business_guid;
+        agency = JWT.bceid_business_name;
+        userId = JWT.bceid_username;
+      } else {
+        agency = JWT.idir_username;
+        userId = JWT.idir_username;
+      }
+
+      // let agency = JWT.bceid_business_name || JWT.
       formData.append("file", file);
       formData.append("operation", "IMPORT");
       // formData.append("file_row_count", rowCount)
-      formData.append("userID", JWT.idir_username); // TODO: This will need to be updated based on BCeID
-      formData.append("orgGUID", JWT.idir_user_guid); // TODO: This will need to be updated based on BCeID and company GUID
       formData.append('dataSubmitterEmail', JWT.email);
+      formData.append("userID", userId);
+      formData.append("orgGUID", orgGUID);
+      formData.append("agency", agency);
       formData.append("token", UserService.getToken()?.toString());
 
       await insertFile(formData).then((response) => {
@@ -193,13 +238,26 @@ function FileUpload() {
       Object.entries(files).forEach(async ([key, value], index) => {
         // const rowCount = await getRowCount(value)
         const formData = new FormData();
+        let orgGUID = null,
+          agency = null,
+          userId = null;
         var JWT = jwtDecode(UserService.getToken()?.toString());
+        if (JWT.identity_provider === "bceidboth") {
+          orgGUID = JWT.bceid_business_guid;
+          agency = JWT.bceid_business_name;
+          userId = JWT.bceid_username;
+        } else {
+          agency = JWT.idir_username;
+          userId = JWT.idir_username;
+        }
+
         formData.append("file", value);
         formData.append("operation", "IMPORT");
         // formData.append("file_row_count", rowCount)
-        formData.append("userID", JWT.idir_username); // TODO: This will need to be updated based on BCeID
-        formData.append("orgGUID", JWT.idir_user_guid); // TODO: This will need to be updated based on BCeID and company GUID
         formData.append('dataSubmitterEmail', JWT.email);
+        formData.append("userID", userId);
+        formData.append("orgGUID", orgGUID);
+        formData.append("agency", agency);
         formData.append("token", UserService.getToken()?.toString());
 
         await insertFile(formData).then(async (response) => {
@@ -217,6 +275,9 @@ function FileUpload() {
   const handleExpandList = () => {
     setExpandList(!expandList);
   };
+
+  const [aqiOutage, setAqiOutage] = useState(false);
+
 
   const [checkedItems, setCheckedItems] = useState({
     master: true,
@@ -245,23 +306,44 @@ function FileUpload() {
     confirm("File size error \nFile cannot be larger than 10MB.");
   };
 
-  useEffect(() =>{
+  useEffect(() => {
     setFiles(null);
-    setCurrentItem(null)
+    setCurrentItem(null);
     setCheckedItems({
       master: true,
       items: [],
     });
-    selectedFiles = []
-  }, [])
+    selectedFiles = [];
+  }, []);
+
+  useEffect(() => {
+    async function AQIHealthcheck() {
+      await getAqiStatus().then((response: any) => {
+        if (response) {
+          setAqiOutage(true);
+        } else {
+          setAqiOutage(false);
+        }
+      });
+    }
+    AQIHealthcheck();
+  });
 
   return (
     <>
+      <div style={{ width: "100%", marginLeft: "4em" }}>
+        {aqiOutage && (
+          <Alert severity="error">
+            AQI is currently down. All files uploaded will be put in the queue
+            and processed when AQI is back up and running.
+          </Alert>
+        )}
+      </div>
       <div>
         <div style={{ marginLeft: "4em", width: "100%" }}>
           <Box sx={{ width: "1200px" }}>
             <Typography id="pageTitle" variant="h4">
-             File Upload
+              File Upload
             </Typography>
             <Typography
               id="pageSubTitle"
@@ -354,7 +436,7 @@ function FileUpload() {
 
             {expandList && (
               <div className="file-list">
-                <List sx={{ height: "100dvh", overflow: "auto" }}>
+                <List sx={{ height: "40vh", overflow: "auto" }}>
                   {selectedFiles.length > 0 && selectedFiles.length <= 10
                     ? selectedFiles.map((file, index) => (
                         <ListItem key={index}>
@@ -536,37 +618,39 @@ function FileUpload() {
                     </Button>
                   </DialogActions>
                 </Dialog>
+              </div>
+            )}
 
-                <div className="all-file-action">
-                  <Box sx={{ paddingTop: "20px" }}>
-                    {files && selectedFiles.length > 0 ? (
-                      <ButtonGroup variant="text" style={{ color: "black" }}>
-                        <Button
-                          id={"all-files-validate"}
-                          variant="contained"
-                          color="secondary"
-                          onClick={() => {
-                            validateAllFiles(files);
-                          }}
-                        >
-                          Validate All
-                        </Button>
-                        <Button
-                          id={"all-files-submit"}
-                          variant="contained"
-                          color="secondary"
-                          onClick={() => {
-                            submitAllFiles(files);
-                          }}
-                        >
-                          Submit All
-                        </Button>
-                      </ButtonGroup>
-                    ) : (
-                      ""
-                    )}
-                  </Box>
-                </div>
+            {expandList && (
+              <div className="all-file-action">
+                <Box sx={{ padding: "10px" }}>
+                  {files && selectedFiles.length > 0 ? (
+                    <ButtonGroup variant="text" style={{ color: "black" }}>
+                      <Button
+                        id={"all-files-validate"}
+                        variant="contained"
+                        color="secondary"
+                        onClick={() => {
+                          validateAllFiles(files);
+                        }}
+                      >
+                        Validate All
+                      </Button>
+                      <Button
+                        id={"all-files-submit"}
+                        variant="contained"
+                        color="secondary"
+                        onClick={() => {
+                          submitAllFiles(files);
+                        }}
+                      >
+                        Submit All
+                      </Button>
+                    </ButtonGroup>
+                  ) : (
+                    ""
+                  )}
+                </Box>
               </div>
             )}
 
