@@ -467,12 +467,16 @@ async function saveToS3WithSftp(file: Express.Multer.File) {
   const baseName = path.basename(sanitizedFileName, extension);
   const newFileName = `${baseName}-${guid}${extension}`;
 
+  if (!/^[a-zA-Z0-9_\-\.]+$/.test(newFileName)) {
+    throw new Error("Invalid file name format");
+  }
+
   const OBJECTSTORE_URL = process.env.OBJECTSTORE_URL;
   const OBJECTSTORE_ACCESS_KEY = process.env.OBJECTSTORE_ACCESS_KEY;
   const OBJECTSTORE_SECRET_KEY = process.env.OBJECTSTORE_SECRET_KEY;
   const OBJECTSTORE_BUCKET = process.env.OBJECTSTORE_BUCKET;
 
-   if (!OBJECTSTORE_URL) {
+  if (!OBJECTSTORE_URL) {
     throw new Error("Objectstore Host Not Defined");
   }
   const allowedHosts = [process.env.OBJECTSTORE_URL];
@@ -487,8 +491,6 @@ async function saveToS3WithSftp(file: Express.Multer.File) {
 
   const dateValue = new Date().toUTCString();
 
-  // const stringToSign = `PUT\n\n\n${dateValue}\n/${OBJECTSTORE_BUCKET}/${newFileName}`;
-  // const contentType = "application/octet-stream";
   const contentType = file.mimetype;
   const stringToSign = `PUT\n\n${contentType}\n${dateValue}\n/${OBJECTSTORE_BUCKET}/${newFileName}`;
 
@@ -497,7 +499,7 @@ async function saveToS3WithSftp(file: Express.Multer.File) {
     .update(stringToSign)
     .digest("base64");
 
-  const requestUrl = `${OBJECTSTORE_URL}/${OBJECTSTORE_BUCKET}/${newFileName}`;
+  const requestUrl = new URL(`${OBJECTSTORE_URL}/${OBJECTSTORE_BUCKET}/${newFileName}`).toString();
 
   const headers = {
     Authorization: `AWS ${OBJECTSTORE_ACCESS_KEY}:${signature}`,
