@@ -421,7 +421,7 @@ async function saveToS3(token: any, file: Express.Multer.File) {
   const path = require("path");
   let fileGUID = null;
   const originalFileName = file.originalname;
-  const sanitizedFileName =originalFileName.replace(/[^a-zA-Z0-9_.-]/g, "")
+  const sanitizedFileName = originalFileName.replace(/[^a-zA-Z0-9_\-\.]/g, "")
   const guid = crypto.randomUUID();
   const extention = path.extname(sanitizedFileName);
   const baseName = path.basename(sanitizedFileName, extention);
@@ -453,10 +453,17 @@ async function saveToS3(token: any, file: Express.Multer.File) {
 
 async function saveToS3WithSftp(file: Express.Multer.File) {
   const path = require("path");
+  const allowedExtensions = [".csv", ".xlsx"]
+
   const originalFileName = file.originalname;
   const sanitizedFileName = originalFileName.replace(/[^a-zA-Z0-9_\-\.]/g, "");
   const guid = crypto.randomUUID();
+
   const extension = path.extname(sanitizedFileName);
+  if (!allowedExtensions.includes(extension)){
+    throw new Error (`Invalid file extension: ${extension}`)
+  }
+
   const baseName = path.basename(sanitizedFileName, extension);
   const newFileName = `${baseName}-${guid}${extension}`;
 
@@ -465,8 +472,17 @@ async function saveToS3WithSftp(file: Express.Multer.File) {
   const OBJECTSTORE_SECRET_KEY = process.env.OBJECTSTORE_SECRET_KEY;
   const OBJECTSTORE_BUCKET = process.env.OBJECTSTORE_BUCKET;
 
-  if (!OBJECTSTORE_URL) {
+   if (!OBJECTSTORE_URL) {
     throw new Error("Objectstore Host Not Defined");
+  }
+  const allowedHosts = [process.env.OBJECTSTORE_URL];
+  try {
+    const parsedUrl = new URL(OBJECTSTORE_URL);
+    if (!allowedHosts.includes(parsedUrl.hostname)) {
+      throw new Error("Objectstore Host Invalid");
+    }
+  } catch (error) {
+    throw new Error("Objectstore URL is malformed or invalid");
   }
 
   const dateValue = new Date().toUTCString();
