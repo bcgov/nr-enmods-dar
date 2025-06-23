@@ -14,6 +14,7 @@ import { AqiApiService } from "src/aqi_api/aqi_api.service";
 import ExcelJS from "exceljs";
 import fs from "fs";
 import { PrismaService } from "nestjs-prisma";
+import { NotificationsService } from "src/notifications/notifications.service";
 import { Readable } from "stream";
 import { format } from "fast-csv";
 import { parse } from "csv-parse";
@@ -230,6 +231,7 @@ export class FileParseValidateService {
     private prisma: PrismaService,
     private readonly fileSubmissionsService: FileSubmissionsService,
     private readonly aqiService: AqiApiService,
+    private readonly notificationsService: NotificationsService,
     private readonly objectStoreService: ObjectStoreService,
     private readonly operationLockService: OperationLockService,
   ) {}
@@ -2037,6 +2039,10 @@ export class FileParseValidateService {
       }
     });
 
+    await this.notificationsService.notifyUserOfError(
+      file_submission_id,
+    );
+
     return;
   }
 
@@ -2549,7 +2555,10 @@ export class FileParseValidateService {
             this.logger.log(`Successfully cleaned up tempObsFiles.`);
           }
         });
+
         console.timeEnd("RejectFile");
+
+        await this.notificationsService.notifyUserOfError(file_submission_id);
         endRejectFile = performance.now();
         await this.benchmarkImport(
           file_submission_id,
@@ -2594,6 +2603,9 @@ export class FileParseValidateService {
             }
           });
           console.timeEnd("ReportValidated");
+
+          await this.notificationsService.notifyUserOfError(
+            file_submission_id)
           endReportValidated = performance.now();
           await this.benchmarkImport(
             file_submission_id,
@@ -2971,6 +2983,7 @@ export class FileParseValidateService {
           }
         });
         console.timeEnd("RejectFile");
+        await this.notificationsService.notifyUserOfError(file_submission_id);
         endRejectFile = performance.now();
         await this.benchmarkImport(
           file_submission_id,
@@ -3021,6 +3034,10 @@ export class FileParseValidateService {
             file_submission_id,
             fileName,
             originalFileName,
+          );
+
+          await this.notificationsService.notifyUserOfError(
+            file_submission_id,
           );
 
           return;

@@ -141,6 +141,7 @@ function FileUpload() {
       formData.append("file", file);
       formData.append("operation", "VALIDATE");
       // formData.append("file_row_count", rowCount)
+      formData.append('dataSubmitterEmail', JWT.email);
       formData.append("userID", userId);
       formData.append("orgGUID", orgGUID);
       formData.append("agency", agency);
@@ -177,6 +178,7 @@ function FileUpload() {
         formData.append("file", value);
         formData.append("operation", "VALIDATE");
         // formData.append("file_row_count", rowCount)
+        formData.append('dataSubmitterEmail', JWT.email);
         formData.append("userID", userId);
         formData.append("orgGUID", orgGUID);
         formData.append("agency", agency);
@@ -215,6 +217,7 @@ function FileUpload() {
       formData.append("file", file);
       formData.append("operation", "IMPORT");
       // formData.append("file_row_count", rowCount)
+      formData.append('dataSubmitterEmail', JWT.email);
       formData.append("userID", userId);
       formData.append("orgGUID", orgGUID);
       formData.append("agency", agency);
@@ -251,6 +254,7 @@ function FileUpload() {
         formData.append("file", value);
         formData.append("operation", "IMPORT");
         // formData.append("file_row_count", rowCount)
+        formData.append('dataSubmitterEmail', JWT.email);
         formData.append("userID", userId);
         formData.append("orgGUID", orgGUID);
         formData.append("agency", agency);
