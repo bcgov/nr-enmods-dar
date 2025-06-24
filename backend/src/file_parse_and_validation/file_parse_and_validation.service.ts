@@ -347,22 +347,19 @@ export class FileParseValidateService {
         }
         return returnTags;
       case "TAXONS":
-        let taxonID = await this.prisma.taxonomy_elements.findMany({
-          where: {
-            aqi_taxonomy_name: {
-              equals: param,
-            },
-          },
-          select: {
-            edt_taxonomy_element_guid: true,
-          },
-        });
-        if (taxonID.length > 0){
-          return {
-            taxonomy: { id: taxonID[0].edt_taxonomy_element_guid, customId: param },
-          };
-        }else{
-          return {}
+        let taxon = await this.aqiService.getTaxons(param)
+        return {
+          taxonomy: { id: taxon['aqiId'], customId: taxon['customId'] },
+        };
+      case "BioLifeStage":
+        let stageValue = await this.aqiService.getBioLifeStage(param)
+        return {
+          lifeStage: {id: stageValue['aqiId'], customId: stageValue['customId']}
+        }
+      case "BioSex":
+        let sexValue = await this.aqiService.getBioSex(param)
+        return {
+          lifeStage: {id: sexValue['aqiId'], customId: sexValue['customId']}
         }
       case "EXTENDED_ATTRIB":
         let eaID = await this.prisma.aqi_extended_attributes.findMany({
@@ -863,7 +860,19 @@ export class FileParseValidateService {
           // do a look up to see if the result value is in the taxonomy elements
           const valid = await this.queryCodeTables("TAXONS", rowData[field])
           if (Object.keys(valid).length === 0){
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Result Value cannot be empty when Observed Property is Taxonomy. Look at Taxonomy Elements for valid values."}}`;
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Result Value ${rowData[field]} not a valid value for Taxonomy. Look at Taxonomy Elements for valid values."}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+        }else if (rowData.ObservedPropertyID === 'Biological Life Stage (cat.)' && field === 'ResultValue'){
+          const valid = await this.queryCodeTables("BioLifeStage", rowData[field])
+          if (Object.keys(valid).length === 0){
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Result Value ${rowData[field]} not a valid value of Biological Life Stage. Look at Biological Life Stage (cat.) list for valid values."}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+        }else if (rowData.ObservedPropertyID === 'Biological Sex (cat.)' && field === 'ResultValue'){
+           const valid = await this.queryCodeTables("BioSex", rowData[field])
+          if (Object.keys(valid).length === 0){
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Result Value ${rowData[field]} not a valid value of Biological Sex. Look at Biological Sex (cat.) list for valid values."}}`;
             errorLogs.push(JSON.parse(errorLog));
           }
         }else{
