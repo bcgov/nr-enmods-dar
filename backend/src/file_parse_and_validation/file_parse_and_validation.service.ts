@@ -346,6 +346,24 @@ export class FileParseValidateService {
           returnTags.push({ id: tagID[0].aqi_context_tags_id, name: tag });
         }
         return returnTags;
+      case "TAXONS":
+        let taxonID = await this.prisma.taxonomy_elements.findMany({
+          where: {
+            aqi_taxonomy_name: {
+              equals: param,
+            },
+          },
+          select: {
+            edt_taxonomy_element_guid: true,
+          },
+        });
+        if (taxonID.length > 0){
+          return {
+            taxonomy: { id: taxonID[0].edt_taxonomy_element_guid, customId: param },
+          };
+        }else{
+          return {}
+        }
       case "EXTENDED_ATTRIB":
         let eaID = await this.prisma.aqi_extended_attributes.findMany({
           where: {
@@ -715,7 +733,7 @@ export class FileParseValidateService {
     newObs["EA_Upload File Name"] = originalFileName; // this is needed for deletion purposes
 
     return newObs;
-  }
+  }  
 
   filterFile<T>(row: any, keys, customAttributes): Partial<T> {
     const filteredObj: Partial<T> = {};
@@ -839,14 +857,23 @@ export class FileParseValidateService {
     });
 
     // check all numerical fields
-    numericalFields.forEach((field) => {
+    numericalFields.forEach(async (field) => {
       if (rowData.hasOwnProperty(field)) {
-        const valid =
-          numberRegex.test(rowData[field]) &&
-          !isNaN(parseFloat(rowData[field]));
-        if (rowData[field] !== "" && !valid) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid number"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+        if (rowData.ObservedPropertyID === 'Taxonomy' && field === "ResultValue"){
+          // do a look up to see if the result value is in the taxonomy elements
+          const valid = await this.queryCodeTables("TAXONS", rowData[field])
+          if (Object.keys(valid).length === 0){
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Result Value cannot be empty when Observed Property is Taxonomy. Look at Taxonomy Elements for valid values."}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+        }else{
+          const valid =
+            numberRegex.test(rowData[field]) &&
+            !isNaN(parseFloat(rowData[field]));
+          if (rowData[field] !== "" && !valid) {
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid number"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
         }
       }
     });
@@ -1483,7 +1510,8 @@ export class FileParseValidateService {
 
     if (
       rowData.DataClassification == "LAB" ||
-      rowData.DataClassification == "SURROGATE_RESULT"
+      rowData.DataClassification == "SURROGATE_RESULT" ||
+      rowData.DataClassification == "FIELD_SURVEY"
     ) {
       cleanedRow.ObservationID = "";
       cleanedRow.FieldDeviceID = "";
@@ -1502,7 +1530,6 @@ export class FileParseValidateService {
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
-      rowData.DataClassification == "FIELD_SURVEY" ||
       rowData.DataClassification == "VERTICAL_PROFILE"
     ) {
       cleanedRow.ObservationID = "";
@@ -1865,7 +1892,8 @@ export class FileParseValidateService {
 
     if (
       rowData.DataClassification !== "VERTICAL_PROFILE" &&
-      rowData.DataClassification !== "FIELD_RESULT"
+      rowData.DataClassification !== "FIELD_RESULT" &&
+      rowData.DataClassification !== "ACTIVITY_RESULT"
     ) {
       let specimenInfo: any;
 
