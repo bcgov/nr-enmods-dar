@@ -584,11 +584,14 @@ export class FileParseValidateService {
       postData,
       await this.queryCodeTables("MEDIUM", mediumCustomID),
     );
-    Object.assign(
-      postData,
-      await this.queryCodeTables("LABS", analyzingAgencyCustomID),
-    );
 
+    if (analyzingAgencyCustomID !== ""){
+      Object.assign(
+        postData,
+        await this.queryCodeTables("LABS", analyzingAgencyCustomID),
+      );
+    }
+    
     // get the EA custom id (EA Work Order Number, FieldFiltered, FieldFilterComment, FieldPreservative, EALabReportID, SpecimenName) and find the GUID
     if (specimenData.WorkOrderNumber != "") {
       extendedAttribs["extendedAttributes"].push(
