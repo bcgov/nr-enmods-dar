@@ -550,14 +550,14 @@ export class AqiApiService {
 
   async databaseLookup(dbTable: string, queryParam: string) {
     switch (dbTable) {
-      case "aqi_units_xref":
+      case "aqi_units":
         try {
-          let result = await this.prisma.aqi_units_xref.findMany({
+          let result = await this.prisma.aqi_units.findMany({
             where: {
-              edt_unit_xref: queryParam,
+              edt_unit: queryParam,
             },
             select: {
-              aqi_units_code: true,
+              custom_id: true,
             },
           });
           if (result.length > 0) {

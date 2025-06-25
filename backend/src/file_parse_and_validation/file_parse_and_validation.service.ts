@@ -346,24 +346,24 @@ export class FileParseValidateService {
           returnTags.push({ id: tagID[0].aqi_context_tags_id, name: tag });
         }
         return returnTags;
-      case "TAXONS":
-        let taxonID = await this.prisma.taxonomy_elements.findMany({
-          where: {
-            aqi_taxonomy_name: {
-              equals: param,
-            },
-          },
-          select: {
-            edt_taxonomy_element_guid: true,
-          },
-        });
-        if (taxonID.length > 0){
-          return {
-            taxonomy: { id: taxonID[0].edt_taxonomy_element_guid, customId: param },
-          };
-        }else{
-          return {}
-        }
+      // case "TAXONS":
+      //   let taxonID = await this.prisma.taxonomy_elements.findMany({
+      //     where: {
+      //       aqi_taxonomy_name: {
+      //         equals: param,
+      //       },
+      //     },
+      //     select: {
+      //       edt_taxonomy_element_guid: true,
+      //     },
+      //   });
+      //   if (taxonID.length > 0){
+      //     return {
+      //       taxonomy: { id: taxonID[0].edt_taxonomy_element_guid, customId: param },
+      //     };
+      //   }else{
+      //     return {}
+      //   }
       case "EXTENDED_ATTRIB":
         let eaID = await this.prisma.aqi_extended_attributes.findMany({
           where: {
@@ -708,20 +708,20 @@ export class FileParseValidateService {
 
     const resultUnitLookup = newObs["Result Unit"];
     if (resultUnitLookup) {
-      const resultLookUpResult = await this.prisma.aqi_units_xref.findFirst({
+      const resultLookUpResult = await this.prisma.aqi_units.findFirst({
         where: {
-          edt_unit_xref: {
+          edt_unit: {
             equals: resultUnitLookup,
           },
         },
         select: {
-          aqi_units_code: true,
+          custom_id: true,
         },
       });
 
       if (resultLookUpResult) {
         const newResultUnit = resultLookUpResult;
-        newObs["Result Unit"] = newResultUnit.aqi_units_code;
+        newObs["Result Unit"] = newResultUnit.custom_id;
       }
     }
 
@@ -882,9 +882,13 @@ export class FileParseValidateService {
     if (rowData.hasOwnProperty(unitFields)) {
       if (rowData[unitFields]) {
         const present = await this.aqiService.databaseLookup(
-          "aqi_units_xref",
+          "aqi_units",
           rowData[unitFields],
         );
+
+        if (rowData[unitFields] === 'uS/cm' || rowData[unitFields] == 'g/m2'){
+          console.log(present)
+        }
 
         if (!present) {
           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${unitFields}": "${rowData[unitFields]} not found in EnMoDS Units"}}`;

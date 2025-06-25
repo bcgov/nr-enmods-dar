@@ -277,17 +277,6 @@ model aqi_analysis_methods {
   update_utc_timestamp    DateTime @db.Timestamp(6)
 }
 
-model aqi_units_xref {
-  edt_unit_guid        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  ems_code             Int?
-  edt_unit_xref        String   @db.VarChar(255)
-  aqi_units_code       String   @db.VarChar(255)
-  create_user_id       String   @db.VarChar(200)
-  create_utc_timestamp DateTime @db.Timestamp(6)
-  update_user_id       String   @db.VarChar(200)
-  update_utc_timestamp DateTime @db.Timestamp(6)
-}
-
 model aqi_tissue_types {
   aqi_tissue_types_id  String   @id @db.Uuid
   custom_id            String   @db.VarChar(200)
@@ -333,13 +322,13 @@ model importer_benchmark {
   total_time             Int?
 }
 
-model taxonomy_elements {
-  edt_taxonomy_element_guid String   @id @db.Uuid
-  aqi_taxonomy_name         String   @db.VarChar(255)
-  aqi_common_name           String   @db.VarChar(255)
-  aqi_taxon_level           String   @db.VarChar(255)
-  create_user_id            String   @db.VarChar(200)
-  create_utc_timestamp      DateTime @db.Timestamp(6)
-  update_user_id            String   @db.VarChar(200)
-  update_utc_timestamp      DateTime @db.Timestamp(6)
+model aqi_units {
+  aqi_units_id         String   @id @db.Uuid
+  custom_id            String?  @db.VarChar(255)
+  name                 String   @db.VarChar(255)
+  edt_unit             String?  @db.VarChar(255)
+  create_user_id       String   @db.VarChar(200)
+  create_utc_timestamp DateTime @db.Timestamp(6)
+  update_user_id       String   @db.VarChar(200)
+  update_utc_timestamp DateTime @db.Timestamp(6)
 }
