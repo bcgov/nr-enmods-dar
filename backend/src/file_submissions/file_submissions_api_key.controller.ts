@@ -21,7 +21,6 @@ import { PrismaService } from "nestjs-prisma";
 
 @ApiTags("file_submissions_api_key")
 @Controller({ path: "file_submissions_api_key", version: "1" })
-@UseGuards(ApiKeyGuard)
 @Public()
 export class FileSubmissionsAPIController {
   constructor(
