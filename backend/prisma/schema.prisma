@@ -321,6 +321,7 @@ model importer_benchmark {
   obs_import_time        Int?
   total_time             Int?
 }
+<<<<<<< EMSEDT_256_Units_Table
 
 model aqi_units {
   aqi_units_id         String   @id @db.Uuid
@@ -332,3 +333,5 @@ model aqi_units {
   update_user_id       String   @db.VarChar(200)
   update_utc_timestamp DateTime @db.Timestamp(6)
 }
+=======
+>>>>>>> main
