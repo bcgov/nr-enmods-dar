@@ -2121,7 +2121,7 @@ export class FileParseValidateService {
           .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
         rowData = await this.cleanRowBasedOnDataClassification(rowData);
-      } else if (fileType == ".csv") {
+      } else if (fileType == ".csv" || fileType == ".txt") {
         headers.forEach((header) => {
           rowData[header] = String(row[header] ?? "").replace(/\r?\n/g, " ");
         });
@@ -2180,7 +2180,7 @@ export class FileParseValidateService {
           .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
         rowData = await this.cleanRowBasedOnDataClassification(rowData);
-      } else if (fileType == ".csv") {
+      } else if (fileType == ".csv" || fileType == ".txt") {
         headers.forEach((header) => {
           rowData[header] = String(row[header] ?? "").replace(/\r?\n/g, " ");
         });
@@ -2794,7 +2794,7 @@ export class FileParseValidateService {
           endImportObs = performance.now();
         }
       }
-    } else if (extention == ".csv") {
+    } else if (extention == ".csv" || extention == ".txt") {
       const allNonObsErrors: any[] = [];
       const allExistingRecords: any[] = [];
       const headersForValidation: string[] = [];
