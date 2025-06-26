@@ -24,11 +24,11 @@ export class AqiApiService {
     });
   }
 
-  async healthCheck(){
+  async healthCheck() {
     const healthcheckUrl = process.env.AQI_BASE_URL + "/v1/status";
     let aqiStatus = (await axios.get(healthcheckUrl)).status;
 
-    return aqiStatus
+    return aqiStatus;
   }
 
   async fieldVisits(rowNumber: number, body: any) {
@@ -44,7 +44,7 @@ export class AqiApiService {
         err.response.data.message,
       );
 
-      return "partialUpload"
+      return "partialUpload";
     }
   }
 
@@ -129,7 +129,7 @@ export class AqiApiService {
         err.response.data.message,
       );
 
-      return "partialUpload"
+      return "partialUpload";
     }
   }
 
@@ -160,7 +160,7 @@ export class AqiApiService {
       return response.data.id;
     } catch (err) {
       const message = err.response.data.message;
-     
+
       const skipMessage =
         "A Specimen with the same name already exists for the referenced Activity";
 
@@ -169,14 +169,13 @@ export class AqiApiService {
           `RowNum: ${rowNumber} -> Duplicate Specimen name, skipping...`,
         );
         return "exists";
-      }else{
+      } else {
         this.logger.error(
           `RowNum: ${rowNumber} -> API CALL TO POST Specimens failed: `,
           err.response.data.message,
         );
 
-        return "partialUpload"
-
+        return "partialUpload";
       }
     }
   }
@@ -656,7 +655,7 @@ export class AqiApiService {
           : item,
       );
     };
-    
+
     [...localErrors, ...remoteErrors].forEach(mergeItem);
 
     return Array.from(map.values()).sort((a, b) => a.rowNum - b.rowNum);
@@ -795,7 +794,6 @@ export class AqiApiService {
             },
           );
           this.logger.log("AQI VISIT DELETION: " + deletion.status);
-
         } catch (err) {
           let visitError = `{"rowNum": "N/A", "type": "ERROR", "message": {"Delete": "Failed to delete visit with GUID ${visit}"}}`;
           visitDeleteErrors.push(JSON.parse(visitError));
@@ -907,36 +905,58 @@ export class AqiApiService {
     deleteErrors = [];
   }
 
-  async getTaxons(taxon: string){
-    let returnedTaxon = {}
-    const aqiTaxons = await this.axiosInstance.get('/v1/taxons')
-    const matchingTaxon = aqiTaxons.data.domainObjects.find(taxonElement => taxonElement.scientificName === taxon)
+  async getTaxons(taxon: string) {
+    let returnedTaxon = {};
+    const aqiTaxons = await this.axiosInstance.get("/v1/taxons");
+    const matchingTaxon = aqiTaxons.data.domainObjects.find(
+      (taxonElement) => taxonElement.scientificName === taxon,
+    );
 
-    returnedTaxon['aqiId'] = matchingTaxon.id
-    returnedTaxon['customId'] = matchingTaxon.scientificName
-    
-    return returnedTaxon
+    if (matchingTaxon === undefined) {
+      return returnedTaxon;
+    } else {
+      returnedTaxon["aqiId"] = matchingTaxon.id;
+      returnedTaxon["customId"] = matchingTaxon.scientificName;
+
+      return returnedTaxon;
+    }
   }
 
-  async getBioLifeStage(stageVlaue: string){
-    let returnedLifeStage = {}
-    const lifeStages = await this.axiosInstance.get('/v1/observedproperties/3f91be71-324c-48bf-8350-15e8f2f91743/categoricalvalues')
-    const matchingLifeStage = lifeStages.data.domainObjects.find(lifeStageElement => lifeStageElement.customId === stageVlaue)
+  async getBioLifeStage(stageVlaue: string) {
+    let returnedLifeStage = {};
+    const lifeStages = await this.axiosInstance.get(
+      "/v1/observedproperties/3f91be71-324c-48bf-8350-15e8f2f91743/categoricalvalues",
+    );
+    const matchingLifeStage = lifeStages.data.domainObjects.find(
+      (lifeStageElement) => lifeStageElement.customId === stageVlaue,
+    );
 
-    returnedLifeStage['aqiId'] = matchingLifeStage.id
-    returnedLifeStage['customId'] = matchingLifeStage.customId
+    if (matchingLifeStage === undefined) {
+      return returnedLifeStage;
+    } else {
+      returnedLifeStage["aqiId"] = matchingLifeStage.id;
+      returnedLifeStage["customId"] = matchingLifeStage.customId;
 
-    return returnedLifeStage
+      return returnedLifeStage;
+    }
   }
 
-  async getBioSex(sexValue: string){
-    let returnedSexValue = {}
-    const sexValues = await this.axiosInstance.get('/v1/observedproperties/32b67848-86a4-4c8b-926c-3f034f59a1ad/categoricalvalues')
-    const matchingSexValue = sexValues.data.domainObjects.find(sexValueElement => sexValueElement.customId === sexValue)
-    
-    returnedSexValue['aqiId'] = matchingSexValue.id
-    returnedSexValue['customId'] = matchingSexValue.customId
+  async getBioSex(sexValue: string) {
+    let returnedSexValue = {};
+    const sexValues = await this.axiosInstance.get(
+      "/v1/observedproperties/32b67848-86a4-4c8b-926c-3f034f59a1ad/categoricalvalues",
+    );
+    const matchingSexValue = sexValues.data.domainObjects.find(
+      (sexValueElement) => sexValueElement.customId === sexValue,
+    );
 
-    return returnedSexValue
+    if (matchingSexValue === undefined) {
+      return returnedSexValue;
+    } else {
+      returnedSexValue["aqiId"] = matchingSexValue.id;
+      returnedSexValue["customId"] = matchingSexValue.customId;
+
+      return returnedSexValue;
+    }
   }
 }
