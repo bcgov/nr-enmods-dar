@@ -906,4 +906,37 @@ export class AqiApiService {
 
     deleteErrors = [];
   }
+
+  async getTaxons(taxon: string){
+    let returnedTaxon = {}
+    const aqiTaxons = await this.axiosInstance.get('/v1/taxons')
+    const matchingTaxon = aqiTaxons.data.domainObjects.find(taxonElement => taxonElement.scientificName === taxon)
+
+    returnedTaxon['aqiId'] = matchingTaxon.id
+    returnedTaxon['customId'] = matchingTaxon.scientificName
+    
+    return returnedTaxon
+  }
+
+  async getBioLifeStage(stageVlaue: string){
+    let returnedLifeStage = {}
+    const lifeStages = await this.axiosInstance.get('/v1/observedproperties/3f91be71-324c-48bf-8350-15e8f2f91743/categoricalvalues')
+    const matchingLifeStage = lifeStages.data.domainObjects.find(lifeStageElement => lifeStageElement.customId === stageVlaue)
+
+    returnedLifeStage['aqiId'] = matchingLifeStage.id
+    returnedLifeStage['customId'] = matchingLifeStage.customId
+
+    return returnedLifeStage
+  }
+
+  async getBioSex(sexValue: string){
+    let returnedSexValue = {}
+    const sexValues = await this.axiosInstance.get('/v1/observedproperties/32b67848-86a4-4c8b-926c-3f034f59a1ad/categoricalvalues')
+    const matchingSexValue = sexValues.data.domainObjects.find(sexValueElement => sexValueElement.customId === sexValue)
+    
+    returnedSexValue['aqiId'] = matchingSexValue.id
+    returnedSexValue['customId'] = matchingSexValue.customId
+
+    return returnedSexValue
+  }
 }
