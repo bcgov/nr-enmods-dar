@@ -3262,6 +3262,6 @@ export class FileParseValidateService {
     console.timeEnd("parseFile");
     await this.benchmarkImport(file_submission_id, fileName, originalFileName);
     partialUpload = false;
-    rollBackHalted = false;
+    rollBackHalted = false;    
   }
 }
