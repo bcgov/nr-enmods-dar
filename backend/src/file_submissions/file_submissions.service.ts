@@ -363,6 +363,11 @@ export class FileSubmissionsService {
 
   async getFromS3(fileName: string) {
     try {
+      // Validate fileName to prevent SSRF attacks
+      const isValidFileName = /^[a-zA-Z0-9_\-\.]+$/.test(fileName);
+      if (!isValidFileName) {
+        throw new Error("Invalid file name provided.");
+      }
       const fileStream = await this.objectStore.getFileData(fileName);
       const fileBinary: Uint8Array[] = [];
       return new Promise((resolve, reject) => {
@@ -416,9 +421,10 @@ async function saveToS3(token: any, file: Express.Multer.File) {
   const path = require("path");
   let fileGUID = null;
   const originalFileName = file.originalname;
+  const sanitizedFileName = originalFileName.replace(/[^a-zA-Z0-9_\-\.]/g, "")
   const guid = crypto.randomUUID();
-  const extention = path.extname(originalFileName);
-  const baseName = path.basename(originalFileName, extention);
+  const extention = path.extname(sanitizedFileName);
+  const baseName = path.basename(sanitizedFileName, extention);
   const newFileName = `${baseName}-${guid}${extention}`;
 
   const axios = require("axios");
@@ -447,11 +453,23 @@ async function saveToS3(token: any, file: Express.Multer.File) {
 
 async function saveToS3WithSftp(file: Express.Multer.File) {
   const path = require("path");
+  const allowedExtensions = [".csv", ".xlsx"]
+
   const originalFileName = file.originalname;
+  const sanitizedFileName = originalFileName.replace(/[^a-zA-Z0-9_\-\.]/g, "");
   const guid = crypto.randomUUID();
-  const extension = path.extname(originalFileName);
-  const baseName = path.basename(originalFileName, extension);
+
+  const extension = path.extname(sanitizedFileName);
+  if (!allowedExtensions.includes(extension)){
+    throw new Error (`Invalid file extension: ${extension}`)
+  }
+
+  const baseName = path.basename(sanitizedFileName, extension);
   const newFileName = `${baseName}-${guid}${extension}`;
+
+  if (!/^[a-zA-Z0-9_\-\.]+$/.test(newFileName)) {
+    throw new Error("Invalid file name format");
+  }
 
   const OBJECTSTORE_URL = process.env.OBJECTSTORE_URL;
   const OBJECTSTORE_ACCESS_KEY = process.env.OBJECTSTORE_ACCESS_KEY;
@@ -461,11 +479,18 @@ async function saveToS3WithSftp(file: Express.Multer.File) {
   if (!OBJECTSTORE_URL) {
     throw new Error("Objectstore Host Not Defined");
   }
+  const allowedHosts = [process.env.OBJECTSTORE_URL];
+  try {
+    const parsedUrl = new URL(OBJECTSTORE_URL);
+    if (!allowedHosts.includes(parsedUrl.hostname)) {
+      throw new Error("Objectstore Host Invalid");
+    }
+  } catch (error) {
+    throw new Error("Objectstore URL is malformed or invalid");
+  }
 
   const dateValue = new Date().toUTCString();
 
-  // const stringToSign = `PUT\n\n\n${dateValue}\n/${OBJECTSTORE_BUCKET}/${newFileName}`;
-  // const contentType = "application/octet-stream";
   const contentType = file.mimetype;
   const stringToSign = `PUT\n\n${contentType}\n${dateValue}\n/${OBJECTSTORE_BUCKET}/${newFileName}`;
 
@@ -474,7 +499,7 @@ async function saveToS3WithSftp(file: Express.Multer.File) {
     .update(stringToSign)
     .digest("base64");
 
-  const requestUrl = `${OBJECTSTORE_URL}/${OBJECTSTORE_BUCKET}/${newFileName}`;
+  const requestUrl = new URL(`${OBJECTSTORE_URL}/${OBJECTSTORE_BUCKET}/${newFileName}`).toString();
 
   const headers = {
     Authorization: `AWS ${OBJECTSTORE_ACCESS_KEY}:${signature}`,
