@@ -346,26 +346,6 @@ export class FileParseValidateService {
           returnTags.push({ id: tagID[0].aqi_context_tags_id, name: tag });
         }
         return returnTags;
-<<<<<<< EMSEDT_256_Units_Table
-      // case "TAXONS":
-      //   let taxonID = await this.prisma.taxonomy_elements.findMany({
-      //     where: {
-      //       aqi_taxonomy_name: {
-      //         equals: param,
-      //       },
-      //     },
-      //     select: {
-      //       edt_taxonomy_element_guid: true,
-      //     },
-      //   });
-      //   if (taxonID.length > 0){
-      //     return {
-      //       taxonomy: { id: taxonID[0].edt_taxonomy_element_guid, customId: param },
-      //     };
-      //   }else{
-      //     return {}
-      //   }
-=======
       case "TAXONS":
         let taxon = await this.aqiService.getTaxons(param)
         return {
@@ -381,7 +361,6 @@ export class FileParseValidateService {
         return {
           lifeStage: {id: sexValue['aqiId'], customId: sexValue['customId']}
         }
->>>>>>> main
       case "EXTENDED_ATTRIB":
         let eaID = await this.prisma.aqi_extended_attributes.findMany({
           where: {
