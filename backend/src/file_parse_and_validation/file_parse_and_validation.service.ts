@@ -708,20 +708,20 @@ export class FileParseValidateService {
 
     const resultUnitLookup = newObs["Result Unit"];
     if (resultUnitLookup) {
-      const resultLookUpResult = await this.prisma.aqi_units_xref.findFirst({
+      const resultLookUpResult = await this.prisma.aqi_units.findFirst({
         where: {
-          edt_unit_xref: {
+          edt_unit: {
             equals: resultUnitLookup,
           },
         },
         select: {
-          aqi_units_code: true,
+          custom_id: true,
         },
       });
 
       if (resultLookUpResult) {
         const newResultUnit = resultLookUpResult;
-        newObs["Result Unit"] = newResultUnit.aqi_units_code;
+        newObs["Result Unit"] = newResultUnit.custom_id;
       }
     }
 
@@ -894,9 +894,13 @@ export class FileParseValidateService {
     if (rowData.hasOwnProperty(unitFields)) {
       if (rowData[unitFields]) {
         const present = await this.aqiService.databaseLookup(
-          "aqi_units_xref",
+          "aqi_units",
           rowData[unitFields],
         );
+
+        if (rowData[unitFields] === 'uS/cm' || rowData[unitFields] == 'g/m2'){
+          console.log(present)
+        }
 
         if (!present) {
           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${unitFields}": "${rowData[unitFields]} not found in EnMoDS Units"}}`;
