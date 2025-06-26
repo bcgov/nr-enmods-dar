@@ -346,6 +346,21 @@ export class FileParseValidateService {
           returnTags.push({ id: tagID[0].aqi_context_tags_id, name: tag });
         }
         return returnTags;
+      case "TAXONS":
+        let taxon = await this.aqiService.getTaxons(param)
+        return {
+          taxonomy: { id: taxon['aqiId'], customId: taxon['customId'] },
+        };
+      case "BioLifeStage":
+        let stageValue = await this.aqiService.getBioLifeStage(param)
+        return {
+          lifeStage: {id: stageValue['aqiId'], customId: stageValue['customId']}
+        }
+      case "BioSex":
+        let sexValue = await this.aqiService.getBioSex(param)
+        return {
+          lifeStage: {id: sexValue['aqiId'], customId: sexValue['customId']}
+        }
       case "EXTENDED_ATTRIB":
         let eaID = await this.prisma.aqi_extended_attributes.findMany({
           where: {
@@ -569,11 +584,14 @@ export class FileParseValidateService {
       postData,
       await this.queryCodeTables("MEDIUM", mediumCustomID),
     );
-    Object.assign(
-      postData,
-      await this.queryCodeTables("LABS", analyzingAgencyCustomID),
-    );
 
+    if (analyzingAgencyCustomID !== ""){
+      Object.assign(
+        postData,
+        await this.queryCodeTables("LABS", analyzingAgencyCustomID),
+      );
+    }
+    
     // get the EA custom id (EA Work Order Number, FieldFiltered, FieldFilterComment, FieldPreservative, EALabReportID, SpecimenName) and find the GUID
     if (specimenData.WorkOrderNumber != "") {
       extendedAttribs["extendedAttributes"].push(
@@ -690,20 +708,20 @@ export class FileParseValidateService {
 
     const resultUnitLookup = newObs["Result Unit"];
     if (resultUnitLookup) {
-      const resultLookUpResult = await this.prisma.aqi_units_xref.findFirst({
+      const resultLookUpResult = await this.prisma.aqi_units.findFirst({
         where: {
-          edt_unit_xref: {
+          edt_unit: {
             equals: resultUnitLookup,
           },
         },
         select: {
-          aqi_units_code: true,
+          custom_id: true,
         },
       });
 
       if (resultLookUpResult) {
         const newResultUnit = resultLookUpResult;
-        newObs["Result Unit"] = newResultUnit.aqi_units_code;
+        newObs["Result Unit"] = newResultUnit.custom_id;
       }
     }
 
@@ -715,7 +733,7 @@ export class FileParseValidateService {
     newObs["EA_Upload File Name"] = originalFileName; // this is needed for deletion purposes
 
     return newObs;
-  }
+  }  
 
   filterFile<T>(row: any, keys, customAttributes): Partial<T> {
     const filteredObj: Partial<T> = {};
@@ -839,14 +857,35 @@ export class FileParseValidateService {
     });
 
     // check all numerical fields
-    numericalFields.forEach((field) => {
+    numericalFields.forEach(async (field) => {
       if (rowData.hasOwnProperty(field)) {
-        const valid =
-          numberRegex.test(rowData[field]) &&
-          !isNaN(parseFloat(rowData[field]));
-        if (rowData[field] !== "" && !valid) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid number"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+        if (rowData.ObservedPropertyID === 'Taxonomy' && field === "ResultValue"){
+          // do a look up to see if the result value is in the taxonomy elements
+          const valid = await this.queryCodeTables("TAXONS", rowData[field])
+          if (Object.keys(valid).length === 0){
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Result Value ${rowData[field]} not a valid value for Taxonomy. Look at Taxonomy Elements for valid values."}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+        }else if (rowData.ObservedPropertyID === 'Biological Life Stage (cat.)' && field === 'ResultValue'){
+          const valid = await this.queryCodeTables("BioLifeStage", rowData[field])
+          if (Object.keys(valid).length === 0){
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Result Value ${rowData[field]} not a valid value of Biological Life Stage. Look at Biological Life Stage (cat.) list for valid values."}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+        }else if (rowData.ObservedPropertyID === 'Biological Sex (cat.)' && field === 'ResultValue'){
+           const valid = await this.queryCodeTables("BioSex", rowData[field])
+          if (Object.keys(valid).length === 0){
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Result Value ${rowData[field]} not a valid value of Biological Sex. Look at Biological Sex (cat.) list for valid values."}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
+        }else{
+          const valid =
+            numberRegex.test(rowData[field]) &&
+            !isNaN(parseFloat(rowData[field]));
+          if (rowData[field] !== "" && !valid) {
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid number"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
         }
       }
     });
@@ -855,9 +894,13 @@ export class FileParseValidateService {
     if (rowData.hasOwnProperty(unitFields)) {
       if (rowData[unitFields]) {
         const present = await this.aqiService.databaseLookup(
-          "aqi_units_xref",
+          "aqi_units",
           rowData[unitFields],
         );
+
+        if (rowData[unitFields] === 'uS/cm' || rowData[unitFields] == 'g/m2'){
+          console.log(present)
+        }
 
         if (!present) {
           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${unitFields}": "${rowData[unitFields]} not found in EnMoDS Units"}}`;
@@ -1483,7 +1526,8 @@ export class FileParseValidateService {
 
     if (
       rowData.DataClassification == "LAB" ||
-      rowData.DataClassification == "SURROGATE_RESULT"
+      rowData.DataClassification == "SURROGATE_RESULT" ||
+      rowData.DataClassification == "FIELD_SURVEY"
     ) {
       cleanedRow.ObservationID = "";
       cleanedRow.FieldDeviceID = "";
@@ -1502,7 +1546,6 @@ export class FileParseValidateService {
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
-      rowData.DataClassification == "FIELD_SURVEY" ||
       rowData.DataClassification == "VERTICAL_PROFILE"
     ) {
       cleanedRow.ObservationID = "";
@@ -1865,7 +1908,8 @@ export class FileParseValidateService {
 
     if (
       rowData.DataClassification !== "VERTICAL_PROFILE" &&
-      rowData.DataClassification !== "FIELD_RESULT"
+      rowData.DataClassification !== "FIELD_RESULT" &&
+      rowData.DataClassification !== "ACTIVITY_RESULT"
     ) {
       let specimenInfo: any;
 
