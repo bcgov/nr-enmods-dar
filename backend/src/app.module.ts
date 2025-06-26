@@ -76,6 +76,7 @@ function getMiddlewares() {
     FileValidationModule,
     ObjectStoreModule,
     FileErrorLogsModule,
+    ApiKeysModule,
   ],
   controllers: [AppController, MetricsController, HealthController],
   providers: [AppService, CronJobService, OperationLockService],

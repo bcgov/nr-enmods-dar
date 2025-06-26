@@ -1,24 +1,45 @@
 import {
+  Injectable,
   CanActivate,
   ExecutionContext,
-  Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
 import { Request } from "express";
+import { PrismaService } from "nestjs-prisma";
 
 @Injectable()
 export class ApiKeyGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-    const apiKey = request.headers["x-api-key"];
+    const apiKey = request.headers["x-api-key"] as string;
 
-    console.log("Received API Key:", apiKey);
-    console.log("Expected API Key:", process.env.UPLOAD_FILE_API_KEY);
-
-    if (apiKey && apiKey === process.env.UPLOAD_FILE_API_KEY) {
-      return true;
-    } else {
-      throw new UnauthorizedException("Invalid or missing API key");
+    if (!apiKey) {
+      throw new UnauthorizedException("API key missing");
     }
+
+    const apiKeyRecord = await this.prisma.api_keys.findFirst({
+      where: {
+        api_key: apiKey,
+        enabled_ind: true,
+        revoked_date: null,
+      },
+    });
+
+    if (!apiKeyRecord) {
+      throw new UnauthorizedException("Invalid or revoked API key");
+    }
+
+    // increment usage_count and update last_used_date
+    await this.prisma.api_keys.update({
+      where: { api_key_id: apiKeyRecord.api_key_id },
+      data: {
+        usage_count: { increment: 1 },
+        last_used_date: new Date(),
+      },
+    });
+
+    return true;
   }
 }
