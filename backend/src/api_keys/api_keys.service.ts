@@ -1,9 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "nestjs-prisma";
-import { CreateApiKeyDto } from "./dto/create-api_key.dto";
+
 import { UpdateApiKeyDto } from "./dto/update-api_key.dto";
 import { v4 as uuidv4 } from "uuid";
 import * as crypto from "crypto";
+import { CreateApiKeyDto } from "./dto/create-api_key.dto";
 
 @Injectable()
 export class ApiKeysService {
@@ -47,15 +48,5 @@ export class ApiKeysService {
 
   async remove(id: string) {
     return this.prisma.api_keys.delete({ where: { api_key_id: id } });
-  }
-
-  async incrementUsage(apiKey: string) {
-    return this.prisma.api_keys.updateMany({
-      where: { api_key },
-      data: {
-        usage_count: { increment: 1 },
-        last_used_date: new Date(),
-      },
-    });
   }
 }

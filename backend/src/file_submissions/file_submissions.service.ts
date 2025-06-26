@@ -1,4 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from "@nestjs/common";
 import { CreateFileSubmissionDto } from "./dto/create-file_submission.dto";
 import { UpdateFileSubmissionDto } from "./dto/update-file_submission.dto";
 import { PrismaService } from "nestjs-prisma";
@@ -104,7 +109,6 @@ export class FileSubmissionsService {
   ) {
     const createFileSubmissionDto = new CreateFileSubmissionDto();
 
-
     // Call to function that makes API call to save file in the S3 bucket via COMS
     let newFileName = await saveToS3WithSftp(file);
 
@@ -120,10 +124,12 @@ export class FileSubmissionsService {
       })
     ).submission_status_code;
     createFileSubmissionDto.file_operation_code = body.operation;
-    createFileSubmissionDto.submitter_agency_name = body.agency === undefined ? body.userID : body.agency;
+    createFileSubmissionDto.submitter_agency_name =
+      body.agency === undefined ? body.userID : body.agency;
     createFileSubmissionDto.sample_count = 0;
     createFileSubmissionDto.result_count = 0;
-    createFileSubmissionDto.organization_guid = body.orgGUID === undefined ? null : body.orgGUID;
+    createFileSubmissionDto.organization_guid =
+      body.orgGUID === undefined ? null : body.orgGUID;
     createFileSubmissionDto.create_user_id = body.userID;
     createFileSubmissionDto.create_utc_timestamp = new Date();
     createFileSubmissionDto.update_user_id = body.userID;
@@ -421,7 +427,7 @@ async function saveToS3(token: any, file: Express.Multer.File) {
   const path = require("path");
   let fileGUID = null;
   const originalFileName = file.originalname;
-  const sanitizedFileName = originalFileName.replace(/[^a-zA-Z0-9_\-\.]/g, "")
+  const sanitizedFileName = originalFileName.replace(/[^a-zA-Z0-9_\-\.]/g, "");
   const guid = crypto.randomUUID();
   const extention = path.extname(sanitizedFileName);
   const baseName = path.basename(sanitizedFileName, extention);
@@ -453,15 +459,15 @@ async function saveToS3(token: any, file: Express.Multer.File) {
 
 async function saveToS3WithSftp(file: Express.Multer.File) {
   const path = require("path");
-  const allowedExtensions = [".csv", ".xlsx"]
+  const allowedExtensions = [".csv", ".xlsx"];
 
   const originalFileName = file.originalname;
   const sanitizedFileName = originalFileName.replace(/[^a-zA-Z0-9_\-\.]/g, "");
   const guid = crypto.randomUUID();
 
   const extension = path.extname(sanitizedFileName);
-  if (!allowedExtensions.includes(extension)){
-    throw new Error (`Invalid file extension: ${extension}`)
+  if (!allowedExtensions.includes(extension)) {
+    throw new BadRequestException(`Invalid file extension: ${extension}`);
   }
 
   const baseName = path.basename(sanitizedFileName, extension);
@@ -476,19 +482,6 @@ async function saveToS3WithSftp(file: Express.Multer.File) {
   const OBJECTSTORE_SECRET_KEY = process.env.OBJECTSTORE_SECRET_KEY;
   const OBJECTSTORE_BUCKET = process.env.OBJECTSTORE_BUCKET;
 
-  if (!OBJECTSTORE_URL) {
-    throw new Error("Objectstore Host Not Defined");
-  }
-  const allowedHosts = [process.env.OBJECTSTORE_URL];
-  try {
-    const parsedUrl = new URL(OBJECTSTORE_URL);
-    if (!allowedHosts.includes(parsedUrl.hostname)) {
-      throw new Error("Objectstore Host Invalid");
-    }
-  } catch (error) {
-    throw new Error("Objectstore URL is malformed or invalid");
-  }
-
   const dateValue = new Date().toUTCString();
 
   const contentType = file.mimetype;
@@ -499,7 +492,9 @@ async function saveToS3WithSftp(file: Express.Multer.File) {
     .update(stringToSign)
     .digest("base64");
 
-  const requestUrl = new URL(`${OBJECTSTORE_URL}/${OBJECTSTORE_BUCKET}/${newFileName}`).toString();
+  const requestUrl = new URL(
+    `${OBJECTSTORE_URL}/${OBJECTSTORE_BUCKET}/${newFileName}`,
+  ).toString();
 
   const headers = {
     Authorization: `AWS ${OBJECTSTORE_ACCESS_KEY}:${signature}`,
