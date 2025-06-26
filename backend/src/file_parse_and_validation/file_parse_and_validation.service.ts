@@ -787,6 +787,7 @@ export class FileParseValidateService {
     if (sourceHeaders.length != targetHeaders.length) {
       let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "Invalid number of headers. Got ${sourceHeaders.length}, expected ${targetHeaders.length}"}}`;
       headerErrors.push(JSON.parse(errorLog));
+      return headerErrors
     }
 
     for (let i = 0; i < sourceHeaders.length; i++) {
@@ -832,6 +833,27 @@ export class FileParseValidateService {
     ];
 
     const unitFields = "ResultUnit";
+    let validObservedProperty = false
+
+    if (rowData.hasOwnProperty("ObservedPropertyID")) {
+      if (rowData["ObservedPropertyID"] == "") {
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "Cannot be empty"}}`;
+        errorLogs.push(JSON.parse(errorLog));
+        validObservedProperty = false
+      } else {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_observed_properties",
+          rowData.ObservedPropertyID,
+        );
+        if (!present) {
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "${rowData.ObservedPropertyID} not found in EnMoDS Observed Properties"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+          validObservedProperty = false
+        }else{
+          validObservedProperty = true
+        }
+      }
+    }
 
     // check all datetimes
     dateTimeFields.forEach((field) => {
@@ -866,13 +888,13 @@ export class FileParseValidateService {
             let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Result Value ${rowData[field]} not a valid value for Taxonomy. Look at Taxonomy Elements for valid values."}}`;
             errorLogs.push(JSON.parse(errorLog));
           }
-        }else if (rowData.ObservedPropertyID === 'Biological Life Stage (cat.)' && field === 'ResultValue'){
+        }else if (rowData.ObservedPropertyID === 'Biological Life Stage (cat.)' && validObservedProperty && field === 'ResultValue'){
           const valid = await this.queryCodeTables("BioLifeStage", rowData[field])
           if (Object.keys(valid).length === 0){
             let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Result Value ${rowData[field]} not a valid value of Biological Life Stage. Look at Biological Life Stage (cat.) list for valid values."}}`;
             errorLogs.push(JSON.parse(errorLog));
           }
-        }else if (rowData.ObservedPropertyID === 'Biological Sex (cat.)' && field === 'ResultValue'){
+        }else if (rowData.ObservedPropertyID === 'Biological Sex (cat.)' && validObservedProperty && field === 'ResultValue'){
            const valid = await this.queryCodeTables("BioSex", rowData[field])
           if (Object.keys(valid).length === 0){
             let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Result Value ${rowData[field]} not a valid value of Biological Sex. Look at Biological Sex (cat.) list for valid values."}}`;
@@ -897,10 +919,6 @@ export class FileParseValidateService {
           "aqi_units",
           rowData[unitFields],
         );
-
-        if (rowData[unitFields] === 'uS/cm' || rowData[unitFields] == 'g/m2'){
-          console.log(present)
-        }
 
         if (!present) {
           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${unitFields}": "${rowData[unitFields]} not found in EnMoDS Units"}}`;
@@ -1005,22 +1023,6 @@ export class FileParseValidateService {
         );
         if (!present) {
           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Medium": "${rowData.Medium} not found in EnMoDS Mediums"}}`;
-          errorLogs.push(JSON.parse(errorLog));
-        }
-      }
-    }
-
-    if (rowData.hasOwnProperty("ObservedPropertyID")) {
-      if (rowData["ObservedPropertyID"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "Cannot be empty"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      } else {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_observed_properties",
-          rowData.ObservedPropertyID,
-        );
-        if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "${rowData.ObservedPropertyID} not found in EnMoDS Observed Properties"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
@@ -1219,7 +1221,10 @@ export class FileParseValidateService {
         "LOCATIONS",
         rowData.LocationID,
       );
-      if (locationGUID.hasOwnProperty("samplingLocation")) {
+      const validFieldVisitStartTime = isoDateTimeRegex.test(rowData.FieldVisitStartTime)
+      const validObservedDateTime = isoDateTimeRegex.test(rowData.ObservedDateTime)
+
+      if (locationGUID.hasOwnProperty("samplingLocation") && validFieldVisitStartTime && validObservedDateTime) {
         const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
         let visitExists = false;
         const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
@@ -2822,7 +2827,7 @@ export class FileParseValidateService {
         });
 
       await new Promise((f) => setTimeout(f, 1000));
-
+      
       // do a validation on the headers
       const headerErrors = await this.checkHeaders(headersForValidation, "csv");
 
