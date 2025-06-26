@@ -17,6 +17,7 @@ import { PrismaService } from "nestjs-prisma";
 import { Readable } from "stream";
 import { format } from "fast-csv";
 import { parse } from "csv-parse";
+import * as readline from "readline";
 
 const fileHeaders: FileHeaders = {
   "Observation ID": "Observation ID",
@@ -347,20 +348,23 @@ export class FileParseValidateService {
         }
         return returnTags;
       case "TAXONS":
-        let taxon = await this.aqiService.getTaxons(param)
+        let taxon = await this.aqiService.getTaxons(param);
         return {
-          taxonomy: { id: taxon['aqiId'], customId: taxon['customId'] },
+          taxonomy: { id: taxon["aqiId"], customId: taxon["customId"] },
         };
       case "BioLifeStage":
-        let stageValue = await this.aqiService.getBioLifeStage(param)
+        let stageValue = await this.aqiService.getBioLifeStage(param);
         return {
-          lifeStage: {id: stageValue['aqiId'], customId: stageValue['customId']}
-        }
+          lifeStage: {
+            id: stageValue["aqiId"],
+            customId: stageValue["customId"],
+          },
+        };
       case "BioSex":
-        let sexValue = await this.aqiService.getBioSex(param)
+        let sexValue = await this.aqiService.getBioSex(param);
         return {
-          lifeStage: {id: sexValue['aqiId'], customId: sexValue['customId']}
-        }
+          lifeStage: { id: sexValue["aqiId"], customId: sexValue["customId"] },
+        };
       case "EXTENDED_ATTRIB":
         let eaID = await this.prisma.aqi_extended_attributes.findMany({
           where: {
@@ -585,13 +589,13 @@ export class FileParseValidateService {
       await this.queryCodeTables("MEDIUM", mediumCustomID),
     );
 
-    if (analyzingAgencyCustomID !== ""){
+    if (analyzingAgencyCustomID !== "") {
       Object.assign(
         postData,
         await this.queryCodeTables("LABS", analyzingAgencyCustomID),
       );
     }
-    
+
     // get the EA custom id (EA Work Order Number, FieldFiltered, FieldFilterComment, FieldPreservative, EALabReportID, SpecimenName) and find the GUID
     if (specimenData.WorkOrderNumber != "") {
       extendedAttribs["extendedAttributes"].push(
@@ -733,7 +737,7 @@ export class FileParseValidateService {
     newObs["EA_Upload File Name"] = originalFileName; // this is needed for deletion purposes
 
     return newObs;
-  }  
+  }
 
   filterFile<T>(row: any, keys, customAttributes): Partial<T> {
     const filteredObj: Partial<T> = {};
@@ -787,7 +791,7 @@ export class FileParseValidateService {
     if (sourceHeaders.length != targetHeaders.length) {
       let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "Invalid number of headers. Got ${sourceHeaders.length}, expected ${targetHeaders.length}"}}`;
       headerErrors.push(JSON.parse(errorLog));
-      return headerErrors
+      return headerErrors;
     }
 
     for (let i = 0; i < sourceHeaders.length; i++) {
@@ -833,13 +837,13 @@ export class FileParseValidateService {
     ];
 
     const unitFields = "ResultUnit";
-    let validObservedProperty = false
+    let validObservedProperty = false;
 
     if (rowData.hasOwnProperty("ObservedPropertyID")) {
       if (rowData["ObservedPropertyID"] == "") {
         let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "Cannot be empty"}}`;
         errorLogs.push(JSON.parse(errorLog));
-        validObservedProperty = false
+        validObservedProperty = false;
       } else {
         const present = await this.aqiService.databaseLookup(
           "aqi_observed_properties",
@@ -848,9 +852,9 @@ export class FileParseValidateService {
         if (!present) {
           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "${rowData.ObservedPropertyID} not found in EnMoDS Observed Properties"}}`;
           errorLogs.push(JSON.parse(errorLog));
-          validObservedProperty = false
-        }else{
-          validObservedProperty = true
+          validObservedProperty = false;
+        } else {
+          validObservedProperty = true;
         }
       }
     }
@@ -881,26 +885,40 @@ export class FileParseValidateService {
     // check all numerical fields
     numericalFields.forEach(async (field) => {
       if (rowData.hasOwnProperty(field)) {
-        if (rowData.ObservedPropertyID === 'Taxonomy' && field === "ResultValue"){
+        if (
+          rowData.ObservedPropertyID === "Taxonomy" &&
+          field === "ResultValue"
+        ) {
           // do a look up to see if the result value is in the taxonomy elements
-          const valid = await this.queryCodeTables("TAXONS", rowData[field])
-          if (Object.keys(valid).length === 0){
+          const valid = await this.queryCodeTables("TAXONS", rowData[field]);
+          if (Object.keys(valid).length === 0) {
             let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Result Value ${rowData[field]} not a valid value for Taxonomy. Look at Taxonomy Elements for valid values."}}`;
             errorLogs.push(JSON.parse(errorLog));
           }
-        }else if (rowData.ObservedPropertyID === 'Biological Life Stage (cat.)' && validObservedProperty && field === 'ResultValue'){
-          const valid = await this.queryCodeTables("BioLifeStage", rowData[field])
-          if (Object.keys(valid).length === 0){
+        } else if (
+          rowData.ObservedPropertyID === "Biological Life Stage (cat.)" &&
+          validObservedProperty &&
+          field === "ResultValue"
+        ) {
+          const valid = await this.queryCodeTables(
+            "BioLifeStage",
+            rowData[field],
+          );
+          if (Object.keys(valid).length === 0) {
             let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Result Value ${rowData[field]} not a valid value of Biological Life Stage. Look at Biological Life Stage (cat.) list for valid values."}}`;
             errorLogs.push(JSON.parse(errorLog));
           }
-        }else if (rowData.ObservedPropertyID === 'Biological Sex (cat.)' && validObservedProperty && field === 'ResultValue'){
-           const valid = await this.queryCodeTables("BioSex", rowData[field])
-          if (Object.keys(valid).length === 0){
+        } else if (
+          rowData.ObservedPropertyID === "Biological Sex (cat.)" &&
+          validObservedProperty &&
+          field === "ResultValue"
+        ) {
+          const valid = await this.queryCodeTables("BioSex", rowData[field]);
+          if (Object.keys(valid).length === 0) {
             let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Result Value ${rowData[field]} not a valid value of Biological Sex. Look at Biological Sex (cat.) list for valid values."}}`;
             errorLogs.push(JSON.parse(errorLog));
           }
-        }else{
+        } else {
           const valid =
             numberRegex.test(rowData[field]) &&
             !isNaN(parseFloat(rowData[field]));
@@ -1221,10 +1239,18 @@ export class FileParseValidateService {
         "LOCATIONS",
         rowData.LocationID,
       );
-      const validFieldVisitStartTime = isoDateTimeRegex.test(rowData.FieldVisitStartTime)
-      const validObservedDateTime = isoDateTimeRegex.test(rowData.ObservedDateTime)
+      const validFieldVisitStartTime = isoDateTimeRegex.test(
+        rowData.FieldVisitStartTime,
+      );
+      const validObservedDateTime = isoDateTimeRegex.test(
+        rowData.ObservedDateTime,
+      );
 
-      if (locationGUID.hasOwnProperty("samplingLocation") && validFieldVisitStartTime && validObservedDateTime) {
+      if (
+        locationGUID.hasOwnProperty("samplingLocation") &&
+        validFieldVisitStartTime &&
+        validObservedDateTime
+      ) {
         const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
         let visitExists = false;
         const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
@@ -2375,6 +2401,38 @@ export class FileParseValidateService {
       },
     });
   }
+
+  async checkDelimiterErrors(file) {
+    let delimiterErrors = [];
+    const txtFile = readline.createInterface({
+      input: file,
+      crlfDelay: Infinity,
+    });
+
+    for await (const line of txtFile) {
+      const trimmed = line.trim();
+
+      // skip empty line
+      if (!trimmed) continue;
+
+      if (trimmed.includes(";")) {
+        let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"File": "File is semicolon-delimited. File must be comma-delimited"}}`;
+        delimiterErrors.push(JSON.parse(errorLog));
+      } else if (trimmed.includes("\t")) {
+        let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"File": "File is tab-delimited. File must be comma-delimited"}}`;
+        delimiterErrors.push(JSON.parse(errorLog));
+      } else if (trimmed.includes(" ") && !trimmed.includes(",")) {
+        let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"File": "File is space-delimited. File must be comma-delimited"}}`;
+        delimiterErrors.push(JSON.parse(errorLog));
+      } else if (!trimmed.includes(",")) {
+        let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"File": "File is not comma-delimited"}}`;
+        delimiterErrors.push(JSON.parse(errorLog));
+      }
+    }
+
+    return delimiterErrors;
+  }
+
   async parseFile(
     file: Readable,
     fileName: string,
@@ -2799,6 +2857,40 @@ export class FileParseValidateService {
       const allExistingRecords: any[] = [];
       const headersForValidation: string[] = [];
       const headers: string[] = [];
+      let delimiterErrors = [];
+
+      if (extention == ".txt") {
+        delimiterErrors = await this.checkDelimiterErrors(file);
+      }
+
+      if (delimiterErrors.length > 0) {
+        // there is an error in the file delimiter. Report to the user and reject the file
+        const file_error_log_data = {
+          file_submission_id: file_submission_id,
+          file_name: fileName,
+          original_file_name: originalFileName,
+          file_operation_code: file_operation_code,
+          ministry_contact: null,
+          error_log: delimiterErrors,
+          create_utc_timestamp: new Date(),
+        };
+
+        await this.prisma.file_error_logs.create({
+          data: file_error_log_data,
+        });
+
+        await this.fileSubmissionsService.updateFileStatus(
+          file_submission_id,
+          "REJECTED",
+        );
+        await this.benchmarkImport(
+          file_submission_id,
+          fileName,
+          originalFileName,
+        );
+
+        return;
+      }
 
       let isFirstRow = true;
       file
@@ -2827,7 +2919,7 @@ export class FileParseValidateService {
         });
 
       await new Promise((f) => setTimeout(f, 1000));
-      
+
       // do a validation on the headers
       const headerErrors = await this.checkHeaders(headersForValidation, "csv");
 
