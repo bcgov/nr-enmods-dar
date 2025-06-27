@@ -75,40 +75,60 @@ function FileUpload() {
     return 0;
   }
 
-  const handleFileSelect = async (files) => {
-    if (!files) return;
+  const handleFileSelect = async (newFiles: FileList | File[]) => {
+    if (!newFiles) return;
 
-    const selectedFilesForValidation = Array.from(files);
-    const invalidFiles = selectedFilesForValidation.filter((file: any) =>
-      file.name.includes(" "),
-    );
+    // Convert to array and filter out files with spaces in the name
+    const newFilesArray = Array.from(newFiles).filter((file: File) => !file.name.includes(" "));
 
-    if (invalidFiles.length > 0) {
+    if (newFilesArray.length !== Array.from(newFiles).length) {
       confirm(
         "File names cannot contain spaces. Please rename the following files and try again:\n" +
-          invalidFiles.map((file: any) => file.name).join("\n"),
+        Array.from(newFiles)
+          .filter((file: File) => file.name.includes(" "))
+          .map((file: File) => file.name)
+          .join("\n")
       );
       return;
     }
 
-    // check for max number of rows
-    for (const file of selectedFilesForValidation) {
+    // Check for max number of rows
+    for (const file of newFilesArray) {
       const rowCount = await getRowCount(file);
-
       if (rowCount > 10000) {
         confirm(
           "File contains more than 10,000 rows. Make sure file has at most 10,000 rows and try again:\n" +
-            file.name +
-            `, rows found: ${rowCount}`,
+          file.name +
+          `, rows found: ${rowCount}`,
         );
         return;
       }
     }
-    setFiles(files);
-    selectedFiles = Array.from(files);
 
-    checkedItems.items = selectedFiles.map((index) => true);
-    fileStatusCodes.items = selectedFiles.map((index) => null);
+    // Merge with existing files, avoiding duplicates by name+size
+    const existingFiles = selectedFiles || [];
+    const mergedFiles = [
+      ...existingFiles,
+      ...newFilesArray.filter(
+        (newFile) =>
+          !existingFiles.some(
+            (existingFile) =>
+              existingFile.name === newFile.name && existingFile.size === newFile.size
+          )
+      ),
+    ];
+
+    if (mergedFiles.length > 10){
+      console.log('jere')
+      confirm(`Cannot select more than 10 files. ${newFilesArray.length} selected`)
+      return
+    }
+
+    setFiles(mergedFiles);
+    selectedFiles = mergedFiles;
+
+    checkedItems.items = mergedFiles.map(() => true);
+    fileStatusCodes.items = mergedFiles.map(() => null);
   };
 
   const deleteFile = (file: string | Blob) => {
@@ -390,14 +410,8 @@ function FileUpload() {
                   onClick={handleExpandList}
                 >
                   {expandList ? <ExpandMore /> : <ChevronRight />}
-                  {selectedFiles.length > 0 && selectedFiles.length <= 10 ? (
+                  {selectedFiles.length > 0 ? (
                     <label>{selectedFiles.length + " files selected"}</label>
-                  ) : selectedFiles.length > 10 ? (
-                    <label>
-                      {"Cannot select more than 10 files. " +
-                        selectedFiles.length +
-                        " files selected"}
-                    </label>
                   ) : (
                     <label>{"0 files selected"}</label>
                   )}
