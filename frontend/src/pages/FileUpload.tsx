@@ -118,6 +118,12 @@ function FileUpload() {
       ),
     ];
 
+    if (mergedFiles.length > 10){
+      console.log('jere')
+      confirm(`Cannot select more than 10 files. ${newFilesArray.length} selected`)
+      return
+    }
+
     setFiles(mergedFiles);
     selectedFiles = mergedFiles;
 
@@ -404,14 +410,8 @@ function FileUpload() {
                   onClick={handleExpandList}
                 >
                   {expandList ? <ExpandMore /> : <ChevronRight />}
-                  {selectedFiles.length > 0 && selectedFiles.length <= 10 ? (
+                  {selectedFiles.length > 0 ? (
                     <label>{selectedFiles.length + " files selected"}</label>
-                  ) : selectedFiles.length > 10 ? (
-                    <label>
-                      {"Cannot select more than 10 files. " +
-                        selectedFiles.length +
-                        " files selected"}
-                    </label>
                   ) : (
                     <label>{"0 files selected"}</label>
                   )}
