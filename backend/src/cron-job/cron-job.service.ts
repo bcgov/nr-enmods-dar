@@ -211,6 +211,20 @@ export class CronJobService {
             ? new Date(record.modificationTime)
             : null,
         };
+      case "aqi_observed_properties":
+        return {
+          custom_id: record.customId || record.name,
+          description: record.description,
+          result_type: record.resultType,
+          create_user_id: record.creationUserProfileId,
+          create_utc_timestamp: record.creationTime
+            ? new Date(record.creationTime)
+            : null,
+          update_user_id: record.modificationUserProfileId,
+          update_utc_timestamp: record.modificationTime
+            ? new Date(record.modificationTime)
+            : null,
+        };
       case "aqi_units":
         return {
           aqi_units_id: record.id,
@@ -261,19 +275,12 @@ export class CronJobService {
           update_user_id: "EnMoDS",
           update_utc_timestamp: new Date(),
         };
-      case "aqi_field_visits":
+      case "aqi_analysis_methods":
         return {
           [`${dbTable}_id`]: record.id,
-          aqi_field_visit_start_time: new Date(record.startTime),
-          aqi_location_custom_id: record.locationCustomID,
-        };
-      case "aqi_field_activities":
-        return {
-          [`${dbTable}_id`]: record.id,
-          aqi_field_activities_start_time: new Date(record.startTime),
-          aqi_field_activities_custom_id: record.customId,
-          aqi_field_visit_start_time: new Date(record.visitStartTime),
-          aqi_location_custom_id: record.locationCustomID,
+          method_id: record.methodId,
+          method_name: record.name,
+          method_context: record.context,
           create_user_id: record.creationUserProfileId,
           create_utc_timestamp: record.creationTime
             ? new Date(record.creationTime)
@@ -283,20 +290,12 @@ export class CronJobService {
             ? new Date(record.modificationTime)
             : null,
         };
-      case "aqi_specimens":
+      case "aqi_observed_properties":
         return {
-          [`${dbTable}_id`]: record.id,
-          aqi_specimens_custom_id: record.name,
-          aqi_field_activities_start_time: record.activityStartTime,
-          aqi_field_activities_custom_id: record.activityCustomid ?? "",
-          aqi_location_custom_id: record.locationCustomID,
-        };
-      case "aqi_analysis_methods":
-        return {
-          [`${dbTable}_id`]: record.id,
-          method_id: record.methodId,
-          method_name: record.name,
-          method_context: record.context,
+          aqi_observed_properties_id: record.id,
+          custom_id: record.customId || record.name,
+          description: record.description,
+          result_type: record.resultType,
           create_user_id: record.creationUserProfileId,
           create_utc_timestamp: record.creationTime
             ? new Date(record.creationTime)
@@ -456,59 +455,7 @@ export class CronJobService {
         modificationTime,
       };
     };
-    const filterFieldVisitAttributes = (obj: any): any => {
-      const { id, startTime, samplingLocation } = obj;
-      const locationCustomID = samplingLocation.customId;
 
-      return {
-        id,
-        startTime,
-        locationCustomID,
-      };
-    };
-    const filterActivityAttributes = (obj: any): any => {
-      const {
-        id,
-        customId,
-        startTime,
-        fieldVisit,
-        samplingLocation,
-        auditAttributes,
-      } = obj;
-      const locationCustomID = samplingLocation.customId;
-      const visitStartTime = fieldVisit.startTime;
-      const creationUserProfileId = auditAttributes.creationUserProfileId;
-      const creationTime = auditAttributes.creationTime;
-      const modificationUserProfileId =
-        auditAttributes.modificationUserProfileId;
-      const modificationTime = auditAttributes.modificationTime;
-
-      return {
-        id,
-        customId,
-        startTime,
-        visitStartTime,
-        locationCustomID,
-        creationUserProfileId,
-        creationTime,
-        modificationUserProfileId,
-        modificationTime,
-      };
-    };
-    const filterSpecimenAttributes = (obj: any): any => {
-      const { id, name, activity } = obj;
-      const activityStartTime = activity.startTime;
-      const activityCustomId = activity.customId;
-      const locationCustomID = activity.samplingLocation.customId;
-
-      return {
-        id,
-        name,
-        activityStartTime,
-        activityCustomId,
-        locationCustomID,
-      };
-    };
     const filerAnalysisMethodAttributes = (obj: any): any => {
       const { id, methodId, name, context, auditAttributes } = obj;
       const creationUserProfileId = auditAttributes.creationUserProfileId;
@@ -551,6 +498,26 @@ export class CronJobService {
       };
     };
 
+    const filterOPResults = (obj: any): any => {
+      const { id, customId, description, resultType, auditAttributes } = obj;
+      const creationUserProfileId = auditAttributes.creationUserProfileId;
+      const creationTime = auditAttributes.creationTime;
+      const modificationUserProfileId =
+        auditAttributes.modificationUserProfileId;
+      const modificationTime = auditAttributes.modificationTime;
+
+      return {
+        id,
+        customId,
+        description,
+        resultType,
+        creationUserProfileId,
+        creationTime,
+        modificationUserProfileId,
+        modificationTime,
+      };
+    };
+
     const filterEELists = (obj: any): any => {
       const { id, customId } = obj;
       const create_user_id = "EnMoDs";
@@ -582,6 +549,8 @@ export class CronJobService {
         return array.map(filterEELists);
       } else if (endpoint == "/v1/units") {
         return array.map(filterResultUnits);
+      } else if (endpoint == "/v1/observedproperties") {
+        return array.map(filterOPResults);
       } else {
         return array.map(filterAttributes);
       }
@@ -589,7 +558,7 @@ export class CronJobService {
     return filterArray(entries);
   }
 
-  @Cron(CronExpression.EVERY_10_SECONDS) // every 2 hours
+  @Cron(CronExpression.EVERY_MINUTE) // every 2 hours
   private async beginFileValidation() {
     /*
     TODO:
