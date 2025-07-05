@@ -3,7 +3,7 @@ WITH core_data AS (
     SELECT DISTINCT
         ps.first_name || ' ' || ps.last_name                         AS "Ministry Contact",
         cl.id || ' - ' || cl.name                                    AS "Sampling Agency",
-        case when aqs_project.EMS_CODE is null then null else 'BCLMN' end AS "Project",
+        case when aqs_project.bclmn_requisition_numbers is null then null else 'BCLMN' end AS "Project",
         smpl.requisition_id                                          AS "Work Order Number",
         smpl.mon_locn_id                                             AS "Location ID",
         to_char(eal.earlieststarttime, 'YYYY-MM-DD"T"HH24:MI:SS') || '-08:00'    AS "Field Visit Start Time",
@@ -203,7 +203,7 @@ WITH core_data AS (
         LEFT JOIN ems_parm_dicts d on d.parm_cd = result.parm_cd
                 AND d.anal_method_cd = result.anal_method_cd
         LEFT JOIN ems.AQS_UNITS_TEMP aqs_units ON aqs_units.EMS_CODE = d.meas_unit_cd
-        LEFT JOIN ems.AQS_UNITS_TEMP aqs_project ON to_char(aqs_project.EMS_CODE) = to_char(smpl.requisition_id)
+        LEFT JOIN ems.bclmn_requisition_numbers aqs_project ON to_char(aqs_project.bclmn_requisition_numbers) = to_char(smpl.requisition_id)
         LEFT JOIN ems_measurment_units mu ON mu.code = d.meas_unit_cd
         LEFT JOIN ems_measurment_units mu_mdl ON mu_mdl.code = result.meas_unit_cd
         LEFT JOIN ems_tides tide ON smpl.tide_cd = tide.code
@@ -241,7 +241,7 @@ sample_data AS (
     SELECT DISTINCT
         ps.first_name || ' ' || ps.last_name                         AS "Ministry Contact",
         cl.id || ' - ' || cl.name                                    AS "Sampling Agency",
-        case when aqs_project.EMS_CODE is null then null else 'BCLMN' end AS "Project",
+        case when aqs_project.bclmn_requisition_numbers is null then null else 'BCLMN' end AS "Project",
         smpl.requisition_id                                          AS "Work Order Number",
         smpl.mon_locn_id                                             AS "Location ID",
         to_char(eal.earlieststarttime, 'YYYY-MM-DD"T"HH24:MI:SS') || '-08:00'    AS "Field Visit Start Time",
@@ -420,7 +420,7 @@ sample_data AS (
                                                                 AND smpl.smpl_st_cd = m.state
                                                                 AND smpl.smpl_desc_cd = m.descriptor
         LEFT JOIN ems_tides tide ON smpl.tide_cd = tide.code
-        LEFT JOIN ems.AQS_UNITS_TEMP aqs_project ON to_char(aqs_project.EMS_CODE) = to_char(smpl.requisition_id)
+        LEFT JOIN ems.bclmn_requisition_numbers aqs_project ON to_char(aqs_project.bclmn_requisition_numbers) = to_char(smpl.requisition_id)
         LEFT JOIN ems_measurment_units flow_unit ON flow_unit.code = smpl.flow_unit_cd
         LEFT JOIN ems_tissue_types tt ON smpl.tissue_typ_cd = tt.code
         LEFT JOIN ems_species sp ON smpl.species_cd = sp.code
@@ -722,7 +722,7 @@ where core.result_unit_code is not null and core.mdl_unit_code is not null
 /*
 union all -- air data
 */
-
+/*
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -1002,7 +1002,7 @@ where upper(core."Medium") like '%AIR%' -- try WATER-MARINE for a subset
     and core."Air Filter Size" is not null
     --AND ed.NewNameID is not null
 -- end air filter size
-
+*/
 /*
 union -- taxonomic data - bio sample area
 
@@ -1593,7 +1593,7 @@ and (nvl(core.weight_from,0)) > 0
 */
 -- begin continuous data
 -- union -- continuous data - CONTINUOUS_AVERAGE
-/*
+
 SELECT
         ''  as "Observation ID",
         core."Ministry Contact",
@@ -1865,7 +1865,7 @@ where --upper(core."Medium") like '%WATER - WASTE%' -- try WATER-MARINE for a su
         core.CONTINUOUS_MINIMUM is not null
         AND ed.NewNameID is not null
         
-*/
+
 -- end continuous
 
 ))
