@@ -838,6 +838,7 @@ export class FileParseValidateService {
 
     const unitFields = "ResultUnit";
     let validObservedProperty = false;
+    let OPResultType = ""
 
     if (rowData.hasOwnProperty("ObservedPropertyID")) {
       if (rowData["ObservedPropertyID"] == "") {
@@ -849,12 +850,14 @@ export class FileParseValidateService {
           "aqi_observed_properties",
           rowData.ObservedPropertyID,
         );
+        
         if (!present) {
           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "${rowData.ObservedPropertyID} not found in EnMoDS Observed Properties"}}`;
           errorLogs.push(JSON.parse(errorLog));
           validObservedProperty = false;
         } else {
           validObservedProperty = true;
+          OPResultType = present[0].result_type
         }
       }
     }
@@ -885,46 +888,23 @@ export class FileParseValidateService {
     // check all numerical fields
     numericalFields.forEach(async (field) => {
       if (rowData.hasOwnProperty(field)) {
-        if (
-          rowData.ObservedPropertyID === "Taxonomy" &&
-          field === "ResultValue"
-        ) {
-          // do a look up to see if the result value is in the taxonomy elements
-          const valid = await this.queryCodeTables("TAXONS", rowData[field]);
-          if (Object.keys(valid).length === 0) {
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Result Value ${rowData[field]} not a valid value for Taxonomy. Look at Taxonomy Elements for valid values."}}`;
-            errorLogs.push(JSON.parse(errorLog));
-          }
-        } else if (
-          rowData.ObservedPropertyID === "Biological Life Stage (cat.)" &&
-          validObservedProperty &&
-          field === "ResultValue"
-        ) {
-          const valid = await this.queryCodeTables(
-            "BioLifeStage",
-            rowData[field],
-          );
-          if (Object.keys(valid).length === 0) {
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Result Value ${rowData[field]} not a valid value of Biological Life Stage. Look at Biological Life Stage (cat.) list for valid values."}}`;
-            errorLogs.push(JSON.parse(errorLog));
-          }
-        } else if (
-          rowData.ObservedPropertyID === "Biological Sex (cat.)" &&
-          validObservedProperty &&
-          field === "ResultValue"
-        ) {
-          const valid = await this.queryCodeTables("BioSex", rowData[field]);
-          if (Object.keys(valid).length === 0) {
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Result Value ${rowData[field]} not a valid value of Biological Sex. Look at Biological Sex (cat.) list for valid values."}}`;
-            errorLogs.push(JSON.parse(errorLog));
-          }
-        } else {
-          const valid =
-            numberRegex.test(rowData[field]) &&
-            !isNaN(parseFloat(rowData[field]));
-          if (rowData[field] !== "" && !valid) {
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid number"}}`;
-            errorLogs.push(JSON.parse(errorLog));
+        if (validObservedProperty) {
+          if (OPResultType === "NUMERIC") {
+            const validNumber =
+              numberRegex.test(rowData[field]) &&
+              !isNaN(parseFloat(rowData[field]));
+            if (rowData[field] !== "" && !validNumber) {
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid number"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
+          } else {
+            const validString =
+              typeof rowData[field] === "string" &&
+              rowData[field].trim().length > 0;
+            if (rowData[field] !== "" && !validString) {
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid number"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
           }
         }
       }
