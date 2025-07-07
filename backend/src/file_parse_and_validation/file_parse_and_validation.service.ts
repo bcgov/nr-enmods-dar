@@ -1213,7 +1213,7 @@ export class FileParseValidateService {
       }
     }
 
-    // check if the visit already exists -- check if visit timetsamp for that location already exists
+    // check if the visit/activity already exists -- check if visit timetsamp for that location already exists or activity at that time with that name (or type) exists
     if (rowData["LocationID"] != "") {
       const locationGUID = await this.queryCodeTables(
         "LOCATIONS",
@@ -1233,7 +1233,7 @@ export class FileParseValidateService {
       ) {
         const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
         let visitExists = false;
-        const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
+        let activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
         let activityExists = false;
 
         if (validationApisCalled.some((item) => item.url === visitURL)) {
@@ -1264,32 +1264,45 @@ export class FileParseValidateService {
           validationApisCalled.push(visitURLCalled);
         }
 
-        if (validationApisCalled.some((item) => item.url === activityURL)) {
-          // activity url has been called before
-          let seenActivityUrl = validationApisCalled.find(
-            (item) => item.url === activityURL,
-          );
+        if (rowData["DataClassification"] != "FIELD_RESULT") {
+          // ignoring the activity check for FIELD_RESULT as they do not have parent activity
 
-          if (seenActivityUrl.count > 0) {
-            // activity exists in AQI
-            activityExists = true;
-            existingGUIDS["activity"] = seenActivityUrl.GUID;
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
-            errorLogs.push(JSON.parse(errorLog));
+          if (rowData["DataClassification"] === "VERTICAL_PROFILE") {
+            activityURL =
+              activityURL + "&activityTypes=SAMPLE_INTEGRATED_VERTICAL_PROFILE";
+          } else if (rowData["DataClassification"] === "FIELD_SURVEY") {
+            activityURL = activityURL + "&activityTypes=FIELD_SURVEY";
+          } else if (rowData["DataClassification"] === "SURROGATE_RESULT") {
+            activityURL = activityURL + "&activityTypes=SPIKE";
           }
-        } else {
-          const activityURLCalled = await this.aqiService.getActivities(
-            rowNumber,
-            activityURL,
-          );
-          if (activityURLCalled.count > 0) {
-            // visit exists in AQI
-            visitExists = true;
-            existingGUIDS["activity"] = activityURLCalled.GUID;
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
-            errorLogs.push(JSON.parse(errorLog));
+
+          if (validationApisCalled.some((item) => item.url === activityURL)) {
+            // activity url has been called before
+            let seenActivityUrl = validationApisCalled.find(
+              (item) => item.url === activityURL,
+            );
+
+            if (seenActivityUrl.count > 0) {
+              // activity exists in AQI
+              activityExists = true;
+              existingGUIDS["activity"] = seenActivityUrl.GUID;
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
+          } else {
+            const activityURLCalled = await this.aqiService.getActivities(
+              rowNumber,
+              activityURL,
+            );
+            if (activityURLCalled.count > 0) {
+              // visit exists in AQI
+              visitExists = true;
+              existingGUIDS["activity"] = activityURLCalled.GUID;
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
+            validationApisCalled.push(activityURLCalled);
           }
-          validationApisCalled.push(activityURLCalled);
         }
       }
     }
@@ -1537,8 +1550,7 @@ export class FileParseValidateService {
 
     if (
       rowData.DataClassification == "LAB" ||
-      rowData.DataClassification == "SURROGATE_RESULT" ||
-      rowData.DataClassification == "FIELD_SURVEY"
+      rowData.DataClassification == "SURROGATE_RESULT"
     ) {
       cleanedRow.ObservationID = "";
       cleanedRow.FieldDeviceID = "";
@@ -1557,7 +1569,8 @@ export class FileParseValidateService {
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
-      rowData.DataClassification == "VERTICAL_PROFILE"
+      rowData.DataClassification == "VERTICAL_PROFILE" ||
+      rowData.DataClassification == "FIELD_SURVEY"
     ) {
       cleanedRow.ObservationID = "";
       cleanedRow.FieldFiltered = "";
@@ -1628,7 +1641,7 @@ export class FileParseValidateService {
     }
 
     if (rowData.DataClassification == "FIELD_RESULT") {
-      // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this   
+      // TODO: add VERTICAL_PROFILE to this if when AQI fixed their bug and remove the if block above this
       rowData.SpecimenName = "";
       rowData.ActivityName == "";
     }
