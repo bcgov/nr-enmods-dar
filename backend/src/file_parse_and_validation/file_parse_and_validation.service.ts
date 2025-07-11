@@ -1585,7 +1585,7 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
+      cleanedRow.ActivityName =  rowData.DataClassification == "ACTIVITY_RESULT" ? concatActivityName : ""; // TODO: this will need to uncommented after Jeremy is done testing
       cleanedRow.TissueType = "";
       cleanedRow.LabArrivalTemperature = "";
       cleanedRow.SpecimenName = "";
