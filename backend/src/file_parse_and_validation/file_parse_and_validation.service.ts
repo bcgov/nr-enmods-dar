@@ -1561,7 +1561,7 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      cleanedRow.ActivityName =  rowData.DataClassification !== "FIELD_SURVEY" ? concatActivityName : ""; // TODO: this will need to uncommented after Jeremy is done testing
+      cleanedRow.ActivityName =  rowData.DataClassification == "FIELD_SURVEY" ? concatActivityName + ";FS" : concatActivityName; // TODO: this will need to uncommented after Jeremy is done testing
 
       if (cleanedRow.QCType == "REGULAR") {
         // this is because AQI interprets a null value as REGULAR
