@@ -13,7 +13,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_set_update_timestamp
+CREATE OR REPLACE TRIGGER trg_set_update_timestamp
 BEFORE UPDATE ON enmods.api_keys
 FOR EACH ROW
 EXECUTE FUNCTION enmods_set_update_timestamp();
