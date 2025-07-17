@@ -134,6 +134,7 @@ model aqi_observed_properties {
   create_utc_timestamp       DateTime @db.Timestamp(6)
   update_user_id             String   @db.VarChar(200)
   update_utc_timestamp       DateTime @db.Timestamp(6)
+  result_type                String?  @db.VarChar(200)
 }
 
 model aqi_result_grade {
