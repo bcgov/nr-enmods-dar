@@ -24,11 +24,11 @@ export class AqiApiService {
     });
   }
 
-  async healthCheck(){
+  async healthCheck() {
     const healthcheckUrl = process.env.AQI_BASE_URL + "/v1/status";
     let aqiStatus = (await axios.get(healthcheckUrl)).status;
 
-    return aqiStatus
+    return aqiStatus;
   }
 
   async fieldVisits(rowNumber: number, body: any) {
@@ -44,7 +44,7 @@ export class AqiApiService {
         err.response.data.message,
       );
 
-      return "partialUpload"
+      return "partialUpload";
     }
   }
 
@@ -129,7 +129,7 @@ export class AqiApiService {
         err.response.data.message,
       );
 
-      return "partialUpload"
+      return "partialUpload";
     }
   }
 
@@ -160,7 +160,7 @@ export class AqiApiService {
       return response.data.id;
     } catch (err) {
       const message = err.response.data.message;
-     
+
       const skipMessage =
         "A Specimen with the same name already exists for the referenced Activity";
 
@@ -169,14 +169,13 @@ export class AqiApiService {
           `RowNum: ${rowNumber} -> Duplicate Specimen name, skipping...`,
         );
         return "exists";
-      }else{
+      } else {
         this.logger.error(
           `RowNum: ${rowNumber} -> API CALL TO POST Specimens failed: `,
           err.response.data.message,
         );
 
-        return "partialUpload"
-
+        return "partialUpload";
       }
     }
   }
@@ -550,14 +549,14 @@ export class AqiApiService {
 
   async databaseLookup(dbTable: string, queryParam: string) {
     switch (dbTable) {
-      case "aqi_units_xref":
+      case "aqi_units":
         try {
-          let result = await this.prisma.aqi_units_xref.findMany({
+          let result = await this.prisma.aqi_units.findMany({
             where: {
-              edt_unit_xref: queryParam,
+              edt_unit: queryParam,
             },
             select: {
-              aqi_units_code: true,
+              custom_id: true,
             },
           });
           if (result.length > 0) {
@@ -568,7 +567,24 @@ export class AqiApiService {
         } catch (err) {
           this.logger.error(`API CALL TO ${dbTable} failed: `, err);
         }
-
+      case "aqi_observed_properties":
+        try {
+          let result = await this.prisma.aqi_observed_properties.findMany({
+            where: {
+              custom_id: queryParam,
+            },
+            select: {
+              result_type: true
+            }
+          });
+          if (result.length > 0) {
+            return result;
+          } else {
+            return null;
+          }
+        } catch (err) {
+          this.logger.error(`API CALL TO ${dbTable} failed: `, err);
+        }
       default:
         try {
           let result = await this.prisma[dbTable].findMany({
@@ -656,7 +672,7 @@ export class AqiApiService {
           : item,
       );
     };
-    
+
     [...localErrors, ...remoteErrors].forEach(mergeItem);
 
     return Array.from(map.values()).sort((a, b) => a.rowNum - b.rowNum);
@@ -795,7 +811,6 @@ export class AqiApiService {
             },
           );
           this.logger.log("AQI VISIT DELETION: " + deletion.status);
-
         } catch (err) {
           let visitError = `{"rowNum": "N/A", "type": "ERROR", "message": {"Delete": "Failed to delete visit with GUID ${visit}"}}`;
           visitDeleteErrors.push(JSON.parse(visitError));
@@ -905,5 +920,60 @@ export class AqiApiService {
     });
 
     deleteErrors = [];
+  }
+
+  async getTaxons(taxon: string) {
+    let returnedTaxon = {};
+    const aqiTaxons = await this.axiosInstance.get("/v1/taxons");
+    const matchingTaxon = aqiTaxons.data.domainObjects.find(
+      (taxonElement) => taxonElement.scientificName === taxon,
+    );
+
+    if (matchingTaxon === undefined) {
+      return returnedTaxon;
+    } else {
+      returnedTaxon["aqiId"] = matchingTaxon.id;
+      returnedTaxon["customId"] = matchingTaxon.scientificName;
+
+      return returnedTaxon;
+    }
+  }
+
+  async getBioLifeStage(stageVlaue: string) {
+    let returnedLifeStage = {};
+    const lifeStages = await this.axiosInstance.get(
+      "/v1/observedproperties/3f91be71-324c-48bf-8350-15e8f2f91743/categoricalvalues",
+    );
+    const matchingLifeStage = lifeStages.data.domainObjects.find(
+      (lifeStageElement) => lifeStageElement.customId === stageVlaue,
+    );
+
+    if (matchingLifeStage === undefined) {
+      return returnedLifeStage;
+    } else {
+      returnedLifeStage["aqiId"] = matchingLifeStage.id;
+      returnedLifeStage["customId"] = matchingLifeStage.customId;
+
+      return returnedLifeStage;
+    }
+  }
+
+  async getBioSex(sexValue: string) {
+    let returnedSexValue = {};
+    const sexValues = await this.axiosInstance.get(
+      "/v1/observedproperties/32b67848-86a4-4c8b-926c-3f034f59a1ad/categoricalvalues",
+    );
+    const matchingSexValue = sexValues.data.domainObjects.find(
+      (sexValueElement) => sexValueElement.customId === sexValue,
+    );
+
+    if (matchingSexValue === undefined) {
+      return returnedSexValue;
+    } else {
+      returnedSexValue["aqiId"] = matchingSexValue.id;
+      returnedSexValue["customId"] = matchingSexValue.customId;
+
+      return returnedSexValue;
+    }
   }
 }

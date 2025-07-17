@@ -18,6 +18,7 @@ import { NotificationsService } from "src/notifications/notifications.service";
 import { Readable } from "stream";
 import { format } from "fast-csv";
 import { parse } from "csv-parse";
+import * as readline from "readline";
 
 const fileHeaders: FileHeaders = {
   "Observation ID": "Observation ID",
@@ -348,6 +349,24 @@ export class FileParseValidateService {
           returnTags.push({ id: tagID[0].aqi_context_tags_id, name: tag });
         }
         return returnTags;
+      case "TAXONS":
+        let taxon = await this.aqiService.getTaxons(param);
+        return {
+          taxonomy: { id: taxon["aqiId"], customId: taxon["customId"] },
+        };
+      case "BioLifeStage":
+        let stageValue = await this.aqiService.getBioLifeStage(param);
+        return {
+          lifeStage: {
+            id: stageValue["aqiId"],
+            customId: stageValue["customId"],
+          },
+        };
+      case "BioSex":
+        let sexValue = await this.aqiService.getBioSex(param);
+        return {
+          lifeStage: { id: sexValue["aqiId"], customId: sexValue["customId"] },
+        };
       case "EXTENDED_ATTRIB":
         let eaID = await this.prisma.aqi_extended_attributes.findMany({
           where: {
@@ -571,10 +590,13 @@ export class FileParseValidateService {
       postData,
       await this.queryCodeTables("MEDIUM", mediumCustomID),
     );
-    Object.assign(
-      postData,
-      await this.queryCodeTables("LABS", analyzingAgencyCustomID),
-    );
+
+    if (analyzingAgencyCustomID !== "") {
+      Object.assign(
+        postData,
+        await this.queryCodeTables("LABS", analyzingAgencyCustomID),
+      );
+    }
 
     // get the EA custom id (EA Work Order Number, FieldFiltered, FieldFilterComment, FieldPreservative, EALabReportID, SpecimenName) and find the GUID
     if (specimenData.WorkOrderNumber != "") {
@@ -692,20 +714,20 @@ export class FileParseValidateService {
 
     const resultUnitLookup = newObs["Result Unit"];
     if (resultUnitLookup) {
-      const resultLookUpResult = await this.prisma.aqi_units_xref.findFirst({
+      const resultLookUpResult = await this.prisma.aqi_units.findFirst({
         where: {
-          edt_unit_xref: {
+          edt_unit: {
             equals: resultUnitLookup,
           },
         },
         select: {
-          aqi_units_code: true,
+          custom_id: true,
         },
       });
 
       if (resultLookUpResult) {
         const newResultUnit = resultLookUpResult;
-        newObs["Result Unit"] = newResultUnit.aqi_units_code;
+        newObs["Result Unit"] = newResultUnit.custom_id;
       }
     }
 
@@ -735,7 +757,8 @@ export class FileParseValidateService {
           });
         } else if (
           row["DataClassification"] == "LAB" ||
-          row["DataClassification"] == "FIELD_RESULT"
+          row["DataClassification"] == "FIELD_RESULT" ||
+          row["DataClassification"] == "ACTIVITY_RESULT"
         ) {
           if (row["QCType"] == "") {
             Object.assign(filteredObj, { ActivityType: "SAMPLE_ROUTINE" });
@@ -753,7 +776,6 @@ export class FileParseValidateService {
         Object.assign(filteredObj, customAttributes);
       }
     }
-
     return filteredObj;
   }
 
@@ -771,6 +793,7 @@ export class FileParseValidateService {
     if (sourceHeaders.length != targetHeaders.length) {
       let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "Invalid number of headers. Got ${sourceHeaders.length}, expected ${targetHeaders.length}"}}`;
       headerErrors.push(JSON.parse(errorLog));
+      return headerErrors;
     }
 
     for (let i = 0; i < sourceHeaders.length; i++) {
@@ -816,6 +839,30 @@ export class FileParseValidateService {
     ];
 
     const unitFields = "ResultUnit";
+    let validObservedProperty = false;
+    let OPResultType = ""
+
+    if (rowData.hasOwnProperty("ObservedPropertyID")) {
+      if (rowData["ObservedPropertyID"] == "") {
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "Cannot be empty"}}`;
+        errorLogs.push(JSON.parse(errorLog));
+        validObservedProperty = false;
+      } else {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_observed_properties",
+          rowData.ObservedPropertyID,
+        );
+        
+        if (!present) {
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "${rowData.ObservedPropertyID} not found in EnMoDS Observed Properties"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+          validObservedProperty = false;
+        } else {
+          validObservedProperty = true;
+          OPResultType = present[0].result_type
+        }
+      }
+    }
 
     // check all datetimes
     dateTimeFields.forEach((field) => {
@@ -841,14 +888,26 @@ export class FileParseValidateService {
     });
 
     // check all numerical fields
-    numericalFields.forEach((field) => {
+    numericalFields.forEach(async (field) => {
       if (rowData.hasOwnProperty(field)) {
-        const valid =
-          numberRegex.test(rowData[field]) &&
-          !isNaN(parseFloat(rowData[field]));
-        if (rowData[field] !== "" && !valid) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid number"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+        if (validObservedProperty) {
+          if (OPResultType === "NUMERIC") {
+            const validNumber =
+              numberRegex.test(rowData[field]) &&
+              !isNaN(parseFloat(rowData[field]));
+            if (rowData[field] !== "" && !validNumber) {
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid number"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
+          } else {
+            const validString =
+              typeof rowData[field] === "string" &&
+              rowData[field].trim().length > 0;
+            if (rowData[field] !== "" && !validString) {
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid number"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
+          }
         }
       }
     });
@@ -857,7 +916,7 @@ export class FileParseValidateService {
     if (rowData.hasOwnProperty(unitFields)) {
       if (rowData[unitFields]) {
         const present = await this.aqiService.databaseLookup(
-          "aqi_units_xref",
+          "aqi_units",
           rowData[unitFields],
         );
 
@@ -964,22 +1023,6 @@ export class FileParseValidateService {
         );
         if (!present) {
           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Medium": "${rowData.Medium} not found in EnMoDS Mediums"}}`;
-          errorLogs.push(JSON.parse(errorLog));
-        }
-      }
-    }
-
-    if (rowData.hasOwnProperty("ObservedPropertyID")) {
-      if (rowData["ObservedPropertyID"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "Cannot be empty"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      } else {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_observed_properties",
-          rowData.ObservedPropertyID,
-        );
-        if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "${rowData.ObservedPropertyID} not found in EnMoDS Observed Properties"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
@@ -1172,16 +1215,27 @@ export class FileParseValidateService {
       }
     }
 
-    // check if the visit already exists -- check if visit timetsamp for that location already exists
+    // check if the visit/activity already exists -- check if visit timetsamp for that location already exists or activity at that time with that name (or type) exists
     if (rowData["LocationID"] != "") {
       const locationGUID = await this.queryCodeTables(
         "LOCATIONS",
         rowData.LocationID,
       );
-      if (locationGUID.hasOwnProperty("samplingLocation")) {
+      const validFieldVisitStartTime = isoDateTimeRegex.test(
+        rowData.FieldVisitStartTime,
+      );
+      const validObservedDateTime = isoDateTimeRegex.test(
+        rowData.ObservedDateTime,
+      );
+
+      if (
+        locationGUID.hasOwnProperty("samplingLocation") &&
+        validFieldVisitStartTime &&
+        validObservedDateTime
+      ) {
         const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
         let visitExists = false;
-        const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
+        let activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
         let activityExists = false;
 
         if (validationApisCalled.some((item) => item.url === visitURL)) {
@@ -1212,32 +1266,45 @@ export class FileParseValidateService {
           validationApisCalled.push(visitURLCalled);
         }
 
-        if (validationApisCalled.some((item) => item.url === activityURL)) {
-          // activity url has been called before
-          let seenActivityUrl = validationApisCalled.find(
-            (item) => item.url === activityURL,
-          );
+        if (rowData["DataClassification"] != "FIELD_RESULT") {
+          // ignoring the activity check for FIELD_RESULT as they do not have parent activity
 
-          if (seenActivityUrl.count > 0) {
-            // activity exists in AQI
-            activityExists = true;
-            existingGUIDS["activity"] = seenActivityUrl.GUID;
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
-            errorLogs.push(JSON.parse(errorLog));
+          if (rowData["DataClassification"] === "VERTICAL_PROFILE") {
+            activityURL =
+              activityURL + "&activityTypes=SAMPLE_INTEGRATED_VERTICAL_PROFILE";
+          } else if (rowData["DataClassification"] === "FIELD_SURVEY") {
+            activityURL = activityURL + "&activityTypes=FIELD_SURVEY";
+          } else if (rowData["DataClassification"] === "SURROGATE_RESULT") {
+            activityURL = activityURL + "&activityTypes=SPIKE";
           }
-        } else {
-          const activityURLCalled = await this.aqiService.getActivities(
-            rowNumber,
-            activityURL,
-          );
-          if (activityURLCalled.count > 0) {
-            // visit exists in AQI
-            visitExists = true;
-            existingGUIDS["activity"] = activityURLCalled.GUID;
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
-            errorLogs.push(JSON.parse(errorLog));
+
+          if (validationApisCalled.some((item) => item.url === activityURL)) {
+            // activity url has been called before
+            let seenActivityUrl = validationApisCalled.find(
+              (item) => item.url === activityURL,
+            );
+
+            if (seenActivityUrl.count > 0) {
+              // activity exists in AQI
+              activityExists = true;
+              existingGUIDS["activity"] = seenActivityUrl.GUID;
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
+          } else {
+            const activityURLCalled = await this.aqiService.getActivities(
+              rowNumber,
+              activityURL,
+            );
+            if (activityURLCalled.count > 0) {
+              // visit exists in AQI
+              visitExists = true;
+              existingGUIDS["activity"] = activityURLCalled.GUID;
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
+            validationApisCalled.push(activityURLCalled);
           }
-          validationApisCalled.push(activityURLCalled);
         }
       }
     }
@@ -1485,7 +1552,8 @@ export class FileParseValidateService {
 
     if (
       rowData.DataClassification == "LAB" ||
-      rowData.DataClassification == "SURROGATE_RESULT"
+      rowData.DataClassification == "SURROGATE_RESULT" ||
+      rowData.DataClassification == "FIELD_SURVEY"
     ) {
       cleanedRow.ObservationID = "";
       cleanedRow.FieldDeviceID = "";
@@ -1495,7 +1563,7 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      cleanedRow.ActivityName = concatActivityName; // TODO: this will need to uncommented after Jeremy is done testing
+      cleanedRow.ActivityName =  rowData.DataClassification == "FIELD_SURVEY" ? concatActivityName + ";FS" : concatActivityName; // TODO: this will need to uncommented after Jeremy is done testing
 
       if (cleanedRow.QCType == "REGULAR") {
         // this is because AQI interprets a null value as REGULAR
@@ -1504,8 +1572,7 @@ export class FileParseValidateService {
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
-      rowData.DataClassification == "FIELD_SURVEY" ||
-      rowData.DataClassification == "VERTICAL_PROFILE"
+      rowData.DataClassification == "VERTICAL_PROFILE" 
     ) {
       cleanedRow.ObservationID = "";
       cleanedRow.FieldFiltered = "";
@@ -1520,7 +1587,7 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      cleanedRow.ActivityName = ""; // TODO: this will need to uncommented after Jeremy is done testing
+      cleanedRow.ActivityName =  rowData.DataClassification == "ACTIVITY_RESULT" ? concatActivityName : ""; // TODO: this will need to uncommented after Jeremy is done testing
       cleanedRow.TissueType = "";
       cleanedRow.LabArrivalTemperature = "";
       cleanedRow.SpecimenName = "";
@@ -1867,7 +1934,8 @@ export class FileParseValidateService {
 
     if (
       rowData.DataClassification !== "VERTICAL_PROFILE" &&
-      rowData.DataClassification !== "FIELD_RESULT"
+      rowData.DataClassification !== "FIELD_RESULT" &&
+      rowData.DataClassification !== "ACTIVITY_RESULT"
     ) {
       let specimenInfo: any;
 
@@ -2078,7 +2146,7 @@ export class FileParseValidateService {
           .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
         rowData = await this.cleanRowBasedOnDataClassification(rowData);
-      } else if (fileType == ".csv") {
+      } else if (fileType == ".csv" || fileType == ".txt") {
         headers.forEach((header) => {
           rowData[header] = String(row[header] ?? "").replace(/\r?\n/g, " ");
         });
@@ -2137,7 +2205,7 @@ export class FileParseValidateService {
           .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
         rowData = await this.cleanRowBasedOnDataClassification(rowData);
-      } else if (fileType == ".csv") {
+      } else if (fileType == ".csv" || fileType == ".txt") {
         headers.forEach((header) => {
           rowData[header] = String(row[header] ?? "").replace(/\r?\n/g, " ");
         });
@@ -2332,6 +2400,38 @@ export class FileParseValidateService {
       },
     });
   }
+
+  async checkDelimiterErrors(file) {
+    let delimiterErrors = [];
+    const txtFile = readline.createInterface({
+      input: file,
+      crlfDelay: Infinity,
+    });
+
+    for await (const line of txtFile) {
+      const trimmed = line.trim();
+
+      // skip empty line
+      if (!trimmed) continue;
+
+      if (trimmed.includes(";")) {
+        let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"File": "File is semicolon-delimited. File must be comma-delimited"}}`;
+        delimiterErrors.push(JSON.parse(errorLog));
+      } else if (trimmed.includes("\t")) {
+        let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"File": "File is tab-delimited. File must be comma-delimited"}}`;
+        delimiterErrors.push(JSON.parse(errorLog));
+      } else if (trimmed.includes(" ") && !trimmed.includes(",")) {
+        let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"File": "File is space-delimited. File must be comma-delimited"}}`;
+        delimiterErrors.push(JSON.parse(errorLog));
+      } else if (!trimmed.includes(",")) {
+        let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"File": "File is not comma-delimited"}}`;
+        delimiterErrors.push(JSON.parse(errorLog));
+      }
+    }
+
+    return delimiterErrors;
+  }
+
   async parseFile(
     file: Readable,
     fileName: string,
@@ -2757,11 +2857,45 @@ export class FileParseValidateService {
           endImportObs = performance.now();
         }
       }
-    } else if (extention == ".csv") {
+    } else if (extention == ".csv" || extention == ".txt") {
       const allNonObsErrors: any[] = [];
       const allExistingRecords: any[] = [];
       const headersForValidation: string[] = [];
       const headers: string[] = [];
+      let delimiterErrors = [];
+
+      if (extention == ".txt") {
+        delimiterErrors = await this.checkDelimiterErrors(file);
+      }
+
+      if (delimiterErrors.length > 0) {
+        // there is an error in the file delimiter. Report to the user and reject the file
+        const file_error_log_data = {
+          file_submission_id: file_submission_id,
+          file_name: fileName,
+          original_file_name: originalFileName,
+          file_operation_code: file_operation_code,
+          ministry_contact: null,
+          error_log: delimiterErrors,
+          create_utc_timestamp: new Date(),
+        };
+
+        await this.prisma.file_error_logs.create({
+          data: file_error_log_data,
+        });
+
+        await this.fileSubmissionsService.updateFileStatus(
+          file_submission_id,
+          "REJECTED",
+        );
+        await this.benchmarkImport(
+          file_submission_id,
+          fileName,
+          originalFileName,
+        );
+
+        return;
+      }
 
       let isFirstRow = true;
       file

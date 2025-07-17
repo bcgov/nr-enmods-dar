@@ -599,12 +599,6 @@ export default function Dashboard() {
         }}
       >
         <DataGrid
-          slots={{ toolbar: GridToolbar }}
-          slotProps={{
-            toolbar: {
-              showQuickFilter: true,
-            },
-          }}
           rows={data.items ? data.items : []}
           rowCount={data.totalRows ? data.totalRows : 0}
           columns={columns}
@@ -615,7 +609,6 @@ export default function Dashboard() {
           paginationModel={paginationModel}
           onPaginationModelChange={handlePaginationChange}
           autoHeight={true}
-          // onRowClick={(params) => setSelectedRow(params.row)}
           sx={{ width: "1400px", height: `${paginationModel.pageSize * 100}` }}
         />
       </div>
