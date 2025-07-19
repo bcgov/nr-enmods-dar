@@ -1180,6 +1180,16 @@ END;]]></definition>
             <parameter mode="IN"/>
          </parameters>
       </routine>
+      <routine dataAccess="MODIFIES" deterministic="false" name="enmods_set_update_timestamp()" returnType="trigger" securityType="INVOKER" type="FUNCTION">
+         <comment/>
+         <definition language="plpgsql"><![CDATA[BEGIN
+  NEW.update_utc_timestamp := CURRENT_TIMESTAMP;
+  RETURN NEW;
+END;]]></definition>
+         <parameters>
+            <parameter mode="IN"/>
+         </parameters>
+      </routine>
       <routine dataAccess="MODIFIES" deterministic="true" name="equals(geom1 geometry, geom2 geometry)" returnType="boolean" securityType="INVOKER" type="FUNCTION">
          <comment/>
          <definition language="c"><![CDATA[ST_Equals]]></definition>
