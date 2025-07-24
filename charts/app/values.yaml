@@ -226,7 +226,7 @@ crunchy: # enable it for TEST and PROD, for PR based pipelines simply use single
       memory: 256Mi
     limits:
       cpu: 100m
-      memory: 512Mi
+      memory: 2Gi
     replicaCertCopy:
       requests:
         cpu: 1m
@@ -324,7 +324,7 @@ bitnami-pg:
       storageClass: netapp-block-standard
       accessModes:
         - ReadWriteOnce
-      size: 512Mi
+      size: 2Gi
     containerSecurityContext:
       enabled: false
     podSecurityContext:
