@@ -80,7 +80,8 @@ const AddRoles = ({
       setShowError(false);
       setLoading(true);
       try {
-        await updateRoles(userObject?.username, [], rolesToAdd);
+        const updateResponse = await updateRoles(userObject?.username, [], rolesToAdd);
+        console.log(updateResponse)
         refreshTable();
       } catch (err) {
         setError("Failed to add role to user.");

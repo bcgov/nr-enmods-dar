@@ -24,10 +24,10 @@ export async function findBCeIDUser(email: string): Promise<BCeIDUserInfo> {
 }
 
 export async function getAqiStatus(): Promise<Boolean> {
-  const aqiStatusUrl: string = `${config.API_BASE_URL}/admin/getStatus`
-  const getParameters = api.generateApiParameters(aqiStatusUrl)
-  const status: Boolean = await api.get(getParameters)
-  return status
+  const aqiStatusUrl: string = `${config.API_BASE_URL}/admin/getStatus`;
+  const getParameters = api.generateApiParameters(aqiStatusUrl);
+  const status: Boolean = await api.get(getParameters);
+  return status;
 }
 
 /**
@@ -75,12 +75,13 @@ export async function updateRoles(
   idirUsername: string,
   existingRoles: string[],
   roles: string[],
-): Promise<void> {
+): Promise<boolean> {
   const updateRolesUrl: string = `${config.API_BASE_URL}/admin/update-roles`;
   const postParameters = api.generateApiParameters(updateRolesUrl, {
     idirUsername,
     existingRoles,
     roles,
   });
-  await api.post(postParameters);
+  const response: boolean = await api.post(postParameters);
+  return response
 }

@@ -1,5 +1,5 @@
 import { HttpService } from "@nestjs/axios";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { firstValueFrom } from "rxjs";
 import { Role } from "src/enum/role.enum";
 import { BCeIDUserInfo, IdirUserInfo, UserInfo } from "src/types/types";
@@ -9,6 +9,7 @@ import axios from "axios";
 @Injectable()
 export class AdminService {
   constructor(private readonly httpService: HttpService) {}
+  private readonly logger = new Logger(AdminService.name);
 
   async getToken() {
     const url = process.env.USERS_API_TOKEN_URL;
@@ -46,6 +47,8 @@ export class AdminService {
     const config = {
       headers: { Authorization: "Bearer " + bearerToken },
     };
+    console.log(bearerToken);
+
     try {
       const adminResponse = await firstValueFrom(
         this.httpService.get(adminUrl, config),
@@ -173,7 +176,7 @@ export class AdminService {
     } catch (err) {
       console.log("Error findAll Admin");
       console.log(err.response?.data || err.message);
-      throw err;
+      return [true]
     }
   }
 
@@ -192,10 +195,10 @@ export class AdminService {
       aqiStatus = err.response.status;
     }
 
-    if (aqiStatus == 200){
-      return false
-    }else{
-      return true
+    if (aqiStatus == 200) {
+      return false;
+    } else {
+      return true;
     }
   }
 
@@ -308,6 +311,27 @@ export class AdminService {
           throw new Error("Failed to add user role");
         });
     }
+    // add delete role if included
+    if (userRolesDto.roles.includes(Role.ENMODS_DELETE)) {
+      await firstValueFrom(
+        this.httpService.post(
+          addRolesUrl,
+          {
+            roleName: Role.ENMODS_DELETE,
+            username: userRolesDto.idirUsername,
+            operation: "add",
+          },
+          config,
+        ),
+      )
+        .then((res) => {
+          return res.data;
+        })
+        .catch((err) => {
+          console.log(err);
+          throw new Error("Failed to add delete role");
+        });
+    }
     return null;
   }
 
@@ -410,6 +434,7 @@ export class AdminService {
 
     const rolesToRemove = existingRoles.filter((role) => !roles.includes(role));
     const rolesToAdd = roles.filter((role) => !existingRoles.includes(role));
+    let validStatus = 200
 
     for (let role of rolesToRemove) {
       if (role === Role.ENMODS_USER) {
@@ -429,7 +454,8 @@ export class AdminService {
           })
           .catch((err) => {
             console.log(err);
-            throw new Error(`Failed to remove ${Role.ENMODS_USER} role`);
+            validStatus = err.response.status
+            this.logger.error(`Failed to remove ${Role.ENMODS_USER} role`);
           });
       } else if (role === Role.ENMODS_ADMIN) {
         await firstValueFrom(
@@ -448,7 +474,8 @@ export class AdminService {
           })
           .catch((err) => {
             console.log(err);
-            throw new Error(`Failed to remove ${Role.ENMODS_ADMIN} role`);
+            validStatus = err.response.status
+            this.logger.error(`Failed to remove ${Role.ENMODS_ADMIN} role`);
           });
       } else if (role === Role.ENMODS_DELETE) {
         await firstValueFrom(
@@ -467,7 +494,8 @@ export class AdminService {
           })
           .catch((err) => {
             console.log(err);
-            throw new Error(`Failed to remove ${Role.ENMODS_DELETE} role`);
+            validStatus = err.response.status
+            this.logger.error(`Failed to remove ${Role.ENMODS_DELETE} role`);
           });
       }
     }
@@ -490,7 +518,8 @@ export class AdminService {
           })
           .catch((err) => {
             console.log(err);
-            throw new Error(`Failed to remove ${Role.ENMODS_USER} role`);
+            validStatus = err.response.status
+            this.logger.error(`Failed to add ${Role.ENMODS_USER} role`);
           });
       } else if (role === Role.ENMODS_ADMIN) {
         await firstValueFrom(
@@ -509,7 +538,8 @@ export class AdminService {
           })
           .catch((err) => {
             console.log(err);
-            throw new Error(`Failed to remove ${Role.ENMODS_ADMIN} role`);
+            validStatus = err.response.status
+            this.logger.error(`Failed to add ${Role.ENMODS_ADMIN} role`);
           });
       } else if (role === Role.ENMODS_DELETE) {
         await firstValueFrom(
@@ -528,10 +558,20 @@ export class AdminService {
           })
           .catch((err) => {
             console.log(err);
-            throw new Error(`Failed to remove ${Role.ENMODS_DELETE} role`);
+            validStatus = err.response.status
+            this.logger.error(`Failed to add ${Role.ENMODS_DELETE} role`);
           });
       }
     }
+    
+    if (validStatus >= 200 && validStatus <= 299){
+      this.logger.warn('successful status')
+      return false
+    }else{
+      this.logger.warn('error status')
+      return true
+    }
+
     return null;
   }
 }
