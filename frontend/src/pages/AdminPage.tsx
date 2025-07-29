@@ -43,7 +43,6 @@ export default function AdminPage() {
   const getUserData = async () => {
     const users: UserInfo[] = await getUsers();
     setUserData(users);
-    console.log(users)
   };
 
   const getNotificationInfo = async () => {
