@@ -47,7 +47,6 @@ export class AdminService {
     const config = {
       headers: { Authorization: "Bearer " + bearerToken },
     };
-    console.log(bearerToken);
 
     try {
       const adminResponse = await firstValueFrom(
@@ -172,7 +171,6 @@ export class AdminService {
           }
         }
       });
-      console.log(returnData)
       return returnData;
     } catch (err) {
       console.log("Error findAll Admin");
