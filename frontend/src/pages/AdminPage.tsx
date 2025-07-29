@@ -43,13 +43,7 @@ export default function AdminPage() {
   const getUserData = async () => {
     const users: UserInfo[] = await getUsers();
     setUserData(users);
-    // console.log(ssoOutage)
-    // if (users.length == 1 && users[0]){
-    //   setSsoOutage(true)
-    // }else{
-    //   setSsoOutage(false)
-    //   setUserData(users);
-    // }
+    console.log(users)
   };
 
   const getNotificationInfo = async () => {
