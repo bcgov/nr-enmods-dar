@@ -419,9 +419,10 @@ export class AdminService {
     const rolesToRemove = existingRoles.filter((role) => !roles.includes(role));
     const rolesToAdd = roles.filter((role) => !existingRoles.includes(role));
     let validStatus = 200;
-
+    console.log(bearerToken)
     for (let role of rolesToRemove) {
       if (role === Role.ENMODS_USER) {
+        console.log(role)
         const removeUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/users/${idirUsername}/roles/${role}`;
         await firstValueFrom(
           this.httpService.delete(
@@ -441,7 +442,7 @@ export class AdminService {
         const removeUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/users/${idirUsername}/roles/${role}`;
         await firstValueFrom(
           this.httpService.delete(
-            url,
+            removeUrl,
             config,
           ),
         )
@@ -457,7 +458,7 @@ export class AdminService {
         const removeUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/users/${idirUsername}/roles/${role}`;
         await firstValueFrom(
           this.httpService.delete(
-            url,
+            removeUrl,
             config,
           ),
         )
