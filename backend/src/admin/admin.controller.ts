@@ -62,7 +62,7 @@ export class AdminController {
       existingRoles: string[];
       roles: string[];
     },
-  ): Promise<{ error: string | null }> {
+  ): Promise<any> {
     return this.adminService.updateRoles(
       data.idirUsername,
       data.existingRoles,

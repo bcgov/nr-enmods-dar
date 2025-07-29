@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useState } from 'react'
+import { ChangeEvent, useEffect, useState } from "react";
 import {
   Modal,
   Button,
@@ -10,63 +10,69 @@ import {
   FormGroup,
   FormControlLabel,
   Checkbox,
-} from '@mui/material'
-import { UserInfo } from '@/types/types'
-import Roles from '@/roles'
-import theme from '@/theme'
-import { updateRoles } from '@/common/admin'
+} from "@mui/material";
+import { UserInfo } from "@/types/types";
+import Roles from "@/roles";
+import theme from "@/theme";
+import { updateRoles } from "@/common/admin";
 
 type EditRolesProps = {
-  show: boolean
-  userObject: UserInfo | null
-  refreshTable: () => void
-  onHide: () => void
-}
+  show: boolean;
+  userObject: UserInfo | null;
+  refreshTable: () => void;
+  apiStatus: boolean;
+  setApiStatus:  React.Dispatch<React.SetStateAction<boolean>>
+  onHide: () => void;
+};
 
 const EditRoles = ({
   show,
   userObject,
   refreshTable,
+  apiStatus,
+  setApiStatus,
   onHide,
 }: EditRolesProps) => {
-  const [loading, setLoading] = useState<boolean>(false)
-  const [showError, setShowError] = useState<boolean>(false)
-  const [error, setError] = useState<string>('')
-  const [updatedRoles, setUpdatedRoles] = useState<string[]>([])
+  const [loading, setLoading] = useState<boolean>(false);
+  const [showError, setShowError] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+  const [updatedRoles, setUpdatedRoles] = useState<string[]>([]);
 
   const updateRolesHandler = async () => {
     if (userObject) {
-      setShowError(false)
-      setLoading(true)
+      setShowError(false);
+      setLoading(true);
       try {
-        await updateRoles(
+        const updateResponse = await updateRoles(
           userObject.guidUsername,
           userObject.role,
           updatedRoles,
-        )
-        refreshTable()
+        );
+        console.log(updateResponse)
+        setApiStatus(updateResponse)
+        refreshTable();
       } catch (err) {
-        setError('Failed to add role to user.')
-        setShowError(true)
+        setError("Failed to add role to user.");
+        setShowError(true);
       } finally {
-        setLoading(false)
-        onHide()
+        setLoading(false);
+        onHide();
       }
     }
-  }
+  };
 
   useEffect(() => {
-    setUpdatedRoles(userObject ? userObject.role : [])
-  }, [userObject])
+    setUpdatedRoles(userObject ? userObject.role : []);
+  }, [userObject]);
 
   const handleRoleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const { name, checked } = event.target
+    const { name, checked } = event.target;
     if (checked) {
-      setUpdatedRoles([...updatedRoles, name])
+      setUpdatedRoles([...updatedRoles, name]);
     } else {
-      setUpdatedRoles(updatedRoles.filter((role) => role !== name))
+      setUpdatedRoles(updatedRoles.filter((role) => role !== name));
     }
-  }
+  };
 
   return (
     <Modal
@@ -77,23 +83,23 @@ const EditRoles = ({
     >
       <div
         style={{
-          position: 'absolute',
+          position: "absolute",
           width: 400,
           minHeight: 600,
-          backgroundColor: 'white',
-          border: '2px solid #000',
+          backgroundColor: "white",
+          border: "2px solid #000",
           boxShadow: theme.shadows[5],
           padding: theme.spacing(2, 4, 3),
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
         }}
       >
         <h2 id="simple-modal-title">Edit Roles</h2>
         <TextField
           id="searchFirstName"
           label="First Name"
-          value={userObject?.firstName || ''}
+          value={userObject?.firstName || ""}
           fullWidth
           margin="normal"
           sx={{
@@ -108,7 +114,7 @@ const EditRoles = ({
         <TextField
           id="searchLastName"
           label="Last Name"
-          value={userObject?.lastName || ''}
+          value={userObject?.lastName || ""}
           fullWidth
           margin="normal"
           sx={{
@@ -123,7 +129,7 @@ const EditRoles = ({
         <TextField
           id="searchUsername"
           label="Username"
-          value={userObject?.username || ''}
+          value={userObject?.username || ""}
           fullWidth
           margin="normal"
           sx={{
@@ -185,9 +191,9 @@ const EditRoles = ({
         {showError && <Alert severity="error">{error}</Alert>}
         <div
           style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            marginTop: 'auto',
+            display: "flex",
+            justifyContent: "flex-end",
+            marginTop: "auto",
           }}
         >
           <Button
@@ -203,14 +209,14 @@ const EditRoles = ({
             color="primary"
             onClick={updateRolesHandler}
             disabled={loading || !userObject}
-            style={{ marginLeft: '8px' }}
+            style={{ marginLeft: "8px" }}
           >
-            {loading ? <CircularProgress size={24} /> : 'Update Roles'}
+            {loading ? <CircularProgress size={24} /> : "Update Roles"}
           </Button>
         </div>
       </div>
     </Modal>
-  )
-}
+  );
+};
 
-export default EditRoles
+export default EditRoles;
