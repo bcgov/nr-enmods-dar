@@ -1254,6 +1254,7 @@ export class FileParseValidateService {
             rowNumber,
             visitURL,
           );
+          console.log(visitURLCalled)
           if (visitURLCalled.count > 0) {
             // visit exists in AQI
             visitExists = true;
