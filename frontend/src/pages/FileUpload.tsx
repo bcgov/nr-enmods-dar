@@ -79,15 +79,17 @@ function FileUpload() {
     if (!newFiles) return;
 
     // Convert to array and filter out files with spaces in the name
-    const newFilesArray = Array.from(newFiles).filter((file: File) => !file.name.includes(" "));
+    const newFilesArray = Array.from(newFiles).filter(
+      (file: File) => !file.name.includes(" "),
+    );
 
     if (newFilesArray.length !== Array.from(newFiles).length) {
       confirm(
         "File names cannot contain spaces. Please rename the following files and try again:\n" +
-        Array.from(newFiles)
-          .filter((file: File) => file.name.includes(" "))
-          .map((file: File) => file.name)
-          .join("\n")
+          Array.from(newFiles)
+            .filter((file: File) => file.name.includes(" "))
+            .map((file: File) => file.name)
+            .join("\n"),
       );
       return;
     }
@@ -98,8 +100,8 @@ function FileUpload() {
       if (rowCount > 10000) {
         confirm(
           "File contains more than 10,000 rows. Make sure file has at most 10,000 rows and try again:\n" +
-          file.name +
-          `, rows found: ${rowCount}`,
+            file.name +
+            `, rows found: ${rowCount}`,
         );
         return;
       }
@@ -113,15 +115,18 @@ function FileUpload() {
         (newFile) =>
           !existingFiles.some(
             (existingFile) =>
-              existingFile.name === newFile.name && existingFile.size === newFile.size
-          )
+              existingFile.name === newFile.name &&
+              existingFile.size === newFile.size,
+          ),
       ),
     ];
 
-    if (mergedFiles.length > 10){
-      console.log('jere')
-      confirm(`Cannot select more than 10 files. ${newFilesArray.length} selected`)
-      return
+    if (mergedFiles.length > 10) {
+      console.log("jere");
+      confirm(
+        `Cannot select more than 10 files. ${newFilesArray.length} selected`,
+      );
+      return;
     }
 
     setFiles(mergedFiles);
@@ -293,7 +298,6 @@ function FileUpload() {
   };
 
   const [aqiOutage, setAqiOutage] = useState(false);
-
 
   const [checkedItems, setCheckedItems] = useState({
     master: true,
@@ -555,35 +559,69 @@ function FileUpload() {
                               </Box>
                             </Grid>
                             <Grid item xs={3}>
-                              <ButtonGroup
-                                variant="text"
-                                style={{
-                                  color: "black",
-                                  float: "right",
-                                  paddingBottom: "10px",
-                                }}
-                              >
-                                <Button
-                                  id={"selected-file-" + index + "-validate"}
-                                  variant="contained"
-                                  color="secondary"
-                                  onClick={() => {
-                                    validateFile(file, index);
+                              {fileStatusCodes.items[index] == "QUEUED" ? (
+                                <ButtonGroup
+                                  variant="text"
+                                  style={{
+                                    color: "black",
+                                    float: "right",
+                                    paddingBottom: "10px",
                                   }}
                                 >
-                                  Validate
-                                </Button>
-                                <Button
-                                  id={"selected-file-" + index + "-submit"}
-                                  variant="contained"
-                                  color="secondary"
-                                  onClick={() => {
-                                    submitFile(file, index);
+                                  <Button
+                                    id={"selected-file-" + index + "-validate"}
+                                    variant="contained"
+                                    color="secondary"
+                                    onClick={() => {
+                                      validateFile(file, index);
+                                    }}
+                                    disabled
+                                  >
+                                    Validate
+                                  </Button>
+                                  <Button
+                                    id={"selected-file-" + index + "-submit"}
+                                    variant="contained"
+                                    color="secondary"
+                                    onClick={() => {
+                                      submitFile(file, index);
+                                    }}
+                                    disabled
+                                  >
+                                    Submit
+                                  </Button>
+                                </ButtonGroup>
+                              ) : (
+                                <ButtonGroup
+                                  variant="text"
+                                  style={{
+                                    color: "black",
+                                    float: "right",
+                                    paddingBottom: "10px",
                                   }}
                                 >
-                                  Submit
-                                </Button>
-                              </ButtonGroup>
+                                  <Button
+                                    id={"selected-file-" + index + "-validate"}
+                                    variant="contained"
+                                    color="secondary"
+                                    onClick={() => {
+                                      validateFile(file, index);
+                                    }}
+                                  >
+                                    Validate
+                                  </Button>
+                                  <Button
+                                    id={"selected-file-" + index + "-submit"}
+                                    variant="contained"
+                                    color="secondary"
+                                    onClick={() => {
+                                      submitFile(file, index);
+                                    }}
+                                  >
+                                    Submit
+                                  </Button>
+                                </ButtonGroup>
+                              )}
                             </Grid>
 
                             <Grid item xs={12}>
@@ -634,7 +672,38 @@ function FileUpload() {
             {expandList && (
               <div className="all-file-action">
                 <Box sx={{ padding: "10px" }}>
-                  {files && selectedFiles.length > 0 ? (
+                  {files &&
+                  selectedFiles.length > 0 &&
+                  fileStatusCodes.items.some((index) => index === "QUEUED") ? (
+                    <ButtonGroup variant="text" style={{ color: "black" }}>
+                      <Button
+                        id={"all-files-validate"}
+                        variant="contained"
+                        color="secondary"
+                        onClick={() => {
+                          validateAllFiles(files);
+                        }}
+                        disabled
+                      >
+                        Validate All
+                      </Button>
+                      <Button
+                        id={"all-files-submit"}
+                        variant="contained"
+                        color="secondary"
+                        onClick={() => {
+                          submitAllFiles(files);
+                        }}
+                        disabled
+                      >
+                        Submit All
+                      </Button>
+                    </ButtonGroup>
+                  ) : files &&
+                    selectedFiles.length > 0 &&
+                    !fileStatusCodes.items.some(
+                      (index) => index === "QUEUED",
+                    ) ? (
                     <ButtonGroup variant="text" style={{ color: "black" }}>
                       <Button
                         id={"all-files-validate"}
