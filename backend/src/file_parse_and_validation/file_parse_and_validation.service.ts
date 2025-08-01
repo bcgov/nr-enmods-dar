@@ -108,7 +108,7 @@ const activities: FieldActivities = {
 const specimens: FieldSpecimens = {
   WorkOrderNumber: "",
   FieldFiltered: "",
-  FieldFilterComment: "",
+  FieldFilteredComment: "",
   FieldPreservative: "",
   ObservedDateTime: "",
   ObservedDateTimeEnd: "",
@@ -581,7 +581,7 @@ export class FileParseValidateService {
     let EALabArrivalTemp = "Specimen Lab Arrival Temperature (°C)";
     let mediumCustomID = specimenData.Medium;
     let FieldFiltered = specimenData.FieldFiltered;
-    let FieldFilterComment = specimenData.FieldFilterComment;
+    let FieldFilteredComment = specimenData.FieldFilteredComment;
     let analyzingAgencyCustomID = specimenData.AnalyzingAgency;
 
     Object.assign(
@@ -596,7 +596,7 @@ export class FileParseValidateService {
       );
     }
 
-    // get the EA custom id (EA Work Order Number, FieldFiltered, FieldFilterComment, FieldPreservative, EALabReportID, SpecimenName) and find the GUID
+    // get the EA custom id (EA Work Order Number, FieldFiltered, FieldFilteredComment, FieldPreservative, EALabReportID, SpecimenName) and find the GUID
     if (specimenData.WorkOrderNumber != "") {
       extendedAttribs["extendedAttributes"].push(
         await this.queryCodeTables("EXTENDED_ATTRIB", [
@@ -622,9 +622,9 @@ export class FileParseValidateService {
       );
     }
 
-    if (FieldFiltered == "TRUE") {
+    if (FieldFiltered === "TRUE") {
       Object.assign(postData, { filtered: "true" });
-      Object.assign(postData, { filtrationComment: FieldFilterComment });
+      Object.assign(postData, { filtrationComment: FieldFilteredComment });
     } else {
       Object.assign(postData, { filtered: "false" });
     }
@@ -978,13 +978,15 @@ export class FileParseValidateService {
       errorLogs.push(JSON.parse(errorLog));
     }
 
-    if (rowData.hasOwnProperty("FieldPreservative")) {
+
+    if (rowData.hasOwnProperty("FieldPreservative") && rowData.FieldPreservative !== "") {
+      console.log('here')
       const present = await this.aqiService.databaseLookup(
         "aqi_preservatives",
-        rowData.Preservative,
+        rowData.FieldPreservative,
       );
       if (!present) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Preservative": "${rowData.Preservative} not found in EnMoDS Preservatives"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Preservative": "${rowData.FieldPreservative} not found in EnMoDS Preservatives"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
     }
@@ -1574,7 +1576,7 @@ export class FileParseValidateService {
     ) {
       cleanedRow.ObservationID = "";
       cleanedRow.FieldFiltered = "";
-      cleanedRow.FieldFilterComment = "";
+      cleanedRow.FieldFilteredComment = "";
       cleanedRow.FieldPreservative = "";
       cleanedRow.SamplingContextTag = "";
       cleanedRow.LimitType = "";
