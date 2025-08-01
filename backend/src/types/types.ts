@@ -145,7 +145,7 @@ export type FieldActivities = {
 export type FieldSpecimens = {
   WorkOrderNumber: string;
   FieldFiltered: string;
-  FieldFilterComment: string;
+  FieldFilteredComment: string;
   FieldPreservative: string;
   ObservedDateTime: string;
   ObservedDateTimeEnd: string;
