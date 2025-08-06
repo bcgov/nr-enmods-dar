@@ -18,7 +18,7 @@ import { Readable } from "stream";
 import { format } from "fast-csv";
 import { parse } from "csv-parse";
 import * as readline from "readline";
-import { isISO8601 } from 'validator';
+import { isISO8601 } from "validator";
 
 const fileHeaders: FileHeaders = {
   "Observation ID": "Observation ID",
@@ -839,7 +839,7 @@ export class FileParseValidateService {
 
     const unitFields = "ResultUnit";
     let validObservedProperty = false;
-    let OPResultType = ""
+    let OPResultType = "";
 
     if (rowData.hasOwnProperty("ObservedPropertyID")) {
       if (rowData["ObservedPropertyID"] == "") {
@@ -851,14 +851,14 @@ export class FileParseValidateService {
           "aqi_observed_properties",
           rowData.ObservedPropertyID,
         );
-        
+
         if (!present) {
           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "${rowData.ObservedPropertyID} not found in EnMoDS Observed Properties"}}`;
           errorLogs.push(JSON.parse(errorLog));
           validObservedProperty = false;
         } else {
           validObservedProperty = true;
-          OPResultType = present[0].result_type
+          OPResultType = present[0].result_type;
         }
       }
     }
@@ -866,11 +866,14 @@ export class FileParseValidateService {
     // check all datetimes
     dateTimeFields.forEach((field) => {
       if (rowData.hasOwnProperty(field) && rowData[field]) {
-        let valid = isISO8601(rowData[field], { strict: true, strictSeparator: true })
-        const yearFromDate = new Date(rowData[field]).getFullYear()
-        const currentYear = new Date().getFullYear()
+        let valid = isISO8601(rowData[field], {
+          strict: true,
+          strictSeparator: true,
+        });
+        const yearFromDate = new Date(rowData[field]).getFullYear();
+        const currentYear = new Date().getFullYear();
 
-        if (yearFromDate > currentYear) valid = false
+        if (yearFromDate > currentYear) valid = false;
 
         if (!valid) {
           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid ISO DateTime (year might be greater than current year)"}}`;
@@ -895,6 +898,17 @@ export class FileParseValidateService {
     numericalFields.forEach(async (field) => {
       if (rowData.hasOwnProperty(field)) {
         if (validObservedProperty) {
+          if (!rowData[field]) {
+            if (
+              field == "MethodDetectionLimit" &&
+              (rowData["DataClassification"] == "LAB" ||
+                rowData["DataClassification"] == "SURROGATE_RESULT")
+            ) {
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Cannot be empty for data classification ${rowData["DataClassification"]}"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
+          }
+          
           if (OPResultType === "NUMERIC") {
             const validNumber =
               numberRegex.test(rowData[field]) &&
@@ -984,8 +998,10 @@ export class FileParseValidateService {
       errorLogs.push(JSON.parse(errorLog));
     }
 
-
-    if (rowData.hasOwnProperty("FieldPreservative") && rowData.FieldPreservative !== "") {
+    if (
+      rowData.hasOwnProperty("FieldPreservative") &&
+      rowData.FieldPreservative !== ""
+    ) {
       const present = await this.aqiService.databaseLookup(
         "aqi_preservatives",
         rowData.FieldPreservative,
@@ -1226,14 +1242,20 @@ export class FileParseValidateService {
         "LOCATIONS",
         rowData.LocationID,
       );
-      let validFieldVisitStartTime = isISO8601(rowData.FieldVisitStartTime, { strict: true, strictSeparator: true })
-      let yearFromDate = new Date(rowData.FieldVisitStartTime).getFullYear()
-      let currentYear = new Date().getFullYear()
-      if (yearFromDate > currentYear) validFieldVisitStartTime = false
+      let validFieldVisitStartTime = isISO8601(rowData.FieldVisitStartTime, {
+        strict: true,
+        strictSeparator: true,
+      });
+      let yearFromDate = new Date(rowData.FieldVisitStartTime).getFullYear();
+      let currentYear = new Date().getFullYear();
+      if (yearFromDate > currentYear) validFieldVisitStartTime = false;
 
-      let validObservedDateTime = isISO8601(rowData.ObservedDateTime, { strict: true, strictSeparator: true })
-      yearFromDate = new Date(rowData.FieldVisitStartTime).getFullYear()
-      if (yearFromDate > currentYear) validObservedDateTime = false
+      let validObservedDateTime = isISO8601(rowData.ObservedDateTime, {
+        strict: true,
+        strictSeparator: true,
+      });
+      yearFromDate = new Date(rowData.FieldVisitStartTime).getFullYear();
+      if (yearFromDate > currentYear) validObservedDateTime = false;
 
       if (
         locationGUID.hasOwnProperty("samplingLocation") &&
@@ -1570,7 +1592,10 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      cleanedRow.ActivityName =  rowData.DataClassification == "FIELD_SURVEY" ? concatActivityName + ";FS" : concatActivityName; // TODO: this will need to uncommented after Jeremy is done testing
+      cleanedRow.ActivityName =
+        rowData.DataClassification == "FIELD_SURVEY"
+          ? concatActivityName + ";FS"
+          : concatActivityName; // TODO: this will need to uncommented after Jeremy is done testing
 
       if (cleanedRow.QCType == "REGULAR") {
         // this is because AQI interprets a null value as REGULAR
@@ -1579,7 +1604,7 @@ export class FileParseValidateService {
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
-      rowData.DataClassification == "VERTICAL_PROFILE" 
+      rowData.DataClassification == "VERTICAL_PROFILE"
     ) {
       cleanedRow.ObservationID = "";
       cleanedRow.FieldFiltered = "";
@@ -1594,7 +1619,10 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      cleanedRow.ActivityName =  rowData.DataClassification == "ACTIVITY_RESULT" ? concatActivityName : ""; // TODO: this will need to uncommented after Jeremy is done testing
+      cleanedRow.ActivityName =
+        rowData.DataClassification == "ACTIVITY_RESULT"
+          ? concatActivityName
+          : ""; // TODO: this will need to uncommented after Jeremy is done testing
       cleanedRow.TissueType = "";
       cleanedRow.LabArrivalTemperature = "";
       cleanedRow.SpecimenName = "";
