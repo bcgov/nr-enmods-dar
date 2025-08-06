@@ -66,6 +66,7 @@
     "ssh2-sftp-client": "^12.0.0",
     "swagger-ui-express": "^5.0.0",
     "uuid": "^11.0.5",
+    "validator": "^13.15.15",
     "winston": "^3.11.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },

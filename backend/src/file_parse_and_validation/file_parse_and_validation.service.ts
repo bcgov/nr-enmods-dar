@@ -18,6 +18,7 @@ import { Readable } from "stream";
 import { format } from "fast-csv";
 import { parse } from "csv-parse";
 import * as readline from "readline";
+import { isISO8601 } from 'validator';
 
 const fileHeaders: FileHeaders = {
   "Observation ID": "Observation ID",
@@ -865,9 +866,14 @@ export class FileParseValidateService {
     // check all datetimes
     dateTimeFields.forEach((field) => {
       if (rowData.hasOwnProperty(field) && rowData[field]) {
-        const valid = isoDateTimeRegex.test(rowData[field]);
+        let valid = isISO8601(rowData[field], { strict: true, strictSeparator: true })
+        const yearFromDate = new Date(rowData[field]).getFullYear()
+        const currentYear = new Date().getFullYear()
+
+        if (yearFromDate > currentYear) valid = false
+
         if (!valid) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid ISO DateTime"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid ISO DateTime (year might be greater than current year)"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       } else if (rowData.hasOwnProperty(field) && !rowData[field]) {
@@ -980,7 +986,6 @@ export class FileParseValidateService {
 
 
     if (rowData.hasOwnProperty("FieldPreservative") && rowData.FieldPreservative !== "") {
-      console.log('here')
       const present = await this.aqiService.databaseLookup(
         "aqi_preservatives",
         rowData.FieldPreservative,
@@ -1221,12 +1226,14 @@ export class FileParseValidateService {
         "LOCATIONS",
         rowData.LocationID,
       );
-      const validFieldVisitStartTime = isoDateTimeRegex.test(
-        rowData.FieldVisitStartTime,
-      );
-      const validObservedDateTime = isoDateTimeRegex.test(
-        rowData.ObservedDateTime,
-      );
+      let validFieldVisitStartTime = isISO8601(rowData.FieldVisitStartTime, { strict: true, strictSeparator: true })
+      let yearFromDate = new Date(rowData.FieldVisitStartTime).getFullYear()
+      let currentYear = new Date().getFullYear()
+      if (yearFromDate > currentYear) validFieldVisitStartTime = false
+
+      let validObservedDateTime = isISO8601(rowData.ObservedDateTime, { strict: true, strictSeparator: true })
+      yearFromDate = new Date(rowData.FieldVisitStartTime).getFullYear()
+      if (yearFromDate > currentYear) validObservedDateTime = false
 
       if (
         locationGUID.hasOwnProperty("samplingLocation") &&
@@ -1256,7 +1263,6 @@ export class FileParseValidateService {
             rowNumber,
             visitURL,
           );
-          console.log(visitURLCalled)
           if (visitURLCalled.count > 0) {
             // visit exists in AQI
             visitExists = true;
