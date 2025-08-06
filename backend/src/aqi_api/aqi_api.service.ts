@@ -70,6 +70,7 @@ export class AqiApiService {
         `RowNum: ${rowNumber} -> API CALL TO GET Field Visits failed: `,
         err.response.data.message,
       );
+      return err.response.data.message
     }
   }
 
