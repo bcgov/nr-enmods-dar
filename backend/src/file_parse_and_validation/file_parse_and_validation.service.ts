@@ -174,7 +174,7 @@ const obsFile: ObservationFile = {
   "Data Classification": "",
   "Result Value": "",
   "Result Unit": "",
-  "Source Of Rounded Value": "",
+  "Source of Rounded Value": "",
   "Rounded Value": "",
   "Rounding Specification": "",
   "Result Status": "",
@@ -908,7 +908,7 @@ export class FileParseValidateService {
               errorLogs.push(JSON.parse(errorLog));
             }
           }
-          
+
           if (OPResultType === "NUMERIC") {
             const validNumber =
               numberRegex.test(rowData[field]) &&
@@ -1104,7 +1104,7 @@ export class FileParseValidateService {
       }
     }
 
-    if (rowData.hasOwnProperty("SourceOfRoundedValue")) {
+    if (rowData.hasOwnProperty("SourcefRoundedValue")) {
       if (rowData["SourceOfRoundedValue"] != "") {
         if (
           rowData["SourceOfRoundedValue"] != "PROVIDED_BY_USER" ||

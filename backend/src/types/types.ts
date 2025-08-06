@@ -210,7 +210,7 @@ export type ObservationFile = {
   "Data Classification": string;
   "Result Value": string;
   "Result Unit": string;
-  "Source Of Rounded Value": string;
+  "Source of Rounded Value": string;
   "Rounded Value": string;
   "Rounding Specification": string;
   "Result Status": string;
