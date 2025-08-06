@@ -835,6 +835,7 @@ export class FileParseValidateService {
       "ResultValue",
       "MethodDetectionLimit",
       "MethodReportingLimit",
+      "LabArrivalTemperature"
     ];
 
     const unitFields = "ResultUnit";
