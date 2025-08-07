@@ -835,7 +835,7 @@ export class FileParseValidateService {
       "ResultValue",
       "MethodDetectionLimit",
       "MethodReportingLimit",
-      "LabArrivalTemperature"
+      "LabArrivalTemperature",
     ];
 
     const unitFields = "ResultUnit";
@@ -2165,12 +2165,23 @@ export class FileParseValidateService {
         rowData = headers
           .map((header, colNumber) => {
             const cellValue: any = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
-            const value =
-              typeof cellValue === "object" &&
-              cellValue != null &&
-              "result" in cellValue
-                ? cellValue.result
-                : cellValue ?? "";
+            let value: any;
+            if (typeof cellValue === "object" && cellValue !== null) {
+              if ("result" in cellValue) {
+                value = cellValue.result;
+              } else if ("text" in cellValue) {
+                value = cellValue.text;
+              } else if ("richText" in cellValue) {
+                value = cellValue.richText
+                  .map((part: any) => part.text)
+                  .join("");
+              } else {
+                value = JSON.stringify(cellValue);
+              }
+            } else {
+              value = cellValue ?? "";
+            }
+
             return {
               [header]: String(value).replace(/\r?\n/g, " "),
             };
