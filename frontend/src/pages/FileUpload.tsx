@@ -52,6 +52,13 @@ function FileUpload() {
     setCurrentItem(null);
   };
 
+  const [disabledButtons, setDisabledButtons] = useState<boolean[]>(
+    Array((files ?? []).length).fill(false),
+  );
+
+  const [anyButtonClicked, setAnyButtonClicked] = useState(false);
+  const [globalButtonClicked, setGlobalButtonClicked] = useState(false);
+
   async function getRowCount(file: any): Promise<number> {
     if (file.name.endsWith(".xlsx")) {
       const buffer = await file.arrayBuffer();
@@ -147,6 +154,12 @@ function FileUpload() {
   const validateFile = async (file: string | Blob, index: number) => {
     if (file) {
       // const rowCount = await getRowCount(file)
+
+      const updated = [...disabledButtons];
+      updated[index] = true;
+      setDisabledButtons(updated);
+      setAnyButtonClicked(true);
+
       const formData = new FormData();
       let orgGUID = null,
         agency = null,
@@ -182,6 +195,9 @@ function FileUpload() {
   };
 
   const validateAllFiles = (files) => {
+    setAnyButtonClicked(true);
+    setGlobalButtonClicked(true);
+
     if (files) {
       Object.entries(files).forEach(async ([key, value], index) => {
         // const rowCount = await getRowCount(value)
@@ -221,6 +237,12 @@ function FileUpload() {
   const submitFile = async (file: string | Blob, index: number) => {
     if (file) {
       // const rowCount = await getRowCount(file)
+
+      const updated = [...disabledButtons];
+      updated[index] = true;
+      setDisabledButtons(updated);
+      setAnyButtonClicked(true);
+
       const formData = new FormData();
       let orgGUID = null,
         agency = null,
@@ -256,6 +278,9 @@ function FileUpload() {
   };
 
   const submitAllFiles = async (files: any) => {
+    setAnyButtonClicked(true);
+    setGlobalButtonClicked(true);
+
     if (files) {
       Object.entries(files).forEach(async ([key, value], index) => {
         // const rowCount = await getRowCount(value)
@@ -559,69 +584,43 @@ function FileUpload() {
                               </Box>
                             </Grid>
                             <Grid item xs={3}>
-                              {fileStatusCodes.items[index] == "QUEUED" ? (
-                                <ButtonGroup
-                                  variant="text"
-                                  style={{
-                                    color: "black",
-                                    float: "right",
-                                    paddingBottom: "10px",
+                              <ButtonGroup
+                                variant="text"
+                                style={{
+                                  color: "black",
+                                  float: "right",
+                                  paddingBottom: "10px",
+                                }}
+                              >
+                                <Button
+                                  id={"selected-file-" + index + "-validate"}
+                                  variant="contained"
+                                  color="secondary"
+                                  onClick={() => {
+                                    validateFile(file, index);
                                   }}
+                                  disabled={
+                                    disabledButtons[index] ||
+                                    globalButtonClicked
+                                  }
                                 >
-                                  <Button
-                                    id={"selected-file-" + index + "-validate"}
-                                    variant="contained"
-                                    color="secondary"
-                                    onClick={() => {
-                                      validateFile(file, index);
-                                    }}
-                                    disabled
-                                  >
-                                    Validate
-                                  </Button>
-                                  <Button
-                                    id={"selected-file-" + index + "-submit"}
-                                    variant="contained"
-                                    color="secondary"
-                                    onClick={() => {
-                                      submitFile(file, index);
-                                    }}
-                                    disabled
-                                  >
-                                    Submit
-                                  </Button>
-                                </ButtonGroup>
-                              ) : (
-                                <ButtonGroup
-                                  variant="text"
-                                  style={{
-                                    color: "black",
-                                    float: "right",
-                                    paddingBottom: "10px",
+                                  Validate
+                                </Button>
+                                <Button
+                                  id={"selected-file-" + index + "-submit"}
+                                  variant="contained"
+                                  color="secondary"
+                                  onClick={() => {
+                                    submitFile(file, index);
                                   }}
+                                  disabled={
+                                    disabledButtons[index] ||
+                                    globalButtonClicked
+                                  }
                                 >
-                                  <Button
-                                    id={"selected-file-" + index + "-validate"}
-                                    variant="contained"
-                                    color="secondary"
-                                    onClick={() => {
-                                      validateFile(file, index);
-                                    }}
-                                  >
-                                    Validate
-                                  </Button>
-                                  <Button
-                                    id={"selected-file-" + index + "-submit"}
-                                    variant="contained"
-                                    color="secondary"
-                                    onClick={() => {
-                                      submitFile(file, index);
-                                    }}
-                                  >
-                                    Submit
-                                  </Button>
-                                </ButtonGroup>
-                              )}
+                                  Submit
+                                </Button>
+                              </ButtonGroup>
                             </Grid>
 
                             <Grid item xs={12}>
@@ -672,9 +671,7 @@ function FileUpload() {
             {expandList && (
               <div className="all-file-action">
                 <Box sx={{ padding: "10px" }}>
-                  {files &&
-                  selectedFiles.length > 0 &&
-                  fileStatusCodes.items.some((index) => index === "QUEUED") ? (
+                  {files && selectedFiles.length > 0 ? (
                     <ButtonGroup variant="text" style={{ color: "black" }}>
                       <Button
                         id={"all-files-validate"}
@@ -683,7 +680,7 @@ function FileUpload() {
                         onClick={() => {
                           validateAllFiles(files);
                         }}
-                        disabled
+                        disabled={anyButtonClicked}
                       >
                         Validate All
                       </Button>
@@ -694,34 +691,7 @@ function FileUpload() {
                         onClick={() => {
                           submitAllFiles(files);
                         }}
-                        disabled
-                      >
-                        Submit All
-                      </Button>
-                    </ButtonGroup>
-                  ) : files &&
-                    selectedFiles.length > 0 &&
-                    !fileStatusCodes.items.some(
-                      (index) => index === "QUEUED",
-                    ) ? (
-                    <ButtonGroup variant="text" style={{ color: "black" }}>
-                      <Button
-                        id={"all-files-validate"}
-                        variant="contained"
-                        color="secondary"
-                        onClick={() => {
-                          validateAllFiles(files);
-                        }}
-                      >
-                        Validate All
-                      </Button>
-                      <Button
-                        id={"all-files-submit"}
-                        variant="contained"
-                        color="secondary"
-                        onClick={() => {
-                          submitAllFiles(files);
-                        }}
+                        disabled={anyButtonClicked}
                       >
                         Submit All
                       </Button>
