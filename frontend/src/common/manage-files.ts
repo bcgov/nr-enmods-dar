@@ -59,3 +59,11 @@ export const updateFileStatus = async (submissionId: string, data: any) => {
   const response = await api.patch(getParameters);
   return response;
 }
+
+
+export const getAgencies = async() => {
+  const url = `${config.API_BASE_URL}/v1/file_submissions/submitter_agencies`;
+  const getParameters = api.generateApiParameters(url)
+  const response = await api.get(getParameters);
+  return response;
+}

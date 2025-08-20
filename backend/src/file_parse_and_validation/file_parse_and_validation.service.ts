@@ -914,8 +914,17 @@ export class FileParseValidateService {
             const validNumber =
               numberRegex.test(rowData[field]) &&
               !isNaN(parseFloat(rowData[field]));
-            if (rowData[field] !== "" && !validNumber) {
-              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid number"}}`;
+            if (
+              rowData[field] != null &&
+              rowData[field].toString().trim() !== "" &&
+              !validNumber
+            ) {
+              let errorLog;
+              if (rowData[field] === `""`) {
+                errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Empty quotes is not valid number"}}`;
+              } else {
+                errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid number"}}`;
+              }
               errorLogs.push(JSON.parse(errorLog));
             }
           } else {
@@ -2274,7 +2283,7 @@ export class FileParseValidateService {
           ministry_contacts,
         );
         this.logger.warn("Deleted the partially imported data");
-        partialUpload = false;
+        // partialUpload = false;
         rollBackHalted = false;
         return;
       }
@@ -2612,7 +2621,7 @@ export class FileParseValidateService {
               csvStream,
               allNonObsErrors,
               allExistingRecords,
-              originalFileName,
+              fileName,
               extention,
             );
           }
@@ -2641,7 +2650,7 @@ export class FileParseValidateService {
             csvStream,
             allNonObsErrors,
             allExistingRecords,
-            originalFileName,
+            fileName,
             extention,
           );
         }
@@ -3065,7 +3074,7 @@ export class FileParseValidateService {
               csvStream,
               allNonObsErrors,
               allExistingRecords,
-              originalFileName,
+              fileName,
               extention,
             );
           }
@@ -3094,7 +3103,7 @@ export class FileParseValidateService {
             csvStream,
             allNonObsErrors,
             allExistingRecords,
-            originalFileName,
+            fileName,
             extention,
           );
         }
@@ -3375,6 +3384,7 @@ export class FileParseValidateService {
                 "ERROR",
               );
             }
+            this.logger.log("Partial upload detected, leaving import process")
             return;
           }
 
