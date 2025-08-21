@@ -2616,7 +2616,7 @@ export class FileParseValidateService {
             await this.cleanAndValidate(
               row,
               rowHeaders,
-              actualRowNumber,
+              actualRowNumber + 1,
               ministryContacts,
               csvStream,
               allNonObsErrors,
@@ -2645,7 +2645,7 @@ export class FileParseValidateService {
           await this.cleanAndValidate(
             row,
             rowHeaders,
-            actualRowNumber,
+            actualRowNumber + 1,
             ministryContacts,
             csvStream,
             allNonObsErrors,
@@ -3069,7 +3069,7 @@ export class FileParseValidateService {
             await this.cleanAndValidate(
               row,
               headers,
-              actualRowNumber,
+              actualRowNumber + 1,
               ministryContacts,
               csvStream,
               allNonObsErrors,
@@ -3098,7 +3098,7 @@ export class FileParseValidateService {
           await this.cleanAndValidate(
             row,
             headers,
-            actualRowNumber,
+            actualRowNumber + 1,
             ministryContacts,
             csvStream,
             allNonObsErrors,
