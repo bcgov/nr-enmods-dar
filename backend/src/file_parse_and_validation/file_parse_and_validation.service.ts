@@ -2077,7 +2077,7 @@ export class FileParseValidateService {
 
     // Save the created observation GUIDs to aqi_imported
     const observationGUIDS =
-      await this.aqiService.getObservationsFromFile(originalFileName);
+      await this.aqiService.getObservationsFromFile(fileName);
 
     const guidsToUpdate = await this.prisma.aqi_imported_data.findMany({
       where: {
