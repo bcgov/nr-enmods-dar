@@ -494,4 +494,92 @@ export class NotificationsService {
       this.logger.log(error);
     }
   }
+
+  async requestAccess(data: {
+    email: string;
+    accountType: string;
+    fullname: string;
+    username: string;
+  }): Promise<string> {
+    let variables = {
+      accountType: data.accountType,
+      fullname: data.fullname,
+      email: data.email,
+      username: data.username,
+    };
+    let body = `
+    ${data.accountType} user ${data.fullname} with username ${data.username} and email ${data.email} would like access to EDT.
+    <br><br>
+    To approve this request go to <a href="${process.env.WEBAPP_URL}/admin">${process.env.WEBAPP_URL}/admin</a>, 
+    to deny this request no action is needed.
+`;
+
+    const emailTemplate = {
+      from: "enmodshelp@gov.bc.ca",
+      subject: `New EDT User Requested ${data.accountType}`,
+      body: body,
+    };
+
+    const chesToken = await this.getChesToken();
+
+    const emailData = JSON.stringify({
+      attachments: [],
+      bodyType: "html",
+      body: emailTemplate.body,
+      contexts: [
+        {
+          context: {
+            ...variables,
+          },
+          delayTS: 0,
+          tag: "tag",
+          to: "enmodshelp@gov.bc.ca",
+        },
+      ],
+      encoding: "utf-8",
+      from: emailTemplate.from,
+      priority: "normal",
+      subject: emailTemplate.subject,
+    });
+
+    const config = {
+      method: "post",
+      url: `${process.env.ches_email_url}`,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${chesToken}`,
+      },
+      data: emailData,
+    };
+
+    try {
+      await lastValueFrom(this.httpService.request(config));
+      return "Email Sent";
+    } catch (error) {
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        this.logger.log("Response:");
+        this.logger.log(error.response.data);
+        this.logger.log(error.response.status);
+        this.logger.log(error.response.headers);
+      } else if (error.request) {
+        // The request was made but no response was received
+        // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
+        // http.ClientRequest in node.js
+        this.logger.log("Request:");
+        this.logger.log(error.request);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        this.logger.log("Error", error.message);
+      }
+      this.logger.log("Error config:");
+      this.logger.log(error.config);
+      this.logger.log(error);
+    }
+
+    let returnMessage = "";
+
+    return returnMessage;
+  }
 }
