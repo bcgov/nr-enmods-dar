@@ -250,8 +250,12 @@ export class AdminService {
         console.log(err.response.data);
         throw new Error("No users found");
       });
+    let correctUserInfo: BCeIDUserInfo = searchData[0]
+    let name = searchData[0].firstName.split(" ")
+    correctUserInfo.firstName = name[0]
+    correctUserInfo.lastName = name[1]
 
-    return searchData[0] || null;
+    return correctUserInfo || null;
   }
 
   /**
@@ -348,12 +352,7 @@ export class AdminService {
     for (const role of userRolesDto.roles) {
       if (role === Role.ENMODS_USER) {
         const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/users/${userRolesDto.idirUsername}/roles/${Role.ENMODS_USER}`;
-        await firstValueFrom(
-          this.httpService.delete(
-            url,
-            config,
-          ),
-        )
+        await firstValueFrom(this.httpService.delete(url, config))
           .then((res) => {
             return res.data;
           })
@@ -364,12 +363,7 @@ export class AdminService {
       }
       if (role === Role.ENMODS_ADMIN) {
         const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/users/${userRolesDto.idirUsername}/roles/${Role.ENMODS_ADMIN}`;
-        await firstValueFrom(
-          this.httpService.delete(
-            url,
-            config,
-          ),
-        )
+        await firstValueFrom(this.httpService.delete(url, config))
           .then((res) => {
             return res.data;
           })
@@ -380,12 +374,7 @@ export class AdminService {
       }
       if (role === Role.ENMODS_DELETE) {
         const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/users/${userRolesDto.idirUsername}/roles/${Role.ENMODS_DELETE}`;
-        await firstValueFrom(
-          this.httpService.delete(
-            url,
-            config,
-          ),
-        )
+        await firstValueFrom(this.httpService.delete(url, config))
           .then((res) => {
             return res.data;
           })
@@ -422,12 +411,7 @@ export class AdminService {
     for (let role of rolesToRemove) {
       if (role === Role.ENMODS_USER) {
         const removeUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/users/${idirUsername}/roles/${role}`;
-        await firstValueFrom(
-          this.httpService.delete(
-            removeUrl,
-            config,
-          ),
-        )
+        await firstValueFrom(this.httpService.delete(removeUrl, config))
           .then((res) => {
             return res.data;
           })
@@ -438,12 +422,7 @@ export class AdminService {
           });
       } else if (role === Role.ENMODS_ADMIN) {
         const removeUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/users/${idirUsername}/roles/${role}`;
-        await firstValueFrom(
-          this.httpService.delete(
-            removeUrl,
-            config,
-          ),
-        )
+        await firstValueFrom(this.httpService.delete(removeUrl, config))
           .then((res) => {
             return res.data;
           })
@@ -454,12 +433,7 @@ export class AdminService {
           });
       } else if (role === Role.ENMODS_DELETE) {
         const removeUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/users/${idirUsername}/roles/${role}`;
-        await firstValueFrom(
-          this.httpService.delete(
-            removeUrl,
-            config,
-          ),
-        )
+        await firstValueFrom(this.httpService.delete(removeUrl, config))
           .then((res) => {
             return res.data;
           })
