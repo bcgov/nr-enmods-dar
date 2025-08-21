@@ -70,4 +70,10 @@ export class NotificationsController {
     }
     return this.notificationsService.unsubscribe(data.guid);
   }
+
+   @Public()
+  @Post("request-access")
+  requestAccess(@Body() data: { email: string, accountType: string, fullname: string, username: string }): Promise<string> {
+    return this.notificationsService.requestAccess(data);
+  }
 }
