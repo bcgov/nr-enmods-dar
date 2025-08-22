@@ -1167,6 +1167,20 @@ export class FileParseValidateService {
       }
     }
 
+    if (rowData["AnalysisMethod"]){
+      if (validObservedProperty){
+        const associatedMethods = await this.aqiService.databaseLookup(
+          "aqi_associated_analysis_methods",
+          rowData.ObservedPropertyID
+        )
+
+        if (!associatedMethods[0].analysis_methods.includes(rowData["AnalysisMethod"])){
+           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "${rowData.AnalyzingMethod} not valid for observed property ${rowData.ObservedPropertyID}"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+      }
+    }
+
     if (rowData.hasOwnProperty("ResultStatus")) {
       const present = await this.aqiService.databaseLookup(
         "aqi_result_status",
