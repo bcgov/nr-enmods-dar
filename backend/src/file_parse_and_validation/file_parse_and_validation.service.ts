@@ -77,6 +77,7 @@ const fileHeaders: FileHeaders = {
   "QC Type": "QC Type",
   "QC Source Activity Name": "QC Source Activity Name",
   "Composite Stat": "Composite Stat",
+  "Biological Life Stage": "Biological Life Stage"
 };
 
 const visits: FieldVisits = {
@@ -161,6 +162,7 @@ const observations: Observations = {
   QCSourceActivityName: "",
   LabBatchID: "",
   CompositeStat: "",
+  BiologicalLifeStage: ""
 };
 
 const obsFile: ObservationFile = {
@@ -204,6 +206,7 @@ const obsFile: ObservationFile = {
   "QC: Source Sample ID": "",
   "EA_Lab Batch ID": "",
   "EA_Observation Composite Stat": "",
+  "EA_Biological Life Stage": "",
   "EA_Upload File Name": "",
 };
 
@@ -231,9 +234,7 @@ export class FileParseValidateService {
   constructor(
     private prisma: PrismaService,
     private readonly fileSubmissionsService: FileSubmissionsService,
-    private readonly aqiService: AqiApiService,
-    private readonly objectStoreService: ObjectStoreService,
-    private readonly operationLockService: OperationLockService,
+    private readonly aqiService: AqiApiService
   ) {}
 
   async getQueuedFiles() {
@@ -2204,6 +2205,14 @@ export class FileParseValidateService {
         });
 
         rowData = await this.cleanRowBasedOnDataClassification(rowData);
+      }
+
+      if (!/^Animal - .+/.test(rowData["Medium"])){
+        rowData["EA_Biological Life Stage"] = ""
+      }
+
+      if ((rowData["DataClassification"] !== "LAB" && rowData["DataClassification"] !== "SURROGATE_RESULT" && rowData["DataClassification"] !== "FIELD_SURVEY")){
+        rowData["EA_Biological Life Stage"] = ""
       }
 
       this.logger.log(`Finished creating object for row ${rowNumber}`);
