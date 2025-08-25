@@ -1168,6 +1168,15 @@ export class FileParseValidateService {
     }
 
     if (rowData["AnalysisMethod"]){
+
+      // if data classification is LAB/SURROGATE ensure Analysis Method is entered
+      if ((rowData["DataClassification"] == "LAB" || rowData["DataClassification"] == "SURROGATE_RESULT") && rowData["AnalysisMethod"] == ""){
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+      }
+
+
+      // if valid OP, then check if the analysis method is an associated method for that OP
       if (validObservedProperty){
         const associatedMethods = await this.aqiService.databaseLookup(
           "aqi_associated_analysis_methods",
@@ -1175,7 +1184,7 @@ export class FileParseValidateService {
         )
 
         if (!associatedMethods[0].analysis_methods.includes(rowData["AnalysisMethod"])){
-           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "${rowData.AnalyzingMethod} not valid for observed property ${rowData.ObservedPropertyID}"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "${rowData.AnalyzingMethod} not valid for observed property ${rowData.ObservedPropertyID}"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       }
@@ -1625,6 +1634,10 @@ export class FileParseValidateService {
         // this is because AQI interprets a null value as REGULAR
         cleanedRow.QCType = "";
       }
+      cleanedRow.AnalysisMethod = 
+        rowData.DataClassification == "FIELD_SURVEY"
+        ? ""
+        : rowData.AnalysisMethod
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
