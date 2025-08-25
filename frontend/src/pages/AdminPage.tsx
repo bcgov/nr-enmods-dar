@@ -1,4 +1,4 @@
-import { Button, Tabs, Tab, Typography } from "@mui/material";
+import { Button, Tabs, Tab, Typography, Alert } from "@mui/material";
 import { DataGrid, GridToolbar } from "@mui/x-data-grid";
 import { useEffect, useState } from "react";
 import { Box } from "@mui/system";
@@ -28,6 +28,7 @@ export default function AdminPage() {
     [],
   );
   const [username, setUsername] = useState("");
+  const [ssoOutage, setSsoOutage] = useState(false);
 
   useEffect(() => {
     const token = UserService.getToken();
@@ -53,20 +54,6 @@ export default function AdminPage() {
     getUserData();
     getNotificationInfo();
   }, []);
-
-  // mock data for company
-  const [companyData] = useState([
-    {
-      id: "1",
-      name: "Not Implemented",
-      email: "Not Implemented",
-    },
-    {
-      id: "2",
-      name: "Not Implemented",
-      email: "Not Implemented",
-    },
-  ]);
 
   const handleOpenEdit = (username: string) => {
     const foundUser = userData.find((user) => user.username === username);
@@ -106,146 +93,128 @@ export default function AdminPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100dvh",
-        width: "100%",
-        marginLeft: "4em",
-        overflow: "auto",
-      }}
-    >
-      <Box sx={{ paddingBottom: "30px" }}>
-        <Typography id="pageTitle" variant="h4">
-          Admin
-        </Typography>
-      </Box>
-      <Tabs
-        id="tableTabs"
-        value={selectedTab}
-        onChange={handleTabChange}
-        aria-label="admin tabs"
-      >
-        <Tab
-          id="usersTab"
-          label="Users"
-          style={{
-            color: selectedTab === 0 ? "black" : "lightgray",
-          }}
-        />
-        {/* <Tab
-          id="companyTab"
-          label="Company"
-          style={{
-            color: selectedTab === 1 ? "black" : "lightgray",
-          }}
-        /> */}
-        <Tab
-          label="Notifications"
-          style={{ color: selectedTab === 2 ? "black" : "lightgray" }}
-        />
-      </Tabs>
-      <Box
-        role="tabpanel"
-        hidden={selectedTab !== 0}
-        id={`tabpanel-0`}
-        aria-labelledby={`tab-0`}
+    <>
+      <div style={{ width: "100%", marginLeft: "4em" }}>
+        {ssoOutage && (
+          <Alert severity="error">
+            SSO is currently down. Unable to find/create/update/delete users.
+            Please try again later.
+          </Alert>
+        )}
+      </div>
+      <div
         style={{
-          height: 600,
+          minHeight: "100dvh",
           width: "100%",
+          marginLeft: "4em",
+          overflow: "auto",
         }}
       >
-        {selectedTab === 0 && (
-          <DataGrid
-            slots={{ toolbar: GridToolbar }}
-            slotProps={{
-              toolbar: {
-                showQuickFilter: true,
-              },
-            }}
-            rows={userData}
-            columns={userColumns(handleOpenEdit)}
-            pageSizeOptions={[5, 10, 20, 50, 100]}
-            checkboxSelection={false}
-            disableRowSelectionOnClick
-            getRowId={(row) => row["username"]}
-          />
-        )}
-      </Box>
-      {/* <Box
-        role="tabpanel"
-        hidden={selectedTab !== 1}
-        id={`tabpanel-1`}
-        aria-labelledby={`tab-1`}
-        style={{ height: 400, width: "100%" }}
-      >
-        {selectedTab === 1 && (
-          <DataGrid
-            slots={{ toolbar: GridToolbar }}
-            slotProps={{
-              toolbar: {
-                showQuickFilter: true,
-              },
-            }}
-            checkboxSelection={false}
-            rows={companyData}
-            columns={companyColumns(handleOpenEdit)}
-            pageSizeOptions={[5, 10, 20, 50, 100]}
-            getRowId={(row) => row["id"]}
-          />
-        )}
-      </Box> */}
-      <Box
-        role="tabpanel"
-        hidden={selectedTab !== 1}
-        id={`tabpanel-2`}
-        aria-labelledby={`tab-2`}
-        style={{ height: 400, width: "100%" }}
-      >
-        {selectedTab === 1 && (
-          <DataGrid
-            slots={{ toolbar: GridToolbar }}
-            slotProps={{
-              toolbar: {
-                showQuickFilter: true,
-              },
-            }}
-            checkboxSelection={false}
-            rows={notificationData}
-            columns={notificationColumns(handleNotificationChange)}
-            pageSizeOptions={[5, 10, 20, 50, 100]}
-            getRowId={(row) => row["id"]}
-          />
-        )}
-      </Box>
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginTop: "1em",
-          width: "100%",
-        }}
-      >
-        <Button
-          id="addUserButton"
-          variant="contained"
-          color="primary"
-          onClick={() => setShowAddRoles(true)}
+        <Box sx={{ paddingBottom: "30px" }}>
+          <Typography id="pageTitle" variant="h4">
+            Admin
+          </Typography>
+        </Box>
+        <Tabs
+          id="tableTabs"
+          value={selectedTab}
+          onChange={handleTabChange}
+          aria-label="admin tabs"
         >
-          Add User
-        </Button>
-      </Box>
-      <AddRoles
-        show={showAddRoles}
-        existingUsers={userData}
-        refreshTable={getUserData}
-        onHide={handleCloseAddRoles}
-      />
-      <EditRoles
-        show={showRemoveRoles}
-        userObject={selectedUserInfo}
-        refreshTable={getUserData}
-        onHide={handleCloseRemoveRoles}
-      />
-    </div>
+          <Tab
+            id="usersTab"
+            label="Users"
+            style={{
+              color: selectedTab === 0 ? "black" : "lightgray",
+            }}
+          />
+          <Tab
+            label="Notifications"
+            style={{ color: selectedTab === 2 ? "black" : "lightgray" }}
+          />
+        </Tabs>
+        <Box
+          role="tabpanel"
+          hidden={selectedTab !== 0}
+          id={`tabpanel-0`}
+          aria-labelledby={`tab-0`}
+          style={{
+            height: 600,
+            width: "100%",
+          }}
+        >
+          {selectedTab === 0 && (
+            <DataGrid
+              slots={{ toolbar: GridToolbar }}
+              slotProps={{
+                toolbar: {
+                  showQuickFilter: true,
+                },
+              }}
+              rows={userData}
+              columns={userColumns(handleOpenEdit)}
+              pageSizeOptions={[5, 10, 20, 50, 100]}
+              checkboxSelection={false}
+              disableRowSelectionOnClick
+              getRowId={(row) => row["username"]}
+            />
+          )}
+        </Box>
+        <Box
+          role="tabpanel"
+          hidden={selectedTab !== 1}
+          id={`tabpanel-2`}
+          aria-labelledby={`tab-2`}
+          style={{ height: 400, width: "100%" }}
+        >
+          {selectedTab === 1 && (
+            <DataGrid
+              slots={{ toolbar: GridToolbar }}
+              slotProps={{
+                toolbar: {
+                  showQuickFilter: true,
+                },
+              }}
+              checkboxSelection={false}
+              rows={notificationData}
+              columns={notificationColumns(handleNotificationChange)}
+              pageSizeOptions={[5, 10, 20, 50, 100]}
+              getRowId={(row) => row["id"]}
+            />
+          )}
+        </Box>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "flex-end",
+            marginTop: "1em",
+            width: "100%",
+          }}
+        >
+          <Button
+            id="addUserButton"
+            variant="contained"
+            color="primary"
+            onClick={() => setShowAddRoles(true)}
+          >
+            Add User
+          </Button>
+        </Box>
+        <AddRoles
+          show={showAddRoles}
+          existingUsers={userData}
+          refreshTable={getUserData}
+          onHide={handleCloseAddRoles}
+        />
+        <EditRoles
+          show={showRemoveRoles}
+          userObject={selectedUserInfo}
+          refreshTable={getUserData}
+          apiStatus={ssoOutage}
+          setApiStatus={setSsoOutage}
+          onHide={handleCloseRemoveRoles}
+        />
+      </div>
+    </>
   );
 }

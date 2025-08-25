@@ -17,6 +17,7 @@ import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import { OperationLockService } from "src/operationLock/operationLock.service";
 import { equals } from "class-validator";
+import { distinct } from "rxjs";
 
 @Injectable()
 export class FileSubmissionsService {
@@ -170,20 +171,16 @@ export class FileSubmissionsService {
   }
 
   async findByCode(submissionCode: string) {
-    const query = {
-      where: {
-        submission_status_code: {
-          equals: submissionCode,
+
+    const [results] = await this.prisma.$transaction([
+      this.prisma.file_submission.findMany({
+        where: {
+          submission_status_code: {
+            equals: submissionCode,
+          },
         },
-      },
-    };
-
-    const [results, count] = await this.prisma.$transaction([
-      this.prisma.file_submission.findMany(query),
-
-      this.prisma.file_submission.count({
-        where: query.where,
-      }),
+        orderBy: { submission_date: "asc" },
+      })
     ]);
 
     return results;
@@ -201,7 +198,7 @@ export class FileSubmissionsService {
       submitter_user_id: {},
       submitter_agency_name: {},
       submission_status_code: {},
-      OR: [], // this is for the organization guid
+      organization_guid: {},
       active_ind: true,
     };
 
@@ -252,20 +249,9 @@ export class FileSubmissionsService {
     }
 
     if (body.organization_guid !== "null") {
-      whereClause.OR = [
-        {
-          organization_guid: { equals: body.organization_guid },
-        },
-        {
-          organization_guid: null,
-        },
-      ];
+      whereClause.organization_guid = { equals: body.organization_guid };
     } else {
-      whereClause.OR = [
-        {
-          organization_guid: null,
-        },
-      ];
+      whereClause.organization_guid = { equals: null };
     }
 
     const selectColumns = {
@@ -300,15 +286,16 @@ export class FileSubmissionsService {
     return records;
   }
 
-  async findBySubmissionId(submission_id: string) {
-    return await this.prisma.file_submission.findUnique({
-      where: {
-        submission_id: submission_id,
-      },
-      include: {
-        file_error_logs: true,
-      },
-    });
+  async getAgencies() {
+    const results = await this.prisma.$transaction([
+      this.prisma.file_submission.findMany({
+        distinct: ["submitter_agency_name"],
+        select: {
+          submitter_agency_name: true,
+        },
+      }),
+    ]);
+    return results;
   }
 
   async updateFileStatus(submission_id: string, status: string) {

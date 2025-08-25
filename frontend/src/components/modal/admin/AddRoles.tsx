@@ -42,6 +42,7 @@ const AddRoles = ({
   const [error, setError] = useState<string>("");
   const [rolesToAdd, setRolesToAdd] = useState<string[]>([]);
   const [accountType, setAccountType] = useState<string>("IDIR");
+  const [name, setName] = useState<string>("")
 
   const searchUsers = async () => {
     setShowError(false);
@@ -80,7 +81,8 @@ const AddRoles = ({
       setShowError(false);
       setLoading(true);
       try {
-        await updateRoles(userObject?.username, [], rolesToAdd);
+        const updateResponse = await updateRoles(userObject?.username, [], rolesToAdd);
+        console.log(updateResponse)
         refreshTable();
       } catch (err) {
         setError("Failed to add role to user.");
@@ -202,9 +204,9 @@ const AddRoles = ({
           color="info"
         />
         <TextField
-          id="searchUsername"
+          id="searchLastName"
           label="Username"
-          value={userObject?.username[0] ?? ""}
+          value={accountType === "IDIR" ? userObject?.attributes.idir_username || "" : userObject?.attributes.bceid_username || ""}
           fullWidth
           margin="normal"
           sx={{

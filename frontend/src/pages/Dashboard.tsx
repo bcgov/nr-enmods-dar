@@ -23,6 +23,7 @@ import {
   deleteFile,
   downloadFile,
   downloadFileLogs,
+  getAgencies,
   searchFiles,
   updateFileStatus,
 } from "@/common/manage-files";
@@ -292,15 +293,24 @@ export default function Dashboard() {
     });
   };
 
-  const agencyOptions: any = []; // TODO: get the EnMoDS agency list from an api call
-
   const [users, setUsers] = useState({
+    items: [],
+  });
+
+  const [agencies, setAgencies] = useState({
     items: [],
   });
 
   const userOptions = users.items.map((user) => ({
     value: user.username,
-    label: user.name,
+    label:
+      user.name +
+      ` (${user.guidUsername?.endsWith("idir") ? "IDIR" : "BCEID"})`,
+  }));
+
+  const agencyOptions = agencies.items.map((agency) => ({
+    value: agency.submitter_agency_name,
+    label: agency.submitter_agency_name,
   }));
 
   const handleCloseAndSubmit = async () => {
@@ -363,6 +373,22 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
+    async function fetchAgencies() {
+      await getAgencies().then((response: any) => {
+        const newAgencies: any = agencies.items;
+        Object.keys(response).map((key) => {
+          newAgencies[key] = response[key];
+        });
+        setAgencies({
+          items: newAgencies[0],
+        });
+      });
+    }
+
+    fetchAgencies();
+  }, []);
+
+  useEffect(() => {
     if (data.items.length > 0) {
       handleSearch(null);
     }
@@ -383,8 +409,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <div
-      style={{width: "100%", marginLeft: "4em" }}>
+      <div style={{ width: "100%", marginLeft: "4em" }}>
         {aqiOutage && (
           <Alert severity="error">
             AQI is currently down. All files uploaded will be put in the queue
@@ -494,7 +519,7 @@ export default function Dashboard() {
                           width: "645px",
                         }),
                       }}
-                      value={userOptions.filter((option) =>
+                      value={agencyOptions.filter((option) =>
                         formData.submitterAgency.includes(option.value),
                       )}
                       onChange={(selectedOptions) =>

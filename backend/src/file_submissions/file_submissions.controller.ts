@@ -61,6 +61,12 @@ export class FileSubmissionsController {
     return this.fileSubmissionsService.findByCode(submissionCode);
   }
 
+  @Get("submitter_agencies")
+  @Roles(Role.ENMODS_ADMIN, Role.ENMODS_USER, Role.ENMODS_DELETE)
+  getAgencies() {
+    return this.fileSubmissionsService.getAgencies();
+  }
+
   @Post("search")
   @Roles(Role.ENMODS_ADMIN, Role.ENMODS_USER, Role.ENMODS_DELETE)
   @UseInterceptors(FileInterceptor("file"))

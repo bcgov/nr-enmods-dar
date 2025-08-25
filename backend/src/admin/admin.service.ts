@@ -1,5 +1,5 @@
 import { HttpService } from "@nestjs/axios";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { firstValueFrom } from "rxjs";
 import { Role } from "src/enum/role.enum";
 import { BCeIDUserInfo, IdirUserInfo, UserInfo } from "src/types/types";
@@ -9,6 +9,7 @@ import axios from "axios";
 @Injectable()
 export class AdminService {
   constructor(private readonly httpService: HttpService) {}
+  private readonly logger = new Logger(AdminService.name);
 
   async getToken() {
     const url = process.env.USERS_API_TOKEN_URL;
@@ -46,6 +47,7 @@ export class AdminService {
     const config = {
       headers: { Authorization: "Bearer " + bearerToken },
     };
+
     try {
       const adminResponse = await firstValueFrom(
         this.httpService.get(adminUrl, config),
@@ -140,7 +142,7 @@ export class AdminService {
           deleteUser?.attributes?.bceid_username[0];
         const existingUser = returnData.find((u) => u.username === userId);
         if (existingUser) {
-          existingUser.role.push(Role.ENMODS_USER);
+          existingUser.role.push(Role.ENMODS_DELETE);
         } else {
           if (accountType === "idir") {
             returnData.push({
@@ -173,7 +175,7 @@ export class AdminService {
     } catch (err) {
       console.log("Error findAll Admin");
       console.log(err.response?.data || err.message);
-      throw err;
+      return [true];
     }
   }
 
@@ -192,10 +194,10 @@ export class AdminService {
       aqiStatus = err.response.status;
     }
 
-    if (aqiStatus == 200){
-      return false
-    }else{
-      return true
+    if (aqiStatus == 200) {
+      return false;
+    } else {
+      return true;
     }
   }
 
@@ -248,8 +250,12 @@ export class AdminService {
         console.log(err.response.data);
         throw new Error("No users found");
       });
+    let correctUserInfo: BCeIDUserInfo = searchData[0]
+    let name = searchData[0].firstName.split(" ")
+    correctUserInfo.firstName = name[0]
+    correctUserInfo.lastName = name[1]
 
-    return searchData[0] || null;
+    return correctUserInfo || null;
   }
 
   /**
@@ -259,7 +265,7 @@ export class AdminService {
    * @returns
    */
   async addRoles(userRolesDto: UserRolesDto): Promise<any> {
-    const addRolesUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/user-role-mappings`;
+    const addRolesUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/users/${userRolesDto.idirUsername}/roles`;
     const bearerToken = await this.getToken();
 
     const config = {
@@ -271,11 +277,11 @@ export class AdminService {
       await firstValueFrom(
         this.httpService.post(
           addRolesUrl,
-          {
-            roleName: Role.ENMODS_ADMIN,
-            username: userRolesDto.idirUsername,
-            operation: "add",
-          },
+          [
+            {
+              name: Role.ENMODS_ADMIN,
+            },
+          ],
           config,
         ),
       )
@@ -292,11 +298,11 @@ export class AdminService {
       await firstValueFrom(
         this.httpService.post(
           addRolesUrl,
-          {
-            roleName: Role.ENMODS_USER,
-            username: userRolesDto.idirUsername,
-            operation: "add",
-          },
+          [
+            {
+              name: Role.ENMODS_USER,
+            },
+          ],
           config,
         ),
       )
@@ -306,6 +312,27 @@ export class AdminService {
         .catch((err) => {
           console.log(err);
           throw new Error("Failed to add user role");
+        });
+    }
+    // add delete role if included
+    if (userRolesDto.roles.includes(Role.ENMODS_DELETE)) {
+      await firstValueFrom(
+        this.httpService.post(
+          addRolesUrl,
+          [
+            {
+              name: Role.ENMODS_DELETE,
+            },
+          ],
+          config,
+        ),
+      )
+        .then((res) => {
+          return res.data;
+        })
+        .catch((err) => {
+          console.log(err);
+          throw new Error("Failed to add delete role");
         });
     }
     return null;
@@ -324,18 +351,8 @@ export class AdminService {
     };
     for (const role of userRolesDto.roles) {
       if (role === Role.ENMODS_USER) {
-        const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/user-role-mappings`;
-        await firstValueFrom(
-          this.httpService.post(
-            url,
-            {
-              roleName: Role.ENMODS_USER,
-              username: userRolesDto.idirUsername,
-              operation: "del",
-            },
-            config,
-          ),
-        )
+        const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/users/${userRolesDto.idirUsername}/roles/${Role.ENMODS_USER}`;
+        await firstValueFrom(this.httpService.delete(url, config))
           .then((res) => {
             return res.data;
           })
@@ -345,18 +362,8 @@ export class AdminService {
           });
       }
       if (role === Role.ENMODS_ADMIN) {
-        const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/user-role-mappings`;
-        await firstValueFrom(
-          this.httpService.post(
-            url,
-            {
-              roleName: Role.ENMODS_ADMIN,
-              username: userRolesDto.idirUsername,
-              operation: "del",
-            },
-            config,
-          ),
-        )
+        const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/users/${userRolesDto.idirUsername}/roles/${Role.ENMODS_ADMIN}`;
+        await firstValueFrom(this.httpService.delete(url, config))
           .then((res) => {
             return res.data;
           })
@@ -366,18 +373,8 @@ export class AdminService {
           });
       }
       if (role === Role.ENMODS_DELETE) {
-        const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/user-role-mappings`;
-        await firstValueFrom(
-          this.httpService.post(
-            url,
-            {
-              roleName: Role.ENMODS_DELETE,
-              username: userRolesDto.idirUsername,
-              operation: "del",
-            },
-            config,
-          ),
-        )
+        const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/users/${userRolesDto.idirUsername}/roles/${Role.ENMODS_DELETE}`;
+        await firstValueFrom(this.httpService.delete(url, config))
           .then((res) => {
             return res.data;
           })
@@ -401,7 +398,7 @@ export class AdminService {
     existingRoles: string[],
     roles: string[],
   ): Promise<any> {
-    const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/user-role-mappings`;
+    const url = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/users/${idirUsername}/roles`;
     const bearerToken = await this.getToken();
 
     const config = {
@@ -410,64 +407,40 @@ export class AdminService {
 
     const rolesToRemove = existingRoles.filter((role) => !roles.includes(role));
     const rolesToAdd = roles.filter((role) => !existingRoles.includes(role));
-
+    let validStatus = 200;
     for (let role of rolesToRemove) {
       if (role === Role.ENMODS_USER) {
-        await firstValueFrom(
-          this.httpService.post(
-            url,
-            {
-              roleName: Role.ENMODS_USER,
-              username: idirUsername,
-              operation: "del",
-            },
-            config,
-          ),
-        )
+        const removeUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/users/${idirUsername}/roles/${role}`;
+        await firstValueFrom(this.httpService.delete(removeUrl, config))
           .then((res) => {
             return res.data;
           })
           .catch((err) => {
             console.log(err);
-            throw new Error(`Failed to remove ${Role.ENMODS_USER} role`);
+            validStatus = err.response.status;
+            this.logger.error(`Failed to remove ${Role.ENMODS_USER} role`);
           });
       } else if (role === Role.ENMODS_ADMIN) {
-        await firstValueFrom(
-          this.httpService.post(
-            url,
-            {
-              roleName: Role.ENMODS_ADMIN,
-              username: idirUsername,
-              operation: "del",
-            },
-            config,
-          ),
-        )
+        const removeUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/users/${idirUsername}/roles/${role}`;
+        await firstValueFrom(this.httpService.delete(removeUrl, config))
           .then((res) => {
             return res.data;
           })
           .catch((err) => {
             console.log(err);
-            throw new Error(`Failed to remove ${Role.ENMODS_ADMIN} role`);
+            validStatus = err.response.status;
+            this.logger.error(`Failed to remove ${Role.ENMODS_ADMIN} role`);
           });
       } else if (role === Role.ENMODS_DELETE) {
-        await firstValueFrom(
-          this.httpService.post(
-            url,
-            {
-              roleName: Role.ENMODS_DELETE,
-              username: idirUsername,
-              operation: "del",
-            },
-            config,
-          ),
-        )
+        const removeUrl = `${process.env.USERS_API_BASE_URL}/integrations/${process.env.INTEGRATION_ID}/${process.env.CSS_ENVIRONMENT}/users/${idirUsername}/roles/${role}`;
+        await firstValueFrom(this.httpService.delete(removeUrl, config))
           .then((res) => {
             return res.data;
           })
           .catch((err) => {
             console.log(err);
-            throw new Error(`Failed to remove ${Role.ENMODS_DELETE} role`);
+            validStatus = err.response.status;
+            this.logger.error(`Failed to remove ${Role.ENMODS_DELETE} role`);
           });
       }
     }
@@ -477,11 +450,11 @@ export class AdminService {
         await firstValueFrom(
           this.httpService.post(
             url,
-            {
-              roleName: Role.ENMODS_USER,
-              username: idirUsername,
-              operation: "add",
-            },
+            [
+              {
+                name: Role.ENMODS_USER,
+              },
+            ],
             config,
           ),
         )
@@ -490,17 +463,18 @@ export class AdminService {
           })
           .catch((err) => {
             console.log(err);
-            throw new Error(`Failed to remove ${Role.ENMODS_USER} role`);
+            validStatus = err.response.status;
+            this.logger.error(`Failed to add ${Role.ENMODS_USER} role`);
           });
       } else if (role === Role.ENMODS_ADMIN) {
         await firstValueFrom(
           this.httpService.post(
             url,
-            {
-              roleName: Role.ENMODS_ADMIN,
-              username: idirUsername,
-              operation: "add",
-            },
+            [
+              {
+                name: Role.ENMODS_ADMIN,
+              },
+            ],
             config,
           ),
         )
@@ -509,17 +483,18 @@ export class AdminService {
           })
           .catch((err) => {
             console.log(err);
-            throw new Error(`Failed to remove ${Role.ENMODS_ADMIN} role`);
+            validStatus = err.response.status;
+            this.logger.error(`Failed to add ${Role.ENMODS_ADMIN} role`);
           });
       } else if (role === Role.ENMODS_DELETE) {
         await firstValueFrom(
           this.httpService.post(
             url,
-            {
-              roleName: Role.ENMODS_DELETE,
-              username: idirUsername,
-              operation: "add",
-            },
+            [
+              {
+                name: Role.ENMODS_DELETE,
+              },
+            ],
             config,
           ),
         )
@@ -528,10 +503,20 @@ export class AdminService {
           })
           .catch((err) => {
             console.log(err);
-            throw new Error(`Failed to remove ${Role.ENMODS_DELETE} role`);
+            validStatus = err.response.status;
+            this.logger.error(`Failed to add ${Role.ENMODS_DELETE} role`);
           });
       }
     }
+
+    if (validStatus >= 200 && validStatus <= 299) {
+      this.logger.warn("successful status");
+      return false;
+    } else {
+      this.logger.warn("error status");
+      return true;
+    }
+
     return null;
   }
 }

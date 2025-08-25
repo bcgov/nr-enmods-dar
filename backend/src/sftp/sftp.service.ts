@@ -152,7 +152,7 @@ export class SftpService {
     }
   }
 
-  @Cron("0 */10 * * * *")
+  // @Cron("0 */10 * * * *")
   async handleCron() {
     this.logger.debug("START ################");
     this.logger.debug("######################");

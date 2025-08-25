@@ -52,6 +52,13 @@ function FileUpload() {
     setCurrentItem(null);
   };
 
+  const [disabledButtons, setDisabledButtons] = useState<boolean[]>(
+    Array((files ?? []).length).fill(false),
+  );
+
+  const [anyButtonClicked, setAnyButtonClicked] = useState(false);
+  const [globalButtonClicked, setGlobalButtonClicked] = useState(false);
+
   async function getRowCount(file: any): Promise<number> {
     if (file.name.endsWith(".xlsx")) {
       const buffer = await file.arrayBuffer();
@@ -79,15 +86,17 @@ function FileUpload() {
     if (!newFiles) return;
 
     // Convert to array and filter out files with spaces in the name
-    const newFilesArray = Array.from(newFiles).filter((file: File) => !file.name.includes(" "));
+    const newFilesArray = Array.from(newFiles).filter(
+      (file: File) => !file.name.includes(" "),
+    );
 
     if (newFilesArray.length !== Array.from(newFiles).length) {
       confirm(
         "File names cannot contain spaces. Please rename the following files and try again:\n" +
-        Array.from(newFiles)
-          .filter((file: File) => file.name.includes(" "))
-          .map((file: File) => file.name)
-          .join("\n")
+          Array.from(newFiles)
+            .filter((file: File) => file.name.includes(" "))
+            .map((file: File) => file.name)
+            .join("\n"),
       );
       return;
     }
@@ -98,8 +107,8 @@ function FileUpload() {
       if (rowCount > 10000) {
         confirm(
           "File contains more than 10,000 rows. Make sure file has at most 10,000 rows and try again:\n" +
-          file.name +
-          `, rows found: ${rowCount}`,
+            file.name +
+            `, rows found: ${rowCount}`,
         );
         return;
       }
@@ -113,15 +122,18 @@ function FileUpload() {
         (newFile) =>
           !existingFiles.some(
             (existingFile) =>
-              existingFile.name === newFile.name && existingFile.size === newFile.size
-          )
+              existingFile.name === newFile.name &&
+              existingFile.size === newFile.size,
+          ),
       ),
     ];
 
-    if (mergedFiles.length > 10){
-      console.log('jere')
-      confirm(`Cannot select more than 10 files. ${newFilesArray.length} selected`)
-      return
+    if (mergedFiles.length > 10) {
+      console.log("jere");
+      confirm(
+        `Cannot select more than 10 files. ${newFilesArray.length} selected`,
+      );
+      return;
     }
 
     setFiles(mergedFiles);
@@ -142,6 +154,12 @@ function FileUpload() {
   const validateFile = async (file: string | Blob, index: number) => {
     if (file) {
       // const rowCount = await getRowCount(file)
+
+      const updated = [...disabledButtons];
+      updated[index] = true;
+      setDisabledButtons(updated);
+      setAnyButtonClicked(true);
+
       const formData = new FormData();
       let orgGUID = null,
         agency = null,
@@ -178,6 +196,9 @@ function FileUpload() {
   };
 
   const validateAllFiles = (files) => {
+    setAnyButtonClicked(true);
+    setGlobalButtonClicked(true);
+
     if (files) {
       Object.entries(files).forEach(async ([key, value], index) => {
         // const rowCount = await getRowCount(value)
@@ -218,6 +239,12 @@ function FileUpload() {
   const submitFile = async (file: string | Blob, index: number) => {
     if (file) {
       // const rowCount = await getRowCount(file)
+
+      const updated = [...disabledButtons];
+      updated[index] = true;
+      setDisabledButtons(updated);
+      setAnyButtonClicked(true);
+
       const formData = new FormData();
       let orgGUID = null,
         agency = null,
@@ -254,6 +281,9 @@ function FileUpload() {
   };
 
   const submitAllFiles = async (files: any) => {
+    setAnyButtonClicked(true);
+    setGlobalButtonClicked(true);
+
     if (files) {
       Object.entries(files).forEach(async ([key, value], index) => {
         // const rowCount = await getRowCount(value)
@@ -297,7 +327,6 @@ function FileUpload() {
   };
 
   const [aqiOutage, setAqiOutage] = useState(false);
-
 
   const [checkedItems, setCheckedItems] = useState({
     master: true,
@@ -574,6 +603,10 @@ function FileUpload() {
                                   onClick={() => {
                                     validateFile(file, index);
                                   }}
+                                  disabled={
+                                    disabledButtons[index] ||
+                                    globalButtonClicked
+                                  }
                                 >
                                   Validate
                                 </Button>
@@ -584,6 +617,10 @@ function FileUpload() {
                                   onClick={() => {
                                     submitFile(file, index);
                                   }}
+                                  disabled={
+                                    disabledButtons[index] ||
+                                    globalButtonClicked
+                                  }
                                 >
                                   Submit
                                 </Button>
@@ -647,6 +684,7 @@ function FileUpload() {
                         onClick={() => {
                           validateAllFiles(files);
                         }}
+                        disabled={anyButtonClicked}
                       >
                         Validate All
                       </Button>
@@ -657,6 +695,7 @@ function FileUpload() {
                         onClick={() => {
                           submitAllFiles(files);
                         }}
+                        disabled={anyButtonClicked}
                       >
                         Submit All
                       </Button>

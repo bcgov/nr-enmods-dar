@@ -19,6 +19,7 @@ import { Readable } from "stream";
 import { format } from "fast-csv";
 import { parse } from "csv-parse";
 import * as readline from "readline";
+import { isISO8601 } from "validator";
 
 const fileHeaders: FileHeaders = {
   "Observation ID": "Observation ID",
@@ -109,7 +110,7 @@ const activities: FieldActivities = {
 const specimens: FieldSpecimens = {
   WorkOrderNumber: "",
   FieldFiltered: "",
-  FieldFilterComment: "",
+  FieldFilteredComment: "",
   FieldPreservative: "",
   ObservedDateTime: "",
   ObservedDateTimeEnd: "",
@@ -174,7 +175,7 @@ const obsFile: ObservationFile = {
   "Data Classification": "",
   "Result Value": "",
   "Result Unit": "",
-  "Source Of Rounded Value": "",
+  "Source of Rounded Value": "",
   "Rounded Value": "",
   "Rounding Specification": "",
   "Result Status": "",
@@ -583,7 +584,7 @@ export class FileParseValidateService {
     let EALabArrivalTemp = "Specimen Lab Arrival Temperature (°C)";
     let mediumCustomID = specimenData.Medium;
     let FieldFiltered = specimenData.FieldFiltered;
-    let FieldFilterComment = specimenData.FieldFilterComment;
+    let FieldFilteredComment = specimenData.FieldFilteredComment;
     let analyzingAgencyCustomID = specimenData.AnalyzingAgency;
 
     Object.assign(
@@ -598,7 +599,7 @@ export class FileParseValidateService {
       );
     }
 
-    // get the EA custom id (EA Work Order Number, FieldFiltered, FieldFilterComment, FieldPreservative, EALabReportID, SpecimenName) and find the GUID
+    // get the EA custom id (EA Work Order Number, FieldFiltered, FieldFilteredComment, FieldPreservative, EALabReportID, SpecimenName) and find the GUID
     if (specimenData.WorkOrderNumber != "") {
       extendedAttribs["extendedAttributes"].push(
         await this.queryCodeTables("EXTENDED_ATTRIB", [
@@ -624,9 +625,9 @@ export class FileParseValidateService {
       );
     }
 
-    if (FieldFiltered == "TRUE") {
+    if (FieldFiltered === "TRUE") {
       Object.assign(postData, { filtered: "true" });
-      Object.assign(postData, { filtrationComment: FieldFilterComment });
+      Object.assign(postData, { filtrationComment: FieldFilteredComment });
     } else {
       Object.assign(postData, { filtered: "false" });
     }
@@ -836,11 +837,12 @@ export class FileParseValidateService {
       "ResultValue",
       "MethodDetectionLimit",
       "MethodReportingLimit",
+      "LabArrivalTemperature",
     ];
 
     const unitFields = "ResultUnit";
     let validObservedProperty = false;
-    let OPResultType = ""
+    let OPResultType = "";
 
     if (rowData.hasOwnProperty("ObservedPropertyID")) {
       if (rowData["ObservedPropertyID"] == "") {
@@ -852,14 +854,14 @@ export class FileParseValidateService {
           "aqi_observed_properties",
           rowData.ObservedPropertyID,
         );
-        
+
         if (!present) {
           let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "${rowData.ObservedPropertyID} not found in EnMoDS Observed Properties"}}`;
           errorLogs.push(JSON.parse(errorLog));
           validObservedProperty = false;
         } else {
           validObservedProperty = true;
-          OPResultType = present[0].result_type
+          OPResultType = present[0].result_type;
         }
       }
     }
@@ -867,9 +869,17 @@ export class FileParseValidateService {
     // check all datetimes
     dateTimeFields.forEach((field) => {
       if (rowData.hasOwnProperty(field) && rowData[field]) {
-        const valid = isoDateTimeRegex.test(rowData[field]);
+        let valid = isISO8601(rowData[field], {
+          strict: true,
+          strictSeparator: true,
+        });
+        const yearFromDate = new Date(rowData[field]).getFullYear();
+        const currentYear = new Date().getFullYear();
+
+        if (yearFromDate > currentYear) valid = false;
+
         if (!valid) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid ISO DateTime"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid ISO DateTime (year might be greater than current year)"}}`;
           errorLogs.push(JSON.parse(errorLog));
         }
       } else if (rowData.hasOwnProperty(field) && !rowData[field]) {
@@ -891,12 +901,32 @@ export class FileParseValidateService {
     numericalFields.forEach(async (field) => {
       if (rowData.hasOwnProperty(field)) {
         if (validObservedProperty) {
+          if (!rowData[field]) {
+            if (
+              field == "MethodDetectionLimit" &&
+              (rowData["DataClassification"] == "LAB" ||
+                rowData["DataClassification"] == "SURROGATE_RESULT")
+            ) {
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Cannot be empty for data classification ${rowData["DataClassification"]}"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
+          }
+
           if (OPResultType === "NUMERIC") {
             const validNumber =
               numberRegex.test(rowData[field]) &&
               !isNaN(parseFloat(rowData[field]));
-            if (rowData[field] !== "" && !validNumber) {
-              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid number"}}`;
+            if (
+              rowData[field] != null &&
+              rowData[field].toString().trim() !== "" &&
+              !validNumber
+            ) {
+              let errorLog;
+              if (rowData[field] === `""`) {
+                errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Empty quotes is not valid number"}}`;
+              } else {
+                errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid number"}}`;
+              }
               errorLogs.push(JSON.parse(errorLog));
             }
           } else {
@@ -980,13 +1010,16 @@ export class FileParseValidateService {
       errorLogs.push(JSON.parse(errorLog));
     }
 
-    if (rowData.hasOwnProperty("FieldPreservative")) {
+    if (
+      rowData.hasOwnProperty("FieldPreservative") &&
+      rowData.FieldPreservative !== ""
+    ) {
       const present = await this.aqiService.databaseLookup(
         "aqi_preservatives",
-        rowData.Preservative,
+        rowData.FieldPreservative,
       );
       if (!present) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Preservative": "${rowData.Preservative} not found in EnMoDS Preservatives"}}`;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Preservative": "${rowData.FieldPreservative} not found in EnMoDS Preservatives"}}`;
         errorLogs.push(JSON.parse(errorLog));
       }
     }
@@ -1083,7 +1116,7 @@ export class FileParseValidateService {
       }
     }
 
-    if (rowData.hasOwnProperty("SourceOfRoundedValue")) {
+    if (rowData.hasOwnProperty("SourcefRoundedValue")) {
       if (rowData["SourceOfRoundedValue"] != "") {
         if (
           rowData["SourceOfRoundedValue"] != "PROVIDED_BY_USER" ||
@@ -1221,12 +1254,20 @@ export class FileParseValidateService {
         "LOCATIONS",
         rowData.LocationID,
       );
-      const validFieldVisitStartTime = isoDateTimeRegex.test(
-        rowData.FieldVisitStartTime,
-      );
-      const validObservedDateTime = isoDateTimeRegex.test(
-        rowData.ObservedDateTime,
-      );
+      let validFieldVisitStartTime = isISO8601(rowData.FieldVisitStartTime, {
+        strict: true,
+        strictSeparator: true,
+      });
+      let yearFromDate = new Date(rowData.FieldVisitStartTime).getFullYear();
+      let currentYear = new Date().getFullYear();
+      if (yearFromDate > currentYear) validFieldVisitStartTime = false;
+
+      let validObservedDateTime = isISO8601(rowData.ObservedDateTime, {
+        strict: true,
+        strictSeparator: true,
+      });
+      yearFromDate = new Date(rowData.FieldVisitStartTime).getFullYear();
+      if (yearFromDate > currentYear) validObservedDateTime = false;
 
       if (
         locationGUID.hasOwnProperty("samplingLocation") &&
@@ -1563,7 +1604,10 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      cleanedRow.ActivityName =  rowData.DataClassification == "FIELD_SURVEY" ? concatActivityName + ";FS" : concatActivityName; // TODO: this will need to uncommented after Jeremy is done testing
+      cleanedRow.ActivityName =
+        rowData.DataClassification == "FIELD_SURVEY"
+          ? concatActivityName + ";FS"
+          : concatActivityName; // TODO: this will need to uncommented after Jeremy is done testing
 
       if (cleanedRow.QCType == "REGULAR") {
         // this is because AQI interprets a null value as REGULAR
@@ -1572,11 +1616,11 @@ export class FileParseValidateService {
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
-      rowData.DataClassification == "VERTICAL_PROFILE" 
+      rowData.DataClassification == "VERTICAL_PROFILE"
     ) {
       cleanedRow.ObservationID = "";
       cleanedRow.FieldFiltered = "";
-      cleanedRow.FieldFilterComment = "";
+      cleanedRow.FieldFilteredComment = "";
       cleanedRow.FieldPreservative = "";
       cleanedRow.SamplingContextTag = "";
       cleanedRow.LimitType = "";
@@ -1587,7 +1631,10 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      cleanedRow.ActivityName =  rowData.DataClassification == "ACTIVITY_RESULT" ? concatActivityName : ""; // TODO: this will need to uncommented after Jeremy is done testing
+      cleanedRow.ActivityName =
+        rowData.DataClassification == "ACTIVITY_RESULT"
+          ? concatActivityName
+          : ""; // TODO: this will need to uncommented after Jeremy is done testing
       cleanedRow.TissueType = "";
       cleanedRow.LabArrivalTemperature = "";
       cleanedRow.SpecimenName = "";
@@ -2032,7 +2079,7 @@ export class FileParseValidateService {
 
     // Save the created observation GUIDs to aqi_imported
     const observationGUIDS =
-      await this.aqiService.getObservationsFromFile(originalFileName);
+      await this.aqiService.getObservationsFromFile(fileName);
 
     const guidsToUpdate = await this.prisma.aqi_imported_data.findMany({
       where: {
@@ -2133,12 +2180,23 @@ export class FileParseValidateService {
         rowData = headers
           .map((header, colNumber) => {
             const cellValue: any = row.getCell(colNumber + 1).value; // using getCell to access value with a 1-based index pattern
-            const value =
-              typeof cellValue === "object" &&
-              cellValue != null &&
-              "result" in cellValue
-                ? cellValue.result
-                : cellValue ?? "";
+            let value: any;
+            if (typeof cellValue === "object" && cellValue !== null) {
+              if ("result" in cellValue) {
+                value = cellValue.result;
+              } else if ("text" in cellValue) {
+                value = cellValue.text;
+              } else if ("richText" in cellValue) {
+                value = cellValue.richText
+                  .map((part: any) => part.text)
+                  .join("");
+              } else {
+                value = JSON.stringify(cellValue);
+              }
+            } else {
+              value = cellValue ?? "";
+            }
+
             return {
               [header]: String(value).replace(/\r?\n/g, " "),
             };
@@ -2231,7 +2289,7 @@ export class FileParseValidateService {
           ministry_contacts,
         );
         this.logger.warn("Deleted the partially imported data");
-        partialUpload = false;
+        // partialUpload = false;
         rollBackHalted = false;
         return;
       }
@@ -2564,12 +2622,12 @@ export class FileParseValidateService {
             await this.cleanAndValidate(
               row,
               rowHeaders,
-              actualRowNumber,
+              actualRowNumber + 1,
               ministryContacts,
               csvStream,
               allNonObsErrors,
               allExistingRecords,
-              originalFileName,
+              fileName,
               extention,
             );
           }
@@ -2593,12 +2651,12 @@ export class FileParseValidateService {
           await this.cleanAndValidate(
             row,
             rowHeaders,
-            actualRowNumber,
+            actualRowNumber + 1,
             ministryContacts,
             csvStream,
             allNonObsErrors,
             allExistingRecords,
-            originalFileName,
+            fileName,
             extention,
           );
         }
@@ -3023,12 +3081,12 @@ export class FileParseValidateService {
             await this.cleanAndValidate(
               row,
               headers,
-              actualRowNumber,
+              actualRowNumber + 1,
               ministryContacts,
               csvStream,
               allNonObsErrors,
               allExistingRecords,
-              originalFileName,
+              fileName,
               extention,
             );
           }
@@ -3052,12 +3110,12 @@ export class FileParseValidateService {
           await this.cleanAndValidate(
             row,
             headers,
-            actualRowNumber,
+            actualRowNumber + 1,
             ministryContacts,
             csvStream,
             allNonObsErrors,
             allExistingRecords,
-            originalFileName,
+            fileName,
             extention,
           );
         }
@@ -3343,6 +3401,7 @@ export class FileParseValidateService {
                 "ERROR",
               );
             }
+            this.logger.log("Partial upload detected, leaving import process")
             return;
           }
 
