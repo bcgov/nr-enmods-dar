@@ -1178,14 +1178,17 @@ export class FileParseValidateService {
 
       // if valid OP, then check if the analysis method is an associated method for that OP
       if (validObservedProperty){
-        const associatedMethods = await this.aqiService.databaseLookup(
+        const associatedMethods: any = await this.aqiService.databaseLookup(
           "aqi_associated_analysis_methods",
           rowData.ObservedPropertyID
         )
 
-        if (!associatedMethods[0].analysis_methods.includes(rowData["AnalysisMethod"])){
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "${rowData.AnalyzingMethod} not valid for observed property ${rowData.ObservedPropertyID}"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+        if (associatedMethods.length > 0){
+          const methods = associatedMethods[0]?.analysis_methods
+          if (!methods.includes(rowData["AnalysisMethod"])){
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "${rowData.AnalyzingMethod} not valid for observed property ${rowData.ObservedPropertyID}"}}`;
+            errorLogs.push(JSON.parse(errorLog));
+          }
         }
       }
     }
