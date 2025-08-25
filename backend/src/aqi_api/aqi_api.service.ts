@@ -44,7 +44,7 @@ export class AqiApiService {
         err.response.data.message,
       );
 
-      return "partialUpload";
+      return ["partialUpload", err.response.data.message];
     }
   }
 
@@ -126,11 +126,11 @@ export class AqiApiService {
       return response.data.id;
     } catch (err) {
       this.logger.error(
-        `RowNum: ${rowNumber} -> API CALL TO POST Activities failed: `,
+        `RowNum: ${rowNumber} -> API CALL TO POST Activities failed, resulting in partial upload for the file: `,
         err.response.data.message,
       );
 
-      return "partialUpload";
+      return ["partialUpload", err.response.data.message];
     }
   }
 
@@ -172,11 +172,11 @@ export class AqiApiService {
         return "exists";
       } else {
         this.logger.error(
-          `RowNum: ${rowNumber} -> API CALL TO POST Specimens failed: `,
+          `RowNum: ${rowNumber} -> API CALL TO POST Specimens failed, resulting in partial upload for the file: `,
           err.response.data.message,
         );
 
-        return "partialUpload";
+        return ["partialUpload", err.response.data.message];
       }
     }
   }

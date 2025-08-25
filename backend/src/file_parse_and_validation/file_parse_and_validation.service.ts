@@ -1756,6 +1756,7 @@ export class FileParseValidateService {
     rowData: any,
     GuidsToSave: any,
     fileName: string,
+    validationErrors: any[],
   ) {
     const fieldVisitCustomAttributes: Partial<FieldVisits> = {
       PlanningStatus: "DONE",
@@ -1836,23 +1837,28 @@ export class FileParseValidateService {
         // send POST to AQI and add visit data to activity
         this.logger.log("POSTED the visit");
         visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
+        let visitGuid = Array.isArray(visitInfo.fieldVisit)
+          ? visitInfo.fieldVisit[0]
+          : visitInfo.fieldVisit;
 
-        if (visitInfo.fieldVisit === "partialUpload") {
+        if (visitGuid === "partialUpload") {
           partialUpload = true;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Partia lUpload": "Issued a rollback as a partial upload was detected. Cause of partial upload: ${visitInfo.fieldVisit[1]}"}}`;
+          validationErrors.push(JSON.parse(errorLog));
           return;
         }
 
-        fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
+        fieldActivity["fieldVisit"] = visitGuid;
         fieldActivity["LocationID"] = rowData.LocationID;
-        GuidsToSave["visits"].push(visitInfo.fieldVisit);
+        GuidsToSave["visits"].push(visitGuid);
         this.logger.log(
-          `Added field visit GUID ${visitInfo.fieldVisit} to list of imported items`,
+          `Added field visit GUID ${visitGuid} to list of imported items`,
         );
 
         this.logger.log(`Updating the seen URL`);
 
         seenVisitUrl.count = 1;
-        seenVisitUrl.GUID = visitInfo.fieldVisit;
+        seenVisitUrl.GUID = visitGuid;
       }
     } else {
       this.logger.log(`Visit URL not seen, making GET call`);
@@ -1877,15 +1883,20 @@ export class FileParseValidateService {
 
         // send POST to AQI and add visit data to activity
         visitInfo = await this.fieldVisitJson(fieldVisit, rowNumber, "post");
-        if (visitInfo.fieldVisit === "partialUpload") {
+        let visitGuid = Array.isArray(visitInfo.fieldVisit)
+          ? visitInfo.fieldVisit[0]
+          : visitInfo.fieldVisit;
+        if (visitGuid === "partialUpload") {
           partialUpload = true;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Partia lUpload": "Issued a rollback as a partial upload was detected. Cause of partial upload: ${visitInfo.fieldVisit[1]}"}}`;
+          validationErrors.push(JSON.parse(errorLog));
           return;
         }
-        fieldActivity["fieldVisit"] = visitInfo.fieldVisit;
+        fieldActivity["fieldVisit"] = visitGuid;
         fieldActivity["LocationID"] = rowData.LocationID;
-        GuidsToSave["visits"].push(visitInfo.fieldVisit);
+        GuidsToSave["visits"].push(visitGuid);
         this.logger.log(
-          `Added field visit GUID ${visitInfo.fieldVisit} to list of imported items`,
+          `Added field visit GUID ${visitGuid} to list of imported items`,
         );
       }
 
@@ -1915,14 +1926,21 @@ export class FileParseValidateService {
           );
         } else {
           // send POST to AQI
+          this.logger.log("POSTED the activity");
           activityInfo = await this.fieldActivityJson(
             fieldActivity,
             rowNumber,
             "post",
           );
 
-          if (activityInfo.activity === "partialUpload") {
+          let activityGuid = Array.isArray(activityInfo.activity)
+            ? activityInfo.activity[0]
+            : activityInfo.activity;
+
+          if (activityGuid === "partialUpload") {
             partialUpload = true;
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"PartialUpload": "Issued a rollback as a partial upload was detected. Cause of partial upload: ${activityInfo.activity[1]}"}}`;
+            validationErrors.push(JSON.parse(errorLog));
             return;
           }
 
@@ -1961,8 +1979,14 @@ export class FileParseValidateService {
             "post",
           );
 
-          if (activityInfo.activity === "partialUpload") {
+          let activityGuid = Array.isArray(activityInfo.activity)
+            ? activityInfo.activity[0]
+            : activityInfo.activity;
+
+          if (activityGuid === "partialUpload") {
             partialUpload = true;
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"PartialUpload": "Issued a rollback as a partial upload was detected. Cause of partial upload: ${activityInfo.activity[1]}"}}`;
+            validationErrors.push(JSON.parse(errorLog));
             return;
           }
 
@@ -1986,8 +2010,14 @@ export class FileParseValidateService {
 
       // send POST to AQI
       specimenInfo = await this.specimensJson(specimen, rowNumber, "post");
-      if (specimenInfo.specimen.id === "partialUpload") {
+      let specimenGuid = Array.isArray(specimenInfo.specimen.id)
+        ? specimenInfo.specimen.id[0]
+        : specimenInfo.specimen.id;
+
+      if (specimenGuid === "partialUpload") {
         partialUpload = true;
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"PartialUpload": "Issued a rollback as a partial upload was detected. Cause of partial upload: ${specimenInfo.specimen.id[1]}"}}`;
+        validationErrors.push(JSON.parse(errorLog));
         return;
       }
       if (specimenInfo.specimen.id != "exists") {
@@ -2235,6 +2265,7 @@ export class FileParseValidateService {
     original_file_name,
     file_operation_code,
     ministry_contacts,
+    validationErrors: any[],
   ) {
     try {
       let rowData: Record<string, string> = {};
@@ -2272,6 +2303,7 @@ export class FileParseValidateService {
         rowData,
         GuidsToSave,
         fileName,
+        validationErrors,
       );
       if (partialUpload) {
         await this.rollBackPartialUpload(
@@ -2281,9 +2313,9 @@ export class FileParseValidateService {
           original_file_name,
           file_operation_code,
           ministry_contacts,
+          validationErrors,
         );
         this.logger.warn("Deleted the partially imported data");
-        // partialUpload = false;
         rollBackHalted = false;
         return;
       }
@@ -2300,7 +2332,8 @@ export class FileParseValidateService {
     file_submission_id,
     originalFileName,
     file_operation_code,
-    ministryContacts,
+    ministryContacts: any,
+    validationErrors,
   ) {
     // get the partially imported guids
     const partiallyImportedGUIDS = await this.prisma.aqi_imported_data.findMany(
@@ -2396,16 +2429,13 @@ export class FileParseValidateService {
     await this.aqiService.VisitDelete(mergedVisits, []);
 
     // set an error message for a successfull rollback
-    let rollbackError = [];
-    let errorMessage = `{"rowNum": "N/A", "type": "ERROR", "message": {"Rollback": "Something went wrong trying to insert data into AQI. The file had to be rolled back. Please re-upload the file."}}`;
-    rollbackError.push(JSON.parse(errorMessage));
     const file_error_log_data = {
       file_submission_id: file_submission_id,
       file_name: fileName,
       original_file_name: originalFileName,
       file_operation_code: file_operation_code,
-      ministry_contact: ministryContacts,
-      error_log: rollbackError,
+      ministry_contact: [...ministryContacts],
+      error_log: validationErrors,
       create_utc_timestamp: new Date(),
     };
 
@@ -2696,8 +2726,8 @@ export class FileParseValidateService {
           fileName,
           originalFileName,
           file_operation_code,
-          contactsAndValidationResults[0],
-          contactsAndValidationResults[1],
+          contactsAndValidationResults[0], // ministry contacts
+          contactsAndValidationResults[1], // validation results
         );
 
         fs.unlink(filePath, (err) => {
@@ -2810,6 +2840,7 @@ export class FileParseValidateService {
                   originalFileName,
                   file_operation_code,
                   ministryContacts,
+                  contactsAndValidationResults[1],
                 );
 
                 // if a partial upload then stop processing the batch and return
@@ -2859,6 +2890,7 @@ export class FileParseValidateService {
                 originalFileName,
                 file_operation_code,
                 ministryContacts,
+                contactsAndValidationResults[1],
               );
               // if a partial upload then stop processing the batch and do the rollback
               if (partialUpload) {
@@ -3306,7 +3338,8 @@ export class FileParseValidateService {
                   file_submission_id,
                   originalFileName,
                   file_operation_code,
-                  ministryContacts,
+                  contactsAndValidationResults[0],
+                  contactsAndValidationResults[1],
                 );
 
                 // if a partial upload then stop processing the batch
@@ -3360,6 +3393,7 @@ export class FileParseValidateService {
                 originalFileName,
                 file_operation_code,
                 ministryContacts,
+                contactsAndValidationResults[1],
               );
               // if a partial upload then stop processing the batch
               if (partialUpload) {
@@ -3384,7 +3418,7 @@ export class FileParseValidateService {
                 "ERROR",
               );
             }
-            this.logger.log("Partial upload detected, leaving import process")
+            this.logger.log("Partial upload detected, leaving import process");
             return;
           }
 
@@ -3408,6 +3442,7 @@ export class FileParseValidateService {
         }
       }
     }
+
     console.timeEnd("parseFile");
     await this.benchmarkImport(file_submission_id, fileName, originalFileName);
     partialUpload = false;
