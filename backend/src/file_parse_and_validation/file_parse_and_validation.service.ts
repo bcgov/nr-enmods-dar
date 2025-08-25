@@ -1272,41 +1272,101 @@ export class FileParseValidateService {
         validFieldVisitStartTime &&
         validObservedDateTime
       ) {
-        const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
+        // check if the field visit exists between 00:00:00 - 23:59:59 for a given day, if it does then check if it exists at rowData.FieldVisitStartTime, else continue processing
+        // if exists at rowData.FieldVisitStartTime, issue a WARNING (normal), it does not exist give an error message
+
+        this.logger.log(`[Row ${rowNumber}] Starting visit validation for Location ${rowData.LocationID} at time ${rowData.FieldVisitStartTime}`);
+
+        // Extract YYYY-MM-DD from FieldVisitStartTime and append time components
+        const datePart = rowData.FieldVisitStartTime.split('T')[0]; // Extract YYYY-MM-DD part
+        const visitURLForDay = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${datePart}T00:00:00-08:00&end-startTime=${datePart}T23:59:59-08:00`;
+        const visitURLForTime =  `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
         let visitExists = false;
+        let visitExistsForDay = false;
         let activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
         let activityExists = false;
 
-        if (validationApisCalled.some((item) => item.url === visitURL)) {
-          // visit url has been called before
-          let seenVisitUrl = validationApisCalled.find(
-            (item) => item.url === visitURL,
-          );
+        this.logger.log(`[Row ${rowNumber}] Checking for visits on entire day`);
 
-          if (seenVisitUrl.count > 0) {
-            // visit exists in AQI
-            visitExists = true;
-            existingGUIDS["visit"] = seenVisitUrl.GUID;
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
-            errorLogs.push(JSON.parse(errorLog));
+        // First check if a field visit exists for the entire day
+        if (validationApisCalled.some((item) => item.url === visitURLForDay)) {
+          // visit URL for day has been called before
+          this.logger.log(`[Row ${rowNumber}] Day visit check - using cached result`);
+          let seenVisitUrlForDay = validationApisCalled.find(
+            (item) => item.url === visitURLForDay,
+          );
+          if (seenVisitUrlForDay.count > 0) {
+            visitExistsForDay = true;
+            this.logger.log(`[Row ${rowNumber}] Day visit check - found ${seenVisitUrlForDay.count} existing visits for the day`);
+          } else {
+            this.logger.log(`[Row ${rowNumber}] Day visit check - no existing visits found for the day`);
           }
         } else {
-          const visitURLCalled = await this.aqiService.getFieldVisits(
+          this.logger.log(`[Row ${rowNumber}] Day visit check - making API call`);
+          const visitURLCalledForDay = await this.aqiService.getFieldVisits(
             rowNumber,
-            visitURL,
+            visitURLForDay,
           );
-          if (visitURLCalled.count > 0) {
-            // visit exists in AQI
-            visitExists = true;
-            existingGUIDS["visit"] = visitURLCalled.GUID;
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
-            errorLogs.push(JSON.parse(errorLog));
+          if (visitURLCalledForDay.count > 0) {
+            visitExistsForDay = true;
+            this.logger.log(`[Row ${rowNumber}] Day visit check - API returned ${visitURLCalledForDay.count} existing visits for the day`);
+          } else {
+            this.logger.log(`[Row ${rowNumber}] Day visit check - API returned no existing visits for the day`);
           }
-          validationApisCalled.push(visitURLCalled);
+          validationApisCalled.push(visitURLCalledForDay);
+        }
+
+        // If a visit exists for the day, check if it exists at the specific time
+        if (visitExistsForDay) {
+          this.logger.log(`[Row ${rowNumber}] Visit exists for day, checking specific time`);
+          
+          if (validationApisCalled.some((item) => item.url === visitURLForTime)) {
+            // visit URL for specific time has been called before
+            this.logger.log(`[Row ${rowNumber}] Specific time visit check - using cached result`);
+            let seenVisitUrlForTime = validationApisCalled.find(
+              (item) => item.url === visitURLForTime,
+            );
+            if (seenVisitUrlForTime.count > 0) {
+              // visit exists at specific time - issue WARNING
+              this.logger.log(`[Row ${rowNumber}] Specific time visit check - found existing visit at exact time, issuing WARNING`);
+              visitExists = true;
+              existingGUIDS["visit"] = seenVisitUrlForTime.GUID;
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            } else {
+              // visit exists for day but not at specific time - issue ERROR
+              this.logger.log(`[Row ${rowNumber}] Specific time visit check - visit exists for day but not at specific time, issuing ERROR`);
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Visit": "A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
+          } else {
+            this.logger.log(`[Row ${rowNumber}] Specific time visit check - making API call`);
+            const visitURLCalledForTime = await this.aqiService.getFieldVisits(
+              rowNumber,
+              visitURLForTime,
+            );
+            if (visitURLCalledForTime.count > 0) {
+              // visit exists at specific time - issue WARNING
+              this.logger.log(`[Row ${rowNumber}] Specific time visit check - API returned existing visit at exact time, issuing WARNING`);
+              visitExists = true;
+              existingGUIDS["visit"] = visitURLCalledForTime.GUID;
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            } else {
+              // visit exists for day but not at specific time - issue ERROR
+              this.logger.log(`[Row ${rowNumber}] Specific time visit check - API returned no visit at specific time, issuing ERROR`);
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Visit": "A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}. Please correct the date time and re-upload the file."}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
+            validationApisCalled.push(visitURLCalledForTime);
+          }
+        } else {
+          this.logger.log(`[Row ${rowNumber}] No visits found for the day, skipping specific time check`);
         }
 
         if (rowData["DataClassification"] != "FIELD_RESULT") {
           // ignoring the activity check for FIELD_RESULT as they do not have parent activity
+          this.logger.log(`[Row ${rowNumber}] Starting activity validation for DataClassification: ${rowData["DataClassification"]}`);
 
           if (rowData["DataClassification"] === "VERTICAL_PROFILE") {
             activityURL =
@@ -1317,34 +1377,48 @@ export class FileParseValidateService {
             activityURL = activityURL + "&activityTypes=SPIKE";
           }
 
+          this.logger.log(`[Row ${rowNumber}] Checking for activities`);
+
           if (validationApisCalled.some((item) => item.url === activityURL)) {
             // activity url has been called before
+            this.logger.log(`[Row ${rowNumber}] Activity check - using cached result`);
             let seenActivityUrl = validationApisCalled.find(
               (item) => item.url === activityURL,
             );
 
             if (seenActivityUrl.count > 0) {
               // activity exists in AQI
+              this.logger.log(`[Row ${rowNumber}] Activity check - found existing activity, issuing ERROR`);
               activityExists = true;
               existingGUIDS["activity"] = seenActivityUrl.GUID;
               let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
               errorLogs.push(JSON.parse(errorLog));
+            } else {
+              this.logger.log(`[Row ${rowNumber}] Activity check - no existing activity found`);
             }
           } else {
+            this.logger.log(`[Row ${rowNumber}] Activity check - making API call`);
             const activityURLCalled = await this.aqiService.getActivities(
               rowNumber,
               activityURL,
             );
             if (activityURLCalled.count > 0) {
               // visit exists in AQI
+              this.logger.log(`[Row ${rowNumber}] Activity check - API returned existing activity, issuing ERROR`);
               visitExists = true;
               existingGUIDS["activity"] = activityURLCalled.GUID;
               let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
               errorLogs.push(JSON.parse(errorLog));
+            } else {
+              this.logger.log(`[Row ${rowNumber}] Activity check - API returned no existing activity`);
             }
             validationApisCalled.push(activityURLCalled);
           }
+        } else {
+          this.logger.log(`[Row ${rowNumber}] Skipping activity check for FIELD_RESULT data classification`);
         }
+        
+        this.logger.log(`[Row ${rowNumber}] Visit validation completed - visitExists: ${visitExists}, activityExists: ${activityExists}`);
       }
     }
 
