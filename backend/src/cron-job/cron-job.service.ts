@@ -333,11 +333,120 @@ export class CronJobService {
     }
   }
 
+  // @Cron(CronExpression.EVERY_10_SECONDS)
+  private async getAssociatedAnalysisMethods() {
+    if (!this.operationLockService.acquireLock("ANALYSIS_METHODS")) {
+      this.logger.log(
+        "Skipping cron procedure of getting associated methods: Another process underway.",
+      );
+      return;
+    }
+
+    const map = new Map<
+      string,
+      { id: string; customId: string; methodIds: Set<string> }
+    >();
+
+    axios.defaults.method = "GET";
+    axios.defaults.headers.common["Authorization"] =
+      "token " + process.env.AQI_ACCESS_TOKEN;
+    axios.defaults.headers.common["x-api-key"] = process.env.AQI_ACCESS_TOKEN;
+
+    const baseUrl = process.env.AQI_BASE_URL;
+    let entries = [];
+    let cursor = "";
+    let total = 0;
+    let processedCount = 0;
+    let loopCount = 0;
+
+    try {
+      do {
+        // make api call to find total number of records
+        let url = `${baseUrl}/v1/analysismethods`;
+        const counterCall = await axios.get(url);
+        total = counterCall.data.totalCount || 0;
+
+        // update url to include the total count as limit
+        url = url + `?limit=${total}`;
+        const response = await axios.get(url);
+
+        entries = entries.concat(response.data.domainObjects || []);
+
+        for (const analysisMethod of entries) {
+          for (const property of analysisMethod.observedProperties) {
+            if (!map.has(property.id)) {
+              map.set(property.id, {
+                id: property.id,
+                customId: property.customId,
+                methodIds: new Set(),
+              });
+            }
+            map.get(property.id)!.methodIds.add(analysisMethod.methodId);
+          }
+        }
+
+        this.logger.log(
+          `Fetched ${entries.length} entries from v1/analysismethods. Processed: ${processedCount}/${total}`,
+        );
+        // Increment counters
+        processedCount += entries.length;
+        loopCount++;
+
+        // Log progress periodically
+        if (loopCount % 5 === 0 || processedCount >= total) {
+          this.logger.log(`Progress: ${processedCount}/${total}`);
+        }
+
+        // Break if we've processed all expected entries
+        if (processedCount >= total) {
+          this.logger.log(`Completed fetching data for v1/analysismethods.`);
+          break;
+        }
+
+        // Edge case: Break if no entries are returned but the cursor is still valid
+        if (entries.length === 0 && cursor) {
+          this.logger.warn(
+            `Empty response for v1/analysismethods. with cursor ${cursor}. Terminating early.`,
+          );
+          break;
+        }
+      } while (cursor);
+    } finally {
+      this.logger.log(`Cron Job completed.`);
+      this.operationLockService.releaseLock("ANALYSIS_METHODS");
+    }
+
+    const mappedMethods = Array.from(map.values()).map((entry) => ({
+      id: entry.id,
+      customId: entry.customId,
+      methodIds: Array.from(entry.methodIds),
+    }));
+
+    // save the mapping to the db table
+    for (const property of mappedMethods) {
+      await this.prisma.aqi_associated_analysis_methods.upsert({
+        where: { observed_property_id: property.id },
+        update: {
+          observed_property_name: property.customId,
+          analysis_methods: property.methodIds,
+        },
+        create: {
+          observed_property_id: property.id,
+          observed_property_name: property.customId,
+          analysis_methods: property.methodIds,
+          create_utc_timestamp: new Date(),
+        },
+      });
+    }
+
+    this.logger.log(`Starting pulldown of associated analysis methods`);
+  }
+
   @Cron(CronExpression.EVERY_30_MINUTES)
   private async fetchAQSSData() {
     if (!this.operationLockService.acquireLock("PULLDOWN")) {
       this.logger.log(
-        "Skipping cron procedure of data pull down: File processing underway.",
+        "Skipping cron procedure of data pull down: Another process underway.",
       );
       return;
     }
