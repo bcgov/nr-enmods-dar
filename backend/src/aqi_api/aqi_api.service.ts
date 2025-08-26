@@ -345,6 +345,8 @@ export class AqiApiService {
       }
     } catch (err) {
       this.logger.error("API call to Observation Import failed: ", err);
+      const errorLog = JSON.parse(`{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Observation API call to status/result failed. Please re-upload the file."}}`);
+      return [errorLog]
     }
   }
 
@@ -368,7 +370,7 @@ export class AqiApiService {
       },
     });
 
-    if (statusURL != null || statusURL != undefined) {
+    if (statusURL !== null && statusURL !== undefined) {
       try {
         const response = await axios.get(statusURL.status_url, {
           headers: {
