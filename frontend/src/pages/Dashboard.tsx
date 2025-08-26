@@ -278,7 +278,9 @@ export default function Dashboard() {
 
     // before sending the formdata, add the organization guid to the body
     var JWT = jwtDecode(UserService.getToken()?.toString());
+
     requestData.append("organization_guid", JWT.bceid_business_guid || null);
+    requestData.append("roles", JWT.client_roles || null);
 
     requestData.append("page", paginationModel.page);
     requestData.append("pageSize", paginationModel.pageSize);
