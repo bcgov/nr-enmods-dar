@@ -304,7 +304,7 @@ export default function Dashboard() {
   const userOptions = users.items.map((user) => ({
     value: user.username,
     label:
-      user.name +
+      user.username +
       ` (${user.guidUsername?.endsWith("idir") ? "IDIR" : "BCEID"})`,
   }));
 
