@@ -1114,6 +1114,19 @@ export class FileParseValidateService {
       }
     }
 
+    if (rowData.hasOwnProperty("FieldFiltered")) {
+      if (
+        rowData["DataClassification"] == "LAB" ||
+        rowData["DataClassification"] == "SURROGATE_RESULT"
+      ) {
+        const val = String(rowData["FieldFiltered"]).toLowerCase();
+        if (val !== "true" && val !== "false" && val !== "") {
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"FieldFiltered": "Value must either be True or False or empty. Value entered is ${rowData["FieldFiltered"]}"}}`;
+          errorLogs.push(JSON.parse(errorLog));
+        }
+      }
+    }
+
     if (rowData.hasOwnProperty("SourcefRoundedValue")) {
       if (rowData["SourceOfRoundedValue"] != "") {
         if (
@@ -3384,7 +3397,7 @@ export class FileParseValidateService {
                 "ERROR",
               );
             }
-            this.logger.log("Partial upload detected, leaving import process")
+            this.logger.log("Partial upload detected, leaving import process");
             return;
           }
 
