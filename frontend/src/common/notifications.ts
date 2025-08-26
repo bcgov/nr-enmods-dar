@@ -49,18 +49,18 @@ export async function updateNotification(
 }
 
 export async function requestAccess(
-  email: string, 
+  email: string,
   accountType: string,
-  fullname: string, 
-  username: string
-){
+  fullname: string,
+  username: string,
+) {
   const requestAccessUrl: string = `${config.API_BASE_URL}/notifications/request-access`;
   const postParameters = api.generateApiParameters(requestAccessUrl, {
-    email: email, 
+    email: email,
     accountType: accountType,
-    fullname: fullname, 
-    username: username
+    fullname: fullname,
+    username: username,
   });
   const response: any = await api.post(postParameters);
-  console.log(response)
+  return response;
 }

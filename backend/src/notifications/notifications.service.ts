@@ -533,7 +533,7 @@ export class NotificationsService {
           },
           delayTS: 0,
           tag: "tag",
-          to: "enmodshelp@gov.bc.ca",
+          to: ["enmodshelp@gov.bc.ca"],
         },
       ],
       encoding: "utf-8",
