@@ -342,6 +342,9 @@ export class CronJobService {
       return;
     }
 
+    this.logger.log(`Starting pulldown of associated analysis methods`);
+
+
     const map = new Map<
       string,
       { id: string; customId: string; methodIds: Set<string> }
@@ -439,7 +442,7 @@ export class CronJobService {
       });
     }
 
-    this.logger.log(`Starting pulldown of associated analysis methods`);
+    this.logger.log(`Pulldown of associated analysis methods completed.`);
   }
 
   @Cron(CronExpression.EVERY_30_MINUTES)
