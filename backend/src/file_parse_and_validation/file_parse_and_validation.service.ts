@@ -938,7 +938,7 @@ export class FileParseValidateService {
           }
         }
       }
-    });
+    }); 
 
     // check all unit fields
     if (rowData.hasOwnProperty(unitFields)) {
