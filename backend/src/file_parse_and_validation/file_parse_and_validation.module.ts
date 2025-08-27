@@ -7,13 +7,15 @@ import { AqiApiModule } from '../aqi_api/aqi_api.module';
 import { FileSubmissionsModule } from '../file_submissions/file_submissions.module';
 import { OperationLockService } from 'src/operationLock/operationLock.service';
 import { FileErrorLogsService } from 'src/file_error_logs/file_error_logs.service';
+import { AdminService } from 'src/admin/admin.service';
 
 @Module({
   providers: [
     FileParseValidateService,
     NotificationsService,
     OperationLockService,
-    FileErrorLogsService
+    FileErrorLogsService,
+    AdminService
   ],
   exports: [FileParseValidateService],
   imports: [HttpModule, FileSubmissionsModule, ObjectStoreModule, AqiApiModule],

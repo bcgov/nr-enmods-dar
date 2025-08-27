@@ -8,6 +8,8 @@ import { UpdateNotificationEntryDto } from "./dto/update-notification_entry.dto"
 import { EmailTemplate } from "src/types/types";
 import { FileErrorLogsService } from "src/file_error_logs/file_error_logs.service";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
+import { AdminService } from "src/admin/admin.service";
+import { JsonValue } from "@prisma/client/runtime/library";
 
 @Injectable()
 export class NotificationsService {
@@ -17,6 +19,7 @@ export class NotificationsService {
     private readonly httpService: HttpService,
     private readonly fileErrorLogsService: FileErrorLogsService,
     private readonly fileSubmissionsService: FileSubmissionsService,
+    private readonly adminService: AdminService,
     private prisma: PrismaService,
   ) {}
 
@@ -198,6 +201,17 @@ export class NotificationsService {
     });
   }
 
+  async findMinistryEmails(contacts: any){
+    const contactList = contacts.flatMap(contact => contact.ministry_contact)
+    const lowerCaseContactList = new Set(contactList.map(contact => contact.toLowerCase()))
+    const allUsers = await this.adminService.findAll();
+
+    const filteredUsers = allUsers.filter(user => lowerCaseContactList.has(user.name.toLowerCase()))
+
+    const emailsToSend = filteredUsers.map(user => user.email)
+    return emailsToSend
+  }
+
   /**
    * Sends an email to the contact(s) specified inside of a submitted file.
    *
@@ -218,6 +232,9 @@ export class NotificationsService {
     const errorLogs =
       await this.fileErrorLogsService.findOne(file_submission_id);
     const fileName = `${file_submission.original_file_name}-error_log.txt`;
+    const ministryContacts = await this.fileErrorLogsService.getMinistryContacts(file_submission_id);
+
+    const contactEmails = await this.findMinistryEmails(ministryContacts)
 
     const notificationInfo = await this.getNotificationStatus(
       email,
@@ -248,7 +265,7 @@ export class NotificationsService {
     };
     const sys_time = date.toLocaleString("en-US", options);
 
-    return this.sendEmail([email], emailTemplate, {
+    return this.sendEmail(contactEmails, emailTemplate, {
       submitter_user_id: submitter_user_id,
       submission_status_code: submission_status_code,
       file_error_log: errorLogs,
