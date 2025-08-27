@@ -333,7 +333,7 @@ export class CronJobService {
     }
   }
 
-  // @Cron(CronExpression.EVERY_10_SECONDS)
+  @Cron(CronExpression.EVERY_6_HOURS)
   private async getAssociatedAnalysisMethods() {
     if (!this.operationLockService.acquireLock("ANALYSIS_METHODS")) {
       this.logger.log(
