@@ -851,7 +851,7 @@ export class FileParseValidateService {
       } else {
         const present = await this.aqiService.databaseLookup(
           "aqi_observed_properties",
-          rowData.ObservedPropertyID,
+          rowData.ObservedPropertyID.replace(/\s+/g, " "),
         );
 
         if (!present) {
