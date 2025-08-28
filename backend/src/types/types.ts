@@ -113,6 +113,7 @@ export type FileHeaders = {
   "QC Type": string;
   "QC Source Activity Name": string;
   "Composite Stat": string;
+  "Biological Life Stage": string
 };
 
 export type FieldVisits = {
@@ -197,6 +198,7 @@ export type Observations = {
   QCType: string;
   QCSourceActivityName: string;
   CompositeStat: string;
+  BiologicalLifeStage: string
 };
 
 export type ObservationFile = {
@@ -240,6 +242,7 @@ export type ObservationFile = {
   "QC: Type": string;
   "QC: Source Sample ID": string;
   "EA_Observation Composite Stat": string;
+  "EA_Biological Life Stage": string,
   "EA_Upload File Name": string;
 };
 
