@@ -104,7 +104,7 @@ function FileUpload() {
     // Check for max number of rows
     for (const file of newFilesArray) {
       const rowCount = await getRowCount(file);
-      if (rowCount > 10001) {
+      if (rowCount > 10002) {
         confirm(
           "File contains more than 10,000 rows. Make sure file has at most 10,000 rows and try again:\n" +
             file.name +
