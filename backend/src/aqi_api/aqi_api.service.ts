@@ -302,6 +302,12 @@ export class AqiApiService {
         });
 
         const resultURL = await this.waitForObsStatus();
+        
+        if (resultURL === null) {
+          this.logger.error("Observation status check timed out, returning timeout error");
+          const timeoutErrorLog = JSON.parse(`{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Observation status check timed out after 1 hour. Please try again later."}}`);
+          return [timeoutErrorLog];
+        }
 
         const obsStatus = await this.getObsResult(resultURL);
 
@@ -469,8 +475,19 @@ export class AqiApiService {
   }
 
   async waitForObsStatus() {
+    const startTime = Date.now();
+    const timeoutMs = 60 * 60 * 1000; // 1 hour in milliseconds
+    
     while (!this.goodObservationImporStatus) {
       this.logger.log("WAITING TO CHECK OBSERVATION STATUS");
+      const elapsedTime = Date.now() - startTime;
+      
+      if (elapsedTime >= timeoutMs) {
+        this.logger.error("TIMEOUT: Waited for observation status for 1 hour, exiting");
+        return null; // Return null instead of throwing error
+      }
+      
+      this.logger.log(`WAITING TO CHECK OBSERVATION STATUS (${Math.floor(elapsedTime / 1000)}s elapsed)`);
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
 
