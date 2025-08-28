@@ -44,7 +44,7 @@ export class AqiApiService {
         err.response.data.message,
       );
 
-      return "partialUpload";
+      return ["partialUpload", err.response.data.message];
     }
   }
 
@@ -126,11 +126,11 @@ export class AqiApiService {
       return response.data.id;
     } catch (err) {
       this.logger.error(
-        `RowNum: ${rowNumber} -> API CALL TO POST Activities failed: `,
+        `RowNum: ${rowNumber} -> API CALL TO POST Activities failed, resulting in partial upload for the file: `,
         err.response.data.message,
       );
 
-      return "partialUpload";
+      return ["partialUpload", err.response.data.message];
     }
   }
 
@@ -172,11 +172,11 @@ export class AqiApiService {
         return "exists";
       } else {
         this.logger.error(
-          `RowNum: ${rowNumber} -> API CALL TO POST Specimens failed: `,
+          `RowNum: ${rowNumber} -> API CALL TO POST Specimens failed, resulting in partial upload for the file: `,
           err.response.data.message,
         );
 
-        return "partialUpload";
+        return ["partialUpload", err.response.data.message];
       }
     }
   }
@@ -345,6 +345,8 @@ export class AqiApiService {
       }
     } catch (err) {
       this.logger.error("API call to Observation Import failed: ", err);
+      const errorLog = JSON.parse(`{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Observation API call to status/result failed. Please re-upload the file."}}`);
+      return [errorLog]
     }
   }
 
@@ -368,7 +370,7 @@ export class AqiApiService {
       },
     });
 
-    if (statusURL != null || statusURL != undefined) {
+    if (statusURL !== null && statusURL !== undefined) {
       try {
         const response = await axios.get(statusURL.status_url, {
           headers: {
