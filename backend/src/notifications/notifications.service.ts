@@ -500,6 +500,7 @@ export class NotificationsService {
     accountType: string;
     fullname: string;
     username: string;
+    edtURL: string
   }): Promise<string> {
     let variables = {
       accountType: data.accountType,
@@ -507,10 +508,11 @@ export class NotificationsService {
       email: data.email,
       username: data.username,
     };
+    let edtURL = data.edtURL.substring(0, data.edtURL.lastIndexOf("/") + 1);
     let body = `
     ${data.accountType} user ${data.fullname} with username ${data.username} and email ${data.email} would like access to EDT.
     <br><br>
-    To approve this request go to <a href="${process.env.WEBAPP_URL}/admin">${process.env.WEBAPP_URL}/admin</a>, 
+    To approve this request go to <a href="${edtURL}admin">${edtURL}admin</a>, 
     to deny this request no action is needed.
 `;
 

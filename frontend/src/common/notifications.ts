@@ -53,6 +53,7 @@ export async function requestAccess(
   accountType: string,
   fullname: string,
   username: string,
+  endpoint: string
 ) {
   const requestAccessUrl: string = `${config.API_BASE_URL}/notifications/request-access`;
   const postParameters = api.generateApiParameters(requestAccessUrl, {
@@ -60,6 +61,7 @@ export async function requestAccess(
     accountType: accountType,
     fullname: fullname,
     username: username,
+    edtURL: endpoint
   });
   const response: any = await api.post(postParameters);
   return response;

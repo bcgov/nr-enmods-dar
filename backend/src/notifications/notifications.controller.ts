@@ -73,7 +73,7 @@ export class NotificationsController {
 
    @Public()
   @Post("request-access")
-  requestAccess(@Body() data: { email: string, accountType: string, fullname: string, username: string }): Promise<string> {
+  requestAccess(@Body() data: { email: string, accountType: string, fullname: string, username: string, edtURL: string }): Promise<string> {
     return this.notificationsService.requestAccess(data);
   }
 }

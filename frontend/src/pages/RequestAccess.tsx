@@ -24,11 +24,14 @@ export default function RequestAccess() {
         ? decodedToken?.bceid_username
         : decodedToken?.idir_username;
 
+    let edtURL = window.location.href    
+
     const response = await requestAccess(
       email,
       accountType,
       fullname,
       username,
+      edtURL,
     );
 
     if (response === "Email Sent") {
