@@ -261,6 +261,26 @@ export class AqiApiService {
       this.logger.error("API CALL TO GET Observations from File failed: ", err);
     }
   }
+
+  async cleanObsURLS(){
+    const URLsToClean = await this.prisma.aqi_obs_status.findMany({
+      where:{
+        active_ind: true
+      }
+    });
+
+    for (const url of URLsToClean){
+      await this.prisma.aqi_obs_status.update({
+        where: {
+          aqi_obs_status_id: url.aqi_obs_status_id
+        }, 
+        data: {
+          active_ind: false
+        }
+      })
+    }
+  }
+
   async importObservations(
     fileName: any,
     method: string,
@@ -350,6 +370,8 @@ export class AqiApiService {
         return errorMessages;
       }
     } catch (err) {
+      // uncheck any valid obs URLs in the database
+      await this.cleanObsURLS();
       this.logger.error("API call to Observation Import failed: ", err);
       const errorLog = JSON.parse(`{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Observation API call to status/result failed. Please re-upload the file."}}`);
       return [errorLog]
