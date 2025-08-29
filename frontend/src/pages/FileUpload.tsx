@@ -200,12 +200,16 @@ function FileUpload() {
     }
   };
 
-  const validateAllFiles = (files) => {
+  const validateAllFiles = async (files) => {
     setAnyButtonClicked(true);
     setGlobalButtonClicked(true);
 
     if (files) {
-      Object.entries(files).forEach(async ([key, value], index) => {
+      // Convert to array to maintain order and process sequentially
+      const filesArray = Array.from(files);
+      
+      for (let index = 0; index < filesArray.length; index++) {
+        const value = filesArray[index];
         // const rowCount = await getRowCount(value)
         const formData = new FormData();
         let orgGUID = null,
@@ -231,14 +235,13 @@ function FileUpload() {
         formData.append("notification", checkedItems.items[index]);
         formData.append("token", UserService.getToken()?.toString());
 
-        await insertFile(formData).then(async (response) => {
-          const newStatusCodes = fileStatusCodes.items;
-          newStatusCodes[index] = response.submission_status_code;
-          setFileStatusCodes({
-            items: newStatusCodes,
-          });
+        const response = await insertFile(formData);
+        const newStatusCodes = fileStatusCodes.items;
+        newStatusCodes[index] = response.submission_status_code;
+        setFileStatusCodes({
+          items: newStatusCodes,
         });
-      });
+      }
     }
   };
 
@@ -292,7 +295,11 @@ function FileUpload() {
     setGlobalButtonClicked(true);
 
     if (files) {
-      Object.entries(files).forEach(async ([key, value], index) => {
+      // Convert to array to maintain order and process sequentially
+      const filesArray = Array.from(files);
+      
+      for (let index = 0; index < filesArray.length; index++) {
+        const value = filesArray[index];
         // const rowCount = await getRowCount(value)
         const formData = new FormData();
         let orgGUID = null,
@@ -316,17 +323,15 @@ function FileUpload() {
         formData.append("orgGUID", orgGUID);
         formData.append("agency", agency);
         formData.append("notification", checkedItems.items[index]);
-
         formData.append("token", UserService.getToken()?.toString());
 
-        await insertFile(formData).then(async (response) => {
-          const newStatusCodes = fileStatusCodes.items;
-          newStatusCodes[index] = response.submission_status_code;
-          setFileStatusCodes({
-            items: newStatusCodes,
-          });
+        const response = await insertFile(formData);
+        const newStatusCodes = fileStatusCodes.items;
+        newStatusCodes[index] = response.submission_status_code;
+        setFileStatusCodes({
+          items: newStatusCodes,
         });
-      });
+      }
     }
   };
 
