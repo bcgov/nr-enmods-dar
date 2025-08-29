@@ -56,6 +56,11 @@ function FileUpload() {
     Array((files ?? []).length).fill(false),
   );
 
+  const [checkedItems, setCheckedItems] = useState({
+    master: true,
+    items: [],
+  });
+
   const [anyButtonClicked, setAnyButtonClicked] = useState(false);
   const [globalButtonClicked, setGlobalButtonClicked] = useState(false);
 
@@ -175,14 +180,14 @@ function FileUpload() {
         userId = JWT.idir_username;
       }
 
-      // let agency = JWT.bceid_business_name || JWT.
       formData.append("file", file);
       formData.append("operation", "VALIDATE");
       // formData.append("file_row_count", rowCount)
-      formData.append('dataSubmitterEmail', JWT.email);
+      formData.append("dataSubmitterEmail", JWT.email);
       formData.append("userID", userId);
       formData.append("orgGUID", orgGUID);
       formData.append("agency", agency);
+      formData.append("notification", checkedItems.items[index]);
       formData.append("token", UserService.getToken()?.toString());
 
       await insertFile(formData).then((response) => {
@@ -219,10 +224,11 @@ function FileUpload() {
         formData.append("file", value);
         formData.append("operation", "VALIDATE");
         // formData.append("file_row_count", rowCount)
-        formData.append('dataSubmitterEmail', JWT.email);
+        formData.append("dataSubmitterEmail", JWT.email);
         formData.append("userID", userId);
         formData.append("orgGUID", orgGUID);
         formData.append("agency", agency);
+        formData.append("notification", checkedItems.items[index]);
         formData.append("token", UserService.getToken()?.toString());
 
         await insertFile(formData).then(async (response) => {
@@ -264,10 +270,11 @@ function FileUpload() {
       formData.append("file", file);
       formData.append("operation", "IMPORT");
       // formData.append("file_row_count", rowCount)
-      formData.append('dataSubmitterEmail', JWT.email);
+      formData.append("dataSubmitterEmail", JWT.email);
       formData.append("userID", userId);
       formData.append("orgGUID", orgGUID);
       formData.append("agency", agency);
+      formData.append("notification", checkedItems.items[index]);
       formData.append("token", UserService.getToken()?.toString());
 
       await insertFile(formData).then((response) => {
@@ -304,10 +311,12 @@ function FileUpload() {
         formData.append("file", value);
         formData.append("operation", "IMPORT");
         // formData.append("file_row_count", rowCount)
-        formData.append('dataSubmitterEmail', JWT.email);
+        formData.append("dataSubmitterEmail", JWT.email);
         formData.append("userID", userId);
         formData.append("orgGUID", orgGUID);
         formData.append("agency", agency);
+        formData.append("notification", checkedItems.items[index]);
+
         formData.append("token", UserService.getToken()?.toString());
 
         await insertFile(formData).then(async (response) => {
@@ -327,11 +336,6 @@ function FileUpload() {
   };
 
   const [aqiOutage, setAqiOutage] = useState(false);
-
-  const [checkedItems, setCheckedItems] = useState({
-    master: true,
-    items: [],
-  });
 
   const handleMasterCheckboxChange = (event: { target: { checked: any } }) => {
     const isChecked = event.target.checked;

@@ -54,6 +54,7 @@ export class NotificationsController {
     return this.notificationsService.getNotificationStatus(
       userData.email,
       userData.username,
+      true
     );
   }
 

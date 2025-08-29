@@ -40,10 +40,11 @@ export class NotificationsService {
   async createNotificationEntry(
     email: string,
     username: string,
+    enabled: boolean
   ): Promise<string> {
     const createNotificationDto = new CreateNotificationEntryDto();
     createNotificationDto.email = email;
-    createNotificationDto.enabled = true;
+    createNotificationDto.enabled = enabled;
     createNotificationDto.create_user_id = username;
     createNotificationDto.create_utc_timestamp = new Date();
     createNotificationDto.update_user_id = username;
@@ -137,13 +138,13 @@ export class NotificationsService {
    * @param username
    * @returns
    */
-  async getNotificationStatus(email: string, username: string): Promise<any> {
+  async getNotificationStatus(email: string, username: string, enabled: boolean): Promise<any> {
     let notificationEntry = await this.prisma.notifications.findUnique({
       where: { email: email },
     });
 
     if (!notificationEntry) {
-      await this.createNotificationEntry(email, username);
+      await this.createNotificationEntry(email, username, enabled);
       notificationEntry = await this.prisma.notifications.findUnique({
         where: { email: email },
       });
@@ -192,24 +193,38 @@ export class NotificationsService {
     };
     const sys_time = date.toLocaleString("en-US", options);
 
-    return this.sendEmail([email], emailTemplate, {
-      submitter_user_id: submitter_user_id,
-      submission_status_code: submission_status_code,
-      file_error_log: errorLogs,
-      file_name: fileName,
-      sys_time,
-    });
+    const notificationInfo = await this.getNotificationStatus(
+      email,
+      submitter_user_id,
+      true // this is setting notifications to enabled by default for submitters
+    );
+
+    if (notificationInfo.enabled === true) {
+      return this.sendEmail([email], emailTemplate, {
+        submitter_user_id: submitter_user_id,
+        submission_status_code: submission_status_code,
+        file_error_log: errorLogs,
+        file_name: fileName,
+        sys_time,
+      });
+    } else {
+      return "";
+    }
   }
 
-  async findMinistryEmails(contacts: any){
-    const contactList = contacts.flatMap(contact => contact.ministry_contact)
-    const lowerCaseContactList = new Set(contactList.map(contact => contact.toLowerCase()))
+  async findMinistryEmails(contacts: any) {
+    const contactList = contacts.flatMap((contact) => contact.ministry_contact);
+    const lowerCaseContactList = new Set(
+      contactList.map((contact) => contact.toLowerCase()),
+    );
     const allUsers = await this.adminService.findAll();
 
-    const filteredUsers = allUsers.filter(user => lowerCaseContactList.has(user.name.toLowerCase()))
+    const filteredUsers = allUsers.filter((user) =>
+      user.guidUsername.endsWith("idir") && lowerCaseContactList.has(user.name.toLowerCase()),
+    );
 
-    const emailsToSend = filteredUsers.map(user => user.email)
-    return emailsToSend
+    const emailsToSend = filteredUsers.map((user) => user.email);
+    return emailsToSend;
   }
 
   /**
@@ -223,55 +238,62 @@ export class NotificationsService {
   async sendContactNotification(file_submission_id: string): Promise<String> {
     const file_submission =
       await this.fileSubmissionsService.findBySubmissionId(file_submission_id);
-    const email = file_submission.data_submitter_email;
-    if (!this.isValidEmail(email)) {
-      return "Invalid email";
-    }
+
     const { submitter_user_id, submission_status_code } = file_submission;
 
     const errorLogs =
       await this.fileErrorLogsService.findOne(file_submission_id);
+
     const fileName = `${file_submission.original_file_name}-error_log.txt`;
-    const ministryContacts = await this.fileErrorLogsService.getMinistryContacts(file_submission_id);
 
-    const contactEmails = await this.findMinistryEmails(ministryContacts)
+    const ministryContacts =
+      await this.fileErrorLogsService.getMinistryContacts(file_submission_id);
 
-    const notificationInfo = await this.getNotificationStatus(
-      email,
-      submitter_user_id,
-    );
-    const unsubscribeLink =
-      process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
+    const contactEmails = await this.findMinistryEmails(ministryContacts);
 
-    let body = errorLogs.concat(
-      `<p>Error Notification</p><p><a href="${unsubscribeLink}">Unsubscribe</a></p>`,
-    );
+    for (const email of contactEmails) {
+      const notificationInfo = await this.getNotificationStatus(
+        email,
+        submitter_user_id,
+        false // this is setting notifications to disabled by default for ministry contacts
+      );
+      const unsubscribeLink =
+        process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
 
-    const emailTemplate = {
-      from: "enmodshelp@gov.bc.ca",
-      subject:
-        "EnMoDS Data {{submission_status_code}} from {{submitter_user_id}}",
-      body: body,
-    };
-    const date = new Date();
-    const options: Intl.DateTimeFormatOptions = {
-      timeZone: "America/Los_Angeles",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-      second: "numeric",
-    };
-    const sys_time = date.toLocaleString("en-US", options);
+      let body = errorLogs.concat(
+        `<p>Error Notification</p><p><a href="${unsubscribeLink}">Unsubscribe</a></p>`,
+      );
 
-    return this.sendEmail(contactEmails, emailTemplate, {
-      submitter_user_id: submitter_user_id,
-      submission_status_code: submission_status_code,
-      file_error_log: errorLogs,
-      file_name: fileName,
-      sys_time,
-    });
+      const emailTemplate = {
+        from: "enmodshelp@gov.bc.ca",
+        subject:
+          "EnMoDS Data {{submission_status_code}} from {{submitter_user_id}}",
+        body: body,
+      };
+      const date = new Date();
+      const options: Intl.DateTimeFormatOptions = {
+        timeZone: "America/Los_Angeles",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric",
+      };
+      const sys_time = date.toLocaleString("en-US", options);
+
+      if (notificationInfo.enabled === true) {
+        return this.sendEmail([email], emailTemplate, {
+          submitter_user_id: submitter_user_id,
+          submission_status_code: submission_status_code,
+          file_error_log: errorLogs,
+          file_name: fileName,
+          sys_time,
+        });
+      } else {
+        return "";
+      }
+    }
   }
 
   /**
