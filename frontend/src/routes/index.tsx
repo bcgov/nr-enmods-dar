@@ -1,7 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import { ProtectedRoutes } from "./protected-routes";
 import Roles from "../roles";
-import NotFound from "@/pages/NotFound";
+import RequestAccess from "@/pages/RequestAccess";
 import Dashboard from "@/pages/Dashboard";
 import AdminPage from "@/pages/AdminPage";
 import FileUpload from "@/pages/FileUpload";
@@ -29,7 +29,7 @@ export default function AppRoutes() {
 
         <Route path="/unsubscribe/:uuid" element={<Unsubscribe />} />
 
-        <Route path="*" element={<NotFound />} />
+        <Route path="*" element={<RequestAccess />} />
       </Routes>
     </>
   );
