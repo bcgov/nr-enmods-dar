@@ -40,7 +40,7 @@ export class NotificationsService {
   async createNotificationEntry(
     email: string,
     username: string,
-    enabled: boolean
+    enabled: boolean,
   ): Promise<string> {
     const createNotificationDto = new CreateNotificationEntryDto();
     createNotificationDto.email = email;
@@ -138,7 +138,11 @@ export class NotificationsService {
    * @param username
    * @returns
    */
-  async getNotificationStatus(email: string, username: string, enabled: boolean): Promise<any> {
+  async getNotificationStatus(
+    email: string,
+    username: string,
+    enabled: boolean,
+  ): Promise<any> {
     let notificationEntry = await this.prisma.notifications.findUnique({
       where: { email: email },
     });
@@ -175,12 +179,6 @@ export class NotificationsService {
     }
     const { submitter_user_id, submission_status_code } = file_submission;
 
-    const emailTemplate: EmailTemplate = {
-      from: "enmodshelp@gov.bc.ca",
-      subject:
-        "EnMoDS Data {{submission_status_code}} from {{submitter_user_id}}",
-      body: "<p>Error Notification</p>",
-    };
     const date = new Date();
     const options: Intl.DateTimeFormatOptions = {
       timeZone: "America/Los_Angeles",
@@ -196,8 +194,22 @@ export class NotificationsService {
     const notificationInfo = await this.getNotificationStatus(
       email,
       submitter_user_id,
-      true // this is setting notifications to enabled by default for submitters
+      true, // this is setting notifications to enabled by default for submitters
     );
+
+    const unsubscribeLink =
+      process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
+
+    let body = errorLogs.concat(
+      `<p>Submission Notification</p><p><a href="${unsubscribeLink}">Unsubscribe</a></p>`,
+    );
+
+    const emailTemplate: EmailTemplate = {
+      from: "enmodshelp@gov.bc.ca",
+      subject:
+        "EnMoDS Data {{submission_status_code}} from {{submitter_user_id}}",
+      body: body,
+    };
 
     if (notificationInfo.enabled === true) {
       return this.sendEmail([email], emailTemplate, {
@@ -219,8 +231,10 @@ export class NotificationsService {
     );
     const allUsers = await this.adminService.findAll();
 
-    const filteredUsers = allUsers.filter((user) =>
-      user.guidUsername.endsWith("idir") && lowerCaseContactList.has(user.name.toLowerCase()),
+    const filteredUsers = allUsers.filter(
+      (user) =>
+        user.guidUsername.endsWith("idir") &&
+        lowerCaseContactList.has(user.name.toLowerCase()),
     );
 
     const emailsToSend = filteredUsers.map((user) => user.email);
@@ -255,13 +269,13 @@ export class NotificationsService {
       const notificationInfo = await this.getNotificationStatus(
         email,
         submitter_user_id,
-        false // this is setting notifications to disabled by default for ministry contacts
+        false, // this is setting notifications to disabled by default for ministry contacts
       );
       const unsubscribeLink =
         process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
 
       let body = errorLogs.concat(
-        `<p>Error Notification</p><p><a href="${unsubscribeLink}">Unsubscribe</a></p>`,
+        `<p>Submission Notification</p><p><a href="${unsubscribeLink}">Unsubscribe</a></p>`,
       );
 
       const emailTemplate = {
