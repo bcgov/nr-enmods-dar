@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { CreateFileErrorLogDto } from "./dto/create-file_error_log.dto";
 import { UpdateFileErrorLogDto } from "./dto/update-file_error_log.dto";
 import { PrismaService } from "nestjs-prisma";
+import { JsonValue } from "@prisma/client/runtime/library";
 
 @Injectable()
 export class FileErrorLogsService {
@@ -27,6 +28,22 @@ export class FileErrorLogsService {
 
     const formattedMessage = formulateErrorFile(fileLogs);
     return formattedMessage;
+  }
+
+  async getMinistryContacts(file_submission_id: string): Promise<JsonValue[]>{
+    const contacts = await this.prisma.file_error_logs.findMany({
+      where: {
+        file_submission_id: file_submission_id
+      }, 
+      select: {
+        ministry_contact: true
+      },
+      orderBy: {
+        create_utc_timestamp: "desc"
+      }
+    })
+
+    return contacts
   }
 
   update(id: number, updateFileErrorLogDto: UpdateFileErrorLogDto) {

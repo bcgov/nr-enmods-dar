@@ -191,14 +191,14 @@ export default function AdminPage() {
             width: "100%",
           }}
         >
-          <Button
+          {selectedTab === 0 && (<Button
             id="addUserButton"
             variant="contained"
             color="primary"
             onClick={() => setShowAddRoles(true)}
           >
             Add User
-          </Button>
+          </Button>)}
         </Box>
         <AddRoles
           show={showAddRoles}

@@ -14,7 +14,7 @@ export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
   @Get()
-  @Roles(Role.ENMODS_USER, Role.ENMODS_ADMIN)
+  @Roles(Role.ENMODS_USER, Role.ENMODS_ADMIN, Role.ENMODS_DELETE)
   findAll(): Promise<any[]> {
     return this.adminService.findAll();
   }
