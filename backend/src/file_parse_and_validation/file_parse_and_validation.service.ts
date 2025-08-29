@@ -791,7 +791,21 @@ export class FileParseValidateService {
     }
 
     if (sourceHeaders.length != targetHeaders.length) {
-      let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "Invalid number of headers. Got ${sourceHeaders.length}, expected ${targetHeaders.length}"}}`;
+      // Find missing headers by comparing target headers with source headers
+      const missingHeaders = targetHeaders.filter(header => !sourceHeaders.includes(header));
+      const extraHeaders = sourceHeaders.filter(header => !targetHeaders.includes(header));
+      
+      let errorMessage = `Invalid number of headers. Got ${sourceHeaders.length}, expected ${targetHeaders.length}`;
+      
+      if (missingHeaders.length > 0) {
+        errorMessage += `. Missing headers: ${missingHeaders.join(', ')}`;
+      }
+      
+      if (extraHeaders.length > 0) {
+        errorMessage += `. Extra headers: ${extraHeaders.join(', ')}`;
+      }
+      
+      let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${errorMessage}"}}`;
       headerErrors.push(JSON.parse(errorLog));
       return headerErrors;
     }
@@ -1683,7 +1697,12 @@ export class FileParseValidateService {
         rowData.DataClassification == "FIELD_SURVEY"
           ? concatActivityName + ";FS"
           : concatActivityName; // TODO: this will need to uncommented after Jeremy is done testing
-
+      cleanedRow.QCType = 
+        rowData.DataClassification == "FIELD_SURVEY"
+          ? ""
+          : cleanedRow.QCType == "REGULAR"
+          ? ""
+          : cleanedRow.QCType
       if (cleanedRow.QCType == "REGULAR") {
         // this is because AQI interprets a null value as REGULAR
         cleanedRow.QCType = "";
