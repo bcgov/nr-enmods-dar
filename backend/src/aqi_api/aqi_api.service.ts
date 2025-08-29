@@ -261,6 +261,26 @@ export class AqiApiService {
       this.logger.error("API CALL TO GET Observations from File failed: ", err);
     }
   }
+
+  async cleanObsURLS(){
+    const URLsToClean = await this.prisma.aqi_obs_status.findMany({
+      where:{
+        active_ind: true
+      }
+    });
+
+    for (const url of URLsToClean){
+      await this.prisma.aqi_obs_status.update({
+        where: {
+          aqi_obs_status_id: url.aqi_obs_status_id
+        }, 
+        data: {
+          active_ind: false
+        }
+      })
+    }
+  }
+
   async importObservations(
     fileName: any,
     method: string,
@@ -302,6 +322,12 @@ export class AqiApiService {
         });
 
         const resultURL = await this.waitForObsStatus();
+        
+        if (resultURL === null) {
+          this.logger.error("Observation status check timed out, returning timeout error");
+          const timeoutErrorLog = JSON.parse(`{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Observation status check timed out after 1 hour. Please try again later."}}`);
+          return [timeoutErrorLog];
+        }
 
         const obsStatus = await this.getObsResult(resultURL);
 
@@ -344,6 +370,8 @@ export class AqiApiService {
         return errorMessages;
       }
     } catch (err) {
+      // uncheck any valid obs URLs in the database
+      await this.cleanObsURLS();
       this.logger.error("API call to Observation Import failed: ", err);
       const errorLog = JSON.parse(`{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Observation API call to status/result failed. Please re-upload the file."}}`);
       return [errorLog]
@@ -469,8 +497,19 @@ export class AqiApiService {
   }
 
   async waitForObsStatus() {
+    const startTime = Date.now();
+    const timeoutMs = 60 * 60 * 1000; // 1 hour in milliseconds
+    
     while (!this.goodObservationImporStatus) {
       this.logger.log("WAITING TO CHECK OBSERVATION STATUS");
+      const elapsedTime = Date.now() - startTime;
+      
+      if (elapsedTime >= timeoutMs) {
+        this.logger.error("TIMEOUT: Waited for observation status for 1 hour, exiting");
+        return null; // Return null instead of throwing error
+      }
+      
+      this.logger.log(`WAITING TO CHECK OBSERVATION STATUS (${Math.floor(elapsedTime / 1000)}s elapsed)`);
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
 
