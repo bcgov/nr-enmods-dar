@@ -351,3 +351,11 @@ model aqi_units {
   update_user_id       String   @db.VarChar(200)
   update_utc_timestamp DateTime @db.Timestamp(6)
 }
+
+model aqi_associated_analysis_methods {
+  aqi_associated_analysis_method_id String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  observed_property_id              String?  @unique @db.Uuid
+  observed_property_name            String?
+  analysis_methods                  String[]
+  create_utc_timestamp              DateTime @db.Timestamp(6)
+}
