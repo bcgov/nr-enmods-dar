@@ -325,7 +325,7 @@ export class NotificationsService {
 
     const config = {
       method: "post",
-      url: `${process.env.ches_email_url}`,
+      url: `${process.env.CHES_EMAIL_URL}`,
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${chesToken}`,
@@ -459,9 +459,9 @@ export class NotificationsService {
    * @returns
    */
   async getChesToken(): Promise<string> {
-    const url = process.env.ches_token_url;
+    const url = process.env.CHES_TOKEN_URL;
     const encodedToken = Buffer.from(
-      `${process.env.ches_client_id}:${process.env.ches_client_secret}`,
+      `${process.env.CHES_CLIENT_ID}:${process.env.CHES_CLIENT_SECRET}`,
     ).toString("base64");
 
     const headers = {
@@ -493,5 +493,96 @@ export class NotificationsService {
       this.logger.log("Error config:", error.config);
       this.logger.log(error);
     }
+  }
+
+  async requestAccess(data: {
+    email: string;
+    accountType: string;
+    fullname: string;
+    username: string;
+    edtURL: string
+  }): Promise<string> {
+    let variables = {
+      accountType: data.accountType,
+      fullname: data.fullname,
+      email: data.email,
+      username: data.username,
+    };
+    let edtURL = data.edtURL.substring(0, data.edtURL.lastIndexOf("/") + 1);
+    let body = `
+    ${data.accountType} user ${data.fullname} with username ${data.username} and email ${data.email} would like access to EDT.
+    <br><br>
+    To approve this request go to <a href="${edtURL}admin">${edtURL}admin</a>, 
+    to deny this request no action is needed.
+`;
+
+    const emailTemplate = {
+      from: "enmodshelp@gov.bc.ca",
+      subject: `New EDT User Requested ${data.accountType}`,
+      body: body,
+    };
+
+    const chesToken = await this.getChesToken();
+
+    const emailData = JSON.stringify({
+      attachments: [],
+      bodyType: "html",
+      body: emailTemplate.body,
+      contexts: [
+        {
+          context: {
+            ...variables,
+          },
+          delayTS: 0,
+          tag: "tag",
+          to: ["skutty@salussystems.com"],
+        },
+      ],
+      encoding: "utf-8",
+      from: emailTemplate.from,
+      priority: "normal",
+      subject: emailTemplate.subject,
+    });
+
+    const config = {
+      method: "post",
+      url: `${process.env.CHES_EMAIL_URL}`,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${chesToken}`,
+      },
+      data: emailData,
+    };
+
+    try {
+      console.log(config)
+      await lastValueFrom(this.httpService.request(config));
+      return "Email Sent";
+    } catch (error) {
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        this.logger.log("Response:");
+        this.logger.log(error.response.data);
+        this.logger.log(error.response.status);
+        this.logger.log(error.response.headers);
+      } else if (error.request) {
+        // The request was made but no response was received
+        // `error.request` is an instance of XMLHttpRequest in the browser and an instance of
+        // http.ClientRequest in node.js
+        this.logger.log("Request:");
+        this.logger.log(error.request);
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        this.logger.log("Error", error.message);
+      }
+      this.logger.log("Error config:");
+      this.logger.log(error.config);
+      this.logger.log(error);
+    }
+
+    let returnMessage = "";
+
+    return returnMessage;
   }
 }
