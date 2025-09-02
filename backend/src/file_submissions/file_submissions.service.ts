@@ -18,6 +18,7 @@ import { v4 as uuidv4 } from "uuid";
 import { OperationLockService } from "src/operationLock/operationLock.service";
 import { equals } from "class-validator";
 import { distinct } from "rxjs";
+import { Role } from "src/enum/role.enum";
 
 @Injectable()
 export class FileSubmissionsService {
@@ -245,10 +246,14 @@ export class FileSubmissionsService {
       };
     }
 
-    if (body.organization_guid !== "null") {
-      whereClause.organization_guid = { equals: body.organization_guid };
-    } else {
-      whereClause.organization_guid = { equals: null };
+    const roles = body.roles.split(",")
+
+    if (!roles.includes(Role.ENMODS_ADMIN)){
+      if (body.organization_guid !== "null") {
+        whereClause.organization_guid = { equals: body.organization_guid };
+      } else {
+        whereClause.organization_guid = { equals: null };
+      }
     }
 
     const selectColumns = {
@@ -513,3 +518,7 @@ async function saveToS3WithSftp(file: Express.Multer.File) {
     throw error;
   }
 }
+function jwtDecode(arg0: any) {
+  throw new Error("Function not implemented.");
+}
+
