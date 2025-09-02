@@ -555,6 +555,7 @@ export class NotificationsService {
     };
 
     try {
+      console.log(config)
       await lastValueFrom(this.httpService.request(config));
       return "Email Sent";
     } catch (error) {
