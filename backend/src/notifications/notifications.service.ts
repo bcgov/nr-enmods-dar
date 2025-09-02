@@ -291,15 +291,7 @@ export class NotificationsService {
   async sendEmail(
     emails: string[],
     emailTemplate: EmailTemplate,
-    variables: {
-      file_name: string;
-      user_account_name: string;
-      file_status: string;
-      errors: string;
-      warnings: string;
-      sys_time: string;
-      status_string: string;
-    },
+    variables: any
   ): Promise<string> {
     const chesToken = await this.getChesToken();
 
@@ -521,6 +513,10 @@ export class NotificationsService {
       subject: `New EDT User Requested ${data.accountType}`,
       body: body,
     };
+
+    return this.sendEmail(["vmanawat@salussystems.com"], emailTemplate, {
+      ...variables
+    }) 
 
     const chesToken = await this.getChesToken();
 
