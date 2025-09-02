@@ -40,6 +40,7 @@ model file_submission {
   update_user_id         String                 @db.VarChar(200)
   update_utc_timestamp   DateTime               @db.Timestamp(6)
   file_row_count         Int?
+  data_submitter_email   String?                @db.VarChar(200)
   aqi_obs_status         aqi_obs_status[]
   file_error_logs        file_error_logs[]
   file_operation_codes   file_operation_codes   @relation(fields: [file_operation_code], references: [file_operation_code], onDelete: NoAction, onUpdate: NoAction, map: "file_operation_code_fk")

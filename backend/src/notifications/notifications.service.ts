@@ -6,6 +6,10 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "nestjs-prisma";
 import { UpdateNotificationEntryDto } from "./dto/update-notification_entry.dto";
 import { EmailTemplate } from "src/types/types";
+import { FileErrorLogsService } from "src/file_error_logs/file_error_logs.service";
+import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
+import { AdminService } from "src/admin/admin.service";
+import { JsonValue } from "@prisma/client/runtime/library";
 
 @Injectable()
 export class NotificationsService {
@@ -13,6 +17,9 @@ export class NotificationsService {
 
   constructor(
     private readonly httpService: HttpService,
+    private readonly fileErrorLogsService: FileErrorLogsService,
+    private readonly fileSubmissionsService: FileSubmissionsService,
+    private readonly adminService: AdminService,
     private prisma: PrismaService,
   ) {}
 
@@ -33,10 +40,11 @@ export class NotificationsService {
   async createNotificationEntry(
     email: string,
     username: string,
+    enabled: boolean,
   ): Promise<string> {
     const createNotificationDto = new CreateNotificationEntryDto();
     createNotificationDto.email = email;
-    createNotificationDto.enabled = true;
+    createNotificationDto.enabled = enabled;
     createNotificationDto.create_user_id = username;
     createNotificationDto.create_utc_timestamp = new Date();
     createNotificationDto.update_user_id = username;
@@ -130,13 +138,17 @@ export class NotificationsService {
    * @param username
    * @returns
    */
-  async getNotificationStatus(email: string, username: string): Promise<any> {
+  async getNotificationStatus(
+    email: string,
+    username: string,
+    enabled: boolean,
+  ): Promise<any> {
     let notificationEntry = await this.prisma.notifications.findUnique({
       where: { email: email },
     });
 
     if (!notificationEntry) {
-      await this.createNotificationEntry(email, username);
+      await this.createNotificationEntry(email, username, enabled);
       notificationEntry = await this.prisma.notifications.findUnique({
         where: { email: email },
       });
@@ -146,42 +158,27 @@ export class NotificationsService {
   }
 
   /**
-   * Sends an email to the data submitter. Does not check if notifications are filtered.
+   * Uses a file submission id to gather information on the completed/rejected submission
+   * and sends an email to the data submitter. Does not check if notifications are filtered.
    *
-   * @param email
-   * @param emailTemplate
-   * @param variables
+   * @param file_submission_id
    * @returns
    */
   async sendDataSubmitterNotification(
-    email: string,
-    variables: {
-      file_name: string;
-      user_account_name: string;
-      location_ids: string[];
-      file_status: string;
-      errors: string;
-      warnings: string;
-    },
+    file_submission_id: string,
   ): Promise<String> {
-    let body = `
-    <p>Status: {{file_status}}</p>
-    <p>Files Original Name: {{file_name}}</p>
-    <p>Date and Time of Upload: {{sys_time}}</p>
-    <p>Locations ID(s): ${variables.location_ids.join(", ")}</p>
-    `;
-    if (variables.warnings !== "") {
-      body += `<p>Warnings: {{warnings}}</p>`;
-    }
-    if (variables.errors !== "") {
-      body += `<p>Errors: {{errors}}</p>`;
-    }
+    const file_submission =
+      await this.fileSubmissionsService.findBySubmissionId(file_submission_id);
+    const errorLogs =
+      await this.fileErrorLogsService.findOne(file_submission_id);
+    const fileName = `${file_submission.original_file_name}-error_log.txt`;
 
-    const emailTemplate = {
-      from: "enmodshelp@gov.bc.ca",
-      subject: "EnMoDS Data {{status_string}} from {{user_account_name}}",
-      body: body,
-    };
+    const email = file_submission.data_submitter_email;
+    if (!this.isValidEmail(email)) {
+      return "Invalid email";
+    }
+    const { submitter_user_id, submission_status_code } = file_submission;
+
     const date = new Date();
     const options: Intl.DateTimeFormatOptions = {
       timeZone: "America/Los_Angeles",
@@ -193,17 +190,55 @@ export class NotificationsService {
       second: "numeric",
     };
     const sys_time = date.toLocaleString("en-US", options);
-    let status_string = "Imported";
-    if (variables.errors !== "") {
-      status_string = "Failed";
-    } else if (variables.warnings !== "") {
-      status_string = "Imported with Warnings";
+
+    const notificationInfo = await this.getNotificationStatus(
+      email,
+      submitter_user_id,
+      true, // this is setting notifications to enabled by default for submitters
+    );
+
+    const unsubscribeLink =
+      process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
+
+    let body = errorLogs.concat(
+      `<p>Submission Notification</p><p><a href="${unsubscribeLink}">Unsubscribe</a></p>`,
+    );
+
+    const emailTemplate: EmailTemplate = {
+      from: "enmodshelp@gov.bc.ca",
+      subject:
+        "EnMoDS Data {{submission_status_code}} from {{submitter_user_id}}",
+      body: body,
+    };
+
+    if (notificationInfo.enabled === true) {
+      return this.sendEmail([email], emailTemplate, {
+        submitter_user_id: submitter_user_id,
+        submission_status_code: submission_status_code,
+        file_error_log: errorLogs,
+        file_name: fileName,
+        sys_time,
+      });
+    } else {
+      return "";
     }
-    return this.sendEmail([email], emailTemplate, {
-      ...variables,
-      sys_time,
-      status_string,
-    });
+  }
+
+  async findMinistryEmails(contacts: any) {
+    const contactList = contacts.flatMap((contact) => contact.ministry_contact);
+    const lowerCaseContactList = new Set(
+      contactList.map((contact) => contact.toLowerCase()),
+    );
+    const allUsers = await this.adminService.findAll();
+
+    const filteredUsers = allUsers.filter(
+      (user) =>
+        user.guidUsername.endsWith("idir") &&
+        lowerCaseContactList.has(user.name.toLowerCase()),
+    );
+
+    const emailsToSend = filteredUsers.map((user) => user.email);
+    return emailsToSend;
   }
 
   /**
@@ -214,68 +249,65 @@ export class NotificationsService {
    * @param variables
    * @returns
    */
-  async sendContactNotification(
-    email: string,
-    variables: {
-      file_name: string;
-      user_account_name: string;
-      file_status: string;
-      warnings: string;
-      errors: string;
-    },
-  ): Promise<String> {
-    const notificationInfo = await this.getNotificationStatus(
-      email,
-      variables.user_account_name,
-    );
-    // check that notifications are enabled before continuing
-    if (notificationInfo.enabled === false) {
-      return;
-    }
-    const unsubscribeLink =
-      process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
-    let body = `
-    <p>Status: {{file_status}}</p>
-    <p>Files Original Name: {{file_name}}</p>
-    <p>Date and Time of Upload: {{sys_time}}</p>
-    <p>Locations ID(s): E123445, E464353, E232524</p>
-    `;
-    if (variables.warnings !== "") {
-      body += `<p>Warnings: {{warnings}}</p>`;
-    }
-    if (variables.errors !== "") {
-      body += `<p>Errors: {{errors}}</p>`;
-    }
+  async sendContactNotification(file_submission_id: string): Promise<String> {
+    const file_submission =
+      await this.fileSubmissionsService.findBySubmissionId(file_submission_id);
 
-    body += `<p><a href="${unsubscribeLink}">Unsubscribe</a></p>`;
+    const { submitter_user_id, submission_status_code } = file_submission;
 
-    const emailTemplate = {
-      from: "enmodshelp@gov.bc.ca",
-      subject: "EnMoDS Data {{status_string}} from {{user_account_name}}",
-      body: body,
-    };
-    const date = new Date();
-    const options: Intl.DateTimeFormatOptions = {
-      timeZone: "America/Los_Angeles",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-      second: "numeric",
-    };
-    const sys_time = date.toLocaleString("en-US", options);
-    let status_string = "Imported";
-    if (variables.errors !== "") {
-      status_string = "Failed";
-    } else if (variables.warnings !== "") {
-      status_string = "Imported with Warnings";
+    const errorLogs =
+      await this.fileErrorLogsService.findOne(file_submission_id);
+
+    const fileName = `${file_submission.original_file_name}-error_log.txt`;
+
+    const ministryContacts =
+      await this.fileErrorLogsService.getMinistryContacts(file_submission_id);
+
+    const contactEmails = await this.findMinistryEmails(ministryContacts);
+
+    for (const email of contactEmails) {
+      const notificationInfo = await this.getNotificationStatus(
+        email,
+        submitter_user_id,
+        false, // this is setting notifications to disabled by default for ministry contacts
+      );
+      const unsubscribeLink =
+        process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
+
+      let body = errorLogs.concat(
+        `<p>Submission Notification</p><p><a href="${unsubscribeLink}">Unsubscribe</a></p>`,
+      );
+
+      const emailTemplate = {
+        from: "enmodshelp@gov.bc.ca",
+        subject:
+          "EnMoDS Data {{submission_status_code}} from {{submitter_user_id}}",
+        body: body,
+      };
+      const date = new Date();
+      const options: Intl.DateTimeFormatOptions = {
+        timeZone: "America/Los_Angeles",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric",
+      };
+      const sys_time = date.toLocaleString("en-US", options);
+
+      if (notificationInfo.enabled === true) {
+        return this.sendEmail([email], emailTemplate, {
+          submitter_user_id: submitter_user_id,
+          submission_status_code: submission_status_code,
+          file_error_log: errorLogs,
+          file_name: fileName,
+          sys_time,
+        });
+      } else {
+        return "";
+      }
     }
-    return this.sendEmail([email], emailTemplate, {
-      ...variables,
-      sys_time,
-      status_string,
-    });
   }
 
   /**
@@ -292,19 +324,27 @@ export class NotificationsService {
     emails: string[],
     emailTemplate: EmailTemplate,
     variables: {
+      submitter_user_id: string;
+      submission_status_code: string;
+      file_error_log: string;
       file_name: string;
-      user_account_name: string;
-      file_status: string;
-      errors: string;
-      warnings: string;
       sys_time: string;
-      status_string: string;
     },
   ): Promise<string> {
     const chesToken = await this.getChesToken();
+    console.log("sending email");
+    // file_error_log is a string, convert it to base64
+    const base64ErrorLog = btoa(variables.file_error_log);
 
     const data = JSON.stringify({
-      attachments: [],
+      attachments: [
+        {
+          content: base64ErrorLog,
+          contentType: "string",
+          encoding: "base64",
+          filename: variables.file_name,
+        },
+      ],
       bodyType: "html",
       body: emailTemplate.body,
       contexts: [
@@ -368,30 +408,12 @@ export class NotificationsService {
    * @param errors
    * @param ministryContact
    */
-  async notifyUserOfError(
-    email: string,
-    username: string,
-    fileName: string,
-    errors: string[],
-    ministryContact: string,
-  ) {
-    const notificationVars = {
-      file_name: fileName,
-      user_account_name: username,
-      location_ids: [],
-      file_status: "REJECTED",
-      errors: errors.join(","),
-      warnings: "",
-    };
-
+  async notifyUserOfError(file_submission_id: string) {
     // Notify the Data Submitter
-    if (this.isValidEmail(email)) {
-      await this.sendDataSubmitterNotification(email, notificationVars);
-    }
+    await this.sendDataSubmitterNotification(file_submission_id);
+
     // Notify the Ministry Contact (if they have not disabled notifications)
-    if (this.isValidEmail(ministryContact)) {
-      await this.sendContactNotification(ministryContact, notificationVars);
-    }
+    await this.sendContactNotification(file_submission_id);
   }
 
   /**
@@ -407,16 +429,16 @@ export class NotificationsService {
     errors: string[],
     ministryContact: string,
   ) {
-    const sftpUser = await this.prisma.sftp_users.findUnique({
-      where: { username: username },
-    });
-    await this.notifyUserOfError(
-      sftpUser.email,
-      username,
-      fileName,
-      errors,
-      ministryContact,
-    );
+    // const ftpUser = await this.prisma.ftp_users.findUnique({
+    //   where: { username: username },
+    // });
+    // await this.notifyUserOfError(
+    //   ftpUser.email,
+    //   username,
+    //   fileName,
+    //   errors,
+    //   ministryContact,
+    // );
   }
 
   isValidEmail(email: string): boolean {
