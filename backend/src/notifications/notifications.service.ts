@@ -535,7 +535,7 @@ export class NotificationsService {
           },
           delayTS: 0,
           tag: "tag",
-          to: ["enmodshelp@gov.bc.ca"],
+          to: ["skutty@salussystems.com"],
         },
       ],
       encoding: "utf-8",
