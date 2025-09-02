@@ -278,7 +278,9 @@ export default function Dashboard() {
 
     // before sending the formdata, add the organization guid to the body
     var JWT = jwtDecode(UserService.getToken()?.toString());
+
     requestData.append("organization_guid", JWT.bceid_business_guid || null);
+    requestData.append("roles", JWT.client_roles || null);
 
     requestData.append("page", paginationModel.page);
     requestData.append("pageSize", paginationModel.pageSize);
@@ -304,7 +306,7 @@ export default function Dashboard() {
   const userOptions = users.items.map((user) => ({
     value: user.username,
     label:
-      user.name +
+      user.username +
       ` (${user.guidUsername?.endsWith("idir") ? "IDIR" : "BCEID"})`,
   }));
 
@@ -360,11 +362,29 @@ export default function Dashboard() {
     async function fetchUsers() {
       await getUsers().then((response: any) => {
         const newUsers: any = users.items;
+        const token = localStorage.getItem("__auth_token");
+        const decoded = jwtDecode<JwtPayload>(token);
+        const currentOrg = decoded?.bceid_business_name || null;
+        const isAdmin = decoded?.client_roles.includes("Enmods Admin") ? true : false
+
         Object.keys(response).map((key) => {
           newUsers[key] = response[key];
         });
+
+        const filtered = newUsers.filter((user) => {
+          const { company } = user;
+
+          if (currentOrg) {
+            return Array.isArray(company)
+              ? company.includes(currentOrg)
+              : company === currentOrg;
+          } else {
+            return typeof company === "string";
+          }
+        });
+
         setUsers({
-          items: newUsers,
+          items: isAdmin ? newUsers : filtered,
         });
       });
     }
@@ -376,11 +396,29 @@ export default function Dashboard() {
     async function fetchAgencies() {
       await getAgencies().then((response: any) => {
         const newAgencies: any = agencies.items;
+        const token = localStorage.getItem("__auth_token");
+        const decoded = jwtDecode<JwtPayload>(token);
+        const currentOrg = decoded?.bceid_business_name || null;
+        const isAdmin = decoded?.client_roles.includes("Enmods Admin") ? true : false
+
         Object.keys(response).map((key) => {
           newAgencies[key] = response[key];
         });
+
+        console.log(newAgencies[0])
+
+        const filtered = newAgencies[0].filter(agency => {
+          const { submitter_agency_name } = agency
+
+          if (currentOrg){
+            return submitter_agency_name === currentOrg
+          }else{
+            return !submitter_agency_name.includes(" ")
+          }
+        })
+
         setAgencies({
-          items: newAgencies[0],
+          items: isAdmin ? newAgencies[0] : filtered,
         });
       });
     }

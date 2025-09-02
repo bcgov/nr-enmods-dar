@@ -859,8 +859,14 @@ export class FileParseValidateService {
 
     if (rowData.hasOwnProperty("ObservedPropertyID")) {
       if (rowData["ObservedPropertyID"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "Cannot be empty"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            ObservedPropertyID: "Cannot be empty"
+          }
+        };
+        errorLogs.push(errorLog);
         validObservedProperty = false;
       } else {
         const present = await this.aqiService.databaseLookup(
@@ -869,8 +875,14 @@ export class FileParseValidateService {
         );
 
         if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ObservedPropertyID": "${rowData.ObservedPropertyID} not found in EnMoDS Observed Properties"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+          let errorLog= {
+            rowNum: rowNumber, 
+            type: "ERROR", 
+            message: {
+              ObservedPropertyID: `${rowData.ObservedPropertyID} not found in EnMoDS Observed Properties`
+            }
+          }
+          errorLogs.push(errorLog);
           validObservedProperty = false;
         } else {
           validObservedProperty = true;
@@ -892,20 +904,38 @@ export class FileParseValidateService {
         if (yearFromDate > currentYear) valid = false;
 
         if (!valid) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid ISO DateTime (year might be greater than current year)"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              [field]: `${rowData[field]} is not valid ISO DateTime (year might be greater than current year)`
+            }
+          };
+          errorLogs.push(errorLog);
         }
       } else if (rowData.hasOwnProperty(field) && !rowData[field]) {
         if (field == "FieldVisitStartTime" || field == "ObservedDateTime") {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Cannot be empty"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              [field]: "Cannot be empty"
+            }
+          };
+          errorLogs.push(errorLog);
         } else if (
           field == "AnalyzedDateTime" &&
           (rowData["DataClassification"] == "LAB" ||
             rowData["DataClassification"] == "SURROGATE_RESULT")
         ) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Cannot be empty for data classification ${rowData["DataClassification"]}"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              [field]: `Cannot be empty for data classification ${rowData["DataClassification"]}`
+            }
+          };
+          errorLogs.push(errorLog);
         }
       }
     });
@@ -920,8 +950,14 @@ export class FileParseValidateService {
               (rowData["DataClassification"] == "LAB" ||
                 rowData["DataClassification"] == "SURROGATE_RESULT")
             ) {
-              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Cannot be empty for data classification ${rowData["DataClassification"]}"}}`;
-              errorLogs.push(JSON.parse(errorLog));
+              let errorLog = {
+                rowNum: rowNumber,
+                type: "ERROR",
+                message: {
+                  [field]: `Cannot be empty for data classification ${rowData["DataClassification"]}`
+                }
+              };
+              errorLogs.push(errorLog);
             }
           }
 
@@ -936,19 +972,37 @@ export class FileParseValidateService {
             ) {
               let errorLog;
               if (rowData[field] === `""`) {
-                errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "Empty quotes is not valid number"}}`;
+                errorLog = {
+                  rowNum: rowNumber,
+                  type: "ERROR",
+                  message: {
+                    [field]: "Empty quotes is not valid number"
+                  }
+                };
               } else {
-                errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid number"}}`;
+                errorLog = {
+                  rowNum: rowNumber,
+                  type: "ERROR",
+                  message: {
+                    [field]: `${rowData[field]} is not valid number`
+                  }
+                };
               }
-              errorLogs.push(JSON.parse(errorLog));
+              errorLogs.push(errorLog);
             }
           } else {
             const validString =
               typeof rowData[field] === "string" &&
               rowData[field].trim().length > 0;
             if (rowData[field] !== "" && !validString) {
-              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${field}": "${rowData[field]} is not valid number"}}`;
-              errorLogs.push(JSON.parse(errorLog));
+              let errorLog = {
+                rowNum: rowNumber,
+                type: "ERROR",
+                message: {
+                  [field]: `${rowData[field]} is not valid number`
+                }
+              };
+              errorLogs.push(errorLog);
             }
           }
         }
@@ -964,36 +1018,66 @@ export class FileParseValidateService {
         );
 
         if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${unitFields}": "${rowData[unitFields]} not found in EnMoDS Units"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              [unitFields]: `${rowData[unitFields]} not found in EnMoDS Units`
+            }
+          };
+          errorLogs.push(errorLog);
         }
       }
     } else if (rowData.hasOwnProperty(unitFields)) {
-      let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"${unitFields}": Cannot be empty"}}`;
-      errorLogs.push(JSON.parse(errorLog));
+      let errorLog = {
+        rowNum: rowNumber,
+        type: "ERROR",
+        message: {
+          [unitFields]: "Cannot be empty"
+        }
+      };
+      errorLogs.push(errorLog);
     }
 
     if (rowData.hasOwnProperty("Depth Unit")) {
       if (rowData["Depth Upper"]) {
-        if (rowData["Depth Unit"] != "metre") {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DepthUnit": "${rowData["Depth Unit"]} is not valid unit for Depth. Only 'Metre' is allowed"}}`;
-          errorLogs.push(JSON.parse(errorLog));
-        }
+              if (rowData["Depth Unit"] != "metre") {
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            DepthUnit: `${rowData["Depth Unit"]} is not valid unit for Depth. Only 'Metre' is allowed`
+          }
+        };
+        errorLogs.push(errorLog);
+      }
       }
     }
 
     if (rowData.hasOwnProperty("SamplingAgency")) {
       if (rowData["SamplingAgency"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SamplingAgency": "Cannot be empty"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            SamplingAgency: "Cannot be empty"
+          }
+        };
+        errorLogs.push(errorLog);
       } else {
         const present = await this.aqiService.databaseLookup(
           "aqi_sampling_agency",
           rowData.SamplingAgency,
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SamplingAgency": "${rowData.SamplingAgency} not found in EnMoDS Sampling Agency"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              SamplingAgency: `${rowData.SamplingAgency} not found in EnMoDS Sampling Agency`
+            }
+          };
+          errorLogs.push(errorLog);
         }
       }
     }
@@ -1004,8 +1088,14 @@ export class FileParseValidateService {
         rowData.Project,
       );
       if (!present) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Project": "${rowData.Project} not found in EnMoDS Projects"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            Project: `${rowData.Project} not found in EnMoDS Projects`
+          }
+        };
+        errorLogs.push(errorLog);
       }
     }
 
@@ -1015,12 +1105,24 @@ export class FileParseValidateService {
         rowData.LocationID,
       );
       if (!present) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "${rowData.LocationID} not found in EnMoDS Locations"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            LocationID: `${rowData.LocationID} not found in EnMoDS Locations`
+          }
+        };
+        errorLogs.push(errorLog);
       }
     } else {
-      let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"LocationID": "Cannot be empty"}}`;
-      errorLogs.push(JSON.parse(errorLog));
+      let errorLog = {
+        rowNum: rowNumber,
+        type: "ERROR",
+        message: {
+          LocationID: "Cannot be empty"
+        }
+      };
+      errorLogs.push(errorLog);
     }
 
     if (
@@ -1032,8 +1134,14 @@ export class FileParseValidateService {
         rowData.FieldPreservative,
       );
       if (!present) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Preservative": "${rowData.FieldPreservative} not found in EnMoDS Preservatives"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            Preservative: `${rowData.FieldPreservative} not found in EnMoDS Preservatives`
+          }
+        };
+        errorLogs.push(errorLog);
       }
     }
 
@@ -1043,16 +1151,28 @@ export class FileParseValidateService {
         rowData["DataClassification"] == "SURROGATE_RESULT"
       ) {
         if (rowData["CollectionMethod"] == "") {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"CollectionMethod": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              CollectionMethod: `Cannot be empty when Data Classification is ${rowData["DataClassification"]}`
+            }
+          };
+          errorLogs.push(errorLog);
         } else {
           const present = await this.aqiService.databaseLookup(
             "aqi_collection_methods",
             rowData.CollectionMethod,
           );
           if (!present) {
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"CollectionMethod": "${rowData.CollectionMethod} not found in EnMoDS Collection Methods"}}`;
-            errorLogs.push(JSON.parse(errorLog));
+            let errorLog = {
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                CollectionMethod: `${rowData.CollectionMethod} not found in EnMoDS Collection Methods`
+              }
+            };
+            errorLogs.push(errorLog);
           }
         }
       }
@@ -1060,16 +1180,28 @@ export class FileParseValidateService {
 
     if (rowData.hasOwnProperty("Medium")) {
       if (rowData["Medium"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Medium": "Cannot be empty"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            Medium: "Cannot be empty"
+          }
+        };
+        errorLogs.push(errorLog);
       } else {
         const present = await this.aqiService.databaseLookup(
           "aqi_mediums",
           rowData.Medium,
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Medium": "${rowData.Medium} not found in EnMoDS Mediums"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              Medium: `${rowData.Medium} not found in EnMoDS Mediums`
+            }
+          };
+          errorLogs.push(errorLog);
         }
       }
     }
@@ -1083,8 +1215,14 @@ export class FileParseValidateService {
         rowData.DetectionCondition.toUpperCase().replace(/ /g, "_"),
       );
       if (!present) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DetectionCondition": "${rowData.DetectionCondition} not found in EnMoDS Detection Conditions"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            DetectionCondition: `${rowData.DetectionCondition} not found in EnMoDS Detection Conditions`
+          }
+        };
+        errorLogs.push(errorLog);
       }
     }
 
@@ -1094,37 +1232,86 @@ export class FileParseValidateService {
         rowData.Fraction.toUpperCase(),
       );
       if (!present) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Fraction": "${rowData.Fraction} not found in EnMoDS Fractions"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            Fraction: `${rowData.Fraction} not found in EnMoDS Fractions`
+          }
+        };
+        errorLogs.push(errorLog);
       }
     }
 
     if (rowData.hasOwnProperty("DataClassification")) {
       if (rowData["DataClassification"] == "") {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DataClassification": "Cannot be empty"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            DataClassification: "Cannot be empty"
+          }
+        };
+        errorLogs.push(errorLog);
       } else {
         const present = await this.aqiService.databaseLookup(
           "aqi_data_classifications",
           rowData.DataClassification,
         );
         if (!present) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DataClassification": "${rowData.DataClassification} not found in EnMoDS Data Classesifications"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              DataClassification: `${rowData.DataClassification} not found in EnMoDS Data Classesifications`
+            }
+          };
+          errorLogs.push(errorLog);
         }
       }
 
       if (rowData["CompositeStat"] != "") {
         if (rowData["DataClassification"] != "LAB") {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"DataClassification": "Must be LAB when Composite Stat is porvided."}}`;
-          errorLogs.push(JSON.parse(errorLog));
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              DataClassification: "Must be LAB when Composite Stat is porvided."
+            }
+          };
+          errorLogs.push(errorLog);
         }
 
         if (rowData["DataClassification"] == "LAB") {
           if (rowData["SpecimenName"] == "") {
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SpecimenName": "Cannot be empty when Composite Stat is present and Data Classification is LAB."}}`;
-            errorLogs.push(JSON.parse(errorLog));
+            let errorLog = {
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                SpecimenName: "Cannot be empty when Composite Stat is present and Data Classification is LAB."
+              }
+            };
+            errorLogs.push(errorLog);
           }
+        }
+      }
+    }
+
+    if (rowData.hasOwnProperty("FieldFiltered")) {
+      if (
+        rowData["DataClassification"] == "LAB" ||
+        rowData["DataClassification"] == "SURROGATE_RESULT"
+      ) {
+        const val = String(rowData["FieldFiltered"]).toLowerCase();
+        if (val !== "true" && val !== "false" && val !== "") {
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              FieldFiltered: `Value must either be True or False or empty. Value entered is ${rowData["FieldFiltered"]}`
+            }
+          };
+          errorLogs.push(errorLog);
         }
       }
     }
@@ -1135,8 +1322,14 @@ export class FileParseValidateService {
           rowData["SourceOfRoundedValue"] != "PROVIDED_BY_USER" ||
           rowData["SourceOfRoundedValue"] != "ROUNDING_SPECIFICATION"
         ) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SourceOfRoundedValue": "Must be PROVIDED_BY_USER or ROUNDING_SPECIFICATION."}}`;
-          errorLogs.push(JSON.parse(errorLog));
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              SourceOfRoundedValue: "Must be PROVIDED_BY_USER or ROUNDING_SPECIFICATION."
+            }
+          };
+          errorLogs.push(errorLog);
         }
       }
     }
@@ -1146,8 +1339,14 @@ export class FileParseValidateService {
         rowData["RoundedValue"] == "" &&
         rowData["SourceOfRoundedValue"] == "PROVIDED_BY_USER"
       ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"RoundedValue": "Cannot be empty when Source of Rounded Value is PROVIDED_BY_USER."}}`;
-        errorLogs.push(JSON.parse(errorLog));
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            RoundedValue: "Cannot be empty when Source of Rounded Value is PROVIDED_BY_USER."
+          }
+        };
+        errorLogs.push(errorLog);
       }
     }
 
@@ -1156,8 +1355,14 @@ export class FileParseValidateService {
         rowData["RoundingSpecification"] == "" &&
         rowData["SourceOfRoundedValue"] == "ROUNDING_SPECIFICATION"
       ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"RoundingSpecification": "Cannot be empty when Source of Rounded Value is ROUNDING_SPECIFICATION."}}`;
-        errorLogs.push(JSON.parse(errorLog));
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            RoundingSpecification: "Cannot be empty when Source of Rounded Value is ROUNDING_SPECIFICATION."
+          }
+        };
+        errorLogs.push(errorLog);
       }
     }
 
@@ -1167,16 +1372,28 @@ export class FileParseValidateService {
         rowData["DataClassification"] == "SURROGATE_RESULT"
       ) {
         if (rowData["AnalyzingAgency"] == "") {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalyzingAgency": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              AnalyzingAgency: `Cannot be empty when Data Classification is ${rowData["DataClassification"]}`
+            }
+          };
+          errorLogs.push(errorLog);
         } else {
           const present = await this.aqiService.databaseLookup(
             "aqi_laboratories",
             rowData.AnalyzingAgency,
           );
           if (!present) {
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalyzingAgency": "${rowData.AnalyzingAgency} not found in EnMoDS Agencies"}}`;
-            errorLogs.push(JSON.parse(errorLog));
+            let errorLog = {
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                AnalyzingAgency: `${rowData.AnalyzingAgency} not found in EnMoDS Agencies`
+              }
+            };
+            errorLogs.push(errorLog);
           }
         }
       }
@@ -1214,8 +1431,14 @@ export class FileParseValidateService {
         rowData.ResultStatus,
       );
       if (!present) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ResultStatus": "${rowData.ResultStatus} not found in EnMoDS Result Statuses"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            ResultStatus: `${rowData.ResultStatus} not found in EnMoDS Result Statuses`
+          }
+        };
+        errorLogs.push(errorLog);
       }
     }
 
@@ -1225,8 +1448,14 @@ export class FileParseValidateService {
         rowData.ResultGrade,
       );
       if (!present) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"ResultGrade": "${rowData.ResultGrade} not found in EnMoDS Result Grades"}}`;
-        errorLogs.push(JSON.parse(errorLog));
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            ResultGrade: `${rowData.ResultGrade} not found in EnMoDS Result Grades`
+          }
+        };
+        errorLogs.push(errorLog);
       }
     }
 
@@ -1237,16 +1466,28 @@ export class FileParseValidateService {
       ) {
         if (/^Animal - Fish\b/.test(rowData["Medium"])) {
           if (rowData["TissueType"] == "") {
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"TissueType": "Cannot be empty when Data Classification is ${rowData.DataClassification} and Medium is ${rowData.Medium}"}}`;
-            errorLogs.push(JSON.parse(errorLog));
+            let errorLog = {
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                TissueType: `Cannot be empty when Data Classification is ${rowData.DataClassification} and Medium is ${rowData.Medium}`
+              }
+            };
+            errorLogs.push(errorLog);
           } else if (rowData["TissueType"]) {
             const present = await this.aqiService.databaseLookup(
               "aqi_tissue_types",
               rowData.TissueType,
             );
             if (!present) {
-              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"TissueType": "${rowData.TissueType} not found in EnMoDS Tissue Types"}}`;
-              errorLogs.push(JSON.parse(errorLog));
+              let errorLog = {
+                rowNum: rowNumber,
+                type: "ERROR",
+                message: {
+                  TissueType: `${rowData.TissueType} not found in EnMoDS Tissue Types`
+                }
+              };
+              errorLogs.push(errorLog);
             }
           }
         }
@@ -1266,8 +1507,14 @@ export class FileParseValidateService {
           rowData["QCType"].toUpperCase() != "OTHER_QC"
         ) {
           // null because the AQI api considers the type REGULAR as NULL
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"QCType": "${rowData.QCType} not found in EnMoDS QC Types"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              QCType: `${rowData.QCType} not found in EnMoDS QC Types`
+            }
+          };
+          errorLogs.push(errorLog);
         }
       }
     }
@@ -1281,8 +1528,14 @@ export class FileParseValidateService {
           /^Animal\b/.test(rowData["Medium"]) &&
           rowData["SpecimenName"] == ""
         ) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"SpecimenName": "Cannot be empty when Medium is ${rowData.Medium} and Data Classification is ${rowData.DataClassification}"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              SpecimenName: `Cannot be empty when Medium is ${rowData.Medium} and Data Classification is ${rowData.DataClassification}`
+            }
+          };
+          errorLogs.push(errorLog);
         }
       }
     }
@@ -1372,14 +1625,26 @@ export class FileParseValidateService {
               this.logger.log(`[Row ${rowNumber}] Specific time visit check - found existing visit at exact time, issuing WARNING`);
               visitExists = true;
               existingGUIDS["visit"] = seenVisitUrlForTime.GUID;
-              let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
-              errorLogs.push(JSON.parse(errorLog));
-            } else {
-              // visit exists for day but not at specific time - issue ERROR
-              this.logger.log(`[Row ${rowNumber}] Specific time visit check - visit exists for day but not at specific time, issuing ERROR`);
-              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Visit": "A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}"}}`;
-              errorLogs.push(JSON.parse(errorLog));
-            }
+              let errorLog = {
+                rowNum: rowNumber,
+                type: "WARN",
+                message: {
+                  Visit: `Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits`
+                }
+              };
+              errorLogs.push(errorLog);
+                          } else {
+                // visit exists for day but not at specific time - issue ERROR
+                this.logger.log(`[Row ${rowNumber}] Specific time visit check - visit exists for day but not at specific time, issuing ERROR`);
+                let errorLog = {
+                  rowNum: rowNumber,
+                  type: "ERROR",
+                  message: {
+                    Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}`
+                  }
+                };
+                errorLogs.push(errorLog);
+              }
           } else {
             this.logger.log(`[Row ${rowNumber}] Specific time visit check - making API call`);
             const visitURLCalledForTime = await this.aqiService.getFieldVisits(
@@ -1391,13 +1656,25 @@ export class FileParseValidateService {
               this.logger.log(`[Row ${rowNumber}] Specific time visit check - API returned existing visit at exact time, issuing WARNING`);
               visitExists = true;
               existingGUIDS["visit"] = visitURLCalledForTime.GUID;
-              let errorLog = `{"rowNum": ${rowNumber}, "type": "WARN", "message": {"Visit": "Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits"}}`;
-              errorLogs.push(JSON.parse(errorLog));
+              let errorLog = {
+                rowNum: rowNumber,
+                type: "WARN",
+                message: {
+                  Visit: `Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits`
+                }
+              };
+              errorLogs.push(errorLog);
             } else {
               // visit exists for day but not at specific time - issue ERROR
               this.logger.log(`[Row ${rowNumber}] Specific time visit check - API returned no visit at specific time, issuing ERROR`);
-              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Visit": "A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}. Please correct the date time and re-upload the file."}}`;
-              errorLogs.push(JSON.parse(errorLog));
+              let errorLog = {
+                rowNum: rowNumber,
+                type: "ERROR",
+                message: {
+                  Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}. Please correct the date time and re-upload the file.`
+                }
+              };
+              errorLogs.push(errorLog);
             }
             validationApisCalled.push(visitURLCalledForTime);
           }
@@ -1432,8 +1709,14 @@ export class FileParseValidateService {
               this.logger.log(`[Row ${rowNumber}] Activity check - found existing activity, issuing ERROR`);
               activityExists = true;
               existingGUIDS["activity"] = seenActivityUrl.GUID;
-              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
-              errorLogs.push(JSON.parse(errorLog));
+              let errorLog = {
+                rowNum: rowNumber,
+                type: "ERROR",
+                message: {
+                  Activity: `Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities`
+                }
+              };
+              errorLogs.push(errorLog);
             } else {
               this.logger.log(`[Row ${rowNumber}] Activity check - no existing activity found`);
             }
@@ -1448,8 +1731,14 @@ export class FileParseValidateService {
               this.logger.log(`[Row ${rowNumber}] Activity check - API returned existing activity, issuing ERROR`);
               visitExists = true;
               existingGUIDS["activity"] = activityURLCalled.GUID;
-              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Activity": "Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities"}}`;
-              errorLogs.push(JSON.parse(errorLog));
+              let errorLog = {
+                rowNum: rowNumber,
+                type: "ERROR",
+                message: {
+                  Activity: `Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities`
+                }
+              };
+              errorLogs.push(errorLog);
             } else {
               this.logger.log(`[Row ${rowNumber}] Activity check - API returned no existing activity`);
             }
@@ -1482,8 +1771,14 @@ export class FileParseValidateService {
         );
 
         if (sameDayVisit) {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Visit": "Cannot have more than one visit record on the same day (${rowData.FieldVisitStartTime}) for a location (${rowData.LocationID})"}}`;
-          errorLogs.push(JSON.parse(errorLog));
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              Visit: `Cannot have more than one visit record on the same day (${rowData.FieldVisitStartTime}) for a location (${rowData.LocationID})`
+            }
+          };
+          errorLogs.push(errorLog);
         } else {
           fieldVisitStartTimes[locationID].push(rawDateFromRow);
         }
