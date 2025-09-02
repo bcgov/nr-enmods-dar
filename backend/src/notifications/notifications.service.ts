@@ -291,7 +291,15 @@ export class NotificationsService {
   async sendEmail(
     emails: string[],
     emailTemplate: EmailTemplate,
-    variables: any
+    variables: {
+      file_name: string;
+      user_account_name: string;
+      file_status: string;
+      errors: string;
+      warnings: string;
+      sys_time: string;
+      status_string: string;
+    },
   ): Promise<string> {
     const chesToken = await this.getChesToken();
 
@@ -317,7 +325,7 @@ export class NotificationsService {
 
     const config = {
       method: "post",
-      url: `${process.env.ches_email_url}`,
+      url: `${process.env.CHES_EMAIL_URL}`,
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${chesToken}`,
@@ -451,9 +459,9 @@ export class NotificationsService {
    * @returns
    */
   async getChesToken(): Promise<string> {
-    const url = process.env.ches_token_url;
+    const url = process.env.CHES_TOKEN_URL;
     const encodedToken = Buffer.from(
-      `${process.env.ches_client_id}:${process.env.ches_client_secret}`,
+      `${process.env.CHES_CLIENT_ID}:${process.env.CHES_CLIENT_SECRET}`,
     ).toString("base64");
 
     const headers = {
@@ -514,10 +522,6 @@ export class NotificationsService {
       body: body,
     };
 
-    return this.sendEmail(["vmanawat@salussystems.com"], emailTemplate, {
-      ...variables
-    }) 
-
     const chesToken = await this.getChesToken();
 
     const emailData = JSON.stringify({
@@ -542,7 +546,7 @@ export class NotificationsService {
 
     const config = {
       method: "post",
-      url: `${process.env.ches_email_url}`,
+      url: `${process.env.CHES_EMAIL_URL}`,
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${chesToken}`,
