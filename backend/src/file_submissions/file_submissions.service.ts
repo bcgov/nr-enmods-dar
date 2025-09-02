@@ -61,6 +61,8 @@ export class FileSubmissionsService {
     createFileSubmissionDto.sample_count = 0;
     createFileSubmissionDto.result_count = 0;
     // createFileSubmissionDto.file_row_count = body.file_row_count
+    createFileSubmissionDto.organization_guid = body.orgGUID; // TODO: change this once BCeID is set up
+    createFileSubmissionDto.data_submitter_email = body.notification == 'true' ? body.dataSubmitterEmail : "";
     createFileSubmissionDto.organization_guid =
       body.orgGUID === "null" ? null : body.orgGUID;
     createFileSubmissionDto.create_user_id = body.userID;
@@ -87,6 +89,7 @@ export class FileSubmissionsService {
       active_ind: createFileSubmissionDto.active_ind,
       error_log: createFileSubmissionDto.error_log,
       organization_guid: createFileSubmissionDto.organization_guid,
+      data_submitter_email: createFileSubmissionDto.data_submitter_email,
       create_user_id: createFileSubmissionDto.create_user_id,
       create_utc_timestamp: createFileSubmissionDto.create_utc_timestamp,
       update_user_id: createFileSubmissionDto.update_user_id,
@@ -106,6 +109,7 @@ export class FileSubmissionsService {
       operation: string;
       agency: string;
       orgGUID: string;
+      data_submitter_email: string
     },
     file: Express.Multer.File,
   ) {
@@ -132,6 +136,7 @@ export class FileSubmissionsService {
     createFileSubmissionDto.result_count = 0;
     createFileSubmissionDto.organization_guid =
       body.orgGUID === undefined ? null : body.orgGUID;
+    createFileSubmissionDto.data_submitter_email = body.data_submitter_email,
     createFileSubmissionDto.create_user_id = body.userID;
     createFileSubmissionDto.create_utc_timestamp = new Date();
     createFileSubmissionDto.update_user_id = body.userID;
@@ -150,6 +155,7 @@ export class FileSubmissionsService {
         },
       },
       submitter_agency_name: createFileSubmissionDto.submitter_agency_name,
+      data_submitter_email: createFileSubmissionDto.data_submitter_email,
       sample_count: createFileSubmissionDto.sample_count,
       results_count: createFileSubmissionDto.result_count,
       active_ind: createFileSubmissionDto.active_ind,
@@ -286,6 +292,17 @@ export class FileSubmissionsService {
 
     records = { ...records, count, results };
     return records;
+  }
+
+  async findBySubmissionId(submission_id: string) {
+    return await this.prisma.file_submission.findUnique({
+      where: {
+        submission_id: submission_id,
+      },
+      include: {
+        file_error_logs: true,
+      },
+    });
   }
 
   async getAgencies() {

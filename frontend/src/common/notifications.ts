@@ -47,3 +47,22 @@ export async function updateNotification(
   });
   await api.post(postParameters);
 }
+
+export async function requestAccess(
+  email: string,
+  accountType: string,
+  fullname: string,
+  username: string,
+  endpoint: string
+) {
+  const requestAccessUrl: string = `${config.API_BASE_URL}/notifications/request-access`;
+  const postParameters = api.generateApiParameters(requestAccessUrl, {
+    email: email,
+    accountType: accountType,
+    fullname: fullname,
+    username: username,
+    edtURL: endpoint
+  });
+  const response: any = await api.post(postParameters);
+  return response;
+}
