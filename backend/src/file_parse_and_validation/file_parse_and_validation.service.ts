@@ -1551,8 +1551,6 @@ export class FileParseValidateService {
       observationsErrors,
     );
 
-    console.log(finalErrorLog)
-
     return finalErrorLog;
   }
 
