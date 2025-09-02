@@ -588,6 +588,25 @@ export class AqiApiService {
         } catch (err) {
           this.logger.error(`API CALL TO ${dbTable} failed: `, err);
         }
+      case "aqi_associated_analysis_methods":
+        try{
+          let result = await this.prisma.aqi_associated_analysis_methods.findMany({
+            where: {
+              observed_property_name: queryParam
+            },
+            select: {
+              analysis_methods: true
+            }
+          })
+
+          if (result.length > 0){
+            return result
+          }else{
+            return null
+          }
+        }catch (err){
+          this.logger.error(`API CALL TO ${dbTable} failed: `, err);
+        }
       default:
         try {
           let result = await this.prisma[dbTable].findMany({
