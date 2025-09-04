@@ -799,12 +799,12 @@ export class FileParseValidateService {
     }
 
     for (let i = 0; i < sourceHeaders.length; i++) {
-      if (sourceHeaders[i] !== targetHeaders[i]) {
-        if (targetHeaders[i] === undefined) {
-          let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${sourceHeaders[i]} is invalid. Please check submission file."}}`;
+      if (sourceHeaders[i]?.trim() !== targetHeaders[i]?.trim()) {
+        if (targetHeaders[i]?.trim() === undefined) {
+          let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${sourceHeaders[i]?.trim()} is invalid. Please check submission file."}}`;
           headerErrors.push(JSON.parse(errorLog));
         } else {
-          let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${sourceHeaders[i]}, should be ${targetHeaders[i]}"}}`;
+          let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${sourceHeaders[i]?.trim()}, should be ${targetHeaders[i]?.trim()}"}}`;
           headerErrors.push(JSON.parse(errorLog));
         }
       }
@@ -1403,12 +1403,15 @@ export class FileParseValidateService {
           rowData.ObservedPropertyID
         )
 
-        if (associatedMethods.length > 0){
+        if (associatedMethods && associatedMethods.length > 0){
           const methods = associatedMethods[0]?.analysis_methods
           if (!methods.includes(rowData["AnalysisMethod"])){
             let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "${rowData.AnalyzingMethod} not valid for observed property ${rowData.ObservedPropertyID}"}}`;
             errorLogs.push(JSON.parse(errorLog));
           }
+        }else{
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "Could not find the method: ${rowData.AnalyzingMethod} for Observed Property: ${rowData.ObservedPropertyID}. Wait for data refresh that happens every 6 hours."}}`;
+          errorLogs.push(JSON.parse(errorLog));
         }
       }
     }
