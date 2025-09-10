@@ -356,64 +356,38 @@ export class CronJobService {
     axios.defaults.headers.common["x-api-key"] = process.env.AQI_ACCESS_TOKEN;
 
     const baseUrl = process.env.AQI_BASE_URL;
-    let entries = [];
-    let cursor = "";
-    let total = 0;
-    let processedCount = 0;
-    let loopCount = 0;
 
     try {
-      do {
-        // make api call to find total number of records
-        let url = `${baseUrl}/v1/analysismethods`;
-        const counterCall = await axios.get(url);
-        total = counterCall.data.totalCount || 0;
+      // make api call to find total number of records
+      let url = `${baseUrl}/v1/analysismethods`;
+      const counterCall = await axios.get(url);
+      const total = counterCall.data.totalCount || 0;
 
-        // update url to include the total count as limit
-        url = url + `?limit=${total}`;
-        const response = await axios.get(url);
+      // update url to include the total count as limit
+      url = url + `?limit=${total}`;
+      const response = await axios.get(url);
+      const entries = response.data.domainObjects || [];
 
-        entries = entries.concat(response.data.domainObjects || []);
+      this.logger.log(
+        `Fetched ${entries.length} entries from v1/analysismethods. Total available: ${total}`,
+      );
 
-        for (const analysisMethod of entries) {
-          for (const property of analysisMethod.observedProperties) {
-            if (!map.has(property.id)) {
-              map.set(property.id, {
-                id: property.id,
-                customId: property.customId,
-                methodIds: new Set(),
-              });
-            }
-            map.get(property.id)!.methodIds.add(analysisMethod.methodId);
+      for (const analysisMethod of entries) {
+        for (const property of analysisMethod.observedProperties) {
+          let propertyEntry = map.get(property.id);
+          if (!propertyEntry) {
+            propertyEntry = {
+              id: property.id,
+              customId: property.customId,
+              methodIds: new Set(),
+            };
+            map.set(property.id, propertyEntry);
           }
+          propertyEntry.methodIds.add(analysisMethod.methodId);
         }
+      }
 
-        this.logger.log(
-          `Fetched ${entries.length} entries from v1/analysismethods. Processed: ${processedCount}/${total}`,
-        );
-        // Increment counters
-        processedCount += entries.length;
-        loopCount++;
-
-        // Log progress periodically
-        if (loopCount % 5 === 0 || processedCount >= total) {
-          this.logger.log(`Progress: ${processedCount}/${total}`);
-        }
-
-        // Break if we've processed all expected entries
-        if (processedCount >= total) {
-          this.logger.log(`Completed fetching data for v1/analysismethods.`);
-          break;
-        }
-
-        // Edge case: Break if no entries are returned but the cursor is still valid
-        if (entries.length === 0 && cursor) {
-          this.logger.warn(
-            `Empty response for v1/analysismethods. with cursor ${cursor}. Terminating early.`,
-          );
-          break;
-        }
-      } while (cursor);
+      this.logger.log(`Completed processing ${entries.length} analysis methods.`);
     } finally {
       this.logger.log(`Cron Job completed.`);
       this.operationLockService.releaseLock("ANALYSIS_METHODS");
