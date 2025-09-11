@@ -2646,11 +2646,11 @@ export class FileParseValidateService {
       }
 
       if (!/^Animal - .+/.test(rowData["Medium"])){
-        rowData["EA_Biological Life Stage"] = ""
+        rowData["BiologicalLifeStage"] = ""
       }
 
       if ((rowData["DataClassification"] !== "LAB" && rowData["DataClassification"] !== "SURROGATE_RESULT" && rowData["DataClassification"] !== "FIELD_SURVEY")){
-        rowData["EA_Biological Life Stage"] = ""
+        rowData["BiologicalLifeStage"] = ""
       }
 
       this.logger.log(`Finished creating object for row ${rowNumber}`);
