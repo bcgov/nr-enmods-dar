@@ -29,7 +29,7 @@ export default function AppRoutes() {
 
         <Route path="/unsubscribe/:uuid" element={<Unsubscribe />} />
 
-        <Route path="*" element={<RequestAccess />} />
+        <Route path="/not-authorized" element={<RequestAccess />} />
       </Routes>
     </>
   );
