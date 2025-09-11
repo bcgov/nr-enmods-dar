@@ -2930,6 +2930,8 @@ export class FileParseValidateService {
         });
       });
 
+      await this.notificationsService.notifyUserOfError(file_submission_id);
+
       return;
     }
 
@@ -3443,6 +3445,9 @@ export class FileParseValidateService {
                 "ERROR",
               );
             }
+
+            await this.notificationsService.notifyUserOfError(file_submission_id);
+
             return;
           }
 
@@ -3595,6 +3600,7 @@ export class FileParseValidateService {
           file_submission_id,
           "ERROR",
         );
+        await this.notificationsService.notifyUserOfError(file_submission_id);
         return;
       });
 
@@ -3821,6 +3827,7 @@ export class FileParseValidateService {
               file_submission_id,
               "ERROR",
             );
+            await this.notificationsService.notifyUserOfError(file_submission_id);
             return;
           });
 
@@ -3958,6 +3965,7 @@ export class FileParseValidateService {
               );
             }
             this.logger.log("Partial upload detected, leaving import process");
+            await this.notificationsService.notifyUserOfError(file_submission_id);
             return;
           }
 
