@@ -9,6 +9,7 @@ import * as api from "./api";
  */
 export async function unsubscribeNotifications(guid: string) {
   const unsubscribeUrl: string = `${config.API_BASE_URL}/notifications/unsubscribe`;
+  console.log(unsubscribeUrl)
   const postParameters = api.generateApiParameters(unsubscribeUrl, {
     guid: guid,
   });
