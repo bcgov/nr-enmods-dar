@@ -1387,31 +1387,33 @@ export class FileParseValidateService {
       }
     }
 
-    if (rowData["AnalysisMethod"]){
-
+    if (rowData.hasOwnProperty("AnalysisMethod")) {
       // if data classification is LAB/SURROGATE ensure Analysis Method is entered
-      if ((rowData["DataClassification"] == "LAB" || rowData["DataClassification"] == "SURROGATE_RESULT") && rowData["AnalysisMethod"] == ""){
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
-          errorLogs.push(JSON.parse(errorLog));
-      }
+      if (
+        (rowData["DataClassification"] == "LAB" ||
+          rowData["DataClassification"] == "SURROGATE_RESULT") &&
+        rowData["AnalysisMethod"] == ""
+      ) {
+        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
+        errorLogs.push(JSON.parse(errorLog));
+      } else {
+        // if valid OP, then check if the analysis method is an associated method for that OP
+        if (validObservedProperty) {
+          const associatedMethods: any = await this.aqiService.databaseLookup(
+            "aqi_associated_analysis_methods",
+            rowData.ObservedPropertyID,
+          );
 
-
-      // if valid OP, then check if the analysis method is an associated method for that OP
-      if (validObservedProperty){
-        const associatedMethods: any = await this.aqiService.databaseLookup(
-          "aqi_associated_analysis_methods",
-          rowData.ObservedPropertyID
-        )
-
-        if (associatedMethods && associatedMethods.length > 0){
-          const methods = associatedMethods[0]?.analysis_methods
-          if (!methods.includes(rowData["AnalysisMethod"])){
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "${rowData.AnalyzingMethod} not valid for observed property ${rowData.ObservedPropertyID}"}}`;
+          if (associatedMethods && associatedMethods.length > 0) {
+            const methods = associatedMethods[0]?.analysis_methods;
+            if (!methods.includes(rowData["AnalysisMethod"])) {
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "${rowData.AnalyzingMethod} not valid for observed property ${rowData.ObservedPropertyID}"}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
+          } else {
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "Could not find the method: ${rowData.AnalyzingMethod} for Observed Property: ${rowData.ObservedPropertyID}. Wait for data refresh that happens every 6 hours."}}`;
             errorLogs.push(JSON.parse(errorLog));
           }
-        }else{
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "Could not find the method: ${rowData.AnalyzingMethod} for Observed Property: ${rowData.ObservedPropertyID}. Wait for data refresh that happens every 6 hours."}}`;
-          errorLogs.push(JSON.parse(errorLog));
         }
       }
     }
@@ -1886,7 +1888,7 @@ export class FileParseValidateService {
     const userActivityName = rowData.ActivityName?.trim() || "";
     const QCType = rowData.QCType?.toUpperCase().trim() || "";
     const depthLower = rowData.DepthLower?.trim() || "";
-    const depthUpper = rowData.depthUpper?.trim() || "";
+    const depthUpper = rowData.DepthUpper?.trim() || "";
     const medium = rowData.Medium?.trim() || "";
     const locnId = rowData.LocationID?.trim() || "";
     const observedTime = rowData.ObservedDateTime?.trim() || "";
@@ -1996,8 +1998,14 @@ export class FileParseValidateService {
       rowData.DataClassification == "FIELD_SURVEY"
     ) {
       cleanedRow.ObservationID = "";
-      cleanedRow.FieldDeviceID = "";
-      cleanedRow.FieldDeviceType = "";
+      cleanedRow.FieldDeviceID =
+        rowData.DataClassification == "FIELD_SURVEY"
+          ? rowData.FieldDeviceID
+          : "";
+      cleanedRow.FieldDeviceType =
+        rowData.DataClassification == "FIELD_SURVEY"
+          ? rowData.FieldDeviceType
+          : "";
       cleanedRow.SamplingContextTag = "";
       cleanedRow.LimitType = "";
       cleanedRow.ResultGrade = "Ungraded";
@@ -2008,14 +2016,14 @@ export class FileParseValidateService {
           ? concatActivityName + ";FS"
           : concatActivityName; // TODO: this will need to uncommented after Jeremy is done testing
 
+      cleanedRow.AnalysisMethod =
+        rowData.DataClassification == "FIELD_SURVEY"
+          ? ""
+          : rowData.AnalysisMethod;
       if (cleanedRow.QCType == "REGULAR") {
         // this is because AQI interprets a null value as REGULAR
         cleanedRow.QCType = "";
       }
-      cleanedRow.AnalysisMethod = 
-        rowData.DataClassification == "FIELD_SURVEY"
-        ? ""
-        : rowData.AnalysisMethod
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
@@ -3338,6 +3346,11 @@ export class FileParseValidateService {
                 "ERROR",
               );
             }
+
+            await this.notificationsService.notifyUserOfError(
+              file_submission_id,
+            );
+
             return;
           }
 
@@ -3710,6 +3723,9 @@ export class FileParseValidateService {
               file_submission_id,
               "ERROR",
             );
+            await this.notificationsService.notifyUserOfError(
+              file_submission_id,
+            );
             return;
           });
 
@@ -3847,6 +3863,9 @@ export class FileParseValidateService {
               );
             }
             this.logger.log("Partial upload detected, leaving import process");
+            await this.notificationsService.notifyUserOfError(
+              file_submission_id,
+            );
             return;
           }
 
