@@ -1992,71 +1992,46 @@ export class FileParseValidateService {
 
     let concatActivityName = this.formulateActivityName(rowData);
 
-    if (
-      rowData.DataClassification == "LAB" ||
-      rowData.DataClassification == "SURROGATE_RESULT" ||
-      rowData.DataClassification == "FIELD_SURVEY"
-    ) {
+    if (rowData.DataClassification == "LAB" || rowData.DataClassification == "SURROGATE_RESULT"){
       cleanedRow.ObservationID = "";
-      cleanedRow.FieldDeviceID =
-        rowData.DataClassification == "FIELD_SURVEY"
-          ? rowData.FieldDeviceID
-          : "";
-      cleanedRow.FieldDeviceType =
-        rowData.DataClassification == "FIELD_SURVEY"
-          ? rowData.FieldDeviceType
-          : "";
+      cleanedRow.FieldDeviceID = "";
+      cleanedRow.FieldDeviceType = "";
       cleanedRow.SamplingContextTag = "";
       cleanedRow.LimitType = "";
+      cleanedRow.ResultStatus = "Preliminary"
       cleanedRow.ResultGrade = "Ungraded";
-      cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
-      cleanedRow.ActivityName =
-        rowData.DataClassification == "FIELD_SURVEY"
-          ? concatActivityName + ";FS"
-          : concatActivityName; // TODO: this will need to uncommented after Jeremy is done testing
-
-      cleanedRow.AnalysisMethod =
-        rowData.DataClassification == "FIELD_SURVEY"
-          ? ""
-          : rowData.AnalysisMethod;
-      if (cleanedRow.QCType == "REGULAR") {
-        // this is because AQI interprets a null value as REGULAR
-        cleanedRow.QCType = "";
-      }
-    } else if (
-      rowData.DataClassification == "FIELD_RESULT" ||
-      rowData.DataClassification == "ACTIVITY_RESULT" ||
-      rowData.DataClassification == "VERTICAL_PROFILE"
-    ) {
+      cleanedRow.ActivityName = concatActivityName
+    }else if (rowData.DataClassification == "FIELD_RESULT" || rowData.DataClassification == "ACTIVITY_RESULT" || rowData.DataClassification == "VERTICAL_PROFILE" || rowData.DataClassification == "FIELD_SURVEY"){
       cleanedRow.ObservationID = "";
-      cleanedRow.FieldFiltered = "";
-      cleanedRow.FieldFilteredComment = "";
-      cleanedRow.FieldPreservative = "";
       cleanedRow.SamplingContextTag = "";
       cleanedRow.LimitType = "";
-      cleanedRow.Fraction = "";
-      cleanedRow.AnalyzingAgency = "";
-      cleanedRow.AnalysisMethod = "";
-      cleanedRow.AnalyzedDateTime = "";
+      cleanedRow.ResultStatus = "Preliminary"
       cleanedRow.ResultGrade = "Ungraded";
-      cleanedRow.ResultStatus = "Preliminary";
       cleanedRow.ActivityID = "";
       cleanedRow.ActivityName =
         rowData.DataClassification == "ACTIVITY_RESULT"
           ? concatActivityName
-          : ""; // TODO: this will need to uncommented after Jeremy is done testing
-      cleanedRow.TissueType = "";
+          : rowData.DataClassification == "FIELD_SURVEY" ? concatActivityName + ";FS" : "";
+      cleanedRow.FieldFiltered = "";
+      cleanedRow.FieldFilteredComment = "";
+      cleanedRow.FieldPreservative = "";
+      cleanedRow.Fraction = "";
       cleanedRow.LabArrivalTemperature = "";
-      cleanedRow.SpecimenName = "";
       cleanedRow.LabQualityFlag = "";
       cleanedRow.LabArrivalDateandTime = "";
       cleanedRow.LabPreparedDateTime = "";
       cleanedRow.LabSampleID = "";
       cleanedRow.LabDilutionFactor = "";
-      cleanedRow.QCType = "";
       cleanedRow.QCSourceActivityName = "";
+      cleanedRow.AnalyzingAgency = "";
+      cleanedRow.AnalysisMethod = "";
+      cleanedRow.SpecimenName = "";
+      cleanedRow.QCType = "";
       cleanedRow.CompositeStat = "";
+      cleanedRow.TissueType = "";
+      cleanedRow.BioLifeStage 
+        rowData.DataClassification == "FIELD_SURVEY" ? rowData.BioLifeStage : ""
     }
 
     return cleanedRow;
