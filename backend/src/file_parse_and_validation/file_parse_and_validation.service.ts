@@ -1109,19 +1109,30 @@ export class FileParseValidateService {
     }
 
     if (rowData.hasOwnProperty("Project")) {
-      const present = await this.aqiService.databaseLookup(
-        "aqi_projects",
-        rowData.Project,
-      );
-      if (!present) {
+      if (rowData.Project == "") {
         let errorLog = {
           rowNum: rowNumber,
           type: "ERROR",
           message: {
-            Project: `${rowData.Project} not found in EnMoDS Projects`,
+            Project: `Project cannot be empty`,
           },
         };
         errorLogs.push(errorLog);
+      } else {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_projects",
+          rowData.Project,
+        );
+        if (!present) {
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              Project: `${rowData.Project} not found in EnMoDS Projects`,
+            },
+          };
+          errorLogs.push(errorLog);
+        }
       }
     }
 
@@ -2081,7 +2092,7 @@ export class FileParseValidateService {
   cleanRowBasedOnDataClassification(rowData: any) {
     let cleanedRow = rowData;
 
-    cleanedRow.QCType = rowData.QCType.toUpperCase();
+    cleanedRow.QCType = rowData.QCType == "" ? "REGULAR" : rowData.QCType.toUpperCase();
 
     let concatActivityName = this.formulateActivityName(rowData);
 
@@ -2343,7 +2354,7 @@ export class FileParseValidateService {
 
         if (visitGuid === "partialUpload") {
           partialUpload = true;
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Partia lUpload": "Issued a rollback as a partial upload was detected. Cause of partial upload: ${visitInfo.fieldVisit[1]}"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Partial Upload": "Issued a rollback as a partial upload was detected. Cause of partial upload: ${visitInfo.fieldVisit[1]}"}}`;
           validationErrors.push(JSON.parse(errorLog));
           return;
         }
@@ -2388,7 +2399,7 @@ export class FileParseValidateService {
           : visitInfo.fieldVisit;
         if (visitGuid === "partialUpload") {
           partialUpload = true;
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Partia lUpload": "Issued a rollback as a partial upload was detected. Cause of partial upload: ${visitInfo.fieldVisit[1]}"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Partial Upload": "Issued a rollback as a partial upload was detected. Cause of partial upload: ${visitInfo.fieldVisit[1]}"}}`;
           validationErrors.push(JSON.parse(errorLog));
           return;
         }
@@ -3446,7 +3457,9 @@ export class FileParseValidateService {
               );
             }
 
-            await this.notificationsService.notifyUserOfError(file_submission_id);
+            await this.notificationsService.notifyUserOfError(
+              file_submission_id,
+            );
 
             return;
           }
@@ -3827,7 +3840,9 @@ export class FileParseValidateService {
               file_submission_id,
               "ERROR",
             );
-            await this.notificationsService.notifyUserOfError(file_submission_id);
+            await this.notificationsService.notifyUserOfError(
+              file_submission_id,
+            );
             return;
           });
 
@@ -3965,7 +3980,9 @@ export class FileParseValidateService {
               );
             }
             this.logger.log("Partial upload detected, leaving import process");
-            await this.notificationsService.notifyUserOfError(file_submission_id);
+            await this.notificationsService.notifyUserOfError(
+              file_submission_id,
+            );
             return;
           }
 
