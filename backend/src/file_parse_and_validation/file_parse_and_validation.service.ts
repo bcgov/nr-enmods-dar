@@ -1424,7 +1424,7 @@ export class FileParseValidateService {
       } else {
         if (rowData["DataClassification"] != "FIELD_RESULT") {
           // if valid OP, then check if the analysis method is an associated method for that OP
-          if (validObservedProperty) {
+          if (validObservedProperty && rowData["AnalysisMethod"] !== "") {
             const associatedMethods: any = await this.aqiService.databaseLookup(
               "aqi_associated_analysis_methods",
               rowData.ObservedPropertyID,
@@ -2114,7 +2114,7 @@ export class FileParseValidateService {
       cleanedRow.QCSourceActivityName = "";
       cleanedRow.AnalyzingAgency = "";
       cleanedRow.AnalysisMethod = "";
-      cleanedRow.SpecimenName = "";
+      cleanedRow.SpecimenName = rowData.DataClassification == "FIELD_SURVEY" ? rowData.SpecimenName : "";
       cleanedRow.QCType = "";
       cleanedRow.CompositeStat = "";
       cleanedRow.TissueType = "";
