@@ -1992,7 +1992,7 @@ export class FileParseValidateService {
     const userActivityName = rowData.ActivityName?.trim() || "";
     const QCType = rowData.QCType?.toUpperCase().trim() || "";
     const depthLower = rowData.DepthLower?.trim() || "";
-    const depthUpper = rowData.depthUpper?.trim() || "";
+    const depthUpper = rowData.DepthUpper?.trim() || "";
     const medium = rowData.Medium?.trim() || "";
     const locnId = rowData.LocationID?.trim() || "";
     const observedTime = rowData.ObservedDateTime?.trim() || "";
