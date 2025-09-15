@@ -2002,6 +2002,7 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ActivityID = "";
       cleanedRow.ActivityName = concatActivityName
+      cleanedRow.QCType = rowData.QCType == "REGULAR" ? "" : rowData.QCType
     }else if (rowData.DataClassification == "FIELD_RESULT" || rowData.DataClassification == "ACTIVITY_RESULT" || rowData.DataClassification == "VERTICAL_PROFILE" || rowData.DataClassification == "FIELD_SURVEY"){
       cleanedRow.ObservationID = "";
       cleanedRow.SamplingContextTag = "";
