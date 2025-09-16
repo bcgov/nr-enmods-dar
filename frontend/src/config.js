@@ -7,7 +7,7 @@
 const config = {
   KEYCLOAK_CLIENT_ID: window.VITE_APP_KEYCLOAK_CLIENT_ID || import.meta.env.VITE_APP_KEYCLOAK_CLIENT_ID || "enmods-5391",
 
-  API_BASE_URL: window.VITE_APP_API_URL || import.meta.env.VITE_APP_API_URL || "api",
+  API_BASE_URL: window.VITE_APP_API_URL || import.meta.env.VITE_APP_API_URL || "/api",
 
   KEYCLOAK_URL: window.VITE_APP_KEYCLOAK_URL || import.meta.env.VITE_APP_KEYCLOAK_URL || window.REACT_APP_KEYCLOAK_URL || process.env.REACT_APP_KEYCLOAK_URL,
 
