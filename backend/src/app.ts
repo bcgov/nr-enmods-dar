@@ -14,7 +14,10 @@ export async function bootstrap() {
       logger: customLogger,
     });
   app.use(helmet());
-  app.enableCors();
+  app.enableCors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+  });
   app.set("trust proxy", 1);
   app.use(metricsMiddleware);
   app.enableShutdownHooks();
