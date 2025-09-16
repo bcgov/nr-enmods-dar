@@ -364,6 +364,12 @@ export class AqiApiService {
 
         const resultURL = await this.waitForObsStatus();
 
+        if (resultURL === null) {
+          this.logger.error("Observation status check timed out, returning timeout error");
+          const timeoutErrorLog = JSON.parse(`{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Observation status check timed out after 1 hour. Please try again later."}}`);
+          return [timeoutErrorLog];
+        }
+
         const obsStatus = await this.getObsResult(resultURL);
 
         const errorMessages = this.parseObsResultResponse(obsStatus);

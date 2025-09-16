@@ -2569,12 +2569,27 @@ export class FileParseValidateService {
   ) {
     // Import Observations file after all the visits, activities and specimens have been inserted
 
-    await this.aqiService.importObservations(
+    const observationsErrors = await this.aqiService.importObservations(
       filePath,
       "import",
       file_submission_id,
       file_operation_code,
     );
+
+    // if (observationsErrors) {
+    //   await this.rollBackPartialUpload(
+    //     GuidsToSave,
+    //     fileName,
+    //     file_submission_id,
+    //     originalFileName,
+    //     file_operation_code,
+    //     uniqueMinistryContacts,
+    //     fileValidationResults,
+    //   );
+    //   this.logger.warn("Deleted the partially imported data");
+    //   rollBackHalted = false;
+    //   return;
+    // }
 
     await this.fileSubmissionsService.updateFileStatus(
       file_submission_id,
