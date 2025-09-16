@@ -23,7 +23,6 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
     ]);
 
     if (isPublic) {
-      this.logger.log('Confirming endpoint is public')
       return true;
     } else {
       return super.canActivate(context);
