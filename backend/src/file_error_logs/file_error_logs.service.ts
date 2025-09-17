@@ -89,7 +89,15 @@ function formulateErrorFile(logs: any) {
       }
     });
 
-    if (logs[0].error_log.length >= 1) {
+    const strippedErrorLogs = formattedMessages.replace(
+      /[\s\S]*?Ministry Contact:.*?\n[-]+\n\n/,
+      "",
+    ); // this only keeping rows that pertain to errors/warnings
+    const logsAsLines = strippedErrorLogs.trim().split("\n");
+    const hasErrors = logsAsLines.some((line) => line.startsWith("ERROR:"));
+    const hasWarnings = logsAsLines.some((line) => line.startsWith("WARN:"));
+
+    if (logs[0].error_log.length >= 1 && hasErrors) {
       formattedMessages +=
         "\nData was not updated in ENMODS due to errors found in the submission file. Please correct the data and resubmit.";
     }

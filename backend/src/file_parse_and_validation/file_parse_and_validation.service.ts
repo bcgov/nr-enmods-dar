@@ -792,19 +792,67 @@ export class FileParseValidateService {
       sourceHeaders = rowHeaders;
     }
 
-    if (sourceHeaders.length != targetHeaders.length) {
-      let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "Invalid number of headers. Got ${sourceHeaders.length}, expected ${targetHeaders.length}"}}`;
+    // Normalize by trimming for all comparisons
+    const normalizedSourceHeaders = sourceHeaders.map((h) =>
+      h !== undefined && h !== null ? `${h}`.trim() : h,
+    );
+    const normalizedTargetHeaders = targetHeaders.map((h) =>
+      h !== undefined && h !== null ? `${h}`.trim() : h,
+    );
+
+    // Count matched headers for comparison
+    const matchedHeaders = normalizedSourceHeaders.filter(h => 
+      h !== "" && h !== null && h !== undefined && normalizedTargetHeaders.includes(h)
+    );
+    const nonEmptyTargetHeaders = normalizedTargetHeaders.filter(h => h !== "" && h !== null && h !== undefined);
+
+    if (matchedHeaders.length != nonEmptyTargetHeaders.length) {
+      // Find missing headers by comparing target headers with source headers
+      const missingHeaders = normalizedTargetHeaders.filter(
+        (header) => !normalizedSourceHeaders.includes(header),
+      );
+      const extraHeaders = normalizedSourceHeaders.filter(
+        (header) => !normalizedTargetHeaders.includes(header),
+      );
+
+      let errorMessage = `Invalid number of headers. Got ${matchedHeaders.length}, expected ${nonEmptyTargetHeaders.length}`;
+
+      if (missingHeaders.length > 0) {
+        const missingWithPositions = missingHeaders.map((header) => {
+          const expectedIndex = normalizedTargetHeaders.indexOf(header);
+          return expectedIndex >= 0
+            ? `${header} (position ${expectedIndex + 1})`
+            : header;
+        });
+        errorMessage += `. Missing headers: ${missingWithPositions.join(", ")}`;
+      }
+
+      if (extraHeaders.length > 0) {
+        // Find all positions of extra headers, ensuring each position is only reported once
+        const extraWithPositions = [];
+        const processedPositions = new Set();
+        
+        for (let i = 0; i < normalizedSourceHeaders.length; i++) {
+          const header = normalizedSourceHeaders[i];
+          if (extraHeaders.includes(header) && !processedPositions.has(i)) {
+            extraWithPositions.push(`${header} (position ${i + 1})`);
+            processedPositions.add(i);
+          }
+        }
+      }
+
+      let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${errorMessage}"}}`;
       headerErrors.push(JSON.parse(errorLog));
       return headerErrors;
     }
 
-    for (let i = 0; i < sourceHeaders.length; i++) {
-      if (sourceHeaders[i]?.trim() !== targetHeaders[i]?.trim()) {
-        if (targetHeaders[i]?.trim() === undefined) {
-          let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${sourceHeaders[i]?.trim()} is invalid. Please check submission file."}}`;
+    for (let i = 0; i < normalizedSourceHeaders.length; i++) {
+      if (normalizedSourceHeaders[i] !== normalizedTargetHeaders[i]) {
+        if (normalizedTargetHeaders[i] === undefined) {
+          let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${normalizedSourceHeaders[i]} is invalid. Please check submission file."}}`;
           headerErrors.push(JSON.parse(errorLog));
         } else {
-          let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${sourceHeaders[i]?.trim()}, should be ${targetHeaders[i]?.trim()}"}}`;
+          let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${normalizedSourceHeaders[i]}, should be ${normalizedTargetHeaders[i]}"}}`;
           headerErrors.push(JSON.parse(errorLog));
         }
       }
@@ -1071,19 +1119,30 @@ export class FileParseValidateService {
     }
 
     if (rowData.hasOwnProperty("Project")) {
-      const present = await this.aqiService.databaseLookup(
-        "aqi_projects",
-        rowData.Project,
-      );
-      if (!present) {
+      if (rowData.Project == "") {
         let errorLog = {
           rowNum: rowNumber,
           type: "ERROR",
           message: {
-            Project: `${rowData.Project} not found in EnMoDS Projects`,
+            Project: `Project cannot be empty`,
           },
         };
         errorLogs.push(errorLog);
+      } else {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_projects",
+          rowData.Project,
+        );
+        if (!present) {
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              Project: `${rowData.Project} not found in EnMoDS Projects`,
+            },
+          };
+          errorLogs.push(errorLog);
+        }
       }
     }
 
@@ -2065,7 +2124,7 @@ export class FileParseValidateService {
   cleanRowBasedOnDataClassification(rowData: any) {
     let cleanedRow = rowData;
 
-    cleanedRow.QCType = rowData.QCType.toUpperCase();
+    cleanedRow.QCType = rowData.QCType == "" ? "REGULAR" : rowData.QCType.toUpperCase();
 
     let concatActivityName = this.formulateActivityName(rowData);
 
@@ -2319,7 +2378,7 @@ export class FileParseValidateService {
 
         if (visitGuid === "partialUpload") {
           partialUpload = true;
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Partia lUpload": "Issued a rollback as a partial upload was detected. Cause of partial upload: ${visitInfo.fieldVisit[1]}"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Partial Upload": "Issued a rollback as a partial upload was detected. Cause of partial upload: ${visitInfo.fieldVisit[1]}"}}`;
           validationErrors.push(JSON.parse(errorLog));
           return;
         }
@@ -2364,7 +2423,7 @@ export class FileParseValidateService {
           : visitInfo.fieldVisit;
         if (visitGuid === "partialUpload") {
           partialUpload = true;
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Partia lUpload": "Issued a rollback as a partial upload was detected. Cause of partial upload: ${visitInfo.fieldVisit[1]}"}}`;
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"Partial Upload": "Issued a rollback as a partial upload was detected. Cause of partial upload: ${visitInfo.fieldVisit[1]}"}}`;
           validationErrors.push(JSON.parse(errorLog));
           return;
         }
@@ -2738,7 +2797,7 @@ export class FileParseValidateService {
         rowData["DataClassification"] !== "SURROGATE_RESULT" &&
         rowData["DataClassification"] !== "FIELD_SURVEY"
       ) {
-        rowData["EA_Biological Life Stage"] = "";
+        rowData["BiologicalLifeStage"] = "";
       }
 
       this.logger.log(`Finished creating object for row ${rowNumber}`);
@@ -2920,6 +2979,8 @@ export class FileParseValidateService {
           },
         });
       });
+
+      await this.notificationsService.notifyUserOfError(file_submission_id);
 
       return;
     }
@@ -3124,6 +3185,15 @@ export class FileParseValidateService {
           fileName,
           originalFileName,
         );
+
+        fs.unlink(filePath, (err) => {
+          if (err) {
+            this.logger.error(`Error cleaning up tempObsFiles`, err);
+          } else {
+            this.logger.log(`Successfully cleaned up tempObsFiles.`);
+          }
+        });
+
         return;
       }
 
@@ -3547,6 +3617,14 @@ export class FileParseValidateService {
           originalFileName,
         );
 
+        fs.unlink(filePath, (err) => {
+          if (err) {
+            this.logger.error(`Error cleaning up tempObsFiles`, err);
+          } else {
+            this.logger.log(`Successfully cleaned up tempObsFiles.`);
+          }
+        });
+
         return;
       }
 
@@ -3574,6 +3652,7 @@ export class FileParseValidateService {
           file_submission_id,
           "ERROR",
         );
+        await this.notificationsService.notifyUserOfError(file_submission_id);
         return;
       });
 
