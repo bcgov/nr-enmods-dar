@@ -833,8 +833,6 @@ export class FileParseValidateService {
             processedPositions.add(i);
           }
         }
-        
-        errorMessage += `. Extra headers: ${extraWithPositions.join(", ")}`;
       }
 
       let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${errorMessage}"}}`;
