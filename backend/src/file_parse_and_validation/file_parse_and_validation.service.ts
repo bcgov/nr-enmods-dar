@@ -822,12 +822,18 @@ export class FileParseValidateService {
       }
 
       if (extraHeaders.length > 0) {
-        const extraWithPositions = extraHeaders.map((header) => {
-          const actualIndex = normalizedSourceHeaders.indexOf(header);
-          return actualIndex >= 0
-            ? `${header} (position ${actualIndex + 1})`
-            : header;
-        });
+        // Find all positions of extra headers, ensuring each position is only reported once
+        const extraWithPositions = [];
+        const processedPositions = new Set();
+        
+        for (let i = 0; i < normalizedSourceHeaders.length; i++) {
+          const header = normalizedSourceHeaders[i];
+          if (extraHeaders.includes(header) && !processedPositions.has(i)) {
+            extraWithPositions.push(`${header} (position ${i + 1})`);
+            processedPositions.add(i);
+          }
+        }
+        
         errorMessage += `. Extra headers: ${extraWithPositions.join(", ")}`;
       }
 
