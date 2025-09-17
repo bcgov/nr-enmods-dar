@@ -800,7 +800,13 @@ export class FileParseValidateService {
       h !== undefined && h !== null ? `${h}`.trim() : h,
     );
 
-    if (normalizedSourceHeaders.length != normalizedTargetHeaders.length) {
+    // Count matched headers for comparison
+    const matchedHeaders = normalizedSourceHeaders.filter(h => 
+      h !== "" && h !== null && h !== undefined && normalizedTargetHeaders.includes(h)
+    );
+    const nonEmptyTargetHeaders = normalizedTargetHeaders.filter(h => h !== "" && h !== null && h !== undefined);
+
+    if (matchedHeaders.length != nonEmptyTargetHeaders.length) {
       // Find missing headers by comparing target headers with source headers
       const missingHeaders = normalizedTargetHeaders.filter(
         (header) => !normalizedSourceHeaders.includes(header),
@@ -809,7 +815,7 @@ export class FileParseValidateService {
         (header) => !normalizedTargetHeaders.includes(header),
       );
 
-      let errorMessage = `Invalid number of headers. Got ${normalizedSourceHeaders.length}, expected ${normalizedTargetHeaders.length}`;
+      let errorMessage = `Invalid number of headers. Got ${matchedHeaders.length}, expected ${nonEmptyTargetHeaders.length}`;
 
       if (missingHeaders.length > 0) {
         const missingWithPositions = missingHeaders.map((header) => {
