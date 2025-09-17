@@ -171,13 +171,24 @@ export class NotificationsService {
       await this.fileSubmissionsService.findBySubmissionId(file_submission_id);
     const errorLogs =
       await this.fileErrorLogsService.findOne(file_submission_id);
+
+    const strippedErrorLogs = errorLogs.replace(
+      /[\s\S]*?Ministry Contact:.*?\n[-]+\n\n/,
+      "",
+    ); // this only keeping rows that pertain to errors/warnings
+
+    const logsAsLines = strippedErrorLogs.trim().split("\n");
+    const hasWarnings = logsAsLines.some((line) => line.startsWith("WARN:"));
+
+    const errorsAsHTML = logsAsLines.join("<br>");
     const fileName = `${file_submission.original_file_name}-error_log.txt`;
 
     const email = file_submission.data_submitter_email;
     if (!this.isValidEmail(email)) {
       return "Invalid email";
     }
-    const { submitter_user_id, submission_status_code } = file_submission;
+    const { submitter_user_id, submission_status_code, original_file_name } =
+      file_submission;
 
     const date = new Date();
     const options: Intl.DateTimeFormatOptions = {
@@ -200,14 +211,31 @@ export class NotificationsService {
     const unsubscribeLink =
       process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
 
-    let body = errorLogs.concat(
-      `<p>Submission Notification</p><p><a href="${unsubscribeLink}">Unsubscribe</a></p>`,
-    );
+    let body = `<p>Status: ${
+      hasWarnings &&
+      (submission_status_code === "SUBMITTED" ||
+        submission_status_code === "VALIDATED")
+        ? submission_status_code + " with warnings"
+        : submission_status_code
+    }</p>
+    <p>Files Original Name: ${original_file_name}</p>
+    <p>Date and Time of Upload: ${file_submission.submission_date}</p>
+    <p>Warnings/Errors:</p>
+    `;
+    body = body
+      .concat(errorsAsHTML)
+      .concat(
+        `<p>Submission Notification</p><p><a href="${unsubscribeLink}">Unsubscribe</a></p>`,
+      );
 
     const emailTemplate: EmailTemplate = {
       from: "enmodshelp@gov.bc.ca",
       subject:
-        "EnMoDS Data {{submission_status_code}} from {{submitter_user_id}}",
+        hasWarnings &&
+        (submission_status_code === "SUBMITTED" ||
+          submission_status_code === "VALIDATED")
+          ? "EnMoDS Data {{submission_status_code}} with warnings {{original_file_name}} from {{submitter_user_id}}"
+          : "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}",
       body: body,
     };
 
@@ -215,6 +243,7 @@ export class NotificationsService {
       return this.sendEmail([email], emailTemplate, {
         submitter_user_id: submitter_user_id,
         submission_status_code: submission_status_code,
+        original_file_name: original_file_name,
         file_error_log: errorLogs,
         file_name: fileName,
         sys_time,
@@ -253,10 +282,21 @@ export class NotificationsService {
     const file_submission =
       await this.fileSubmissionsService.findBySubmissionId(file_submission_id);
 
-    const { submitter_user_id, submission_status_code } = file_submission;
+    const { submitter_user_id, submission_status_code, original_file_name } =
+      file_submission;
 
     const errorLogs =
       await this.fileErrorLogsService.findOne(file_submission_id);
+
+    const strippedErrorLogs = errorLogs.replace(
+      /[\s\S]*?Ministry Contact:.*?\n[-]+\n\n/,
+      "",
+    ); // this only keeping rows that pertain to errors/warnings
+
+    const logsAsLines = strippedErrorLogs.trim().split("\n");
+    const hasWarnings = logsAsLines.some((line) => line.startsWith("WARN:"));
+
+    const errorsAsHTML = logsAsLines.join("<br>");
 
     const fileName = `${file_submission.original_file_name}-error_log.txt`;
 
@@ -274,14 +314,31 @@ export class NotificationsService {
       const unsubscribeLink =
         process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
 
-      let body = errorLogs.concat(
-        `<p>Submission Notification</p><p><a href="${unsubscribeLink}">Unsubscribe</a></p>`,
-      );
+      let body = `<p>Status: ${
+        hasWarnings &&
+        (submission_status_code === "SUBMITTED" ||
+          submission_status_code === "VALIDATED")
+          ? submission_status_code + " with warnings"
+          : submission_status_code
+      }</p>
+    <p>Files Original Name: ${original_file_name}</p>
+    <p>Date and Time of Upload: ${file_submission.submission_date}</p>
+    <p>Warnings/Errors:</p>
+    `;
+      body = body
+        .concat(errorsAsHTML)
+        .concat(
+          `<p>Submission Notification</p><p><a href="${unsubscribeLink}">Unsubscribe</a></p>`,
+        );
 
       const emailTemplate = {
         from: "enmodshelp@gov.bc.ca",
         subject:
-          "EnMoDS Data {{submission_status_code}} from {{submitter_user_id}}",
+          hasWarnings &&
+          (submission_status_code === "SUBMITTED" ||
+            submission_status_code === "VALIDATED")
+            ? "EnMoDS Data {{submission_status_code}} with warnings {{original_file_name}} from {{submitter_user_id}}"
+            : "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}",
         body: body,
       };
       const date = new Date();
@@ -300,6 +357,7 @@ export class NotificationsService {
         return this.sendEmail([email], emailTemplate, {
           submitter_user_id: submitter_user_id,
           submission_status_code: submission_status_code,
+          original_file_name: original_file_name,
           file_error_log: errorLogs,
           file_name: fileName,
           sys_time,
@@ -326,6 +384,7 @@ export class NotificationsService {
     variables: {
       submitter_user_id: string;
       submission_status_code: string;
+      original_file_name: string;
       file_error_log: string;
       file_name: string;
       sys_time: string;
@@ -522,7 +581,7 @@ export class NotificationsService {
     accountType: string;
     fullname: string;
     username: string;
-    edtURL: string
+    edtURL: string;
   }): Promise<string> {
     let variables = {
       accountType: data.accountType,
@@ -557,7 +616,7 @@ export class NotificationsService {
           },
           delayTS: 0,
           tag: "tag",
-          to: ["skutty@salussystems.com"],
+          to: ["enmodshelp@gov.bc.ca"],
         },
       ],
       encoding: "utf-8",
@@ -577,7 +636,7 @@ export class NotificationsService {
     };
 
     try {
-      console.log(config)
+      console.log(config);
       await lastValueFrom(this.httpService.request(config));
       return "Email Sent";
     } catch (error) {
