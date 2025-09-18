@@ -2124,7 +2124,7 @@ export class FileParseValidateService {
   cleanRowBasedOnDataClassification(rowData: any) {
     let cleanedRow = rowData;
 
-    cleanedRow.QCType = rowData.QCType == "" ? "REGULAR" : rowData.QCType.toUpperCase();
+    cleanedRow.QCType = rowData.QCType == "" ? "REGULAR" : rowData.QCType.toUpperCase(); // this is to include QC Type in activity name
 
     let concatActivityName = this.formulateActivityName(rowData);
 
@@ -2141,7 +2141,7 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ActivityID = "";
       cleanedRow.ActivityName = concatActivityName;
-      cleanedRow.QCType = rowData.QCType == "REGULAR" ? "" : rowData.QCType;
+      cleanedRow.QCType = rowData.QCType == "REGULAR" ? "" : rowData.QCType; // this is to send to the POST apis (AQS deems REGULAR as empty string)
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
@@ -2173,6 +2173,7 @@ export class FileParseValidateService {
       cleanedRow.QCSourceActivityName = "";
       cleanedRow.AnalyzingAgency = "";
       cleanedRow.AnalysisMethod = "";
+      cleanedRow.AnalyzedDateTime = "";
       cleanedRow.SpecimenName = rowData.DataClassification == "FIELD_SURVEY" ? rowData.SpecimenName : "";
       cleanedRow.QCType = "";
       cleanedRow.CompositeStat = "";
