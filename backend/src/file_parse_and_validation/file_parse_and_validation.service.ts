@@ -801,10 +801,16 @@ export class FileParseValidateService {
     );
 
     // Count matched headers for comparison
-    const matchedHeaders = normalizedSourceHeaders.filter(h => 
-      h !== "" && h !== null && h !== undefined && normalizedTargetHeaders.includes(h)
+    const matchedHeaders = normalizedSourceHeaders.filter(
+      (h) =>
+        h !== "" &&
+        h !== null &&
+        h !== undefined &&
+        normalizedTargetHeaders.includes(h),
     );
-    const nonEmptyTargetHeaders = normalizedTargetHeaders.filter(h => h !== "" && h !== null && h !== undefined);
+    const nonEmptyTargetHeaders = normalizedTargetHeaders.filter(
+      (h) => h !== "" && h !== null && h !== undefined,
+    );
 
     if (matchedHeaders.length != nonEmptyTargetHeaders.length) {
       // Find missing headers by comparing target headers with source headers
@@ -831,7 +837,7 @@ export class FileParseValidateService {
         // Find all positions of extra headers, ensuring each position is only reported once
         const extraWithPositions = [];
         const processedPositions = new Set();
-        
+
         for (let i = 0; i < normalizedSourceHeaders.length; i++) {
           const header = normalizedSourceHeaders[i];
           if (extraHeaders.includes(header) && !processedPositions.has(i)) {
@@ -1451,33 +1457,55 @@ export class FileParseValidateService {
       }
     }
 
-    if (rowData["AnalysisMethod"]) {
+    if (rowData.hasOwnProperty("AnalysisMethod")) {
       // if data classification is LAB/SURROGATE ensure Analysis Method is entered
       if (
-        (rowData["DataClassification"] == "LAB" ||
-          rowData["DataClassification"] == "SURROGATE_RESULT") &&
-        rowData["AnalysisMethod"] == ""
+        rowData["DataClassification"] == "LAB" ||
+        rowData["DataClassification"] == "SURROGATE_RESULT"
       ) {
-        let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
-        errorLogs.push(JSON.parse(errorLog));
-      }
-
-      // if valid OP, then check if the analysis method is an associated method for that OP
-      if (validObservedProperty) {
-        const associatedMethods: any = await this.aqiService.databaseLookup(
-          "aqi_associated_analysis_methods",
-          rowData.ObservedPropertyID,
-        );
-
-        if (associatedMethods && associatedMethods.length > 0) {
-          const methods = associatedMethods[0]?.analysis_methods;
-          if (!methods.includes(rowData["AnalysisMethod"])) {
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "${rowData.AnalyzingMethod} not valid for observed property ${rowData.ObservedPropertyID}"}}`;
-            errorLogs.push(JSON.parse(errorLog));
-          }
-        } else {
-          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "Could not find the method: ${rowData.AnalyzingMethod} for Observed Property: ${rowData.ObservedPropertyID}. Wait for data refresh that happens every 6 hours."}}`;
+        if (rowData["AnalysisMethod"] == "") {
+          let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
           errorLogs.push(JSON.parse(errorLog));
+        } else {
+          // if valid OP, then check if the analysis method is an associated method for that OP
+          if (validObservedProperty) {
+            const associatedMethods: any = await this.aqiService.databaseLookup(
+              "aqi_associated_analysis_methods",
+              rowData.ObservedPropertyID,
+            );
+
+            if (associatedMethods && associatedMethods.length > 0) {
+              const methods = associatedMethods[0]?.analysis_methods;
+              if (!methods.includes(rowData["AnalysisMethod"])) {
+                let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "${rowData.AnalyzingMethod} not valid for observed property ${rowData.ObservedPropertyID}"}}`;
+                errorLogs.push(JSON.parse(errorLog));
+              }
+            } else {
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "Could not find the method: ${rowData.AnalyzingMethod} for Observed Property: ${rowData.ObservedPropertyID}. Wait for data refresh that happens every 6 hours."}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
+          }
+        }
+      } else {
+        if (rowData["DataClassification"] != "FIELD_RESULT") {
+          // if valid OP, then check if the analysis method is an associated method for that OP
+          if (validObservedProperty && rowData["AnalysisMethod"] !== "") {
+            const associatedMethods: any = await this.aqiService.databaseLookup(
+              "aqi_associated_analysis_methods",
+              rowData.ObservedPropertyID,
+            );
+
+            if (associatedMethods && associatedMethods.length > 0) {
+              const methods = associatedMethods[0]?.analysis_methods;
+              if (!methods.includes(rowData["AnalysisMethod"])) {
+                let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "${rowData.AnalyzingMethod} not valid for observed property ${rowData.ObservedPropertyID}"}}`;
+                errorLogs.push(JSON.parse(errorLog));
+              }
+            } else {
+              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "Could not find the method: ${rowData.AnalyzingMethod} for Observed Property: ${rowData.ObservedPropertyID}. Wait for data refresh that happens every 6 hours."}}`;
+              errorLogs.push(JSON.parse(errorLog));
+            }
+          }
         }
       }
     }
@@ -1521,7 +1549,7 @@ export class FileParseValidateService {
         rowData["DataClassification"] == "LAB" ||
         rowData["DataClassification"] == "SURROGATE_RESULT"
       ) {
-        if (/^Animal - Fish\b/.test(rowData["Medium"])) {
+        if (rowData["Medium"] == "Animal - Fish") {
           if (rowData["TissueType"] == "") {
             let errorLog = {
               rowNum: rowNumber,
@@ -1547,7 +1575,7 @@ export class FileParseValidateService {
               errorLogs.push(errorLog);
             }
           }
-        }
+        } 
       }
     }
 
@@ -2102,69 +2130,69 @@ export class FileParseValidateService {
   cleanRowBasedOnDataClassification(rowData: any) {
     let cleanedRow = rowData;
 
-    cleanedRow.QCType = rowData.QCType == "" ? "REGULAR" : rowData.QCType.toUpperCase();
+    cleanedRow.QCType =
+      rowData.QCType == "" ? "REGULAR" : rowData.QCType.toUpperCase(); // this is to include QC Type in activity name
 
     let concatActivityName = this.formulateActivityName(rowData);
 
     if (
       rowData.DataClassification == "LAB" ||
-      rowData.DataClassification == "SURROGATE_RESULT" ||
-      rowData.DataClassification == "FIELD_SURVEY"
+      rowData.DataClassification == "SURROGATE_RESULT"
     ) {
       cleanedRow.ObservationID = "";
       cleanedRow.FieldDeviceID = "";
       cleanedRow.FieldDeviceType = "";
       cleanedRow.SamplingContextTag = "";
       cleanedRow.LimitType = "";
-      cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
+      cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ActivityID = "";
-      cleanedRow.ActivityName =
-        rowData.DataClassification == "FIELD_SURVEY"
-          ? concatActivityName + ";FS"
-          : concatActivityName; // TODO: this will need to uncommented after Jeremy is done testing
-
-      if (cleanedRow.QCType == "REGULAR") {
-        // this is because AQI interprets a null value as REGULAR
-        cleanedRow.QCType = "";
-      }
-      cleanedRow.AnalysisMethod =
-        rowData.DataClassification == "FIELD_SURVEY"
-          ? ""
-          : rowData.AnalysisMethod;
+      cleanedRow.ActivityName = concatActivityName;
+      cleanedRow.TissueType = rowData.Medium === "Animal - Fish" ? rowData.TissueType : ""
+      cleanedRow.QCType = rowData.QCType == "REGULAR" ? "" : rowData.QCType; // this is to send to the POST apis (AQS deems REGULAR as empty string)
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
-      rowData.DataClassification == "VERTICAL_PROFILE"
+      rowData.DataClassification == "VERTICAL_PROFILE" ||
+      rowData.DataClassification == "FIELD_SURVEY"
     ) {
       cleanedRow.ObservationID = "";
-      cleanedRow.FieldFiltered = "";
-      cleanedRow.FieldFilteredComment = "";
-      cleanedRow.FieldPreservative = "";
       cleanedRow.SamplingContextTag = "";
       cleanedRow.LimitType = "";
-      cleanedRow.Fraction = "";
-      cleanedRow.AnalyzingAgency = "";
-      cleanedRow.AnalysisMethod = "";
-      cleanedRow.AnalyzedDateTime = "";
-      cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ResultStatus = "Preliminary";
+      cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ActivityID = "";
       cleanedRow.ActivityName =
         rowData.DataClassification == "ACTIVITY_RESULT"
           ? concatActivityName
-          : ""; // TODO: this will need to uncommented after Jeremy is done testing
-      cleanedRow.TissueType = "";
+          : rowData.DataClassification == "FIELD_SURVEY"
+            ? concatActivityName + ";FS"
+            : "";
+      cleanedRow.FieldFiltered = "";
+      cleanedRow.FieldFilteredComment = "";
+      cleanedRow.FieldPreservative = "";
+      cleanedRow.Fraction = "";
       cleanedRow.LabArrivalTemperature = "";
-      cleanedRow.SpecimenName = "";
       cleanedRow.LabQualityFlag = "";
       cleanedRow.LabArrivalDateandTime = "";
       cleanedRow.LabPreparedDateTime = "";
       cleanedRow.LabSampleID = "";
       cleanedRow.LabDilutionFactor = "";
-      cleanedRow.QCType = "";
       cleanedRow.QCSourceActivityName = "";
+      cleanedRow.AnalyzingAgency = "";
+      cleanedRow.AnalysisMethod = "";
+      cleanedRow.AnalyzedDateTime = "";
+      cleanedRow.SpecimenName =
+        rowData.DataClassification == "FIELD_SURVEY"
+          ? rowData.SpecimenName
+          : "";
+      cleanedRow.QCType = "";
       cleanedRow.CompositeStat = "";
+      cleanedRow.TissueType = "";
+      cleanedRow.BioLifeStage =
+        rowData.DataClassification == "FIELD_SURVEY"
+          ? rowData.BioLifeStage
+          : "";
     }
 
     return cleanedRow;
@@ -2614,12 +2642,27 @@ export class FileParseValidateService {
   ) {
     // Import Observations file after all the visits, activities and specimens have been inserted
 
-    await this.aqiService.importObservations(
+    const observationsErrors = await this.aqiService.importObservations(
       filePath,
       "import",
       file_submission_id,
       file_operation_code,
     );
+
+    // if (observationsErrors) {
+    //   await this.rollBackPartialUpload(
+    //     GuidsToSave,
+    //     fileName,
+    //     file_submission_id,
+    //     originalFileName,
+    //     file_operation_code,
+    //     uniqueMinistryContacts,
+    //     fileValidationResults,
+    //   );
+    //   this.logger.warn("Deleted the partially imported data");
+    //   rollBackHalted = false;
+    //   return;
+    // }
 
     await this.fileSubmissionsService.updateFileStatus(
       file_submission_id,
@@ -2760,7 +2803,7 @@ export class FileParseValidateService {
       }
 
       if (!/^Animal - .+/.test(rowData["Medium"])) {
-        rowData["BiologicalLifeStage"] = "";
+        rowData["EA_Biological Life Stage"] = "";
       }
 
       if (
