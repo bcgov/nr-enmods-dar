@@ -108,7 +108,7 @@ export class FileValidationService {
       });
 
       // if the file is too large, stop processing here and return the error
-      if (result.length > 10000) {
+      if (result.length > 10001) {
         errors.push("XLSX file exceeds the row limit of 10,000.");
         return errors;
       }
