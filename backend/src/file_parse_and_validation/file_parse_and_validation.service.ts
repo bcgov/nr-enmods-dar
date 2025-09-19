@@ -801,10 +801,16 @@ export class FileParseValidateService {
     );
 
     // Count matched headers for comparison
-    const matchedHeaders = normalizedSourceHeaders.filter(h => 
-      h !== "" && h !== null && h !== undefined && normalizedTargetHeaders.includes(h)
+    const matchedHeaders = normalizedSourceHeaders.filter(
+      (h) =>
+        h !== "" &&
+        h !== null &&
+        h !== undefined &&
+        normalizedTargetHeaders.includes(h),
     );
-    const nonEmptyTargetHeaders = normalizedTargetHeaders.filter(h => h !== "" && h !== null && h !== undefined);
+    const nonEmptyTargetHeaders = normalizedTargetHeaders.filter(
+      (h) => h !== "" && h !== null && h !== undefined,
+    );
 
     if (matchedHeaders.length != nonEmptyTargetHeaders.length) {
       // Find missing headers by comparing target headers with source headers
@@ -831,7 +837,7 @@ export class FileParseValidateService {
         // Find all positions of extra headers, ensuring each position is only reported once
         const extraWithPositions = [];
         const processedPositions = new Set();
-        
+
         for (let i = 0; i < normalizedSourceHeaders.length; i++) {
           const header = normalizedSourceHeaders[i];
           if (extraHeaders.includes(header) && !processedPositions.has(i)) {
@@ -1543,7 +1549,7 @@ export class FileParseValidateService {
         rowData["DataClassification"] == "LAB" ||
         rowData["DataClassification"] == "SURROGATE_RESULT"
       ) {
-        if (/^Animal - Fish\b/.test(rowData["Medium"])) {
+        if (rowData["Medium"] == "Animal - Fish") {
           if (rowData["TissueType"] == "") {
             let errorLog = {
               rowNum: rowNumber,
@@ -1569,7 +1575,7 @@ export class FileParseValidateService {
               errorLogs.push(errorLog);
             }
           }
-        }
+        } 
       }
     }
 
@@ -2124,7 +2130,8 @@ export class FileParseValidateService {
   cleanRowBasedOnDataClassification(rowData: any) {
     let cleanedRow = rowData;
 
-    cleanedRow.QCType = rowData.QCType == "" ? "REGULAR" : rowData.QCType.toUpperCase(); // this is to include QC Type in activity name
+    cleanedRow.QCType =
+      rowData.QCType == "" ? "REGULAR" : rowData.QCType.toUpperCase(); // this is to include QC Type in activity name
 
     let concatActivityName = this.formulateActivityName(rowData);
 
@@ -2141,6 +2148,7 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ActivityID = "";
       cleanedRow.ActivityName = concatActivityName;
+      cleanedRow.TissueType = rowData.Medium === "Animal - Fish" ? rowData.TissueType : ""
       cleanedRow.QCType = rowData.QCType == "REGULAR" ? "" : rowData.QCType; // this is to send to the POST apis (AQS deems REGULAR as empty string)
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
@@ -2174,12 +2182,17 @@ export class FileParseValidateService {
       cleanedRow.AnalyzingAgency = "";
       cleanedRow.AnalysisMethod = "";
       cleanedRow.AnalyzedDateTime = "";
-      cleanedRow.SpecimenName = rowData.DataClassification == "FIELD_SURVEY" ? rowData.SpecimenName : "";
+      cleanedRow.SpecimenName =
+        rowData.DataClassification == "FIELD_SURVEY"
+          ? rowData.SpecimenName
+          : "";
       cleanedRow.QCType = "";
       cleanedRow.CompositeStat = "";
       cleanedRow.TissueType = "";
       cleanedRow.BioLifeStage =
-        rowData.DataClassification == "FIELD_SURVEY" ? rowData.BioLifeStage : "";
+        rowData.DataClassification == "FIELD_SURVEY"
+          ? rowData.BioLifeStage
+          : "";
     }
 
     return cleanedRow;
