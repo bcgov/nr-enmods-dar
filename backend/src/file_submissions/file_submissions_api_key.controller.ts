@@ -96,7 +96,7 @@ export class FileSubmissionsAPIController {
       throw new BadRequestException('File has more than 10,000 rows')
     }
 
-    await this.fileSubmissionsService.createWithSftp(
+    await this.fileSubmissionsService.createWithSftp( 
       {
         userID: apiKeyRecord.username,
         orgGUID: null,
