@@ -2139,7 +2139,6 @@ export class FileParseValidateService {
       cleanedRow.TissueType =
         rowData.Medium === "Animal - Fish" ? rowData.TissueType : "";
       // QC Type should be blank as AQS rejects REGULAR, however, business requirement is to ensure the user enters REGULAR
-      // cleanedRow.QCType = rowData.QCType == "REGULAR" ? "" : rowData.QCType; // this is to send to the POST apis (AQS deems REGULAR as empty string)
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
@@ -2798,7 +2797,7 @@ export class FileParseValidateService {
       }
 
       if (!/^Animal - .+/.test(rowData["Medium"])) {
-        rowData["EA_Biological Life Stage"] = "";
+        rowData["BiologicalLifeStage"] = "";
       }
 
       if (
