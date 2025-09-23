@@ -759,31 +759,17 @@ export class FileParseValidateService {
           });
         } else if (row["DataClassification"] == "FIELD_SURVEY") {
           Object.assign(filteredObj, { ActivityType: "FIELD_SURVEY" });
-        } else if (
-          row["DataClassification"] == "LAB" ||
-          row["DataClassification"] == "FIELD_RESULT" ||
-          row["DataClassification"] == "ACTIVITY_RESULT"
-        ) {
-          if (
-            row["QCType"].toUpperCase().trim() == "" ||
-            row["QCType"].toUpperCase().trim() == "REGULAR"
-          ) {
+        } else if (row["DataClassification"] == "LAB" || row["DataClassification"] == "SURROGATE_RESULT"){
+          if (row["QCType"].toUpperCase().trim() == "REGULAR"){
             Object.assign(filteredObj, { ActivityType: "SAMPLE_ROUTINE" });
-          } else {
-            Object.assign(filteredObj, {
-              ActivityType: `${row["QCType"].toUpperCase().trim()}`,
-            });
+          }else{
+             Object.assign(filteredObj, { ActivityType: `${row["QCType"].toUpperCase().trim()}` });
           }
-        } else if (row["DataClassification"] == "SURROGATE_RESULT") {
-          if (
-            row["QCType"].toUpperCase().trim() == "" ||
-            row["QCType"].toUpperCase().trim() == "REGULAR"
-          ) {
-            Object.assign(filteredObj, { ActivityType: "SPIKE" });
-          } else {
-            Object.assign(filteredObj, {
-              ActivityType: `${row["QCType"].toUpperCase().trim()}`,
-            });
+        } else if (row["DataClassification"] == "FIELD_RESULT" || row["DataClassification"] == "ACTIVITY_RESULT"){
+          if (row["QCType"].toUpperCase().trim() == "REGULAR" || row["QCType"].toUpperCase().trim() == ""){
+            Object.assign(filteredObj, { ActivityType: "SAMPLE_ROUTINE" });
+          }else{
+             Object.assign(filteredObj, { ActivityType: `${row["QCType"].toUpperCase().trim()}` });
           }
         }
       } else {
