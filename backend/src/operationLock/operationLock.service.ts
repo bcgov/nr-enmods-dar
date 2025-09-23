@@ -5,7 +5,7 @@ import {
   Logger,
 } from "@nestjs/common";
 
-type Operation = "PULLDOWN" | "ANALYSIS_METHODS" | "FILE_PROCESSING" | "DELETE";
+type Operation = "PULLDOWN" | "ANALYSIS_METHODS" | "FILE_PROCESSING" | "DELETE" | "REFRESH";
 
 @Injectable()
 export class OperationLockService implements OnModuleInit, OnModuleDestroy {

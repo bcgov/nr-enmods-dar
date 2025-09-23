@@ -1,0 +1,1 @@
+DROP TABLE IF EXISTS enmods.aqi_associated_analysis_methods CASCADE;

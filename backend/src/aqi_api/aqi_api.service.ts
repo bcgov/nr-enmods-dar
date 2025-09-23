@@ -70,7 +70,7 @@ export class AqiApiService {
         `RowNum: ${rowNumber} -> API CALL TO GET Field Visits failed: `,
         err.response.data.message,
       );
-      return err.response.data.message
+      return err.response.data.message;
     }
   }
 
@@ -127,10 +127,10 @@ export class AqiApiService {
     } catch (err) {
       this.logger.error(
         `RowNum: ${rowNumber} -> API CALL TO POST Activities failed, resulting in partial upload for the file: `,
-        err.response.data.message,
+        err.response.data,
       );
 
-      return ["partialUpload", err.response.data.message];
+      return ["partialUpload", err.response.data];
     }
   }
 
@@ -262,22 +262,22 @@ export class AqiApiService {
     }
   }
 
-  async cleanObsURLS(){
+  async cleanObsURLS() {
     const URLsToClean = await this.prisma.aqi_obs_status.findMany({
-      where:{
-        active_ind: true
-      }
+      where: {
+        active_ind: true,
+      },
     });
 
-    for (const url of URLsToClean){
+    for (const url of URLsToClean) {
       await this.prisma.aqi_obs_status.update({
         where: {
-          aqi_obs_status_id: url.aqi_obs_status_id
-        }, 
+          aqi_obs_status_id: url.aqi_obs_status_id,
+        },
         data: {
-          active_ind: false
-        }
-      })
+          active_ind: false,
+        },
+      });
     }
   }
 
@@ -322,10 +322,14 @@ export class AqiApiService {
         });
 
         const resultURL = await this.waitForObsStatus();
-        
+
         if (resultURL === null) {
-          this.logger.error("Observation status check timed out, returning timeout error");
-          const timeoutErrorLog = JSON.parse(`{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Observation status check timed out after 1 hour. Please try again later."}}`);
+          this.logger.error(
+            "Observation status check timed out, returning timeout error",
+          );
+          const timeoutErrorLog = JSON.parse(
+            `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Observation status check timed out after 1 hour. Please try again later."}}`,
+          );
           return [timeoutErrorLog];
         }
 
@@ -365,8 +369,12 @@ export class AqiApiService {
         const resultURL = await this.waitForObsStatus();
 
         if (resultURL === null) {
-          this.logger.error("Observation status check timed out, returning timeout error");
-          const timeoutErrorLog = JSON.parse(`{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Observation status check timed out after 1 hour. Please try again later."}}`);
+          this.logger.error(
+            "Observation status check timed out, returning timeout error",
+          );
+          const timeoutErrorLog = JSON.parse(
+            `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Observation status check timed out after 1 hour. Please try again later."}}`,
+          );
           return [timeoutErrorLog];
         }
 
@@ -379,8 +387,10 @@ export class AqiApiService {
       // uncheck any valid obs URLs in the database
       await this.cleanObsURLS();
       this.logger.error("API call to Observation Import failed: ", err);
-      const errorLog = JSON.parse(`{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Observation API call to status/result failed. Please re-upload the file."}}`);
-      return [errorLog]
+      const errorLog = JSON.parse(
+        `{"rowNum": "N/A", "type": "ERROR", "message": {"ObservationFile": "Observation API call to status/result failed. Please re-upload the file."}}`,
+      );
+      return [errorLog];
     }
   }
 
@@ -504,18 +514,22 @@ export class AqiApiService {
 
   async waitForObsStatus() {
     const startTime = Date.now();
-    const timeoutMs = 60 * 60 * 1000; // 1 hour in milliseconds
-    
+    let timeoutMs = 60 * 60 * 1000
+
     while (!this.goodObservationImporStatus) {
       this.logger.log("WAITING TO CHECK OBSERVATION STATUS");
       const elapsedTime = Date.now() - startTime;
-      
+
       if (elapsedTime >= timeoutMs) {
-        this.logger.error("TIMEOUT: Waited for observation status for 1 hour, exiting");
+        this.logger.error(
+          "TIMEOUT: Waited for observation status for 1 hour, exiting",
+        );
         return null; // Return null instead of throwing error
       }
-      
-      this.logger.log(`WAITING TO CHECK OBSERVATION STATUS (${Math.floor(elapsedTime / 1000)}s elapsed)`);
+
+      this.logger.log(
+        `WAITING TO CHECK OBSERVATION STATUS (${Math.floor(elapsedTime / 1000)}s elapsed)`,
+      );
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
 
@@ -622,8 +636,8 @@ export class AqiApiService {
               custom_id: queryParam,
             },
             select: {
-              result_type: true
-            }
+              result_type: true,
+            },
           });
           if (result.length > 0) {
             return result;
@@ -633,23 +647,22 @@ export class AqiApiService {
         } catch (err) {
           this.logger.error(`API CALL TO ${dbTable} failed: `, err);
         }
-      case "aqi_associated_analysis_methods":
-        try{
-          let result = await this.prisma.aqi_associated_analysis_methods.findMany({
+      case "aqi_analysis_methods":
+        try {
+          let result = await this.prisma.aqi_analysis_methods.findMany({
             where: {
-              observed_property_name: queryParam
+              method_id: queryParam,
             },
             select: {
-              analysis_methods: true
-            }
-          })
-
-          if (result.length > 0){
-            return result
-          }else{
-            return null
+              method_id: true,
+            },
+          });
+          if (result.length > 0) {
+            return result;
+          } else {
+            return null;
           }
-        }catch (err){
+        } catch (err) {
           this.logger.error(`API CALL TO ${dbTable} failed: `, err);
         }
       default:

@@ -171,7 +171,8 @@ export default function Dashboard() {
           params.row.submission_status_code === "REJECTED" ||
           params.row.submission_status_code === "SUBMITTED" ||
           params.row.submission_status_code === "ERROR" ||
-          params.row.submission_status_code === "ROLLBACK"
+          params.row.submission_status_code === "ROLLBACK" ||
+          params.row.submission_status_code === "DEL ERROR"
         ) {
           return (
             <IconButton
