@@ -2644,8 +2644,7 @@ export class FileParseValidateService {
       file_submission_id,
       file_operation_code,
     );
-
-    if (observationsErrors) {
+    if (observationsErrors.length > 0) {
       await this.rollBackPartialUpload(
         [],
         fileName,
@@ -2958,10 +2957,6 @@ export class FileParseValidateService {
     } else {
       mergedVisits = [...partiallyImportedVisits];
     }
-
-    console.log(mergedSpecimens)
-    console.log(mergedActivities)
-    console.log(mergedVisits)
 
     // do a health check here. if fails then save these guids to imported guids, set the status of file to ROLLBACK, set an error message for that import
 

@@ -57,25 +57,34 @@ export class FileErrorLogsService {
 
 function formulateErrorFile(logs: any) {
   if (logs[0].error_log.length > 0){
+    // check if any has ERROR
+    const hasError = logs[0].error_log.some(log => log.type === 'ERROR');
     let formattedMessages = "";
     const [date, timeWithZ] = new Date(logs[0].create_utc_timestamp)
       .toISOString()
       .split("T");
     const time = timeWithZ.replace("Z", "");
     let fileOperation = ""
+    let fileAction = ""
 
     if (logs[0].file_operation_code === 'VALIDATE'){
       fileOperation = "True";
+      fileAction = "validated"
     }else{
       fileOperation = "False";
+      fileAction = "imported"
     }
+
+    let submessage = hasError ? 
+    `The following warnings/errors were found during the ${fileOperation ? "validation" : "import"} of the data.\n` + 
+    `The data will need to be corrected and uploaded again for ${fileOperation ? "validation" : "import"} to ENMODS.\n` 
+    : `Data has successfully been ${fileAction} into EnMoDS with the following warnings.\n`
 
     formattedMessages =
       `User's Original File: ${logs[0].original_file_name}\n` +
       `${date} ${time}\n\n` +
       `QA Only: ${fileOperation}\n\n` +
-      `The following warnings/errors were found during the validation/import of the data.\n` +
-      `The data will need to be corrected and uploaded again for validation/import to ENMODS.\n` +
+      submessage +
       `If you have any questions, please contact the ministry contact(s) listed below.\n\n` +
       `-----------------------------------------------------------------------\n` +
       `Ministry Contact: ${logs[0].ministry_contact}\n` +
@@ -123,8 +132,7 @@ function formulateErrorFile(logs: any) {
       `User's Original File: ${logs[0].original_file_name}\n` +
       `${date} ${time}\n\n` +
       `QA Only: ${fileOperation}\n\n` +
-      `The following warnings/errors were found during the validation/import of the data.\n` +
-      `The data will need to be corrected and uploaded again for validation/import to ENMODS.\n` +
+      `Data has been successfully ${fileAction} in EnMoDS.\n` +
       `If you have any questions, please contact the ministry contact(s) listed below.\n\n` +
       `-----------------------------------------------------------------------\n` +
       `Ministry Contact: ${logs[0].ministry_contact}\n` +
