@@ -338,12 +338,12 @@ export class CronJobService {
   private async dropReplaceTables(){
     if (!this.operationLockService.acquireLock("REFRESH")) {
       this.logger.log(
-        "Skipping cron procedure of table refresh: Another process underway.",
+        "Another process underway. Freeing the lock to do the refresh.",
       );
-      return;
-    }
+      this.operationLockService.releaseLock(this.operationLockService.getCurrentLock())
+      this.operationLockService.acquireLock("REFRESH")
 
-    try{ 
+      try{ 
       this.logger.log(`Starting the database drop and replace`);
       for (const api of this.apisToCall){
         this.logger.log(`Deleting all rows for table ${api.dbTable}`)
@@ -358,6 +358,7 @@ export class CronJobService {
       this.logger.log(`Successfully refreshed all database tables`)
     }catch (err){
       this.logger.error(`Error in dropping tables:`, err)
+    }
     }
   }
 
