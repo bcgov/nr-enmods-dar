@@ -333,90 +333,33 @@ export class CronJobService {
     }
   }
 
-  @Cron(CronExpression.EVERY_6_HOURS)
-  private async getAssociatedAnalysisMethods() {
-    if (!this.operationLockService.acquireLock("ANALYSIS_METHODS")) {
+
+  @Cron(CronExpression.EVERY_DAY_AT_3AM)
+  private async dropReplaceTables(){
+    if (!this.operationLockService.acquireLock("REFRESH")) {
       this.logger.log(
-        "Skipping cron procedure of getting associated methods: Another process underway.",
+        "Another process underway. Freeing the lock to do the refresh.",
       );
-      return;
-    }
+      this.operationLockService.releaseLock(this.operationLockService.getCurrentLock())
+      this.operationLockService.acquireLock("REFRESH")
 
-    this.logger.log(`Starting pulldown of associated analysis methods`);
-
-
-    const map = new Map<
-      string,
-      { id: string; customId: string; methodIds: Set<string> }
-    >();
-
-    axios.defaults.method = "GET";
-    axios.defaults.headers.common["Authorization"] =
-      "token " + process.env.AQI_ACCESS_TOKEN;
-    axios.defaults.headers.common["x-api-key"] = process.env.AQI_ACCESS_TOKEN;
-
-    const baseUrl = process.env.AQI_BASE_URL;
-
-    try {
-      // make api call to find total number of records
-      let url = `${baseUrl}/v1/analysismethods`;
-      const counterCall = await axios.get(url);
-      const total = counterCall.data.totalCount || 0;
-
-      // update url to include the total count as limit
-      url = url + `?limit=${total}`;
-      const response = await axios.get(url);
-      const entries = response.data.domainObjects || [];
-
-      this.logger.log(
-        `Fetched ${entries.length} entries from v1/analysismethods. Total available: ${total}`,
-      );
-
-      for (const analysisMethod of entries) {
-        for (const property of analysisMethod.observedProperties) {
-          let propertyEntry = map.get(property.id);
-          if (!propertyEntry) {
-            propertyEntry = {
-              id: property.id,
-              customId: property.customId,
-              methodIds: new Set(),
-            };
-            map.set(property.id, propertyEntry);
-          }
-          propertyEntry.methodIds.add(analysisMethod.methodId);
-        }
+      try{ 
+      this.logger.log(`Starting the database drop and replace`);
+      for (const api of this.apisToCall){
+        this.logger.log(`Deleting all rows for table ${api.dbTable}`)
+        await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "${api.dbTable}" RESTART IDENTITY CASCADE`);
+        this.logger.log(`Successfully deleted all rows for table ${api.dbTable}`)
       }
+      this.logger.log(`Successfully deleted all pull down data`)
 
-      this.logger.log(`Completed processing ${entries.length} analysis methods.`);
-    } finally {
-      this.logger.log(`Cron Job completed.`);
-      this.operationLockService.releaseLock("ANALYSIS_METHODS");
+      this.logger.log(`Calling pulldown procedure now.`)
+      this.operationLockService.releaseLock("REFRESH")
+      await this.fetchAQSSData();
+      this.logger.log(`Successfully refreshed all database tables`)
+    }catch (err){
+      this.logger.error(`Error in dropping tables:`, err)
     }
-
-    const mappedMethods = Array.from(map.values()).map((entry) => ({
-      id: entry.id,
-      customId: entry.customId,
-      methodIds: Array.from(entry.methodIds),
-    }));
-
-    // save the mapping to the db table
-    for (const property of mappedMethods) {
-      await this.prisma.aqi_associated_analysis_methods.upsert({
-        where: { observed_property_id: property.id },
-        update: {
-          observed_property_name: property.customId,
-          analysis_methods: property.methodIds,
-        },
-        create: {
-          observed_property_id: property.id,
-          observed_property_name: property.customId,
-          analysis_methods: property.methodIds,
-          create_utc_timestamp: new Date(),
-        },
-      });
     }
-
-    this.logger.log(`Pulldown of associated analysis methods completed.`);
   }
 
   @Cron(CronExpression.EVERY_30_MINUTES)

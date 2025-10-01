@@ -757,22 +757,20 @@ export class FileParseValidateService {
           Object.assign(filteredObj, {
             ActivityType: "SAMPLE_INTEGRATED_VERTICAL_PROFILE",
           });
-        } else if (
-          row["DataClassification"] == "LAB" ||
-          row["DataClassification"] == "FIELD_RESULT" ||
-          row["DataClassification"] == "ACTIVITY_RESULT"
-        ) {
-          if (row["QCType"] == "") {
-            Object.assign(filteredObj, { ActivityType: "SAMPLE_ROUTINE" });
-          } else {
-            Object.assign(filteredObj, { ActivityType: `${row["QCType"]}` });
-          }
-        } else if (row["DataClassification"] == "SURROGATE_RESULT") {
-          if (row["QCType"] == "") {
-            Object.assign(filteredObj, { ActivityType: "SPIKE" });
-          }
         } else if (row["DataClassification"] == "FIELD_SURVEY") {
           Object.assign(filteredObj, { ActivityType: "FIELD_SURVEY" });
+        } else if (row["DataClassification"] == "LAB" || row["DataClassification"] == "SURROGATE_RESULT"){
+          if (row["QCType"].toUpperCase().trim() == "REGULAR"){
+            Object.assign(filteredObj, { ActivityType: "SAMPLE_ROUTINE" });
+          }else{
+             Object.assign(filteredObj, { ActivityType: `${row["QCType"].toUpperCase().trim()}` });
+          }
+        } else if (row["DataClassification"] == "FIELD_RESULT" || row["DataClassification"] == "ACTIVITY_RESULT"){
+          if (row["QCType"].toUpperCase().trim() == "REGULAR" || row["QCType"].toUpperCase().trim() == ""){
+            Object.assign(filteredObj, { ActivityType: "SAMPLE_ROUTINE" });
+          }else{
+             Object.assign(filteredObj, { ActivityType: `${row["QCType"].toUpperCase().trim()}` });
+          }
         }
       } else {
         Object.assign(filteredObj, customAttributes);
@@ -1469,41 +1467,20 @@ export class FileParseValidateService {
         } else {
           // if valid OP, then check if the analysis method is an associated method for that OP
           if (validObservedProperty) {
-            const associatedMethods: any = await this.aqiService.databaseLookup(
-              "aqi_associated_analysis_methods",
-              rowData.ObservedPropertyID,
+            const present: any = await this.aqiService.databaseLookup(
+              "aqi_analysis_methods",
+              rowData.AnalysisMethod,
             );
 
-            if (associatedMethods && associatedMethods.length > 0) {
-              const methods = associatedMethods[0]?.analysis_methods;
-              if (!methods.includes(rowData["AnalysisMethod"])) {
-                let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "${rowData.AnalyzingMethod} not valid for observed property ${rowData.ObservedPropertyID}"}}`;
-                errorLogs.push(JSON.parse(errorLog));
-              }
-            } else {
-              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "Could not find the method: ${rowData.AnalyzingMethod} for Observed Property: ${rowData.ObservedPropertyID}. Wait for data refresh that happens every 6 hours."}}`;
-              errorLogs.push(JSON.parse(errorLog));
-            }
-          }
-        }
-      } else {
-        if (rowData["DataClassification"] != "FIELD_RESULT") {
-          // if valid OP, then check if the analysis method is an associated method for that OP
-          if (validObservedProperty && rowData["AnalysisMethod"] !== "") {
-            const associatedMethods: any = await this.aqiService.databaseLookup(
-              "aqi_associated_analysis_methods",
-              rowData.ObservedPropertyID,
-            );
-
-            if (associatedMethods && associatedMethods.length > 0) {
-              const methods = associatedMethods[0]?.analysis_methods;
-              if (!methods.includes(rowData["AnalysisMethod"])) {
-                let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "${rowData.AnalyzingMethod} not valid for observed property ${rowData.ObservedPropertyID}"}}`;
-                errorLogs.push(JSON.parse(errorLog));
-              }
-            } else {
-              let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "Could not find the method: ${rowData.AnalyzingMethod} for Observed Property: ${rowData.ObservedPropertyID}. Wait for data refresh that happens every 6 hours."}}`;
-              errorLogs.push(JSON.parse(errorLog));
+            if (!present) {
+              let errorLog = {
+                rowNum: rowNumber,
+                type: "ERROR",
+                message: {
+                  AnalysisMethod: `${rowData.AnalysisMethod} not found in EnMoDS Analysis Methods`,
+                },
+              };
+              errorLogs.push(errorLog);
             }
           }
         }
@@ -1575,7 +1552,7 @@ export class FileParseValidateService {
               errorLogs.push(errorLog);
             }
           }
-        } 
+        }
       }
     }
 
@@ -1584,8 +1561,17 @@ export class FileParseValidateService {
         rowData["DataClassification"] == "LAB" ||
         rowData["DataClassification"] == "SURROGATE_RESULT"
       ) {
-        if (
-          rowData["QCType"].toUpperCase() != "" &&
+        if (rowData["QCType"].toUpperCase() == "") {
+          let errorLog = {
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              QCType: `QC Type cannot be empty when data classification is ${rowData.DataClassification}`,
+            },
+          };
+          errorLogs.push(errorLog);
+        } else if (
+          rowData["QCType"].toUpperCase() != "REGULAR" &&
           rowData["QCType"].toUpperCase() != "BLANK" &&
           rowData["QCType"].toUpperCase() != "REPLICATE" &&
           rowData["QCType"].toUpperCase() != "SPIKE" &&
@@ -2028,7 +2014,10 @@ export class FileParseValidateService {
     let newActivityName = "";
 
     const userActivityName = rowData.ActivityName?.trim() || "";
-    const QCType = rowData.QCType?.toUpperCase().trim() || "";
+    const QCType =
+      rowData.QCType?.toUpperCase().trim() == ""
+        ? "REGULAR"
+        : rowData.QCType?.toUpperCase().trim();
     const depthLower = rowData.DepthLower?.trim() || "";
     const depthUpper = rowData.DepthUpper?.trim() || "";
     const medium = rowData.Medium?.trim() || "";
@@ -2130,8 +2119,7 @@ export class FileParseValidateService {
   cleanRowBasedOnDataClassification(rowData: any) {
     let cleanedRow = rowData;
 
-    cleanedRow.QCType =
-      rowData.QCType == "" ? "REGULAR" : rowData.QCType.toUpperCase(); // this is to include QC Type in activity name
+    cleanedRow.QCType = rowData.QCType.toUpperCase(); // only set to upper case to use in the activity name
 
     let concatActivityName = this.formulateActivityName(rowData);
 
@@ -2148,8 +2136,9 @@ export class FileParseValidateService {
       cleanedRow.ResultGrade = "Ungraded";
       cleanedRow.ActivityID = "";
       cleanedRow.ActivityName = concatActivityName;
-      cleanedRow.TissueType = rowData.Medium === "Animal - Fish" ? rowData.TissueType : ""
-      cleanedRow.QCType = rowData.QCType == "REGULAR" ? "" : rowData.QCType; // this is to send to the POST apis (AQS deems REGULAR as empty string)
+      cleanedRow.TissueType =
+        rowData.Medium === "Animal - Fish" ? rowData.TissueType : "";
+      // QC Type should be blank as AQS rejects REGULAR, however, business requirement is to ensure the user enters REGULAR
     } else if (
       rowData.DataClassification == "FIELD_RESULT" ||
       rowData.DataClassification == "ACTIVITY_RESULT" ||
@@ -2248,6 +2237,11 @@ export class FileParseValidateService {
       null,
     );
 
+    observation.QCType =
+      observation.QCType.toUpperCase().trim() == "REGULAR"
+        ? ""
+        : observation.QCType.toUpperCase().trim();
+
     const obsRecord = await this.formulateObservationFile(
       observation,
       originalFileName,
@@ -2266,6 +2260,7 @@ export class FileParseValidateService {
      */
 
     this.logger.log(`Started local validation for row ${rowNumber}`);
+
     const recordLocalValidationResults = await this.localValidation(
       rowNumber,
       rowData,
@@ -2648,21 +2643,20 @@ export class FileParseValidateService {
       file_submission_id,
       file_operation_code,
     );
-
-    // if (observationsErrors) {
-    //   await this.rollBackPartialUpload(
-    //     GuidsToSave,
-    //     fileName,
-    //     file_submission_id,
-    //     originalFileName,
-    //     file_operation_code,
-    //     uniqueMinistryContacts,
-    //     fileValidationResults,
-    //   );
-    //   this.logger.warn("Deleted the partially imported data");
-    //   rollBackHalted = false;
-    //   return;
-    // }
+    if (observationsErrors.length > 0) {
+      await this.rollBackPartialUpload(
+        [],
+        fileName,
+        file_submission_id,
+        originalFileName,
+        file_operation_code,
+        uniqueMinistryContacts,
+        fileValidationResults,
+      );
+      this.logger.warn("Deleted the partially imported data");
+      rollBackHalted = false;
+      return;
+    }
 
     await this.fileSubmissionsService.updateFileStatus(
       file_submission_id,
@@ -2803,7 +2797,7 @@ export class FileParseValidateService {
       }
 
       if (!/^Animal - .+/.test(rowData["Medium"])) {
-        rowData["EA_Biological Life Stage"] = "";
+        rowData["BiologicalLifeStage"] = "";
       }
 
       if (
@@ -2926,6 +2920,8 @@ export class FileParseValidateService {
       },
     );
 
+    let deleteErrors = []
+
     let partiallyImportedSpecimens =
       partiallyImportedGUIDS[0].imported_guids["specimens"];
     let partiallyImportedActivitiess =
@@ -2933,15 +2929,33 @@ export class FileParseValidateService {
     let partiallyImportedVisits =
       partiallyImportedGUIDS[0].imported_guids["visits"];
 
-    let mergedSpecimens = [
-      ...partiallyImportedSpecimens,
-      ...GuidsToSave.specimens,
-    ];
-    let mergedActivities = [
-      ...partiallyImportedActivitiess,
-      ...GuidsToSave.activities,
-    ];
-    let mergedVisits = [...partiallyImportedVisits, ...GuidsToSave.visits];
+    let mergedSpecimens = [];
+    let mergedActivities = [];
+    let mergedVisits = [];
+
+    if (GuidsToSave.length > 0) {
+      mergedSpecimens = [
+        ...partiallyImportedSpecimens,
+        ...GuidsToSave.specimens,
+      ];
+    } else {
+      mergedSpecimens = [...partiallyImportedSpecimens];
+    }
+
+    if (GuidsToSave.length > 0) {
+      mergedActivities = [
+        ...partiallyImportedActivitiess,
+        ...GuidsToSave.activities,
+      ];
+    } else {
+      mergedActivities = [...partiallyImportedActivitiess];
+    }
+
+    if (GuidsToSave.length > 0) {
+      mergedVisits = [...partiallyImportedVisits, ...GuidsToSave.visits];
+    } else {
+      mergedVisits = [...partiallyImportedVisits];
+    }
 
     // do a health check here. if fails then save these guids to imported guids, set the status of file to ROLLBACK, set an error message for that import
 
@@ -3000,13 +3014,16 @@ export class FileParseValidateService {
     }
 
     //delete the partially imported specimens
-    await this.aqiService.SpecimenDelete(mergedSpecimens, []);
+    await this.aqiService.SpecimenDelete(mergedSpecimens, deleteErrors);
 
     //delete the partially imported activities
-    await this.aqiService.ActivityDelete(mergedActivities, []);
+    await this.aqiService.ActivityDelete(mergedActivities, deleteErrors);
 
     //delete the partially imported visits
-    await this.aqiService.VisitDelete(mergedVisits, []);
+    await this.aqiService.VisitDelete(mergedVisits, deleteErrors);
+
+
+    const finalErrorLogs = [...validationErrors, ...deleteErrors];
 
     // set an error message for a successfull rollback
     const file_error_log_data = {
@@ -3015,9 +3032,16 @@ export class FileParseValidateService {
       original_file_name: originalFileName,
       file_operation_code: file_operation_code,
       ministry_contact: [...ministryContacts],
-      error_log: validationErrors,
+      error_log: finalErrorLogs,
       create_utc_timestamp: new Date(),
     };
+
+    if (finalErrorLogs.length > 0){
+      await this.fileSubmissionsService.updateFileStatus(
+        file_submission_id,
+        "DEL ERROR",
+      );
+    }
 
     await this.prisma.file_error_logs.create({
       data: file_error_log_data,
