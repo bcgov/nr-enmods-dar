@@ -2643,6 +2643,8 @@ export class FileParseValidateService {
       file_submission_id,
       file_operation_code,
     );
+    // send the obsErrors to the rollback routine
+    const fileErrors = [...fileValidationResults, ...observationsErrors]
     if (observationsErrors.length > 0) {
       await this.rollBackPartialUpload(
         [],
@@ -2651,7 +2653,7 @@ export class FileParseValidateService {
         originalFileName,
         file_operation_code,
         uniqueMinistryContacts,
-        fileValidationResults,
+        fileErrors,
       );
       this.logger.warn("Deleted the partially imported data");
       rollBackHalted = false;
@@ -3036,10 +3038,16 @@ export class FileParseValidateService {
       create_utc_timestamp: new Date(),
     };
 
-    if (finalErrorLogs.length > 0){
+    if (deleteErrors.length > 0){
       await this.fileSubmissionsService.updateFileStatus(
         file_submission_id,
-        "DEL ERROR",
+        "ROLLBACK ERR",
+      );
+    } else{
+      // need to add an else here to set it to REJECTED
+      await this.fileSubmissionsService.updateFileStatus(
+        file_submission_id,
+        "REJECTED",
       );
     }
 
@@ -3530,7 +3538,7 @@ export class FileParseValidateService {
             if (!rollBackHalted) {
               await this.fileSubmissionsService.updateFileStatus(
                 file_submission_id,
-                "ERROR",
+                "REJECTED",
               );
             }
 
@@ -4053,7 +4061,7 @@ export class FileParseValidateService {
             if (!rollBackHalted) {
               await this.fileSubmissionsService.updateFileStatus(
                 file_submission_id,
-                "ERROR",
+                "REJECTED",
               );
             }
             this.logger.log("Partial upload detected, leaving import process");
