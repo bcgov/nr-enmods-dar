@@ -254,19 +254,26 @@ export class NotificationsService {
   }
 
   async findMinistryEmails(contacts: any) {
-    const contactList = contacts.flatMap((contact) => contact.ministry_contact);
+    const contactList = contacts.flatMap((contact) =>
+      contact.ministry_contact.flatMap((str) => {
+        return str.split(",").map((name) => name.trim());
+      }),
+    );
     const lowerCaseContactList = new Set(
       contactList.map((contact) => contact.toLowerCase()),
     );
+
     const allUsers = await this.adminService.findAll();
 
     const filteredUsers = allUsers.filter(
       (user) =>
-        user.guidUsername.endsWith("idir") &&
-        lowerCaseContactList.has(user.name.toLowerCase()),
+        lowerCaseContactList.has(user.name.toLowerCase()) &&
+        user.guidUsername.endsWith("idir"),
     );
 
     const emailsToSend = filteredUsers.map((user) => user.email);
+    console.log(emailsToSend)
+
     return emailsToSend;
   }
 

@@ -358,6 +358,7 @@ export class CronJobService {
       this.logger.log(`Successfully refreshed all database tables`)
     }catch (err){
       this.logger.error(`Error in dropping tables:`, err)
+      this.operationLockService.releaseLock("REFRESH")
     }
     }
   }

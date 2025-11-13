@@ -215,18 +215,6 @@ let partialUpload = false;
 let rollBackHalted = false;
 let validationApisCalled = [];
 let fieldVisitStartTimes = {};
-let startValidation = 0,
-  endValidation = 0,
-  startObsValidation = 0,
-  endObsValidation = 0,
-  startRejectFile = 0,
-  endRejectFile = 0,
-  startReportValidated = 0,
-  endReportValidated = 0,
-  startImportNonObs = 0,
-  endImportNonObs = 0,
-  startImportObs = 0,
-  endImportObs = 0;
 
 @Injectable()
 export class FileParseValidateService {
@@ -759,17 +747,30 @@ export class FileParseValidateService {
           });
         } else if (row["DataClassification"] == "FIELD_SURVEY") {
           Object.assign(filteredObj, { ActivityType: "FIELD_SURVEY" });
-        } else if (row["DataClassification"] == "LAB" || row["DataClassification"] == "SURROGATE_RESULT"){
-          if (row["QCType"].toUpperCase().trim() == "REGULAR"){
+        } else if (
+          row["DataClassification"] == "LAB" ||
+          row["DataClassification"] == "SURROGATE_RESULT"
+        ) {
+          if (row["QCType"].toUpperCase().trim() == "REGULAR") {
             Object.assign(filteredObj, { ActivityType: "SAMPLE_ROUTINE" });
-          }else{
-             Object.assign(filteredObj, { ActivityType: `${row["QCType"].toUpperCase().trim()}` });
+          } else {
+            Object.assign(filteredObj, {
+              ActivityType: `${row["QCType"].toUpperCase().trim()}`,
+            });
           }
-        } else if (row["DataClassification"] == "FIELD_RESULT" || row["DataClassification"] == "ACTIVITY_RESULT"){
-          if (row["QCType"].toUpperCase().trim() == "REGULAR" || row["QCType"].toUpperCase().trim() == ""){
+        } else if (
+          row["DataClassification"] == "FIELD_RESULT" ||
+          row["DataClassification"] == "ACTIVITY_RESULT"
+        ) {
+          if (
+            row["QCType"].toUpperCase().trim() == "REGULAR" ||
+            row["QCType"].toUpperCase().trim() == ""
+          ) {
             Object.assign(filteredObj, { ActivityType: "SAMPLE_ROUTINE" });
-          }else{
-             Object.assign(filteredObj, { ActivityType: `${row["QCType"].toUpperCase().trim()}` });
+          } else {
+            Object.assign(filteredObj, {
+              ActivityType: `${row["QCType"].toUpperCase().trim()}`,
+            });
           }
         }
       } else {
@@ -1314,7 +1315,7 @@ export class FileParseValidateService {
             rowNum: rowNumber,
             type: "ERROR",
             message: {
-              DataClassification: `${rowData.DataClassification} not found in EnMoDS Data Classesifications`,
+              DataClassification: `${rowData.DataClassification} not found in EnMoDS Data Classifications`,
             },
           };
           errorLogs.push(errorLog);
@@ -1873,7 +1874,12 @@ export class FileParseValidateService {
       }
     }
 
-    if (rowData.FieldVisitStartTime != "") {
+    let validFieldVisitStartTime = isISO8601(rowData.FieldVisitStartTime, {
+      strict: true,
+      strictSeparator: true,
+    });
+    
+    if (rowData.FieldVisitStartTime != "" && validFieldVisitStartTime) {
       // check to see if a field visit for that given day already exists for the location
       const rawDateFromRow = rowData.FieldVisitStartTime;
       const formattedDateFromRow = rawDateFromRow.match(/^(.*?)T/)[1]; // without time
@@ -2644,7 +2650,7 @@ export class FileParseValidateService {
       file_operation_code,
     );
     // send the obsErrors to the rollback routine
-    const fileErrors = [...fileValidationResults, ...observationsErrors]
+    const fileErrors = [...fileValidationResults, ...observationsErrors];
     if (observationsErrors.length > 0) {
       await this.rollBackPartialUpload(
         [],
@@ -2922,7 +2928,7 @@ export class FileParseValidateService {
       },
     );
 
-    let deleteErrors = []
+    let deleteErrors = [];
 
     let partiallyImportedSpecimens =
       partiallyImportedGUIDS[0].imported_guids["specimens"];
@@ -3024,7 +3030,6 @@ export class FileParseValidateService {
     //delete the partially imported visits
     await this.aqiService.VisitDelete(mergedVisits, deleteErrors);
 
-
     const finalErrorLogs = [...validationErrors, ...deleteErrors];
 
     // set an error message for a successfull rollback
@@ -3038,12 +3043,12 @@ export class FileParseValidateService {
       create_utc_timestamp: new Date(),
     };
 
-    if (deleteErrors.length > 0){
+    if (deleteErrors.length > 0) {
       await this.fileSubmissionsService.updateFileStatus(
         file_submission_id,
         "ROLLBACK ERR",
       );
-    } else{
+    } else {
       // need to add an else here to set it to REJECTED
       await this.fileSubmissionsService.updateFileStatus(
         file_submission_id,
@@ -3056,7 +3061,19 @@ export class FileParseValidateService {
     });
   }
 
-  async benchmarkImport(file_submission_id, fileName, originalFileName) {
+  async benchmarkImport(
+    file_submission_id,
+    fileName,
+    originalFileName,
+    endValidation,
+    endObsValidation,
+    endImportNonObs,
+    endImportObs,
+    startValidation,
+    startObsValidation,
+    startImportNonObs,
+    startImportObs,
+  ) {
     // all times in ms, divide by 1000 to make them in s
     const validationTime = (endValidation - startValidation) / 1000;
     const obsValidationTime = (endObsValidation - startObsValidation) / 1000;
@@ -3137,6 +3154,18 @@ export class FileParseValidateService {
     rollBackHalted = false;
     validationApisCalled = [];
     fieldVisitStartTimes = {};
+    let startValidation = 0,
+      endValidation = 0,
+      startObsValidation = 0,
+      endObsValidation = 0,
+      startRejectFile = 0,
+      endRejectFile = 0,
+      startReportValidated = 0,
+      endReportValidated = 0,
+      startImportNonObs = 0,
+      endImportNonObs = 0,
+      startImportObs = 0,
+      endImportObs = 0;
 
     console.time("parseFile");
     const startParseFile = performance.now();
@@ -3230,6 +3259,14 @@ export class FileParseValidateService {
           file_submission_id,
           fileName,
           originalFileName,
+          endValidation,
+          endObsValidation,
+          endImportNonObs,
+          endImportObs,
+          startValidation,
+          startObsValidation,
+          startImportNonObs,
+          startImportObs,
         );
 
         fs.unlink(filePath, (err) => {
@@ -3367,6 +3404,14 @@ export class FileParseValidateService {
           file_submission_id,
           fileName,
           originalFileName,
+          endValidation,
+          endObsValidation,
+          endImportNonObs,
+          endImportObs,
+          startValidation,
+          startObsValidation,
+          startImportNonObs,
+          startImportObs,
         );
 
         return;
@@ -3413,6 +3458,14 @@ export class FileParseValidateService {
             file_submission_id,
             fileName,
             originalFileName,
+            endValidation,
+            endObsValidation,
+            endImportNonObs,
+            endImportObs,
+            startValidation,
+            startObsValidation,
+            startImportNonObs,
+            startImportObs,
           );
 
           return;
@@ -3601,6 +3654,14 @@ export class FileParseValidateService {
           file_submission_id,
           fileName,
           originalFileName,
+          endValidation,
+          endObsValidation,
+          endImportNonObs,
+          endImportObs,
+          startValidation,
+          startObsValidation,
+          startImportNonObs,
+          startImportObs,
         );
 
         return;
@@ -3661,6 +3722,14 @@ export class FileParseValidateService {
           file_submission_id,
           fileName,
           originalFileName,
+          endValidation,
+          endObsValidation,
+          endImportNonObs,
+          endImportObs,
+          startValidation,
+          startObsValidation,
+          startImportNonObs,
+          startImportObs,
         );
 
         fs.unlink(filePath, (err) => {
@@ -3841,6 +3910,14 @@ export class FileParseValidateService {
           file_submission_id,
           fileName,
           originalFileName,
+          endValidation,
+          endObsValidation,
+          endImportNonObs,
+          endImportObs,
+          startValidation,
+          startObsValidation,
+          startImportNonObs,
+          startImportObs,
         );
 
         return;
@@ -3886,6 +3963,14 @@ export class FileParseValidateService {
             file_submission_id,
             fileName,
             originalFileName,
+            endValidation,
+            endObsValidation,
+            endImportNonObs,
+            endImportObs,
+            startValidation,
+            startObsValidation,
+            startImportNonObs,
+            startImportObs,
           );
 
           await this.notificationsService.notifyUserOfError(file_submission_id);
@@ -4093,7 +4178,19 @@ export class FileParseValidateService {
     }
 
     console.timeEnd("parseFile");
-    await this.benchmarkImport(file_submission_id, fileName, originalFileName);
+    await this.benchmarkImport(
+      file_submission_id,
+      fileName,
+      originalFileName,
+      endValidation,
+      endObsValidation,
+      endImportNonObs,
+      endImportObs,
+      startValidation,
+      startObsValidation,
+      startImportNonObs,
+      startImportObs,
+    );
     partialUpload = false;
     rollBackHalted = false;
   }
