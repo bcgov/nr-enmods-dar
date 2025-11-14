@@ -932,7 +932,10 @@ export class FileParseValidateService {
           }
         }
       } catch (error) {
-        this.logger.error(`Runtime error validating ObservedPropertyID in row ${rowNumber}:`, error);
+        this.logger.error(
+          `Runtime error validating ObservedPropertyID in row ${rowNumber}:`,
+          error,
+        );
         let errorLog = {
           rowNum: rowNumber,
           type: "ERROR",
@@ -993,7 +996,10 @@ export class FileParseValidateService {
           }
         }
       } catch (error) {
-        this.logger.error(`Runtime error validating ${field} in row ${rowNumber}:`, error);
+        this.logger.error(
+          `Runtime error validating ${field} in row ${rowNumber}:`,
+          error,
+        );
         let errorLog = {
           rowNum: rowNumber,
           type: "ERROR",
@@ -1074,7 +1080,10 @@ export class FileParseValidateService {
           }
         }
       } catch (error) {
-        this.logger.error(`Runtime error validating ${field} in row ${rowNumber}:`, error);
+        this.logger.error(
+          `Runtime error validating ${field} in row ${rowNumber}:`,
+          error,
+        );
         let errorLog = {
           rowNum: rowNumber,
           type: "ERROR",
@@ -1117,7 +1126,10 @@ export class FileParseValidateService {
         errorLogs.push(errorLog);
       }
     } catch (error) {
-      this.logger.error(`Runtime error validating ${unitFields} in row ${rowNumber}:`, error);
+      this.logger.error(
+        `Runtime error validating ${unitFields} in row ${rowNumber}:`,
+        error,
+      );
       let errorLog = {
         rowNum: rowNumber,
         type: "ERROR",
@@ -1144,7 +1156,10 @@ export class FileParseValidateService {
         }
       }
     } catch (error) {
-      this.logger.error(`Runtime error validating Depth Unit in row ${rowNumber}:`, error);
+      this.logger.error(
+        `Runtime error validating Depth Unit in row ${rowNumber}:`,
+        error,
+      );
       let errorLog = {
         rowNum: rowNumber,
         type: "ERROR",
@@ -1184,7 +1199,10 @@ export class FileParseValidateService {
         }
       }
     } catch (error) {
-      this.logger.error(`Runtime error validating SamplingAgency in row ${rowNumber}:`, error);
+      this.logger.error(
+        `Runtime error validating SamplingAgency in row ${rowNumber}:`,
+        error,
+      );
       let errorLog = {
         rowNum: rowNumber,
         type: "ERROR",
@@ -1224,7 +1242,10 @@ export class FileParseValidateService {
         }
       }
     } catch (error) {
-      this.logger.error(`Runtime error validating Project in row ${rowNumber}:`, error);
+      this.logger.error(
+        `Runtime error validating Project in row ${rowNumber}:`,
+        error,
+      );
       let errorLog = {
         rowNum: rowNumber,
         type: "ERROR",
@@ -1262,7 +1283,10 @@ export class FileParseValidateService {
         errorLogs.push(errorLog);
       }
     } catch (error) {
-      this.logger.error(`Runtime error validating LocationID in row ${rowNumber}:`, error);
+      this.logger.error(
+        `Runtime error validating LocationID in row ${rowNumber}:`,
+        error,
+      );
       let errorLog = {
         rowNum: rowNumber,
         type: "ERROR",
@@ -1294,7 +1318,10 @@ export class FileParseValidateService {
         }
       }
     } catch (error) {
-      this.logger.error(`Runtime error validating FieldPreservative in row ${rowNumber}:`, error);
+      this.logger.error(
+        `Runtime error validating FieldPreservative in row ${rowNumber}:`,
+        error,
+      );
       let errorLog = {
         rowNum: rowNumber,
         type: "ERROR",
@@ -1339,12 +1366,16 @@ export class FileParseValidateService {
         }
       }
     } catch (error) {
-      this.logger.error(`Runtime error validating CollectionMethod in row ${rowNumber}:`, error);
+      this.logger.error(
+        `Runtime error validating CollectionMethod in row ${rowNumber}:`,
+        error,
+      );
       let errorLog = {
         rowNum: rowNumber,
         type: "ERROR",
         message: {
-          CollectionMethod: "Failed to validate. Please contact an administrator.",
+          CollectionMethod:
+            "Failed to validate. Please contact an administrator.",
         },
       };
       errorLogs.push(errorLog);
@@ -1379,7 +1410,10 @@ export class FileParseValidateService {
         }
       }
     } catch (error) {
-      this.logger.error(`Runtime error validating Medium in row ${rowNumber}:`, error);
+      this.logger.error(
+        `Runtime error validating Medium in row ${rowNumber}:`,
+        error,
+      );
       let errorLog = {
         rowNum: rowNumber,
         type: "ERROR",
@@ -1411,12 +1445,16 @@ export class FileParseValidateService {
         }
       }
     } catch (error) {
-      this.logger.error(`Runtime error validating DetectionCondition in row ${rowNumber}:`, error);
+      this.logger.error(
+        `Runtime error validating DetectionCondition in row ${rowNumber}:`,
+        error,
+      );
       let errorLog = {
         rowNum: rowNumber,
         type: "ERROR",
         message: {
-          DetectionCondition: "Failed to validate. Please contact an administrator.",
+          DetectionCondition:
+            "Failed to validate. Please contact an administrator.",
         },
       };
       errorLogs.push(errorLog);
@@ -1440,7 +1478,10 @@ export class FileParseValidateService {
         }
       }
     } catch (error) {
-      this.logger.error(`Runtime error validating Fraction in row ${rowNumber}:`, error);
+      this.logger.error(
+        `Runtime error validating Fraction in row ${rowNumber}:`,
+        error,
+      );
       let errorLog = {
         rowNum: rowNumber,
         type: "ERROR",
@@ -1507,12 +1548,16 @@ export class FileParseValidateService {
           }
         }
       } catch (error) {
-        this.logger.error(`Runtime error validating DataClassification in row ${rowNumber}:`, error);
+        this.logger.error(
+          `Runtime error validating DataClassification in row ${rowNumber}:`,
+          error,
+        );
         let errorLog = {
           rowNum: rowNumber,
           type: "ERROR",
           message: {
-            DataClassification: "Failed to validate. Please contact an administrator.",
+            DataClassification:
+              "Failed to validate. Please contact an administrator.",
           },
         };
         errorLogs.push(errorLog);
@@ -1538,12 +1583,16 @@ export class FileParseValidateService {
           }
         }
       } catch (error) {
-        this.logger.error(`Runtime error validating FieldFiltered in row ${rowNumber}:`, error);
+        this.logger.error(
+          `Runtime error validating FieldFiltered in row ${rowNumber}:`,
+          error,
+        );
         let errorLog = {
           rowNum: rowNumber,
           type: "ERROR",
           message: {
-            FieldFiltered: "Failed to validate. Please contact an administrator.",
+            FieldFiltered:
+              "Failed to validate. Please contact an administrator.",
           },
         };
         errorLogs.push(errorLog);
@@ -1569,12 +1618,16 @@ export class FileParseValidateService {
           }
         }
       } catch (error) {
-        this.logger.error(`Runtime error validating SourceOfRoundedValue in row ${rowNumber}:`, error);
+        this.logger.error(
+          `Runtime error validating SourceOfRoundedValue in row ${rowNumber}:`,
+          error,
+        );
         let errorLog = {
           rowNum: rowNumber,
           type: "ERROR",
           message: {
-            SourceOfRoundedValue: "Failed to validate. Please contact an administrator.",
+            SourceOfRoundedValue:
+              "Failed to validate. Please contact an administrator.",
           },
         };
         errorLogs.push(errorLog);
@@ -1598,12 +1651,16 @@ export class FileParseValidateService {
           errorLogs.push(errorLog);
         }
       } catch (error) {
-        this.logger.error(`Runtime error validating RoundedValue in row ${rowNumber}:`, error);
+        this.logger.error(
+          `Runtime error validating RoundedValue in row ${rowNumber}:`,
+          error,
+        );
         let errorLog = {
           rowNum: rowNumber,
           type: "ERROR",
           message: {
-            RoundedValue: "Failed to validate. Please contact an administrator.",
+            RoundedValue:
+              "Failed to validate. Please contact an administrator.",
           },
         };
         errorLogs.push(errorLog);
@@ -1627,12 +1684,16 @@ export class FileParseValidateService {
           errorLogs.push(errorLog);
         }
       } catch (error) {
-        this.logger.error(`Runtime error validating RoundingSpecification in row ${rowNumber}:`, error);
+        this.logger.error(
+          `Runtime error validating RoundingSpecification in row ${rowNumber}:`,
+          error,
+        );
         let errorLog = {
           rowNum: rowNumber,
           type: "ERROR",
           message: {
-            RoundingSpecification: "Failed to validate. Please contact an administrator.",
+            RoundingSpecification:
+              "Failed to validate. Please contact an administrator.",
           },
         };
         errorLogs.push(errorLog);
@@ -1672,12 +1733,16 @@ export class FileParseValidateService {
           }
         }
       } catch (error) {
-        this.logger.error(`Runtime error validating AnalyzingAgency in row ${rowNumber}:`, error);
+        this.logger.error(
+          `Runtime error validating AnalyzingAgency in row ${rowNumber}:`,
+          error,
+        );
         let errorLog = {
           rowNum: rowNumber,
           type: "ERROR",
           message: {
-            AnalyzingAgency: "Failed to validate. Please contact an administrator.",
+            AnalyzingAgency:
+              "Failed to validate. Please contact an administrator.",
           },
         };
         errorLogs.push(errorLog);
@@ -1716,12 +1781,16 @@ export class FileParseValidateService {
           }
         }
       } catch (error) {
-        this.logger.error(`Runtime error validating AnalysisMethod in row ${rowNumber}:`, error);
+        this.logger.error(
+          `Runtime error validating AnalysisMethod in row ${rowNumber}:`,
+          error,
+        );
         let errorLog = {
           rowNum: rowNumber,
           type: "ERROR",
           message: {
-            AnalysisMethod: "Failed to validate. Please contact an administrator.",
+            AnalysisMethod:
+              "Failed to validate. Please contact an administrator.",
           },
         };
         errorLogs.push(errorLog);
@@ -1745,12 +1814,16 @@ export class FileParseValidateService {
           errorLogs.push(errorLog);
         }
       } catch (error) {
-        this.logger.error(`Runtime error validating ResultStatus in row ${rowNumber}:`, error);
+        this.logger.error(
+          `Runtime error validating ResultStatus in row ${rowNumber}:`,
+          error,
+        );
         let errorLog = {
           rowNum: rowNumber,
           type: "ERROR",
           message: {
-            ResultStatus: "Failed to validate. Please contact an administrator.",
+            ResultStatus:
+              "Failed to validate. Please contact an administrator.",
           },
         };
         errorLogs.push(errorLog);
@@ -1774,7 +1847,10 @@ export class FileParseValidateService {
           errorLogs.push(errorLog);
         }
       } catch (error) {
-        this.logger.error(`Runtime error validating ResultGrade in row ${rowNumber}:`, error);
+        this.logger.error(
+          `Runtime error validating ResultGrade in row ${rowNumber}:`,
+          error,
+        );
         let errorLog = {
           rowNum: rowNumber,
           type: "ERROR",
@@ -1821,7 +1897,10 @@ export class FileParseValidateService {
           }
         }
       } catch (error) {
-        this.logger.error(`Runtime error validating TissueType in row ${rowNumber}:`, error);
+        this.logger.error(
+          `Runtime error validating TissueType in row ${rowNumber}:`,
+          error,
+        );
         let errorLog = {
           rowNum: rowNumber,
           type: "ERROR",
@@ -1867,7 +1946,10 @@ export class FileParseValidateService {
           }
         }
       } catch (error) {
-        this.logger.error(`Runtime error validating QCType in row ${rowNumber}:`, error);
+        this.logger.error(
+          `Runtime error validating QCType in row ${rowNumber}:`,
+          error,
+        );
         let errorLog = {
           rowNum: rowNumber,
           type: "ERROR",
@@ -1900,12 +1982,16 @@ export class FileParseValidateService {
           }
         }
       } catch (error) {
-        this.logger.error(`Runtime error validating SpecimenName in row ${rowNumber}:`, error);
+        this.logger.error(
+          `Runtime error validating SpecimenName in row ${rowNumber}:`,
+          error,
+        );
         let errorLog = {
           rowNum: rowNumber,
           type: "ERROR",
           message: {
-            SpecimenName: "Failed to validate. Please contact an administrator.",
+            SpecimenName:
+              "Failed to validate. Please contact an administrator.",
           },
         };
         errorLogs.push(errorLog);
@@ -3321,6 +3407,7 @@ export class FileParseValidateService {
       return;
     }
 
+    this.logger.log("DELETING FILE RELATED DATA");
     //delete the partially imported specimens
     await this.aqiService.SpecimenDelete(mergedSpecimens, deleteErrors);
 
@@ -3329,6 +3416,8 @@ export class FileParseValidateService {
 
     //delete the partially imported visits
     await this.aqiService.VisitDelete(mergedVisits, deleteErrors);
+
+    this.logger.log("FINISHED DELETING FILE RELATED DATA");
 
     const finalErrorLogs = [...validationErrors, ...deleteErrors];
 
@@ -3343,7 +3432,12 @@ export class FileParseValidateService {
       create_utc_timestamp: new Date(),
     };
 
+    await this.prisma.file_error_logs.create({
+      data: file_error_log_data,
+    });
+
     if (deleteErrors.length > 0) {
+      this.logger.warn(`Errors encountered during rollback deletion process.`);
       await this.fileSubmissionsService.updateFileStatus(
         file_submission_id,
         "ROLLBACK ERR",
@@ -3356,9 +3450,7 @@ export class FileParseValidateService {
       );
     }
 
-    await this.prisma.file_error_logs.create({
-      data: file_error_log_data,
-    });
+    await this.notificationsService.notifyUserOfError(file_submission_id);
   }
 
   async benchmarkImport(
@@ -4034,8 +4126,6 @@ export class FileParseValidateService {
           startImportObs,
         );
 
-        await this.notificationsService.notifyUserOfError(file_submission_id);
-
         fs.unlink(filePath, (err) => {
           if (err) {
             this.logger.error(`Error cleaning up tempObsFiles`, err);
@@ -4043,6 +4133,8 @@ export class FileParseValidateService {
             this.logger.log(`Successfully cleaned up tempObsFiles.`);
           }
         });
+
+        await this.notificationsService.notifyUserOfError(file_submission_id);
 
         return;
       }

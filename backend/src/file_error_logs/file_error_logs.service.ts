@@ -26,7 +26,16 @@ export class FileErrorLogsService {
       }
     });
 
-    const formattedMessage = formulateErrorFile(fileLogs);
+    const fileSubmissionTime = await this.prisma.file_submission.findMany({
+      where: {
+        submission_id: file_submission_id
+      },
+      select: {
+        submission_date: true
+      }
+    })
+
+    const formattedMessage = formulateErrorFile(fileLogs, fileSubmissionTime);
     return formattedMessage;
   }
 
@@ -55,7 +64,7 @@ export class FileErrorLogsService {
   }
 }
 
-function formulateErrorFile(logs: any) {
+function formulateErrorFile(logs: any, fileSubmissionTime: any) {
   if (logs[0].error_log.length > 0){
     // check if any has ERROR
     const hasError = logs[0].error_log.some(log => log.type === 'ERROR');
@@ -82,7 +91,8 @@ function formulateErrorFile(logs: any) {
 
     formattedMessages =
       `User's Original File: ${logs[0].original_file_name}\n` +
-      `${date} ${time}\n\n` +
+      `Date and Time of Upload: ${fileSubmissionTime[0].submission_date}\n` +
+      `Date and Time of Processing Completion: ${logs[0].create_utc_timestamp}\n\n` +
       `QA Only: ${fileOperation}\n\n` +
       submessage +
       `If you have any questions, please contact the ministry contact(s) listed below.\n\n` +
@@ -130,7 +140,8 @@ function formulateErrorFile(logs: any) {
     }
     formattedMessages =
       `User's Original File: ${logs[0].original_file_name}\n` +
-      `${date} ${time}\n\n` +
+      `Date and Time of Upload: ${fileSubmissionTime[0].submission_date}\n` +
+      `Date and Time of Processing Completion: ${logs[0].create_utc_timestamp}\n\n` +
       `QA Only: ${fileOperation}\n\n` +
       `Data has been successfully ${fileAction} in EnMoDS.\n` +
       `If you have any questions, please contact the ministry contact(s) listed below.\n\n` +
