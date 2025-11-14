@@ -363,7 +363,7 @@ export class CronJobService {
     }
   }
 
-  @Cron(CronExpression.EVERY_30_SECONDS)
+  @Cron(CronExpression.EVERY_30_MINUTES)
   private async fetchAQSSData() {
     if (!this.operationLockService.acquireLock("PULLDOWN")) {
       this.logger.log(
