@@ -254,6 +254,9 @@ export class NotificationsService {
   }
 
   async findMinistryEmails(contacts: any) {
+    if (contacts[0].ministry_contact === null) {
+      return [];
+    }
     const contactList = contacts.flatMap((contact) =>
       contact.ministry_contact.flatMap((str) => {
         return str.split(",").map((name) => name.trim());

@@ -3661,8 +3661,6 @@ export class FileParseValidateService {
           startImportObs,
         );
 
-        await this.notificationsService.notifyUserOfError(file_submission_id);
-
         fs.unlink(filePath, (err) => {
           if (err) {
             this.logger.error(`Error cleaning up tempObsFiles`, err);
@@ -3670,6 +3668,8 @@ export class FileParseValidateService {
             this.logger.log(`Successfully cleaned up tempObsFiles.`);
           }
         });
+
+        await this.notificationsService.notifyUserOfError(file_submission_id);
 
         return;
       }
