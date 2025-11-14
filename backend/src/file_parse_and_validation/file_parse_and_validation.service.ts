@@ -3046,6 +3046,7 @@ export class FileParseValidateService {
         file_operation_code,
         uniqueMinistryContacts,
         fileErrors,
+        filePath
       );
       this.logger.warn("Deleted the partially imported data");
       rollBackHalted = false;
@@ -3232,6 +3233,7 @@ export class FileParseValidateService {
     file_operation_code,
     ministry_contacts,
     validationErrors: any[],
+    filePath: string,
   ) {
     try {
       let rowData: Record<string, string> = {};
@@ -3280,6 +3282,7 @@ export class FileParseValidateService {
           file_operation_code,
           ministry_contacts,
           validationErrors,
+          filePath
         );
         this.logger.warn("Deleted the partially imported data");
         rollBackHalted = false;
@@ -3300,6 +3303,7 @@ export class FileParseValidateService {
     file_operation_code,
     ministryContacts: any,
     validationErrors,
+    filePath
   ) {
     // get the partially imported guids
     const partiallyImportedGUIDS = await this.prisma.aqi_imported_data.findMany(
@@ -3407,7 +3411,6 @@ export class FileParseValidateService {
       return;
     }
 
-    this.logger.log("DELETING FILE RELATED DATA");
     //delete the partially imported specimens
     await this.aqiService.SpecimenDelete(mergedSpecimens, deleteErrors);
 
@@ -3416,8 +3419,6 @@ export class FileParseValidateService {
 
     //delete the partially imported visits
     await this.aqiService.VisitDelete(mergedVisits, deleteErrors);
-
-    this.logger.log("FINISHED DELETING FILE RELATED DATA");
 
     const finalErrorLogs = [...validationErrors, ...deleteErrors];
 
@@ -3451,6 +3452,14 @@ export class FileParseValidateService {
     }
 
     await this.notificationsService.notifyUserOfError(file_submission_id);
+
+    fs.unlink(filePath, (err) => {
+      if (err) {
+        this.logger.error(`Error cleaning up tempObsFiles`, err);
+      } else {
+        this.logger.log(`Successfully cleaned up tempObsFiles.`);
+      }
+    });
   }
 
   async benchmarkImport(
@@ -3914,6 +3923,7 @@ export class FileParseValidateService {
                   file_operation_code,
                   ministryContacts,
                   contactsAndValidationResults[1],
+                  filePath,
                 );
 
                 // if a partial upload then stop processing the batch and return
@@ -3964,6 +3974,7 @@ export class FileParseValidateService {
                 file_operation_code,
                 ministryContacts,
                 contactsAndValidationResults[1],
+                filePath,
               );
               // if a partial upload then stop processing the batch and do the rollback
               if (partialUpload) {
@@ -4467,6 +4478,7 @@ export class FileParseValidateService {
                   file_operation_code,
                   contactsAndValidationResults[0],
                   contactsAndValidationResults[1],
+                  filePath,
                 );
 
                 // if a partial upload then stop processing the batch
@@ -4521,6 +4533,7 @@ export class FileParseValidateService {
                 file_operation_code,
                 ministryContacts,
                 contactsAndValidationResults[1],
+                filePath,
               );
               // if a partial upload then stop processing the batch
               if (partialUpload) {
