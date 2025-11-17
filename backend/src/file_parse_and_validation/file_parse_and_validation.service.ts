@@ -3411,6 +3411,13 @@ export class FileParseValidateService {
       return;
     }
 
+
+    // get the observation guids for the file and delete them
+    const observationGUIDS =
+      await this.aqiService.getObservationsFromFile(fileName);
+    
+    await this.aqiService.ObservationDelete(observationGUIDS, deleteErrors);
+
     //delete the partially imported specimens
     await this.aqiService.SpecimenDelete(mergedSpecimens, deleteErrors);
 
