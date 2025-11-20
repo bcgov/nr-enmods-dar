@@ -822,8 +822,6 @@ export class AqiApiService {
         }
       }
     }
-    // await new Promise((f) => setTimeout(f, 1000));
-
     return obsDeleteErrors;
   }
 
@@ -848,7 +846,6 @@ export class AqiApiService {
         }
       }
     }
-    // await new Promise((f) => setTimeout(f, 1000));
     return specimenDeleteErrors;
   }
 
@@ -873,7 +870,6 @@ export class AqiApiService {
         }
       }
     }
-    // await new Promise((f) => setTimeout(f, 1000));
     return activityDeleteErrors;
   }
 
@@ -898,7 +894,6 @@ export class AqiApiService {
         }
       }
     }
-    // await new Promise((f) => setTimeout(f, 1000));
     return visitDeleteErrors;
   }
 
