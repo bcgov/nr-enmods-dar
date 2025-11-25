@@ -59,6 +59,7 @@ export class AqiApiService {
         id: rowNumber,
         url: url,
         count: response.data.totalCount,
+        error: null,
         GUID:
           response.data.domainObjects.length > 0
             ? response.data.domainObjects[0].id
@@ -70,7 +71,14 @@ export class AqiApiService {
         `RowNum: ${rowNumber} -> API CALL TO GET Field Visits failed: `,
         err.response.data.message,
       );
-      return err.response.data.message;
+      let urlAndResponse = {
+        id: rowNumber,
+        url: url,
+        count: 0,
+        error: err.response.data.message,
+        GUID: null,
+      }
+      return urlAndResponse;
     }
   }
 
@@ -85,6 +93,7 @@ export class AqiApiService {
         id: rowNumber,
         url: url,
         count: response.data.totalCount,
+        error: null,
         GUID:
           response.data.domainObjects.length > 0
             ? response.data.domainObjects[0].id
@@ -96,6 +105,14 @@ export class AqiApiService {
         `RowNum: ${rowNumber} -> API CALL TO GET Activities failed: `,
         err.response.data.message,
       );
+      let urlAndResponse = {
+        id: rowNumber,
+        url: url,
+        count: 0,
+        error: err.response.data.message,
+        GUID: null,
+      }
+      return urlAndResponse;
     }
   }
 

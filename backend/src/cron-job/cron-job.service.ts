@@ -333,7 +333,7 @@ export class CronJobService {
     }
   }
 
-  @Cron("25 14 * * *")
+  @Cron("0 3 * * *") 
   private async dropReplaceTables() {
     let lockAcquired = this.operationLockService.acquireLock("REFRESH");
     if (!lockAcquired) {

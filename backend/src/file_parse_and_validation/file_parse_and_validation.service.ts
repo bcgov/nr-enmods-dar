@@ -2135,36 +2135,50 @@ export class FileParseValidateService {
               rowNumber,
               visitURLForTime,
             );
-            if (visitURLCalledForTime.count > 0) {
-              // visit exists at specific time - issue WARNING
-              this.logger.log(
-                `[Row ${rowNumber}] Specific time visit check - API returned existing visit at exact time, issuing WARNING`,
-              );
-              visitExists = true;
-              existingGUIDS["visit"] = visitURLCalledForTime.GUID;
-              let errorLog = {
-                rowNum: rowNumber,
-                type: "WARN",
-                message: {
-                  Visit: `Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits`,
-                },
-              };
-              errorLogs.push(errorLog);
-            } else {
-              // visit exists for day but not at specific time - issue ERROR
-              this.logger.log(
-                `[Row ${rowNumber}] Specific time visit check - API returned no visit at specific time, issuing ERROR`,
+            if (visitURLCalledForTime.error == null){
+              if (visitURLCalledForTime.count > 0) {
+                // visit exists at specific time - issue WARNING
+                this.logger.log(
+                  `[Row ${rowNumber}] Specific time visit check - API returned existing visit at exact time, issuing WARNING`,
+                );
+                visitExists = true;
+                existingGUIDS["visit"] = visitURLCalledForTime.GUID;
+                let errorLog = {
+                  rowNum: rowNumber,
+                  type: "WARN",
+                  message: {
+                    Visit: `Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits`,
+                  },
+                };
+                errorLogs.push(errorLog);
+              } else {
+                // visit exists for day but not at specific time - issue ERROR
+                this.logger.log(
+                  `[Row ${rowNumber}] Specific time visit check - API returned no visit at specific time, issuing ERROR`,
+                );
+                let errorLog = {
+                  rowNum: rowNumber,
+                  type: "ERROR",
+                  message: {
+                    Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}. Please correct the date time and re-upload the file.`,
+                  },
+                };
+                errorLogs.push(errorLog);
+              }
+              validationApisCalled.push(visitURLCalledForTime);
+            }else{
+              this.logger.error(
+                `[Row ${rowNumber}] Specific time visit check - API call error: ${visitURLCalledForTime.error}`,
               );
               let errorLog = {
                 rowNum: rowNumber,
                 type: "ERROR",
                 message: {
-                  Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}. Please correct the date time and re-upload the file.`,
+                  Activity: `Failed to call AQI API to validate activity. Error: ${visitURLCalledForTime.error}.`,
                 },
               };
               errorLogs.push(errorLog);
             }
-            validationApisCalled.push(visitURLCalledForTime);
           }
         } else {
           this.logger.log(
@@ -2226,27 +2240,41 @@ export class FileParseValidateService {
               rowNumber,
               activityURL,
             );
-            if (activityURLCalled.count > 0) {
-              // visit exists in AQI
-              this.logger.log(
-                `[Row ${rowNumber}] Activity check - API returned existing activity, issuing ERROR`,
+            if (activityURLCalled.error == null){
+              if (activityURLCalled.count > 0) {
+                // visit exists in AQI
+                this.logger.log(
+                  `[Row ${rowNumber}] Activity check - API returned existing activity, issuing ERROR`,
+                );
+                visitExists = true;
+                existingGUIDS["activity"] = activityURLCalled.GUID;
+                let errorLog = {
+                  rowNum: rowNumber,
+                  type: "ERROR",
+                  message: {
+                    Activity: `Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities`,
+                  },
+                };
+                errorLogs.push(errorLog);
+              } else {
+                this.logger.log(
+                  `[Row ${rowNumber}] Activity check - API returned no existing activity`,
+                );
+              }
+              validationApisCalled.push(activityURLCalled);
+            }else{
+              this.logger.error(
+                `[Row ${rowNumber}] Activity check - API call error: ${activityURLCalled.error}`,
               );
-              visitExists = true;
-              existingGUIDS["activity"] = activityURLCalled.GUID;
               let errorLog = {
                 rowNum: rowNumber,
                 type: "ERROR",
                 message: {
-                  Activity: `Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities`,
+                  Activity: `Failed to call AQI API to validate activity. Error: ${activityURLCalled.error}.`,
                 },
               };
               errorLogs.push(errorLog);
-            } else {
-              this.logger.log(
-                `[Row ${rowNumber}] Activity check - API returned no existing activity`,
-              );
             }
-            validationApisCalled.push(activityURLCalled);
           }
         } else {
           this.logger.log(
@@ -2894,7 +2922,7 @@ export class FileParseValidateService {
           rowNumber,
           activityURL,
         );
-
+        
         if (activityExists.count > 0) {
           // send PUT to AQI
           fieldActivity["id"] = activityExists.GUID;
