@@ -210,6 +210,14 @@ export class NotificationsService {
 
     const unsubscribeLink =
       process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
+    
+    let fileOperation = ""
+
+    if (file_submission.file_operation_code === 'VALIDATE'){
+      fileOperation = "True";
+    }else{
+      fileOperation = "False";
+    }
 
     let body = `<p>Status: ${
       hasWarnings &&
@@ -218,6 +226,7 @@ export class NotificationsService {
         ? submission_status_code + " with warnings"
         : submission_status_code
     }</p>
+    <p>QA Only: ${fileOperation}</p>
     <p>Files Original Name: ${original_file_name}</p>
     <p>Date and Time of Upload: ${file_submission.submission_date}</p>
     <p>Warnings/Errors:</p>
@@ -401,7 +410,7 @@ export class NotificationsService {
     },
   ): Promise<string> {
     const chesToken = await this.getChesToken();
-    console.log("sending email");
+    this.logger.log("sending email");
     // file_error_log is a string, convert it to base64
     const base64ErrorLog = btoa(variables.file_error_log);
 

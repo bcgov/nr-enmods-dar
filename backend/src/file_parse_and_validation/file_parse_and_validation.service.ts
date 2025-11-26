@@ -1011,6 +1011,40 @@ export class FileParseValidateService {
       }
     });
 
+    // Ensure visit start time is not greater than visit end time
+    if ((rowData.hasOwnProperty("FieldVisitStartTime") && rowData["FieldVisitStartTime"]) && (rowData.hasOwnProperty("FieldVisitEndTime") && rowData["FieldVisitEndTime"])) {
+      const startTime = new Date(rowData["FieldVisitStartTime"]);
+      const endTime = new Date(rowData["FieldVisitEndTime"]);
+
+      if (startTime > endTime) {
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            FieldVisitEndTime: `Field Visit Start Time MUST be earlier than or equal to Field Visit End Time`,
+          },
+        };
+        errorLogs.push(errorLog);
+      }
+    }
+
+    // Ensure observed date time is not greater than observed date time end
+    if ((rowData.hasOwnProperty("ObservedDateTime") && rowData["ObservedDateTime"]) && (rowData.hasOwnProperty("ObservedDateTimeEnd") && rowData["ObservedDateTimeEnd"])) {
+      const observedDateTime = new Date(rowData["ObservedDateTime"]);
+      const observedDateTimeEnd = new Date(rowData["ObservedDateTimeEnd"]);
+
+      if (observedDateTime > observedDateTimeEnd) {
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            ObservedDateTimeEnd: `Observed DateTime MUST be earlier than or equal to Observed DateTime End`,
+          },
+        };
+        errorLogs.push(errorLog);
+      }
+    }
+
     // check all numerical fields
     numericalFields.forEach(async (field) => {
       try {
@@ -2033,11 +2067,14 @@ export class FileParseValidateService {
 
         // Extract YYYY-MM-DD from FieldVisitStartTime and append time components
         const datePart = rowData.FieldVisitStartTime.split("T")[0]; // Extract YYYY-MM-DD part
+        const encodedVisitStartTime = encodeURIComponent(rowData.FieldVisitStartTime)
+        const encodedVisitEndTime = encodeURIComponent(rowData.FieldVisitEndTime)
+        const encodedObservedDateTime = encodeURIComponent(rowData.ObservedDateTime)
         const visitURLForDay = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${datePart}T00:00:00-08:00&end-startTime=${datePart}T23:59:59-08:00`;
-        const visitURLForTime = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
+        const visitURLForTime = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${encodedVisitStartTime}&end-startTime=${encodedVisitEndTime}`;
         let visitExists = false;
         let visitExistsForDay = false;
-        let activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
+        let activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${encodedObservedDateTime}&toStartTime=${encodedObservedDateTime}&customId=${rowData.ActivityName}`;
         let activityExists = false;
 
         this.logger.log(`[Row ${rowNumber}] Checking for visits on entire day`);
