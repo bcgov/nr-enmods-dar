@@ -1012,7 +1012,12 @@ export class FileParseValidateService {
     });
 
     // Ensure visit start time is not greater than visit end time
-    if ((rowData.hasOwnProperty("FieldVisitStartTime") && rowData["FieldVisitStartTime"]) && (rowData.hasOwnProperty("FieldVisitEndTime") && rowData["FieldVisitEndTime"])) {
+    if (
+      rowData.hasOwnProperty("FieldVisitStartTime") &&
+      rowData["FieldVisitStartTime"] &&
+      rowData.hasOwnProperty("FieldVisitEndTime") &&
+      rowData["FieldVisitEndTime"]
+    ) {
       const startTime = new Date(rowData["FieldVisitStartTime"]);
       const endTime = new Date(rowData["FieldVisitEndTime"]);
 
@@ -1029,7 +1034,12 @@ export class FileParseValidateService {
     }
 
     // Ensure observed date time is not greater than observed date time end
-    if ((rowData.hasOwnProperty("ObservedDateTime") && rowData["ObservedDateTime"]) && (rowData.hasOwnProperty("ObservedDateTimeEnd") && rowData["ObservedDateTimeEnd"])) {
+    if (
+      rowData.hasOwnProperty("ObservedDateTime") &&
+      rowData["ObservedDateTime"] &&
+      rowData.hasOwnProperty("ObservedDateTimeEnd") &&
+      rowData["ObservedDateTimeEnd"]
+    ) {
       const observedDateTime = new Date(rowData["ObservedDateTime"]);
       const observedDateTimeEnd = new Date(rowData["ObservedDateTimeEnd"]);
 
@@ -2067,9 +2077,15 @@ export class FileParseValidateService {
 
         // Extract YYYY-MM-DD from FieldVisitStartTime and append time components
         const datePart = rowData.FieldVisitStartTime.split("T")[0]; // Extract YYYY-MM-DD part
-        const encodedVisitStartTime = encodeURIComponent(rowData.FieldVisitStartTime)
-        const encodedVisitEndTime = encodeURIComponent(rowData.FieldVisitEndTime)
-        const encodedObservedDateTime = encodeURIComponent(rowData.ObservedDateTime)
+        const encodedVisitStartTime = encodeURIComponent(
+          rowData.FieldVisitStartTime,
+        );
+        const encodedVisitEndTime = encodeURIComponent(
+          rowData.FieldVisitEndTime,
+        );
+        const encodedObservedDateTime = encodeURIComponent(
+          rowData.ObservedDateTime,
+        );
         const visitURLForDay = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${datePart}T00:00:00-08:00&end-startTime=${datePart}T23:59:59-08:00`;
         const visitURLForTime = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${encodedVisitStartTime}&end-startTime=${encodedVisitEndTime}`;
         let visitExists = false;
@@ -2172,7 +2188,7 @@ export class FileParseValidateService {
               rowNumber,
               visitURLForTime,
             );
-            if (visitURLCalledForTime.error == null){
+            if (visitURLCalledForTime.error == null) {
               if (visitURLCalledForTime.count > 0) {
                 // visit exists at specific time - issue WARNING
                 this.logger.log(
@@ -2203,7 +2219,7 @@ export class FileParseValidateService {
                 errorLogs.push(errorLog);
               }
               validationApisCalled.push(visitURLCalledForTime);
-            }else{
+            } else {
               this.logger.error(
                 `[Row ${rowNumber}] Specific time visit check - API call error: ${visitURLCalledForTime.error}`,
               );
@@ -2277,7 +2293,7 @@ export class FileParseValidateService {
               rowNumber,
               activityURL,
             );
-            if (activityURLCalled.error == null){
+            if (activityURLCalled.error == null) {
               if (activityURLCalled.count > 0) {
                 // visit exists in AQI
                 this.logger.log(
@@ -2299,7 +2315,7 @@ export class FileParseValidateService {
                 );
               }
               validationApisCalled.push(activityURLCalled);
-            }else{
+            } else {
               this.logger.error(
                 `[Row ${rowNumber}] Activity check - API call error: ${activityURLCalled.error}`,
               );
@@ -2959,7 +2975,7 @@ export class FileParseValidateService {
           rowNumber,
           activityURL,
         );
-        
+
         if (activityExists.count > 0) {
           // send PUT to AQI
           fieldActivity["id"] = activityExists.GUID;
@@ -3545,7 +3561,9 @@ export class FileParseValidateService {
     const obsValidationTime = (endObsValidation - startObsValidation) / 1000;
     const importTime = (endImportNonObs - startImportNonObs) / 1000;
     const obsImportTime = (endImportObs - startImportObs) / 1000;
-    const totalTime = Math.round(validationTime + obsValidationTime + importTime + obsImportTime);
+    const totalTime = Math.round(
+      validationTime + obsValidationTime + importTime + obsImportTime,
+    );
 
     const fileInfo = await this.prisma.file_submission.findFirst({
       select: {
@@ -3687,7 +3705,56 @@ export class FileParseValidateService {
       await workbook.xlsx.read(file);
       const worksheet = workbook.getWorksheet(1);
 
-      const rowHeaders = (worksheet.getRow(1).values as string[])
+      if (worksheet === undefined) {
+        this.logger.error("No worksheet found in the Excel file.");
+        let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"File": "Incorrect file content. Please check the file and try again."}}`;
+
+        const file_error_log_data = {
+          file_submission_id: file_submission_id,
+          file_name: fileName,
+          original_file_name: originalFileName,
+          file_operation_code: file_operation_code,
+          ministry_contact: null,
+          error_log: [JSON.parse(errorLog)],
+          create_utc_timestamp: new Date(),
+        };
+
+        await this.prisma.file_error_logs.create({
+          data: file_error_log_data,
+        });
+
+        await this.fileSubmissionsService.updateFileStatus(
+          file_submission_id,
+          "REJECTED",
+        );
+        await this.benchmarkImport(
+          file_submission_id,
+          fileName,
+          originalFileName,
+          endValidation,
+          endObsValidation,
+          endImportNonObs,
+          endImportObs,
+          startValidation,
+          startObsValidation,
+          startImportNonObs,
+          startImportObs,
+        );
+
+        fs.unlink(filePath, (err) => {
+          if (err) {
+            this.logger.error(`Error cleaning up tempObsFiles`, err);
+          } else {
+            this.logger.log(`Successfully cleaned up tempObsFiles.`);
+          }
+        });
+
+        await this.notificationsService.notifyUserOfError(file_submission_id);
+
+        return;
+      }
+
+      const rowHeaders = (worksheet?.getRow(1).values as string[])
         .slice(1) // Remove the first empty cell
         .map((key) => key.replace(/\s+/g, "")); // Remove all whitespace from headers
 
@@ -3696,7 +3763,7 @@ export class FileParseValidateService {
 
       // do a validation on the headers
       const headerErrors = await this.checkHeaders(
-        worksheet.getRow(1).values as string[],
+        worksheet?.getRow(1).values as string[],
         "xlsx",
       );
 
@@ -3749,8 +3816,8 @@ export class FileParseValidateService {
 
       console.time("Validation");
       startValidation = performance.now();
-      for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
-        const row = worksheet.getRow(rowNumber);
+      for (let rowNumber = 2; rowNumber <= worksheet?.rowCount; rowNumber++) {
+        const row = worksheet?.getRow(rowNumber);
 
         if (rowNumber === 1) {
           return; // Skip header row
@@ -3946,10 +4013,10 @@ export class FileParseValidateService {
           this.logger.log(`Starting the import process`);
           for (
             let rowNumber = 2;
-            rowNumber <= worksheet.rowCount;
+            rowNumber <= worksheet?.rowCount;
             rowNumber++
           ) {
-            const row = worksheet.getRow(rowNumber);
+            const row = worksheet?.getRow(rowNumber);
 
             if (rowNumber === 1) {
               return; // Skip header row
