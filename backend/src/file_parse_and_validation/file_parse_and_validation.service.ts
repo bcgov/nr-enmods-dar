@@ -1348,7 +1348,7 @@ export class FileParseValidateService {
       ) {
         const present = await this.aqiService.databaseLookup(
           "aqi_preservatives",
-          rowData.FieldPreservative,
+          rowData.FieldPreservative.toUpperCase(),
         );
         if (!present) {
           let errorLog = {
@@ -1475,7 +1475,7 @@ export class FileParseValidateService {
       ) {
         const present = await this.aqiService.databaseLookup(
           "aqi_detection_conditions",
-          rowData.DetectionCondition.toUpperCase().replace(/ /g, "_"),
+          rowData.DetectionCondition.toUpperCase(),
         );
         if (!present) {
           let errorLog = {
@@ -2826,8 +2826,15 @@ export class FileParseValidateService {
       rowData.LocationID,
     );
 
-    const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
-    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
+    const encodedVisitStartTime = encodeURIComponent(
+      rowData.FieldVisitStartTime,
+    );
+    const encodedObservedDateTime = encodeURIComponent(
+      rowData.ObservedDateTime,
+    );
+
+    const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${encodedVisitStartTime}&end-startTime=${encodedVisitStartTime}`;
+    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${encodedObservedDateTime}&toStartTime=${encodedObservedDateTime}&customId=${rowData.ActivityName}`;
     let visitInfo: any;
     let activityInfo: any;
 
