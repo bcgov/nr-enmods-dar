@@ -1571,7 +1571,7 @@ export class FileParseValidateService {
               type: "ERROR",
               message: {
                 DataClassification:
-                  "Must be LAB when Composite Stat is porvided.",
+                  "Must be LAB when Composite Stat is provided.",
               },
             };
             errorLogs.push(errorLog);

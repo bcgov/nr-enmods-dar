@@ -214,7 +214,7 @@ export class NotificationsService {
     let fileOperation = ""
 
     if (file_submission.file_operation_code === 'VALIDATE'){
-      fileOperation = "True";
+      fileOperation = "True"; // this means its a validation only file
     }else{
       fileOperation = "False";
     }
@@ -226,7 +226,6 @@ export class NotificationsService {
         ? submission_status_code + " with warnings"
         : submission_status_code
     }</p>
-    <p>QA Only: ${fileOperation}</p>
     <p>Files Original Name: ${original_file_name}</p>
     <p>Date and Time of Upload: ${file_submission.submission_date}</p>
     <p>Warnings/Errors:</p>
@@ -237,14 +236,31 @@ export class NotificationsService {
         `<p>Submission Notification</p><p><a href="${unsubscribeLink}">Unsubscribe</a></p>`,
       );
 
+    
+    let emailSubject = ""
+    // File upload for validation and status validated without warnings
+    if (fileOperation === "True" && submission_status_code === "VALIDATED" && !hasWarnings){
+      emailSubject = "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}"
+    // File updload for validation and status validated with warnings
+    }else if (fileOperation === "True" && submission_status_code === "VALIDATED" && hasWarnings){
+      emailSubject = "EnMoDS Data {{submission_status_code}} with warnings {{original_file_name}} from {{submitter_user_id}}"
+    // File upload for validation and status rejected
+    }else if (fileOperation === "True" && submission_status_code === "REJECTED"){
+      emailSubject = "EnMoDS Data VALIDATION-{{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}"
+    // File upload for submission and status submitted without warnings
+    }else if (fileOperation === "False" && submission_status_code === "SUBMITTED" && !hasWarnings){
+      emailSubject = "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}" 
+    // File upload for submission and status submitted with warnings
+    }else if (fileOperation === "False" && submission_status_code === "SUBMITTED" && hasWarnings){
+      emailSubject = "EnMoDS Data {{submission_status_code}} with warnings {{original_file_name}} from {{submitter_user_id}}"
+    // File upload for submission and status rejected
+    }else if (fileOperation === "False" && submission_status_code === "REJECTED"){
+      emailSubject = "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}"
+    }
+
     const emailTemplate: EmailTemplate = {
       from: "enmodshelp@gov.bc.ca",
-      subject:
-        hasWarnings &&
-        (submission_status_code === "SUBMITTED" ||
-          submission_status_code === "VALIDATED")
-          ? "EnMoDS Data {{submission_status_code}} with warnings {{original_file_name}} from {{submitter_user_id}}"
-          : "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}",
+      subject: emailSubject,
       body: body,
     };
 
