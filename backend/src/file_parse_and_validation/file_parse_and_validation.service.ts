@@ -2122,17 +2122,32 @@ export class FileParseValidateService {
             rowNumber,
             visitURLForDay,
           );
-          if (visitURLCalledForDay.count > 0) {
-            visitExistsForDay = true;
-            this.logger.log(
-              `[Row ${rowNumber}] Day visit check - API returned ${visitURLCalledForDay.count} existing visits for the day`,
-            );
+          if (visitURLCalledForDay.error == null) {
+            // this means no error in the api call
+            if (visitURLCalledForDay.count > 0) {
+              visitExistsForDay = true;
+              this.logger.log(
+                `[Row ${rowNumber}] Day visit check - API returned ${visitURLCalledForDay.count} existing visits for the day`,
+              );
+            } else {
+              this.logger.log(
+                `[Row ${rowNumber}] Day visit check - API returned no existing visits for the day`,
+              );
+            }
+            validationApisCalled.push(visitURLCalledForDay);
           } else {
-            this.logger.log(
-              `[Row ${rowNumber}] Day visit check - API returned no existing visits for the day`,
+            this.logger.error(
+              `[Row ${rowNumber}] Full day visit check - API call error: ${visitURLCalledForDay.error}`,
             );
+            let errorLog = {
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                Visit: `Failed to call AQI API to validate visit. Error: ${visitURLCalledForDay.error}`,
+              },
+            };
+            errorLogs.push(errorLog);
           }
-          validationApisCalled.push(visitURLCalledForDay);
         }
 
         // If a visit exists for the day, check if it exists at the specific time
@@ -2189,6 +2204,7 @@ export class FileParseValidateService {
               visitURLForTime,
             );
             if (visitURLCalledForTime.error == null) {
+              // this means no error in the api call
               if (visitURLCalledForTime.count > 0) {
                 // visit exists at specific time - issue WARNING
                 this.logger.log(
@@ -2227,7 +2243,7 @@ export class FileParseValidateService {
                 rowNum: rowNumber,
                 type: "ERROR",
                 message: {
-                  Activity: `Failed to call AQI API to validate activity. Error: ${visitURLCalledForTime.error}.`,
+                  Visit: `Failed to call AQI API to validate visit. Error: ${visitURLCalledForTime.error}`,
                 },
               };
               errorLogs.push(errorLog);
@@ -2294,6 +2310,7 @@ export class FileParseValidateService {
               activityURL,
             );
             if (activityURLCalled.error == null) {
+              // this means no error in the api call
               if (activityURLCalled.count > 0) {
                 // visit exists in AQI
                 this.logger.log(
@@ -2323,7 +2340,7 @@ export class FileParseValidateService {
                 rowNum: rowNumber,
                 type: "ERROR",
                 message: {
-                  Activity: `Failed to call AQI API to validate activity. Error: ${activityURLCalled.error}.`,
+                  Activity: `Failed to call AQI API to validate activity. Error: ${activityURLCalled.error}`,
                 },
               };
               errorLogs.push(errorLog);
