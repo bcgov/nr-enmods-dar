@@ -2093,6 +2093,10 @@ export class FileParseValidateService {
         let activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${encodedObservedDateTime}&toStartTime=${encodedObservedDateTime}&customId=${rowData.ActivityName}`;
         let activityExists = false;
 
+        this.logger.log(`visitUrlForDay: ${visitURLForDay}`);
+        this.logger.log(`visitUrlForTime: ${visitURLForTime}`);
+        this.logger.log(`activityURL: ${activityURL}`);
+
         this.logger.log(`[Row ${rowNumber}] Checking for visits on entire day`);
 
         // First check if a field visit exists for the entire day

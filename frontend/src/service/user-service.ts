@@ -7,6 +7,8 @@ export const AUTH_TOKEN = "__auth_token";
  *
  * @param onAuthenticatedCallback
  */
+let refreshTimer: NodeJS.Timeout | null = null;
+
 const initKeycloak = async (
   route: string,
   onAuthenticatedCallback: (authenticated: boolean) => void,
@@ -25,17 +27,41 @@ const initKeycloak = async (
         window.location.href = await _kc.createLoginUrl();
       }
     } else {
+      console.log("User is authenticated.");
       localStorage.setItem(AUTH_TOKEN, `${_kc.token}`);
     }
     onAuthenticatedCallback(authenticated);
 
+    if (refreshTimer) {
+      clearInterval(refreshTimer);
+    }
+    refreshTimer = setInterval(() => {
+      console.log('Polling to refresh token...');
+      const expiresIn = _kc.tokenParsed?.exp ? (_kc.tokenParsed.exp * 1000 - Date.now()) / 1000 : null;
+      if (expiresIn !== null) {
+        console.log(`Token expires in ${Math.round(expiresIn)} seconds.`);
+        if (expiresIn <= 60) {
+          console.log('Token is about to expire (<= 60s), attempting to refresh...');
+        }
+      }
+      _kc.updateToken(60).then((refreshed) => {
+        if (refreshed) {
+          console.log('Token was refreshed by timer.');
+          localStorage.setItem(AUTH_TOKEN, `${_kc.token}`);
+        }
+      });
+    }, 30000);
+
     _kc.onTokenExpired = () => {
+      console.log('Token is expiring (onTokenExpired event fired), attempting to refresh...');
       _kc.updateToken(5).then((refreshed) => {
         if (refreshed) {
+          console.log('Token was refreshed by onTokenExpired handler.');
           localStorage.setItem(AUTH_TOKEN, `${_kc.token}`);
         }
       });
     };
+
   } catch (error) {
     console.error("keycloak error", error);
   }
@@ -54,7 +80,7 @@ const updateToken = (
     | ((value: boolean) => boolean | PromiseLike<boolean>)
     | null
     | undefined,
-) => _kc.updateToken(5).then(successCallback).catch(doLogin);
+) => _kc.updateToken(60).then(successCallback).catch(doLogin);
 
 const getUsername = () => _kc.tokenParsed?.display_name;
 
