@@ -138,12 +138,15 @@ function formulateErrorFile(logs: any, fileSubmissionTime: any) {
       fileOperation = "False";
       fileAction = "imported";
     }
+    const subMessage = fileAction === 'validated' ?
+    `Data has been successfully validated by EnMoDS.\n` :
+    `Data has been successfully imported in EnMoDS.\n`
     formattedMessages =
       `User's Original File: ${logs[0].original_file_name}\n` +
       `Date and Time of Upload: ${fileSubmissionTime[0].submission_date}\n` +
       `Date and Time of Processing Completion: ${logs[0].create_utc_timestamp}\n\n` +
       `QA Only: ${fileOperation}\n\n` +
-      `Data has been successfully ${fileAction} in EnMoDS.\n` +
+      subMessage +
       `If you have any questions, please contact the ministry contact(s) listed below.\n\n` +
       `-----------------------------------------------------------------------\n` +
       `Ministry Contact: ${logs[0].ministry_contact}\n` +
