@@ -43,7 +43,7 @@ export default function Unsubscribe() {
             component="div"
             sx={{ flexGrow: 1, paddingLeft: '20px' }}
           >
-            ENMODS Unsubscribe
+            EnMoDS Unsubscribe
           </Typography>{' '}
         </Toolbar>
         <Box sx={{ marginLeft: '50px', marginTop: '20px' }}>{status}</Box>

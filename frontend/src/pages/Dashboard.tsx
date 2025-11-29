@@ -407,8 +407,6 @@ export default function Dashboard() {
           newAgencies[key] = response[key];
         });
 
-        console.log(newAgencies[0])
-
         const filtered = newAgencies[0].filter(agency => {
           const { submitter_agency_name } = agency
 

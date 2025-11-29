@@ -86,8 +86,8 @@ function formulateErrorFile(logs: any, fileSubmissionTime: any) {
 
     let submessage = hasError ? 
     `The following warnings/errors were found during the ${fileOperation ? "validation" : "import"} of the data.\n` + 
-    `The data will need to be corrected and uploaded again for ${fileOperation ? "validation" : "import"} to ENMODS.\n` 
-    : `Data has successfully been ${fileAction} into EnMoDS with the following warnings.\n`
+    `The data will need to be corrected and uploaded again for ${fileOperation ? "validation" : "import"} to EnMoDS.\n` 
+    : `Data has successfully been ${fileAction} by EnMoDS (with the following warnings).\n`
 
     formattedMessages =
       `User's Original File: ${logs[0].original_file_name}\n` +
@@ -118,7 +118,7 @@ function formulateErrorFile(logs: any, fileSubmissionTime: any) {
 
     if (logs[0].error_log.length >= 1 && hasErrors) {
       formattedMessages +=
-        "\nData was not updated in ENMODS due to errors found in the submission file. Please correct the data and resubmit.";
+        "\nData was not updated in EnMoDS due to errors found in the submission file. Please correct the data and resubmit.";
     }
 
     return formattedMessages;
@@ -138,12 +138,15 @@ function formulateErrorFile(logs: any, fileSubmissionTime: any) {
       fileOperation = "False";
       fileAction = "imported";
     }
+    const subMessage = fileAction === 'validated' ?
+    `Data has been successfully validated by EnMoDS.\n` :
+    `Data has been successfully imported in EnMoDS.\n`
     formattedMessages =
       `User's Original File: ${logs[0].original_file_name}\n` +
       `Date and Time of Upload: ${fileSubmissionTime[0].submission_date}\n` +
       `Date and Time of Processing Completion: ${logs[0].create_utc_timestamp}\n\n` +
       `QA Only: ${fileOperation}\n\n` +
-      `Data has been successfully ${fileAction} in EnMoDS.\n` +
+      subMessage +
       `If you have any questions, please contact the ministry contact(s) listed below.\n\n` +
       `-----------------------------------------------------------------------\n` +
       `Ministry Contact: ${logs[0].ministry_contact}\n` +

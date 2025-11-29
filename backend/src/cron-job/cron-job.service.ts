@@ -333,7 +333,7 @@ export class CronJobService {
     }
   }
 
-  @Cron("25 14 * * *")
+  @Cron("0 3 * * *") 
   private async dropReplaceTables() {
     let lockAcquired = this.operationLockService.acquireLock("REFRESH");
     if (!lockAcquired) {
@@ -370,7 +370,7 @@ export class CronJobService {
     }
   }
 
-  @Cron(CronExpression.EVERY_30_MINUTES)
+  @Cron(CronExpression.EVERY_HOUR)
   private async fetchAQSSData() {
 
     if (this.operationLockService.getCurrentLock() === "REFRESH") {
@@ -525,16 +525,17 @@ export class CronJobService {
       const { id, customId, name, auditAttributes } = obj;
       const creationUserProfileId = auditAttributes.creationUserProfileId;
       const creationTime = auditAttributes.creationTime;
-      const modificationUserProfileId =
-        auditAttributes.modificationUserProfileId;
+      const modificationUserProfileId = auditAttributes.modificationUserProfileId;
       const modificationTime = auditAttributes.modificationTime;
 
-      const edt_unit = name.split(" - ")[0];
+      // If name is missing or falsy, use customId as name
+      const resolvedName = name || customId;
+      const edt_unit = resolvedName?.split(" - ")[0];
 
       return {
         id,
         customId,
-        name,
+        name: resolvedName,
         edt_unit,
         creationUserProfileId,
         creationTime,

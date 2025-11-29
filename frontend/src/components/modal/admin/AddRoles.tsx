@@ -234,7 +234,7 @@ const AddRoles = ({
                   color="primary"
                 />
               }
-              label={Roles.ENMODS_USER}
+              label="EnMoDS User"
             />
             <FormControlLabel
               id="ENMODS_ADMIN"
@@ -247,7 +247,7 @@ const AddRoles = ({
                   color="primary"
                 />
               }
-              label={Roles.ENMODS_ADMIN}
+              label="EnMoDS Admin"
             />
             <FormControlLabel
               id="ENMODS_DELETE"
@@ -260,7 +260,7 @@ const AddRoles = ({
                   color="primary"
                 />
               }
-              label={Roles.ENMODS_DELETE}
+              label="EnMoDS Delete"
             />
           </FormGroup>
         </FormControl>

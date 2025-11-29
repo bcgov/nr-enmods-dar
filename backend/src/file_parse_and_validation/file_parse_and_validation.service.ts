@@ -1011,6 +1011,50 @@ export class FileParseValidateService {
       }
     });
 
+    // Ensure visit start time is not greater than visit end time
+    if (
+      rowData.hasOwnProperty("FieldVisitStartTime") &&
+      rowData["FieldVisitStartTime"] &&
+      rowData.hasOwnProperty("FieldVisitEndTime") &&
+      rowData["FieldVisitEndTime"]
+    ) {
+      const startTime = new Date(rowData["FieldVisitStartTime"]);
+      const endTime = new Date(rowData["FieldVisitEndTime"]);
+
+      if (startTime > endTime) {
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            FieldVisitEndTime: `Field Visit Start Time MUST be earlier than or equal to Field Visit End Time`,
+          },
+        };
+        errorLogs.push(errorLog);
+      }
+    }
+
+    // Ensure observed date time is not greater than observed date time end
+    if (
+      rowData.hasOwnProperty("ObservedDateTime") &&
+      rowData["ObservedDateTime"] &&
+      rowData.hasOwnProperty("ObservedDateTimeEnd") &&
+      rowData["ObservedDateTimeEnd"]
+    ) {
+      const observedDateTime = new Date(rowData["ObservedDateTime"]);
+      const observedDateTimeEnd = new Date(rowData["ObservedDateTimeEnd"]);
+
+      if (observedDateTime > observedDateTimeEnd) {
+        let errorLog = {
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            ObservedDateTimeEnd: `Observed DateTime MUST be earlier than or equal to Observed DateTime End`,
+          },
+        };
+        errorLogs.push(errorLog);
+      }
+    }
+
     // check all numerical fields
     numericalFields.forEach(async (field) => {
       try {
@@ -1304,7 +1348,7 @@ export class FileParseValidateService {
       ) {
         const present = await this.aqiService.databaseLookup(
           "aqi_preservatives",
-          rowData.FieldPreservative,
+          rowData.FieldPreservative.toUpperCase(),
         );
         if (!present) {
           let errorLog = {
@@ -1431,7 +1475,7 @@ export class FileParseValidateService {
       ) {
         const present = await this.aqiService.databaseLookup(
           "aqi_detection_conditions",
-          rowData.DetectionCondition.toUpperCase().replace(/ /g, "_"),
+          rowData.DetectionCondition.toUpperCase(),
         );
         if (!present) {
           let errorLog = {
@@ -1527,7 +1571,7 @@ export class FileParseValidateService {
               type: "ERROR",
               message: {
                 DataClassification:
-                  "Must be LAB when Composite Stat is porvided.",
+                  "Must be LAB when Composite Stat is provided.",
               },
             };
             errorLogs.push(errorLog);
@@ -2033,12 +2077,25 @@ export class FileParseValidateService {
 
         // Extract YYYY-MM-DD from FieldVisitStartTime and append time components
         const datePart = rowData.FieldVisitStartTime.split("T")[0]; // Extract YYYY-MM-DD part
+        const encodedVisitStartTime = encodeURIComponent(
+          rowData.FieldVisitStartTime,
+        );
+        const encodedVisitEndTime = encodeURIComponent(
+          rowData.FieldVisitEndTime,
+        );
+        const encodedObservedDateTime = encodeURIComponent(
+          rowData.ObservedDateTime,
+        );
         const visitURLForDay = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${datePart}T00:00:00-08:00&end-startTime=${datePart}T23:59:59-08:00`;
-        const visitURLForTime = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
+        const visitURLForTime = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${encodedVisitStartTime}&end-startTime=${encodedVisitEndTime}`;
         let visitExists = false;
         let visitExistsForDay = false;
-        let activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
+        let activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${encodedObservedDateTime}&toStartTime=${encodedObservedDateTime}&customId=${rowData.ActivityName}`;
         let activityExists = false;
+
+        this.logger.log(`visitUrlForDay: ${visitURLForDay}`);
+        this.logger.log(`visitUrlForTime: ${visitURLForTime}`);
+        this.logger.log(`activityURL: ${activityURL}`);
 
         this.logger.log(`[Row ${rowNumber}] Checking for visits on entire day`);
 
@@ -2069,17 +2126,32 @@ export class FileParseValidateService {
             rowNumber,
             visitURLForDay,
           );
-          if (visitURLCalledForDay.count > 0) {
-            visitExistsForDay = true;
-            this.logger.log(
-              `[Row ${rowNumber}] Day visit check - API returned ${visitURLCalledForDay.count} existing visits for the day`,
-            );
+          if (visitURLCalledForDay.error == null) {
+            // this means no error in the api call
+            if (visitURLCalledForDay.count > 0) {
+              visitExistsForDay = true;
+              this.logger.log(
+                `[Row ${rowNumber}] Day visit check - API returned ${visitURLCalledForDay.count} existing visits for the day`,
+              );
+            } else {
+              this.logger.log(
+                `[Row ${rowNumber}] Day visit check - API returned no existing visits for the day`,
+              );
+            }
+            validationApisCalled.push(visitURLCalledForDay);
           } else {
-            this.logger.log(
-              `[Row ${rowNumber}] Day visit check - API returned no existing visits for the day`,
+            this.logger.error(
+              `[Row ${rowNumber}] Full day visit check - API call error: ${visitURLCalledForDay.error}`,
             );
+            let errorLog = {
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                Visit: `Failed to call AQI API to validate visit. Error: ${visitURLCalledForDay.error}`,
+              },
+            };
+            errorLogs.push(errorLog);
           }
-          validationApisCalled.push(visitURLCalledForDay);
         }
 
         // If a visit exists for the day, check if it exists at the specific time
@@ -2135,36 +2207,51 @@ export class FileParseValidateService {
               rowNumber,
               visitURLForTime,
             );
-            if (visitURLCalledForTime.count > 0) {
-              // visit exists at specific time - issue WARNING
-              this.logger.log(
-                `[Row ${rowNumber}] Specific time visit check - API returned existing visit at exact time, issuing WARNING`,
-              );
-              visitExists = true;
-              existingGUIDS["visit"] = visitURLCalledForTime.GUID;
-              let errorLog = {
-                rowNum: rowNumber,
-                type: "WARN",
-                message: {
-                  Visit: `Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits`,
-                },
-              };
-              errorLogs.push(errorLog);
+            if (visitURLCalledForTime.error == null) {
+              // this means no error in the api call
+              if (visitURLCalledForTime.count > 0) {
+                // visit exists at specific time - issue WARNING
+                this.logger.log(
+                  `[Row ${rowNumber}] Specific time visit check - API returned existing visit at exact time, issuing WARNING`,
+                );
+                visitExists = true;
+                existingGUIDS["visit"] = visitURLCalledForTime.GUID;
+                let errorLog = {
+                  rowNum: rowNumber,
+                  type: "WARN",
+                  message: {
+                    Visit: `Visit for Location ${rowData.LocationID} at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Field Visits`,
+                  },
+                };
+                errorLogs.push(errorLog);
+              } else {
+                // visit exists for day but not at specific time - issue ERROR
+                this.logger.log(
+                  `[Row ${rowNumber}] Specific time visit check - API returned no visit at specific time, issuing ERROR`,
+                );
+                let errorLog = {
+                  rowNum: rowNumber,
+                  type: "ERROR",
+                  message: {
+                    Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}. Please correct the date time and re-upload the file.`,
+                  },
+                };
+                errorLogs.push(errorLog);
+              }
+              validationApisCalled.push(visitURLCalledForTime);
             } else {
-              // visit exists for day but not at specific time - issue ERROR
-              this.logger.log(
-                `[Row ${rowNumber}] Specific time visit check - API returned no visit at specific time, issuing ERROR`,
+              this.logger.error(
+                `[Row ${rowNumber}] Specific time visit check - API call error: ${visitURLCalledForTime.error}`,
               );
               let errorLog = {
                 rowNum: rowNumber,
                 type: "ERROR",
                 message: {
-                  Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}. Please correct the date time and re-upload the file.`,
+                  Visit: `Failed to call AQI API to validate visit. Error: ${visitURLCalledForTime.error}`,
                 },
               };
               errorLogs.push(errorLog);
             }
-            validationApisCalled.push(visitURLCalledForTime);
           }
         } else {
           this.logger.log(
@@ -2226,27 +2313,42 @@ export class FileParseValidateService {
               rowNumber,
               activityURL,
             );
-            if (activityURLCalled.count > 0) {
-              // visit exists in AQI
-              this.logger.log(
-                `[Row ${rowNumber}] Activity check - API returned existing activity, issuing ERROR`,
+            if (activityURLCalled.error == null) {
+              // this means no error in the api call
+              if (activityURLCalled.count > 0) {
+                // visit exists in AQI
+                this.logger.log(
+                  `[Row ${rowNumber}] Activity check - API returned existing activity, issuing ERROR`,
+                );
+                visitExists = true;
+                existingGUIDS["activity"] = activityURLCalled.GUID;
+                let errorLog = {
+                  rowNum: rowNumber,
+                  type: "ERROR",
+                  message: {
+                    Activity: `Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities`,
+                  },
+                };
+                errorLogs.push(errorLog);
+              } else {
+                this.logger.log(
+                  `[Row ${rowNumber}] Activity check - API returned no existing activity`,
+                );
+              }
+              validationApisCalled.push(activityURLCalled);
+            } else {
+              this.logger.error(
+                `[Row ${rowNumber}] Activity check - API call error: ${activityURLCalled.error}`,
               );
-              visitExists = true;
-              existingGUIDS["activity"] = activityURLCalled.GUID;
               let errorLog = {
                 rowNum: rowNumber,
                 type: "ERROR",
                 message: {
-                  Activity: `Activity Name ${rowData.ActivityName} for Field Visit at Start Time ${rowData.FieldVisitStartTime} already exists in EnMoDS Activities`,
+                  Activity: `Failed to call AQI API to validate activity. Error: ${activityURLCalled.error}`,
                 },
               };
               errorLogs.push(errorLog);
-            } else {
-              this.logger.log(
-                `[Row ${rowNumber}] Activity check - API returned no existing activity`,
-              );
             }
-            validationApisCalled.push(activityURLCalled);
           }
         } else {
           this.logger.log(
@@ -2745,8 +2847,15 @@ export class FileParseValidateService {
       rowData.LocationID,
     );
 
-    const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${rowData.FieldVisitStartTime}&end-startTime=${rowData.FieldVisitStartTime}`;
-    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${rowData.ObservedDateTime}&toStartTime=${rowData.ObservedDateTime}&customId=${rowData.ActivityName}`;
+    const encodedVisitStartTime = encodeURIComponent(
+      rowData.FieldVisitStartTime,
+    );
+    const encodedObservedDateTime = encodeURIComponent(
+      rowData.ObservedDateTime,
+    );
+
+    const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${encodedVisitStartTime}&end-startTime=${encodedVisitStartTime}`;
+    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${encodedObservedDateTime}&toStartTime=${encodedObservedDateTime}&customId=${rowData.ActivityName}`;
     let visitInfo: any;
     let activityInfo: any;
 
@@ -3487,7 +3596,9 @@ export class FileParseValidateService {
     const obsValidationTime = (endObsValidation - startObsValidation) / 1000;
     const importTime = (endImportNonObs - startImportNonObs) / 1000;
     const obsImportTime = (endImportObs - startImportObs) / 1000;
-    const totalTime = Math.round(validationTime + obsValidationTime + importTime + obsImportTime);
+    const totalTime = Math.round(
+      validationTime + obsValidationTime + importTime + obsImportTime,
+    );
 
     const fileInfo = await this.prisma.file_submission.findFirst({
       select: {
@@ -3629,7 +3740,56 @@ export class FileParseValidateService {
       await workbook.xlsx.read(file);
       const worksheet = workbook.getWorksheet(1);
 
-      const rowHeaders = (worksheet.getRow(1).values as string[])
+      if (worksheet === undefined) {
+        this.logger.error("No worksheet found in the Excel file.");
+        let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"File": "Incorrect file content. Please check the file and try again."}}`;
+
+        const file_error_log_data = {
+          file_submission_id: file_submission_id,
+          file_name: fileName,
+          original_file_name: originalFileName,
+          file_operation_code: file_operation_code,
+          ministry_contact: null,
+          error_log: [JSON.parse(errorLog)],
+          create_utc_timestamp: new Date(),
+        };
+
+        await this.prisma.file_error_logs.create({
+          data: file_error_log_data,
+        });
+
+        await this.fileSubmissionsService.updateFileStatus(
+          file_submission_id,
+          "REJECTED",
+        );
+        await this.benchmarkImport(
+          file_submission_id,
+          fileName,
+          originalFileName,
+          endValidation,
+          endObsValidation,
+          endImportNonObs,
+          endImportObs,
+          startValidation,
+          startObsValidation,
+          startImportNonObs,
+          startImportObs,
+        );
+
+        fs.unlink(filePath, (err) => {
+          if (err) {
+            this.logger.error(`Error cleaning up tempObsFiles`, err);
+          } else {
+            this.logger.log(`Successfully cleaned up tempObsFiles.`);
+          }
+        });
+
+        await this.notificationsService.notifyUserOfError(file_submission_id);
+
+        return;
+      }
+
+      const rowHeaders = (worksheet?.getRow(1).values as string[])
         .slice(1) // Remove the first empty cell
         .map((key) => key.replace(/\s+/g, "")); // Remove all whitespace from headers
 
@@ -3638,7 +3798,7 @@ export class FileParseValidateService {
 
       // do a validation on the headers
       const headerErrors = await this.checkHeaders(
-        worksheet.getRow(1).values as string[],
+        worksheet?.getRow(1).values as string[],
         "xlsx",
       );
 
@@ -3691,8 +3851,8 @@ export class FileParseValidateService {
 
       console.time("Validation");
       startValidation = performance.now();
-      for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber++) {
-        const row = worksheet.getRow(rowNumber);
+      for (let rowNumber = 2; rowNumber <= worksheet?.rowCount; rowNumber++) {
+        const row = worksheet?.getRow(rowNumber);
 
         if (rowNumber === 1) {
           return; // Skip header row
@@ -3888,10 +4048,10 @@ export class FileParseValidateService {
           this.logger.log(`Starting the import process`);
           for (
             let rowNumber = 2;
-            rowNumber <= worksheet.rowCount;
+            rowNumber <= worksheet?.rowCount;
             rowNumber++
           ) {
-            const row = worksheet.getRow(rowNumber);
+            const row = worksheet?.getRow(rowNumber);
 
             if (rowNumber === 1) {
               return; // Skip header row

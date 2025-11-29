@@ -81,7 +81,7 @@ describe('File Upload page functionality', () => {
         cy.get('#selected-file-' + i + '-checkbox').should('be.checked')
         cy.get('#selected-file-' + i + '-text').should(
           'have.text',
-          'Receive Email Conformation',
+          'Receive Email Confirmation',
         )
         cy.get('#selected-file-' + i + '-validate').should(
           'have.text',
