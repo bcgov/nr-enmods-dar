@@ -3046,7 +3046,7 @@ export class FileParseValidateService {
         file_operation_code,
         uniqueMinistryContacts,
         fileErrors,
-        filePath
+        filePath,
       );
       this.logger.warn("Deleted the partially imported data");
       rollBackHalted = false;
@@ -3282,7 +3282,7 @@ export class FileParseValidateService {
           file_operation_code,
           ministry_contacts,
           validationErrors,
-          filePath
+          filePath,
         );
         this.logger.warn("Deleted the partially imported data");
         rollBackHalted = false;
@@ -3303,7 +3303,7 @@ export class FileParseValidateService {
     file_operation_code,
     ministryContacts: any,
     validationErrors,
-    filePath
+    filePath,
   ) {
     // get the partially imported guids
     const partiallyImportedGUIDS = await this.prisma.aqi_imported_data.findMany(
@@ -3487,8 +3487,7 @@ export class FileParseValidateService {
     const obsValidationTime = (endObsValidation - startObsValidation) / 1000;
     const importTime = (endImportNonObs - startImportNonObs) / 1000;
     const obsImportTime = (endImportObs - startImportObs) / 1000;
-    const totalTime =
-      validationTime + obsValidationTime + importTime + obsImportTime;
+    const totalTime = Math.round(validationTime + obsValidationTime + importTime + obsImportTime);
 
     const fileInfo = await this.prisma.file_submission.findFirst({
       select: {
