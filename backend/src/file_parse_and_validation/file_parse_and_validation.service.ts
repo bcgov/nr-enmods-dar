@@ -1,7 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
-import { ObjectStoreService } from "src/objectStore/objectStore.service";
-import { OperationLockService } from "src/operationLock/operationLock.service";
 import {
   FieldActivities,
   FieldSpecimens,
@@ -955,17 +953,20 @@ export class FileParseValidateService {
             strict: true,
             strictSeparator: true,
           });
+          // Enforce offset: must contain + or - after the time
+          const offsetPattern = /[+-]\d{2}:\d{2}$/;
+          const hasOffset = offsetPattern.test(rowData[field]);
           const yearFromDate = new Date(rowData[field]).getFullYear();
           const currentYear = new Date().getFullYear();
 
           if (yearFromDate > currentYear) valid = false;
 
-          if (!valid) {
+          if (!valid || !hasOffset) {
             let errorLog = {
               rowNum: rowNumber,
               type: "ERROR",
               message: {
-                [field]: `${rowData[field]} is not valid ISO DateTime (year might be greater than current year)`,
+                [field]: `Invalid Date time in column ${rowData[field]}. Must be ISO8601, include +hh:mm or -hh:mm and year must not be in the future`,
               },
             };
             errorLogs.push(errorLog);
@@ -2048,10 +2049,28 @@ export class FileParseValidateService {
         "LOCATIONS",
         rowData.LocationID,
       );
+
       let validFieldVisitStartTime = isISO8601(rowData.FieldVisitStartTime, {
         strict: true,
         strictSeparator: true,
       });
+      // Enforce offset: must contain + or - after the time
+      const offsetPattern = /[+-]\d{2}:\d{2}$/;
+      const startTimehasOffset = offsetPattern.test(rowData.FieldVisitStartTime);
+      if (!startTimehasOffset) {
+        validFieldVisitStartTime = false;
+      }
+
+      let validFieldVisitEndTime = isISO8601(rowData.FieldVisitEndTime, {
+        strict: true,
+        strictSeparator: true,
+      });
+      // Enforce offset: must contain + or - after the time
+      const endTimehasOffset = offsetPattern.test(rowData.FieldVisitEndTime);
+      if (!endTimehasOffset) {
+        validFieldVisitEndTime = false;
+      }
+
       let yearFromDate = new Date(rowData.FieldVisitStartTime).getFullYear();
       let currentYear = new Date().getFullYear();
       if (yearFromDate > currentYear) validFieldVisitStartTime = false;
@@ -2062,10 +2081,15 @@ export class FileParseValidateService {
       });
       yearFromDate = new Date(rowData.FieldVisitStartTime).getFullYear();
       if (yearFromDate > currentYear) validObservedDateTime = false;
+      const observedDateTimehasOffset = offsetPattern.test(rowData.ObservedDateTime);
+      if (!observedDateTimehasOffset) {
+        validObservedDateTime = false;
+      }
 
       if (
         locationGUID.hasOwnProperty("samplingLocation") &&
         validFieldVisitStartTime &&
+        validFieldVisitEndTime &&
         validObservedDateTime
       ) {
         // check if the field visit exists between 00:00:00 - 23:59:59 for a given day, if it does then check if it exists at rowData.FieldVisitStartTime, else continue processing
@@ -3326,7 +3350,9 @@ export class FileParseValidateService {
       );
     } catch (err) {
       this.logger.error("Error in validateRowData:", err.message, err.stack);
-      throw err;
+      let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"File": "Error in validating row data: ${err.message}."}}`;
+      allNonObsErrors.push(JSON.parse(errorLog));
+      return;
     }
   }
 
@@ -3400,7 +3426,9 @@ export class FileParseValidateService {
       this.logger.log(`Completed import for row ${rowNumber}`);
     } catch (err) {
       this.logger.error("Error in async ops:", err.message);
-      throw err;
+      let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"File": "Error in importing row data: ${err.message}."}}`;
+      validationErrors.push(JSON.parse(errorLog));
+      return;
     }
   }
 
@@ -3520,11 +3548,10 @@ export class FileParseValidateService {
       return;
     }
 
-
     // get the observation guids for the file and delete them
     const observationGUIDS =
       await this.aqiService.getObservationsFromFile(fileName);
-    
+
     await this.aqiService.ObservationDelete(observationGUIDS, deleteErrors);
 
     //delete the partially imported specimens
