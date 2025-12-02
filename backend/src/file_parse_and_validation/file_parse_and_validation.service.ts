@@ -2061,14 +2061,17 @@ export class FileParseValidateService {
         validFieldVisitStartTime = false;
       }
 
-      let validFieldVisitEndTime = isISO8601(rowData.FieldVisitEndTime, {
-        strict: true,
-        strictSeparator: true,
-      });
-      // Enforce offset: must contain + or - after the time
-      const endTimehasOffset = offsetPattern.test(rowData.FieldVisitEndTime);
-      if (!endTimehasOffset) {
-        validFieldVisitEndTime = false;
+      let validFieldVisitEndTime = true
+      // Enforce offset: must contain + or - after the time, but only if end time is not empty
+      if (rowData.FieldVisitEndTime) {
+        validFieldVisitEndTime = isISO8601(rowData.FieldVisitEndTime, {
+          strict: true,
+          strictSeparator: true,
+        });
+        const endTimehasOffset = offsetPattern.test(rowData.FieldVisitEndTime);
+        if (!endTimehasOffset) {
+          validFieldVisitEndTime = false;
+        }
       }
 
       let yearFromDate = new Date(rowData.FieldVisitStartTime).getFullYear();
