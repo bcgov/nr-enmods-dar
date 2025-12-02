@@ -571,7 +571,7 @@ function FileUpload() {
                                     onChange={handleCheckboxChange(index)}
                                   />
                                 }
-                                label="Receive Email Conformation"
+                                label="Receive Email Confirmation"
                                 labelPlacement="end"
                                 className={
                                   `emailCheckbox emailCheckbox-` + index

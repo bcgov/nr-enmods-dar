@@ -42,6 +42,15 @@ export default function AdminPage() {
 
   const getUserData = async () => {
     const users: UserInfo[] = await getUsers();
+    users.forEach((user) => {
+      if (Array.isArray(user.role)) {
+        user.role = user.role.map((role: string) =>
+          role.startsWith('Enmods ')
+            ? role.replace(/^Enmods /, 'EnMoDS ')
+            : role
+        );
+      }
+    });
     setUserData(users);
   };
 

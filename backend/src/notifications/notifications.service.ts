@@ -210,6 +210,14 @@ export class NotificationsService {
 
     const unsubscribeLink =
       process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
+    
+    let fileOperation = ""
+
+    if (file_submission.file_operation_code === 'VALIDATE'){
+      fileOperation = "True"; // this means its a validation only file
+    }else{
+      fileOperation = "False";
+    }
 
     let body = `<p>Status: ${
       hasWarnings &&
@@ -228,14 +236,31 @@ export class NotificationsService {
         `<p>Submission Notification</p><p><a href="${unsubscribeLink}">Unsubscribe</a></p>`,
       );
 
+    
+    let emailSubject = ""
+    // File upload for validation and status validated without warnings
+    if (fileOperation === "True" && submission_status_code === "VALIDATED" && !hasWarnings){
+      emailSubject = "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}"
+    // File updload for validation and status validated with warnings
+    }else if (fileOperation === "True" && submission_status_code === "VALIDATED" && hasWarnings){
+      emailSubject = "EnMoDS Data {{submission_status_code}} with warnings {{original_file_name}} from {{submitter_user_id}}"
+    // File upload for validation and status rejected
+    }else if (fileOperation === "True" && submission_status_code === "REJECTED"){
+      emailSubject = "EnMoDS Data VALIDATION-{{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}"
+    // File upload for submission and status submitted without warnings
+    }else if (fileOperation === "False" && submission_status_code === "SUBMITTED" && !hasWarnings){
+      emailSubject = "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}" 
+    // File upload for submission and status submitted with warnings
+    }else if (fileOperation === "False" && submission_status_code === "SUBMITTED" && hasWarnings){
+      emailSubject = "EnMoDS Data {{submission_status_code}} with warnings {{original_file_name}} from {{submitter_user_id}}"
+    // File upload for submission and status rejected
+    }else if (fileOperation === "False" && submission_status_code === "REJECTED"){
+      emailSubject = "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}"
+    }
+
     const emailTemplate: EmailTemplate = {
       from: "enmodshelp@gov.bc.ca",
-      subject:
-        hasWarnings &&
-        (submission_status_code === "SUBMITTED" ||
-          submission_status_code === "VALIDATED")
-          ? "EnMoDS Data {{submission_status_code}} with warnings {{original_file_name}} from {{submitter_user_id}}"
-          : "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}",
+      subject: emailSubject,
       body: body,
     };
 
@@ -254,19 +279,29 @@ export class NotificationsService {
   }
 
   async findMinistryEmails(contacts: any) {
-    const contactList = contacts.flatMap((contact) => contact.ministry_contact);
+    if (contacts[0].ministry_contact === null) {
+      return [];
+    }
+    const contactList = contacts.flatMap((contact) =>
+      contact.ministry_contact.flatMap((str) => {
+        return str.split(",").map((name) => name.trim());
+      }),
+    );
     const lowerCaseContactList = new Set(
       contactList.map((contact) => contact.toLowerCase()),
     );
+
     const allUsers = await this.adminService.findAll();
 
     const filteredUsers = allUsers.filter(
       (user) =>
-        user.guidUsername.endsWith("idir") &&
-        lowerCaseContactList.has(user.name.toLowerCase()),
+        lowerCaseContactList.has(user.name.toLowerCase()) &&
+        user.guidUsername.endsWith("idir"),
     );
 
     const emailsToSend = filteredUsers.map((user) => user.email);
+    console.log(emailsToSend)
+
     return emailsToSend;
   }
 
@@ -391,7 +426,7 @@ export class NotificationsService {
     },
   ): Promise<string> {
     const chesToken = await this.getChesToken();
-    console.log("sending email");
+    this.logger.log("sending email");
     // file_error_log is a string, convert it to base64
     const base64ErrorLog = btoa(variables.file_error_log);
 

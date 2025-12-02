@@ -333,37 +333,53 @@ export class CronJobService {
     }
   }
 
-
-  @Cron(CronExpression.EVERY_DAY_AT_3AM)
-  private async dropReplaceTables(){
-    if (!this.operationLockService.acquireLock("REFRESH")) {
+  @Cron("0 3 * * *") 
+  private async dropReplaceTables() {
+    let lockAcquired = this.operationLockService.acquireLock("REFRESH");
+    if (!lockAcquired) {
       this.logger.log(
         "Another process underway. Freeing the lock to do the refresh.",
       );
-      this.operationLockService.releaseLock(this.operationLockService.getCurrentLock())
-      this.operationLockService.acquireLock("REFRESH")
-
-      try{ 
-      this.logger.log(`Starting the database drop and replace`);
-      for (const api of this.apisToCall){
-        this.logger.log(`Deleting all rows for table ${api.dbTable}`)
-        await this.prisma.$executeRawUnsafe(`TRUNCATE TABLE "${api.dbTable}" RESTART IDENTITY CASCADE`);
-        this.logger.log(`Successfully deleted all rows for table ${api.dbTable}`)
-      }
-      this.logger.log(`Successfully deleted all pull down data`)
-
-      this.logger.log(`Calling pulldown procedure now.`)
-      this.operationLockService.releaseLock("REFRESH")
-      await this.fetchAQSSData();
-      this.logger.log(`Successfully refreshed all database tables`)
-    }catch (err){
-      this.logger.error(`Error in dropping tables:`, err)
+      this.operationLockService.releaseLock(
+        this.operationLockService.getCurrentLock(),
+      );
+      lockAcquired = this.operationLockService.acquireLock("REFRESH");
     }
+
+    if (lockAcquired) {
+      try {
+        this.logger.log(`Starting the database drop and replace`);
+        for (const api of this.apisToCall) {
+          this.logger.log(`Deleting all rows for table ${api.dbTable}`);
+          await this.prisma.$executeRawUnsafe(
+            `TRUNCATE TABLE "${api.dbTable}" RESTART IDENTITY CASCADE`,
+          );
+          this.logger.log(
+            `Successfully deleted all rows for table ${api.dbTable}`,
+          );
+        }
+        this.logger.log(`Successfully deleted all pull down data`);
+        this.logger.log(`Calling pulldown procedure now.`);
+        await this.fetchAQSSData();
+        this.logger.log(`Successfully refreshed all database tables`);
+      } catch (err) {
+        this.logger.error(`Error in dropping tables:`, err);
+      } finally {
+        this.operationLockService.releaseLock("REFRESH");
+      }
     }
   }
 
-  @Cron(CronExpression.EVERY_30_MINUTES)
+  @Cron(CronExpression.EVERY_HOUR)
   private async fetchAQSSData() {
+
+    if (this.operationLockService.getCurrentLock() === "REFRESH") {
+      this.logger.log(
+        "Releaseing REFRESH lock to allow pulldown of new data.",
+      );
+      this.operationLockService.releaseLock("REFRESH");
+    }
+
     if (!this.operationLockService.acquireLock("PULLDOWN")) {
       this.logger.log(
         "Skipping cron procedure of data pull down: Another process underway.",
@@ -509,16 +525,17 @@ export class CronJobService {
       const { id, customId, name, auditAttributes } = obj;
       const creationUserProfileId = auditAttributes.creationUserProfileId;
       const creationTime = auditAttributes.creationTime;
-      const modificationUserProfileId =
-        auditAttributes.modificationUserProfileId;
+      const modificationUserProfileId = auditAttributes.modificationUserProfileId;
       const modificationTime = auditAttributes.modificationTime;
 
-      const edt_unit = name.split(" - ")[0];
+      // If name is missing or falsy, use customId as name
+      const resolvedName = name || customId;
+      const edt_unit = resolvedName?.split(" - ")[0];
 
       return {
         id,
         customId,
-        name,
+        name: resolvedName,
         edt_unit,
         creationUserProfileId,
         creationTime,
