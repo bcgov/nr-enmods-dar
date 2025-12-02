@@ -966,7 +966,7 @@ export class FileParseValidateService {
               rowNum: rowNumber,
               type: "ERROR",
               message: {
-                [field]: `Invalid Date time in column ${rowData[field]}. Must be ISO8601, include +hh:mm or -hh:mm and year must not be in the future`,
+                [field]: `Invalid Date time in column "${field}" : ${rowData[field]}. Must be ISO8601, include +hh:mm or -hh:mm and year must not be in the future`,
               },
             };
             errorLogs.push(errorLog);
@@ -2050,6 +2050,7 @@ export class FileParseValidateService {
         rowData.LocationID,
       );
 
+      // Check if field visit start time is valid ISO and has an offset and is not greater than current year
       let validFieldVisitStartTime = isISO8601(rowData.FieldVisitStartTime, {
         strict: true,
         strictSeparator: true,
@@ -2061,6 +2062,7 @@ export class FileParseValidateService {
         validFieldVisitStartTime = false;
       }
 
+      // Check if field visit end time is valid ISO and has an offset. This field can be "" -- if so, then it is valid.
       let validFieldVisitEndTime = true
       // Enforce offset: must contain + or - after the time, but only if end time is not empty
       if (rowData.FieldVisitEndTime) {
@@ -2078,11 +2080,12 @@ export class FileParseValidateService {
       let currentYear = new Date().getFullYear();
       if (yearFromDate > currentYear) validFieldVisitStartTime = false;
 
+      // Check if observed date time is valid ISO and has an offset and is not greater than current year
       let validObservedDateTime = isISO8601(rowData.ObservedDateTime, {
         strict: true,
         strictSeparator: true,
       });
-      yearFromDate = new Date(rowData.FieldVisitStartTime).getFullYear();
+      yearFromDate = new Date(rowData.ObservedDateTime).getFullYear();
       if (yearFromDate > currentYear) validObservedDateTime = false;
       const observedDateTimehasOffset = offsetPattern.test(rowData.ObservedDateTime);
       if (!observedDateTimehasOffset) {
