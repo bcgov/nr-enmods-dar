@@ -210,12 +210,12 @@ export class NotificationsService {
 
     const unsubscribeLink =
       process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
-    
-    let fileOperation = ""
 
-    if (file_submission.file_operation_code === 'VALIDATE'){
+    let fileOperation = "";
+
+    if (file_submission.file_operation_code === "VALIDATE") {
       fileOperation = "True"; // this means its a validation only file
-    }else{
+    } else {
       fileOperation = "False";
     }
 
@@ -230,32 +230,68 @@ export class NotificationsService {
     <p>Date and Time of Upload: ${file_submission.submission_date}</p>
     <p>Warnings/Errors:</p>
     `;
-    body = body
-      .concat(errorsAsHTML)
-      .concat(
-        `<p>Submission Notification</p><p><a href="${unsubscribeLink}">Unsubscribe</a></p>`,
-      );
 
-    
-    let emailSubject = ""
+    if (file_submission.api_submission_ind === true) {
+      body = body
+        .concat(errorsAsHTML)
+        .concat(
+          `<p>Submission Notification</p>`,
+        );
+    }else{
+      body = body
+        .concat(errorsAsHTML)
+        .concat(
+          `<p>Submission Notification</p><p><a href="${unsubscribeLink}">Unsubscribe</a></p>`,
+        );
+    }
+
+    let emailSubject = "";
     // File upload for validation and status validated without warnings
-    if (fileOperation === "True" && submission_status_code === "VALIDATED" && !hasWarnings){
-      emailSubject = "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}"
-    // File updload for validation and status validated with warnings
-    }else if (fileOperation === "True" && submission_status_code === "VALIDATED" && hasWarnings){
-      emailSubject = "EnMoDS Data {{submission_status_code}} with warnings {{original_file_name}} from {{submitter_user_id}}"
-    // File upload for validation and status rejected
-    }else if (fileOperation === "True" && submission_status_code === "REJECTED"){
-      emailSubject = "EnMoDS Data VALIDATION-{{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}"
-    // File upload for submission and status submitted without warnings
-    }else if (fileOperation === "False" && submission_status_code === "SUBMITTED" && !hasWarnings){
-      emailSubject = "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}" 
-    // File upload for submission and status submitted with warnings
-    }else if (fileOperation === "False" && submission_status_code === "SUBMITTED" && hasWarnings){
-      emailSubject = "EnMoDS Data {{submission_status_code}} with warnings {{original_file_name}} from {{submitter_user_id}}"
-    // File upload for submission and status rejected
-    }else if (fileOperation === "False" && submission_status_code === "REJECTED"){
-      emailSubject = "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}"
+    if (
+      fileOperation === "True" &&
+      submission_status_code === "VALIDATED" &&
+      !hasWarnings
+    ) {
+      emailSubject =
+        "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}";
+      // File updload for validation and status validated with warnings
+    } else if (
+      fileOperation === "True" &&
+      submission_status_code === "VALIDATED" &&
+      hasWarnings
+    ) {
+      emailSubject =
+        "EnMoDS Data {{submission_status_code}} with warnings {{original_file_name}} from {{submitter_user_id}}";
+      // File upload for validation and status rejected
+    } else if (
+      fileOperation === "True" &&
+      submission_status_code === "REJECTED"
+    ) {
+      emailSubject =
+        "EnMoDS Data VALIDATION-{{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}";
+      // File upload for submission and status submitted without warnings
+    } else if (
+      fileOperation === "False" &&
+      submission_status_code === "SUBMITTED" &&
+      !hasWarnings
+    ) {
+      emailSubject =
+        "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}";
+      // File upload for submission and status submitted with warnings
+    } else if (
+      fileOperation === "False" &&
+      submission_status_code === "SUBMITTED" &&
+      hasWarnings
+    ) {
+      emailSubject =
+        "EnMoDS Data {{submission_status_code}} with warnings {{original_file_name}} from {{submitter_user_id}}";
+      // File upload for submission and status rejected
+    } else if (
+      fileOperation === "False" &&
+      submission_status_code === "REJECTED"
+    ) {
+      emailSubject =
+        "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}";
     }
 
     const emailTemplate: EmailTemplate = {
@@ -300,7 +336,7 @@ export class NotificationsService {
     );
 
     const emailsToSend = filteredUsers.map((user) => user.email);
-    console.log(emailsToSend)
+    console.log(emailsToSend);
 
     return emailsToSend;
   }
