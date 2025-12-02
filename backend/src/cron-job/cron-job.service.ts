@@ -370,7 +370,7 @@ export class CronJobService {
     }
   }
 
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(CronExpression.EVERY_10_SECONDS)
   private async fetchAQSSData() {
 
     if (this.operationLockService.getCurrentLock() === "REFRESH") {
