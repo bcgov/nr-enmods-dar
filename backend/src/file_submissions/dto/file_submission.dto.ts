@@ -98,6 +98,11 @@ export class FileSubmissionDto {
   })
   update_utc_timestamp: Date;
 
+  @ApiProperty({
+    description: 'Indicates if the submission was made via API',
+  })
+  api_submission_ind: boolean;
+
   // @ApiProperty({
   //   description: 'Number of rows in the file',
   // })

@@ -167,6 +167,7 @@ export class FileSubmissionsAPIController {
         agency: apiKeyRecord.organization_name,
         operation: "IMPORT",
         data_submitter_email: apiKeyRecord.email_address,
+        api_submission: true,
       },
       {
         fieldname: file.filename,
