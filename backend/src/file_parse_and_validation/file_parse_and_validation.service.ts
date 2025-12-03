@@ -1348,7 +1348,7 @@ export class FileParseValidateService {
       ) {
         const present = await this.aqiService.databaseLookup(
           "aqi_preservatives",
-          rowData.FieldPreservative.toUpperCase(),
+          rowData.FieldPreservative
         );
         if (!present) {
           let errorLog = {
@@ -1475,7 +1475,7 @@ export class FileParseValidateService {
       ) {
         const present = await this.aqiService.databaseLookup(
           "aqi_detection_conditions",
-          rowData.DetectionCondition.toUpperCase(),
+          rowData.DetectionCondition,
         );
         if (!present) {
           let errorLog = {
@@ -1508,7 +1508,7 @@ export class FileParseValidateService {
       if (rowData.hasOwnProperty("Fraction") && rowData.Fraction) {
         const present = await this.aqiService.databaseLookup(
           "aqi_sample_fractions",
-          rowData.Fraction.toUpperCase(),
+          rowData.Fraction,
         );
         if (!present) {
           let errorLog = {
@@ -2614,6 +2614,10 @@ export class FileParseValidateService {
     let cleanedRow = rowData;
 
     cleanedRow.QCType = rowData.QCType.toUpperCase(); // only set to upper case to use in the activity name
+    cleanedRow.DataClassification = rowData.DataClassification.toUpperCase().replace(/ /g, "_");
+    cleanedRow.DetectionCondition = rowData.DetectionCondition.toUpperCase().replace(/ /g, "_");
+    cleanedRow.FieldPreservative = rowData.FieldPreservative.toUpperCase().replace(/ /g, "_");
+    cleanedRow.Fraction = rowData.Fraction.toUpperCase();
 
     let concatActivityName = this.formulateActivityName(rowData);
 
@@ -2952,12 +2956,14 @@ export class FileParseValidateService {
 
     if (rowData.DataClassification !== "FIELD_RESULT") {
       if (validationApisCalled.some((item) => item.url === activityURL)) {
-        // visit url has been called before
+        // activity url has been called before
+        this.logger.log(`Activity URL seen, getting from lookup`);
         let seenActivityUrl = validationApisCalled.find(
           (item) => item.url === activityURL,
         );
 
         if (seenActivityUrl.count > 0) {
+          this.logger.log(`Activity URL seen, activity already exists`);
           // send PUT to AQI
           fieldActivity["id"] = seenActivityUrl.GUID;
           specimen["activity"] = {
@@ -2970,7 +2976,9 @@ export class FileParseValidateService {
             `Added activity GUID ${seenActivityUrl.GUID} to list of imported items`,
           );
         } else {
-          // send POST to AQI
+          this.logger.log(`Activity URL seen, activity does not exist`);
+
+          // send POST to AQI abd add activity data to specimen
           this.logger.log("POSTED the activity");
           activityInfo = await this.fieldActivityJson(
             fieldActivity,
@@ -2995,16 +3003,20 @@ export class FileParseValidateService {
             `Added activity GUID ${activityInfo.activity.id} to list of imported items`,
           );
 
+          this.logger.log(`Updating the seen URL`);
+
           seenActivityUrl.count = 1;
           seenActivityUrl.GUID = activityInfo.activity.id;
         }
       } else {
+        this.logger.log(`Activity URL not seen, making GET call`);
         let activityExists = await this.aqiService.getActivities(
           rowNumber,
           activityURL,
         );
 
         if (activityExists.count > 0) {
+          this.logger.log(`Activity URL not seen, activity already exists`);
           // send PUT to AQI
           fieldActivity["id"] = activityExists.GUID;
           specimen["activity"] = {
@@ -3017,7 +3029,10 @@ export class FileParseValidateService {
             `Added activity GUID ${activityExists.GUID} to list of imported items`,
           );
         } else {
-          // send POST to AQI
+          this.logger.log(`Activity URL not seen, activity does not exist`);
+
+          // send POST to AQI and add activity data to specimen
+          this.logger.log("POSTED the activity");
           activityInfo = await this.fieldActivityJson(
             fieldActivity,
             rowNumber,
@@ -3040,6 +3055,8 @@ export class FileParseValidateService {
           this.logger.log(
             `Added activity GUID ${activityInfo.activity.id} to list of imported items`,
           );
+
+          this.logger.log(`Added activity URL to seen list`);
 
           validationApisCalled.push(activityURL);
         }

@@ -468,7 +468,8 @@ export class NotificationsService {
     };
 
     try {
-      await lastValueFrom(this.httpService.request(config));
+      const response = await lastValueFrom(this.httpService.request(config));
+      this.logger.log(`Email sent with status: ${response.status}`);
       return "Email Sent";
     } catch (error) {
       if (error.response) {
@@ -505,9 +506,11 @@ export class NotificationsService {
   async notifyUserOfError(file_submission_id: string) {
     // Notify the Data Submitter
     await this.sendDataSubmitterNotification(file_submission_id);
+    this.logger.log(`Data submitter notified for submission ID: ${file_submission_id}`);
 
     // Notify the Ministry Contact (if they have not disabled notifications)
     await this.sendContactNotification(file_submission_id);
+    this.logger.log(`Ministry contact(s) notified for submission ID: ${file_submission_id}`);
   }
 
   /**
