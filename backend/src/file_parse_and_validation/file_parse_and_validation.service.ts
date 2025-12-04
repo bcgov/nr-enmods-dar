@@ -2607,6 +2607,9 @@ export class FileParseValidateService {
         observedTime;
     }
 
+    if (newActivityName.startsWith(";")) {
+      newActivityName = newActivityName.substring(1);
+    }
     return newActivityName;
   }
 
@@ -2859,7 +2862,19 @@ export class FileParseValidateService {
     );
 
     const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${encodedVisitStartTime}&end-startTime=${encodedVisitStartTime}`;
-    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${encodedObservedDateTime}&toStartTime=${encodedObservedDateTime}&customId=${rowData.ActivityName}`;
+    let activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${encodedObservedDateTime}&toStartTime=${encodedObservedDateTime}&customId=${rowData.ActivityName}`;
+    this.logger.log(`Visit URL for import: ${visitURL}`);
+    this.logger.log(`Activity URL for import: ${activityURL}`);
+
+    if (rowData["DataClassification"] === "VERTICAL_PROFILE") {
+      activityURL =
+        activityURL + "&activityTypes=SAMPLE_INTEGRATED_VERTICAL_PROFILE";
+    } else if (rowData["DataClassification"] === "FIELD_SURVEY") {
+      activityURL = activityURL + "&activityTypes=FIELD_SURVEY";
+    } else if (rowData["DataClassification"] === "SURROGATE_RESULT") {
+      activityURL = activityURL + "&activityTypes=SPIKE";
+    }
+
     let visitInfo: any;
     let activityInfo: any;
 
