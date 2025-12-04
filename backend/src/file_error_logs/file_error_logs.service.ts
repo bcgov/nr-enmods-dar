@@ -85,9 +85,9 @@ function formulateErrorFile(logs: any, fileSubmissionTime: any) {
     }
 
     let submessage = hasError ? 
-    `The following warnings/errors were found during the ${fileOperation ? "validation" : "import"} of the data.\n` + 
-    `The data will need to be corrected and uploaded again for ${fileOperation ? "validation" : "import"} to EnMoDS.\n` 
-    : `Data has successfully been ${fileAction} by EnMoDS (with the following warnings).\n`
+    `The following warnings/errors were found during the ${fileOperation === "True" ? "validation" : "import"} of the data.\n` + 
+    `The data will need to be corrected and uploaded again for ${fileOperation === "True" ? "validation by EnMoDS" : "submission into EnMoDS"}.\n` 
+    : `Data has successfully been ${fileAction === "validated" ? `${fileAction} by EnMoDS (with the following warnings).` : `${fileAction} into EnMoDS (with the following warnings).`}\n`
 
     formattedMessages =
       `User's Original File: ${logs[0].original_file_name}\n` +
@@ -140,7 +140,7 @@ function formulateErrorFile(logs: any, fileSubmissionTime: any) {
     }
     const subMessage = fileAction === 'validated' ?
     `Data has been successfully validated by EnMoDS.\n` :
-    `Data has been successfully imported in EnMoDS.\n`
+    `Data has been successfully imported into EnMoDS.\n`
     formattedMessages =
       `User's Original File: ${logs[0].original_file_name}\n` +
       `Date and Time of Upload: ${fileSubmissionTime[0].submission_date}\n` +
