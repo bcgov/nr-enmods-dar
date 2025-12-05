@@ -337,14 +337,14 @@ export class CronJobService {
   private maintenanceWindowActive = false;
 
   // Cron: Midnight every day
-  @Cron("45 9 * * *")
+  @Cron(process.env.MAINTENANCE_WINDOW || "0 0 * * *") // every day at midnight
   private async maintenanceWindow() {
     this.maintenanceWindowActive = true;
     this.logger.log("Maintenance window started at midnight.");
     let refreshStarted = false;
     let refreshCompleted = false;
     const deadline = new Date();
-    deadline.setHours(10, 0, 0, 0); // 4:00 AM today
+    deadline.setHours(4, 0, 0, 0); // 4:00 AM today
 
     // Wait for FILE_PROCESSING to finish if running
     while (
@@ -390,7 +390,7 @@ export class CronJobService {
     }
   }
 
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(process.env.PULLDOWN_SCHEDULE || '0 * * * *') // every hour
   private async fetchAQSSData() {
     if (this.operationLockService.getCurrentLock() === "REFRESH") {
       this.logger.log("Releaseing REFRESH lock to allow pulldown of new data.");
@@ -622,7 +622,7 @@ export class CronJobService {
     return filterArray(entries);
   }
 
-  @Cron(CronExpression.EVERY_MINUTE)
+  @Cron(process.env.FILE_PROCESSING_SCHEDULE || '* * * * *') // every minute
   private async beginFileValidation() {
     // Block file processing during maintenance window
     if (this.maintenanceWindowActive) {
@@ -756,7 +756,7 @@ export class CronJobService {
     }
   }
 
-  @Cron(CronExpression.EVERY_5_MINUTES) // every 2 hours
+  @Cron(process.env.DELETE_SCHEDULE || "*/5 * * * *") // every 5 minutes
   private async beginDelete() {
     /*
     TODO:
