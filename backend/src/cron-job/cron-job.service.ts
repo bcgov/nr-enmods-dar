@@ -337,7 +337,7 @@ export class CronJobService {
   private maintenanceWindowActive = false;
 
   // Cron: Midnight every day
-  @Cron(process.env.MAINTENANCE_WINDOW.toString() || "0 0 * * *") // every day at midnight
+  @Cron(process.env.MAINTENANCE_WINDOW) // every day at midnight
   private async maintenanceWindow() {
     this.maintenanceWindowActive = true;
     this.logger.log("Maintenance window started at midnight.");
@@ -390,7 +390,7 @@ export class CronJobService {
     }
   }
 
-  @Cron(process.env.PULLDOWN_SCHEDULE.toString() || '0 * * * *') // every hour
+  @Cron(process.env.PULLDOWN_SCHEDULE) // every hour
   private async fetchAQSSData() {
     if (this.operationLockService.getCurrentLock() === "REFRESH") {
       this.logger.log("Releaseing REFRESH lock to allow pulldown of new data.");
@@ -622,7 +622,7 @@ export class CronJobService {
     return filterArray(entries);
   }
 
-  @Cron(process.env.FILE_PROCESSING_SCHEDULE.toString() || '* * * * *') // every minute
+  @Cron(process.env.FILE_PROCESSING_SCHEDULE) // every minute
   private async beginFileValidation() {
     // Block file processing during maintenance window
     if (this.maintenanceWindowActive) {
@@ -756,7 +756,7 @@ export class CronJobService {
     }
   }
 
-  @Cron(process.env.DELETE_SCHEDULE.toString() || "*/5 * * * *") // every 5 minutes
+  @Cron(process.env.DELETE_SCHEDULE) // every 5 minutes
   private async beginDelete() {
     /*
     TODO:
