@@ -344,7 +344,7 @@ export class CronJobService {
     let refreshStarted = false;
     let refreshCompleted = false;
     const deadline = new Date();
-    deadline.setHours(4, 0, 0, 0); // 4:00 AM today
+    deadline.setHours(parseInt(process.env.MAINTENANCE_WINDOW_DEADLINE) || 4, 0, 0, 0); // 4:00 AM today
 
     // Wait for FILE_PROCESSING to finish if running
     while (
