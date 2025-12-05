@@ -8,7 +8,9 @@ import {
   MaxFileSizeValidator,
   UseGuards,
   Req,
-  BadRequestException
+  BadRequestException,
+  HttpException,
+  HttpStatus,
 } from "@nestjs/common";
 import { FileSubmissionsService } from "./file_submissions.service";
 import { ApiTags } from "@nestjs/swagger";
@@ -21,6 +23,13 @@ import { Public } from "src/auth/decorators/public.decorator";
 import { PrismaService } from "nestjs-prisma";
 import ExcelJS from "exceljs";
 
+/**
+ * Controller for handling file submissions via API key authentication.
+ *
+ * This controller provides endpoints for uploading files using an API key.
+ * It enforces rate limiting per API key, validates file size and row count,
+ * and passes valid files to the fileSubmissionsService for processing.
+ */
 @ApiTags("file_submissions_api_key")
 @Controller({ path: "file_submissions_api_key", version: "1" })
 @Public()
@@ -32,35 +41,56 @@ export class FileSubmissionsAPIController {
     private readonly prisma: PrismaService,
   ) {}
 
-  async isMoreThan10000(file: Express.Multer.File): Promise<Boolean>{
+  /**
+   * Checks if the uploaded file contains more than 10,000 rows.
+   * Supports both CSV and XLSX file formats.
+   *
+   * @param file The uploaded file to check.
+   * @returns Promise<boolean> True if the file has more than 10,000 rows, otherwise false.
+   */
+  async isMoreThan10000(file: Express.Multer.File): Promise<Boolean> {
     try {
       const mimeType = file.mimetype;
 
       let rowCount = 0;
 
-      if (mimeType === "text/csv" || file.originalname.endsWith(".csv")){
+      if (mimeType === "text/csv" || file.originalname.endsWith(".csv")) {
         const content = file.buffer.toString();
-        rowCount = content.split(/\r?\n/).filter(line => line.trim() !== '').length
-      }else if (
-        mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-        file.originalname.endsWith('.xlsx')
-      ){
+        rowCount = content
+          .split(/\r?\n/)
+          .filter((line) => line.trim() !== "").length;
+      } else if (
+        mimeType ===
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+        file.originalname.endsWith(".xlsx")
+      ) {
         const workbook = new ExcelJS.Workbook();
-        await workbook.xlsx.load(file.buffer as any)
+        await workbook.xlsx.load(file.buffer as any);
         rowCount = workbook.worksheets[0].rowCount;
       }
 
-      if (rowCount <= 10000){
-        return false
-      }else{
-        return true
+      if (rowCount <= 10000) {
+        return false;
+      } else {
+        return true;
       }
-    }catch (e) {
-      console.error('File parsing error:', e);
+    } catch (e) {
+      console.error("File parsing error:", e);
       return true;
     }
   }
 
+  /**
+   * Handles file upload requests authenticated by API key.
+   * Enforces rate limiting, validates file size and row count,
+   * and processes the file if all checks pass.
+   *
+   * @param file The uploaded file.
+   * @param body The request body.
+   * @param req The HTTP request object.
+   * @throws TooManyRequestsException if rate limit is exceeded.
+   * @throws BadRequestException if the file has more than 10,000 rows.
+   */
   @Post()
   @Public()
   @UseGuards(ApiKeyGuard)
@@ -90,19 +120,54 @@ export class FileSubmissionsAPIController {
       throw new Error("Invalid API key");
     }
 
-    const morethan10k = await this.isMoreThan10000(file);
+    // Rate limiting logic
+    const now = new Date();
+    const windowStart = new Date(now);
+    windowStart.setSeconds(0, 0); // round down to start of minute
 
-    if (morethan10k){
-      throw new BadRequestException('File has more than 10,000 rows')
+    const usage = await this.prisma.api_key_usage.upsert({
+      where: {
+        api_key_window_start: {
+          api_key: apiKey,
+          window_start: windowStart,
+        },
+      },
+      update: {
+        request_count: { increment: 1 },
+      },
+      create: {
+        api_key: apiKey,
+        window_start: windowStart,
+        request_count: 1,
+      },
+    });
+
+    const MAX_REQUESTS_PER_MINUTE = parseInt(
+      process.env.API_KEY_RATE_LIMIT_PER_MINUTE || "10",
+      10,
+    );
+
+    if (usage.request_count > MAX_REQUESTS_PER_MINUTE) {
+      throw new HttpException(
+        "Rate limit exceeded",
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
 
-    await this.fileSubmissionsService.createWithSftp( 
+    const morethan10k = await this.isMoreThan10000(file);
+
+    if (morethan10k) {
+      throw new BadRequestException("File has more than 10,000 rows");
+    }
+
+    await this.fileSubmissionsService.createWithSftp(
       {
         userID: apiKeyRecord.username,
         orgGUID: null,
         agency: apiKeyRecord.organization_name,
         operation: "IMPORT",
-        data_submitter_email: apiKeyRecord.email_address
+        data_submitter_email: apiKeyRecord.email_address,
+        api_submission: true,
       },
       {
         fieldname: file.filename,

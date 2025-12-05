@@ -122,7 +122,8 @@ export class SftpService {
                       orgGUID: sftp_user.org_guid,
                       agency: sftp_user.name,
                       operation: "IMPORT",
-                      data_submitter_email: ""
+                      data_submitter_email: "",
+                      api_submission: false,
                     },
                     {
                       fieldname: file.name,

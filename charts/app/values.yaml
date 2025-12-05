@@ -43,6 +43,7 @@ global:
     sftpPrivateKeyBase64: ~
     objectstoreBucketName: ~
     uploadFileApiKey: ~
+    apiKeyRateLimitPerMinute: ~
     #-- frontend
     port: "3000"
     apiName: ~

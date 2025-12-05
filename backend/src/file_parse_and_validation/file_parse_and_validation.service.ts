@@ -2057,13 +2057,15 @@ export class FileParseValidateService {
       });
       // Enforce offset: must contain + or - after the time
       const offsetPattern = /[+-]\d{2}:\d{2}$/;
-      const startTimehasOffset = offsetPattern.test(rowData.FieldVisitStartTime);
+      const startTimehasOffset = offsetPattern.test(
+        rowData.FieldVisitStartTime,
+      );
       if (!startTimehasOffset) {
         validFieldVisitStartTime = false;
       }
 
       // Check if field visit end time is valid ISO and has an offset. This field can be "" -- if so, then it is valid.
-      let validFieldVisitEndTime = true
+      let validFieldVisitEndTime = true;
       // Enforce offset: must contain + or - after the time, but only if end time is not empty
       if (rowData.FieldVisitEndTime) {
         validFieldVisitEndTime = isISO8601(rowData.FieldVisitEndTime, {
@@ -2087,7 +2089,9 @@ export class FileParseValidateService {
       });
       yearFromDate = new Date(rowData.ObservedDateTime).getFullYear();
       if (yearFromDate > currentYear) validObservedDateTime = false;
-      const observedDateTimehasOffset = offsetPattern.test(rowData.ObservedDateTime);
+      const observedDateTimehasOffset = offsetPattern.test(
+        rowData.ObservedDateTime,
+      );
       if (!observedDateTimehasOffset) {
         validObservedDateTime = false;
       }
@@ -2637,6 +2641,9 @@ export class FileParseValidateService {
         observedTime;
     }
 
+    if (newActivityName.startsWith(";")) {
+      newActivityName = newActivityName.substring(1);
+    }
     return newActivityName;
   }
 
@@ -2644,6 +2651,13 @@ export class FileParseValidateService {
     let cleanedRow = rowData;
 
     cleanedRow.QCType = rowData.QCType.toUpperCase(); // only set to upper case to use in the activity name
+    cleanedRow.DataClassification =
+      rowData.DataClassification.toUpperCase().replace(/ /g, "_");
+    cleanedRow.DetectionCondition =
+      rowData.DetectionCondition.toUpperCase().replace(/ /g, "_");
+    cleanedRow.FieldPreservative =
+      rowData.FieldPreservative.toUpperCase().replace(/ /g, "_");
+    cleanedRow.Fraction = rowData.Fraction.toUpperCase();
 
     let concatActivityName = this.formulateActivityName(rowData);
 
@@ -2885,7 +2899,19 @@ export class FileParseValidateService {
     );
 
     const visitURL = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${encodedVisitStartTime}&end-startTime=${encodedVisitStartTime}`;
-    const activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${encodedObservedDateTime}&toStartTime=${encodedObservedDateTime}&customId=${rowData.ActivityName}`;
+    let activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${encodedObservedDateTime}&toStartTime=${encodedObservedDateTime}&customId=${rowData.ActivityName}`;
+    this.logger.log(`Visit URL for import: ${visitURL}`);
+    this.logger.log(`Activity URL for import: ${activityURL}`);
+
+    if (rowData["DataClassification"] === "VERTICAL_PROFILE") {
+      activityURL =
+        activityURL + "&activityTypes=SAMPLE_INTEGRATED_VERTICAL_PROFILE";
+    } else if (rowData["DataClassification"] === "FIELD_SURVEY") {
+      activityURL = activityURL + "&activityTypes=FIELD_SURVEY";
+    } else if (rowData["DataClassification"] === "SURROGATE_RESULT") {
+      activityURL = activityURL + "&activityTypes=SPIKE";
+    }
+
     let visitInfo: any;
     let activityInfo: any;
 
