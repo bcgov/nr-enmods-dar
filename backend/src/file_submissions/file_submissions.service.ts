@@ -110,6 +110,7 @@ export class FileSubmissionsService {
       agency: string;
       orgGUID: string;
       data_submitter_email: string
+      api_submission: boolean;
     },
     file: Express.Multer.File,
   ) {
@@ -141,6 +142,7 @@ export class FileSubmissionsService {
     createFileSubmissionDto.create_utc_timestamp = new Date();
     createFileSubmissionDto.update_user_id = body.userID;
     createFileSubmissionDto.update_utc_timestamp = new Date();
+    body.api_submission ? createFileSubmissionDto.api_submission_ind = true : createFileSubmissionDto.api_submission_ind = false;
 
     const newFilePostData: Prisma.file_submissionCreateInput = {
       submission_id: createFileSubmissionDto.submission_id,
@@ -165,6 +167,7 @@ export class FileSubmissionsService {
       create_utc_timestamp: createFileSubmissionDto.create_utc_timestamp,
       update_user_id: createFileSubmissionDto.update_user_id,
       update_utc_timestamp: createFileSubmissionDto.update_utc_timestamp,
+      api_submission_ind: createFileSubmissionDto.api_submission_ind,
     };
 
     const newFile = await this.prisma.$transaction([
