@@ -370,12 +370,13 @@ export class CronJobService {
           );
         }
         this.logger.log(`Successfully deleted all pull down data`);
+        await new Promise((resolve) => setTimeout(resolve, 2000)); // wait 5 seconds
         this.logger.log(`Calling pulldown procedure now.`);
         await this.fetchAQSSData();
         this.logger.log(`Successfully refreshed all database tables`);
         refreshCompleted = true;
       } catch (err) {
-        this.logger.error(`Error in dropping tables:`, err);
+        this.logger.error(`Error in REFRESH procedure:`, err);
       } finally {
         this.operationLockService.releaseLock("REFRESH");
         this.maintenanceWindowActive = false;
