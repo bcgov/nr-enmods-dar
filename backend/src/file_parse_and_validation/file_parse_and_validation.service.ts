@@ -1349,7 +1349,7 @@ export class FileParseValidateService {
       ) {
         const present = await this.aqiService.databaseLookup(
           "aqi_preservatives",
-          rowData.FieldPreservative
+          rowData.FieldPreservative,
         );
         if (!present) {
           let errorLog = {
@@ -2400,20 +2400,39 @@ export class FileParseValidateService {
       strict: true,
       strictSeparator: true,
     });
+    // Enforce offset: must contain + or - after the time
+    const offsetPattern = /[+-]\d{2}:\d{2}$/;
+    const startTimehasOffset = offsetPattern.test(rowData.FieldVisitStartTime);
+    if (!startTimehasOffset) {
+      validFieldVisitStartTime = false;
+    }
 
     if (rowData.FieldVisitStartTime != "" && validFieldVisitStartTime) {
       // check to see if a field visit for that given day already exists for the location
       const rawDateFromRow = rowData.FieldVisitStartTime;
+      // Create a copy with the opposite offset (+ to -, - to +)
+      let oppositeOffsetDate = rawDateFromRow;
+      const offsetRegex = /([+-])(\d{2}:\d{2})$/;
+      const match = rawDateFromRow.match(offsetRegex);
+      if (match) {
+        const currentSign = match[1];
+        const offsetValue = match[2];
+        const newSign = currentSign === '+' ? '-' : '+';
+        oppositeOffsetDate = rawDateFromRow.replace(offsetRegex, `${newSign}${offsetValue}`);
+      }
+
       const formattedDateFromRow = rawDateFromRow.match(/^(.*?)T/)[1]; // without time
       const locationID = rowData.LocationID;
-
       // Initialize an array for that location if it has not been checked
       if (!fieldVisitStartTimes[locationID]) {
         fieldVisitStartTimes[locationID] = [];
       }
 
       // Check to make sure that the exact timestamp DOES NOT exist for that location
-      if (!fieldVisitStartTimes[locationID].includes(rawDateFromRow)) {
+      if (
+        !fieldVisitStartTimes[locationID].includes(rawDateFromRow) &&
+        !fieldVisitStartTimes[locationID].includes(oppositeOffsetDate)
+      ) {
         // check to see if a visit has already happened on that day - i.e. timestamp but only YYYY-MM-DD
         const sameDayVisit = fieldVisitStartTimes[locationID].some(
           (startTime) => startTime.match(/^(.*?)T/)[1] === formattedDateFromRow,
