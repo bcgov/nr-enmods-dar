@@ -119,6 +119,10 @@ function formulateErrorFile(logs: any, fileSubmissionTime: any) {
     if (logs[0].error_log.length >= 1 && hasErrors) {
       formattedMessages +=
         "\nData was not updated in EnMoDS due to errors found in the submission file. Please correct the data and resubmit.";
+    }else{
+      formattedMessages +=
+        `\nNo errors were found during the validation/import of the data.\n\n` +
+        `The file was successfully ${fileAction} with the above warnings.`;
     }
 
     return formattedMessages;
