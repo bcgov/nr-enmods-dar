@@ -336,7 +336,7 @@ export class NotificationsService {
     );
 
     const emailsToSend = filteredUsers.map((user) => user.email);
-    console.log(emailsToSend);
+    this.logger.log(`Emails to send: ${emailsToSend.join(", ")}`);
 
     return emailsToSend;
   }
@@ -462,7 +462,7 @@ export class NotificationsService {
     },
   ): Promise<string> {
     const chesToken = await this.getChesToken();
-    this.logger.log("sending email");
+    this.logger.log("sending email to " + emails);
     // file_error_log is a string, convert it to base64
     const base64ErrorLog = btoa(variables.file_error_log);
 
@@ -502,10 +502,10 @@ export class NotificationsService {
       },
       data: data,
     };
-
+    
     try {
       const response = await lastValueFrom(this.httpService.request(config));
-      this.logger.log(`Email sent with status: ${response.status}`);
+      this.logger.log(`Email sent to ${emails} with status: ${response.status}`);
       return "Email Sent";
     } catch (error) {
       if (error.response) {
