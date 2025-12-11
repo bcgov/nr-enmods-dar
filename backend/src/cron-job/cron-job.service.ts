@@ -333,20 +333,31 @@ export class CronJobService {
     }
   }
 
-  @Cron("0 3 * * *") 
-  private async dropReplaceTables() {
-    let lockAcquired = this.operationLockService.acquireLock("REFRESH");
-    if (!lockAcquired) {
-      this.logger.log(
-        "Another process underway. Freeing the lock to do the refresh.",
-      );
-      this.operationLockService.releaseLock(
-        this.operationLockService.getCurrentLock(),
-      );
-      lockAcquired = this.operationLockService.acquireLock("REFRESH");
+  // Maintenance window state
+  private maintenanceWindowActive = false;
+
+  // Cron: Midnight every day
+  @Cron(process.env.MAINTENANCE_WINDOW) // every day at midnight
+  private async maintenanceWindow() {
+    this.maintenanceWindowActive = true;
+    this.logger.log("Maintenance window started at midnight.");
+    let refreshStarted = false;
+    let refreshCompleted = false;
+    const deadline = new Date();
+    deadline.setHours(parseInt(process.env.MAINTENANCE_WINDOW_DEADLINE) || 4, 0, 0, 0); // 4:00 AM today
+
+    // Wait for FILE_PROCESSING to finish if running
+    while (
+      this.operationLockService.getCurrentLock() === "FILE_PROCESSING" &&
+      new Date() < deadline
+    ) {
+      this.logger.log("Waiting for FILE_PROCESSING to finish before REFRESH.");
+      await new Promise((resolve) => setTimeout(resolve, 60000)); // wait 1 minute
     }
 
-    if (lockAcquired) {
+    // Try to acquire REFRESH lock
+    if (this.operationLockService.acquireLock("REFRESH")) {
+      refreshStarted = true;
       try {
         this.logger.log(`Starting the database drop and replace`);
         for (const api of this.apisToCall) {
@@ -359,24 +370,31 @@ export class CronJobService {
           );
         }
         this.logger.log(`Successfully deleted all pull down data`);
+        await new Promise((resolve) => setTimeout(resolve, 2000)); // wait 5 seconds
         this.logger.log(`Calling pulldown procedure now.`);
         await this.fetchAQSSData();
         this.logger.log(`Successfully refreshed all database tables`);
+        refreshCompleted = true;
       } catch (err) {
-        this.logger.error(`Error in dropping tables:`, err);
+        this.logger.error(`Error in REFRESH procedure:`, err);
       } finally {
         this.operationLockService.releaseLock("REFRESH");
+        this.maintenanceWindowActive = false;
+        this.logger.log("Maintenance window ended after REFRESH.");
       }
+    } else {
+      this.logger.warn(
+        "REFRESH lock not acquired by 4am. Skipping drop and replace.",
+      );
+      this.maintenanceWindowActive = false;
+      this.logger.log("Maintenance window ended (REFRESH skipped).");
     }
   }
 
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(process.env.PULLDOWN_SCHEDULE) // every hour
   private async fetchAQSSData() {
-
     if (this.operationLockService.getCurrentLock() === "REFRESH") {
-      this.logger.log(
-        "Releaseing REFRESH lock to allow pulldown of new data.",
-      );
+      this.logger.log("Releaseing REFRESH lock to allow pulldown of new data.");
       this.operationLockService.releaseLock("REFRESH");
     }
 
@@ -525,7 +543,8 @@ export class CronJobService {
       const { id, customId, name, auditAttributes } = obj;
       const creationUserProfileId = auditAttributes.creationUserProfileId;
       const creationTime = auditAttributes.creationTime;
-      const modificationUserProfileId = auditAttributes.modificationUserProfileId;
+      const modificationUserProfileId =
+        auditAttributes.modificationUserProfileId;
       const modificationTime = auditAttributes.modificationTime;
 
       // If name is missing or falsy, use customId as name
@@ -604,18 +623,18 @@ export class CronJobService {
     return filterArray(entries);
   }
 
-  @Cron(CronExpression.EVERY_MINUTE) // every 2 hours
+  @Cron(process.env.FILE_PROCESSING_SCHEDULE) // every minute
   private async beginFileValidation() {
-    /*
-    TODO:
-      grab all the files from the DB and S3 bucket that have a status of QUEUED
-      for each file returned, change the status to INPROGRESS and go to the parser
-    // */
+    // Block file processing during maintenance window
+    if (this.maintenanceWindowActive) {
+      this.logger.warn("Maintenance window active. Skipping file processing.");
+      return;
+    }
+
     if (!this.operationLockService.acquireLock("FILE_PROCESSING")) {
       this.logger.warn("Data pull down from AQI did not complete");
       return;
     }
-
     // Healthcheck for AQI before all files are picked up for processing
     const healthcheckUrl = process.env.AQI_BASE_URL + "/v1/status";
     let aqiStatus = null;
@@ -648,7 +667,7 @@ export class CronJobService {
     let filesToValidate = await this.fileParser.getQueuedFiles();
 
     if (filesToValidate.length < 1) {
-      this.logger.log("************** NO FILES TO VALIDATE **************");
+      this.logger.log("************** NO FILES TO PROCESS **************");
       this.operationLockService.releaseLock("FILE_PROCESSING");
       return;
     } else {
@@ -673,6 +692,14 @@ export class CronJobService {
               `Third party service, AQI, is currently unavailable. No files will be processed.`,
             );
             return;
+          }
+
+          if (this.maintenanceWindowActive) {
+            this.logger.warn(
+              "Maintenance window active. Preventing next file from being processed.",
+            );
+            this.operationLockService.releaseLock("FILE_PROCESSING");
+            break;
           }
 
           /*
@@ -730,7 +757,7 @@ export class CronJobService {
     }
   }
 
-  @Cron(CronExpression.EVERY_5_MINUTES) // every 2 hours
+  @Cron(process.env.DELETE_SCHEDULE) // every 5 minutes
   private async beginDelete() {
     /*
     TODO:
