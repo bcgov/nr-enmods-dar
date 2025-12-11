@@ -333,7 +333,7 @@ export class CronJobService {
     }
   }
 
-  @Cron("0 3 * * *") 
+  @Cron("0 3 * * *")
   private async dropReplaceTables() {
     let lockAcquired = this.operationLockService.acquireLock("REFRESH");
     if (!lockAcquired) {
@@ -370,22 +370,18 @@ export class CronJobService {
     }
   }
 
-  @Cron(CronExpression.EVERY_HOUR)
   private async fetchAQSSData() {
-
     if (this.operationLockService.getCurrentLock() === "REFRESH") {
-      this.logger.log(
-        "Releaseing REFRESH lock to allow pulldown of new data.",
-      );
+      this.logger.log("Releaseing REFRESH lock to allow pulldown of new data.");
       this.operationLockService.releaseLock("REFRESH");
     }
 
-    if (!this.operationLockService.acquireLock("PULLDOWN")) {
-      this.logger.log(
-        "Skipping cron procedure of data pull down: Another process underway.",
-      );
-      return;
-    }
+    // if (!this.operationLockService.acquireLock("PULLDOWN")) {
+    //   this.logger.log(
+    //     "Skipping cron procedure of data pull down: Another process underway.",
+    //   );
+    //   return;
+    // }
 
     this.logger.log(`Starting Code Table Cron Job`);
     axios.defaults.method = "GET";
@@ -457,8 +453,8 @@ export class CronJobService {
         } while (cursor); // Continue only if a cursor is provided
       }
     } finally {
-      this.logger.log(`Cron Job completed.`);
-      this.operationLockService.releaseLock("PULLDOWN");
+      this.logger.log(`Data pull down from AQI completed.`);
+      // this.operationLockService.releaseLock("PULLDOWN");
     }
   }
 
@@ -525,7 +521,8 @@ export class CronJobService {
       const { id, customId, name, auditAttributes } = obj;
       const creationUserProfileId = auditAttributes.creationUserProfileId;
       const creationTime = auditAttributes.creationTime;
-      const modificationUserProfileId = auditAttributes.modificationUserProfileId;
+      const modificationUserProfileId =
+        auditAttributes.modificationUserProfileId;
       const modificationTime = auditAttributes.modificationTime;
 
       // If name is missing or falsy, use customId as name
@@ -604,24 +601,12 @@ export class CronJobService {
     return filterArray(entries);
   }
 
-  @Cron(CronExpression.EVERY_MINUTE) // every 2 hours
-  private async beginFileValidation() {
-    /*
-    TODO:
-      grab all the files from the DB and S3 bucket that have a status of QUEUED
-      for each file returned, change the status to INPROGRESS and go to the parser
-    // */
-    if (!this.operationLockService.acquireLock("FILE_PROCESSING")) {
-      this.logger.warn("Data pull down from AQI did not complete");
-      return;
-    }
-
-    // Healthcheck for AQI before all files are picked up for processing
+  private async AQSSHealthCheck(): Promise<boolean> {
     const healthcheckUrl = process.env.AQI_BASE_URL + "/v1/status";
     let aqiStatus = null;
     try {
       aqiStatus = (await axios.get(healthcheckUrl)).status;
-      console.log(aqiStatus);
+      this.logger.log(aqiStatus ? `AQI is healthy.` : `AQI is unhealthy.`);
     } catch (err) {
       aqiStatus = err.response.status;
     }
@@ -630,11 +615,53 @@ export class CronJobService {
       this.logger.warn(
         `Third party service, AQI, is currently unavailable. No files will be processed.`,
       );
+      return false;
+    }else{
+      return true;
+    }
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  /**
+   * This job is called every minute
+   * Before any other checks, this job will check the system time, if the minute is 0 (i.e. top of the hour), it will do the data pull down by calling the fetchAQSSData function
+   * Every minute, this job will see if any files need to be deleted (DEL QUEUED), if so, it will do the delete first and THEN
+   * Check to see if there are any files with a status of QUEUED to be processed. If there are files to be processed, it will process them one at a time
+   * As this loops over all QUEUED files, it will do the first check again.
+   */
+  private async beginFileValidation() {
+    // Try to acquire the lock, if not able to, exit the function
+    if (!this.operationLockService.acquireLock("FILE_PROCESSING")) {
+      this.logger.warn("Data pull down from AQI did not complete");
+      return;
+    }
+
+    this.logger.log("Beginning file processing cron job...");
+
+    // Healthcheck for AQI before all files are picked up for processing
+    const aqiHealthy = await this.AQSSHealthCheck();
+    if (!aqiHealthy) {
       this.operationLockService.releaseLock("FILE_PROCESSING");
       return;
     }
 
-    // check to see if any files need to be rolledback
+    this.logger.log("AQI Healthcheck passed. Continuing to file checks.");
+
+    // check if system time is at the top of the hour
+    const currentDate = new Date();
+    const isHourMark = currentDate.getMinutes() === 0;
+
+    if (isHourMark) {
+      this.logger.log(
+        "Top of the hour detected. Initiating data pull down from AQI.",
+      );
+      await this.fetchAQSSData();
+      this.logger.log("Continuing to file processing.");
+    }
+
+    this.logger.log("Checking for files to roll back or delete...");
+
+    // check if any files need to be rolledback
     let filesToRollBack = await this.fileParser.getRollBackFiles();
 
     if (filesToRollBack.length > 0) {
@@ -642,9 +669,31 @@ export class CronJobService {
         `${filesToRollBack.length} files need rollback. Cannot process any new files until rollbacks have completed.`,
       );
 
-      await this.rollBackFiles(filesToRollBack);
+      await this.rollBackFiles(filesToRollBack).then(() => {
+        this.logger.log("All rollbacks processed.");
+      });
+    } else {
+      this.logger.log(
+        "No files need rollback at this time. Continuing to deletion check.",
+      );
     }
 
+    // check if files need to be deleted
+    let filesToDelete = await this.fileParser.getFilesToDelete();
+    if (filesToDelete.length > 0) {
+      this.logger.log(
+        `${filesToDelete.length} files need deletion. Processing deletions before new file processing.`,
+      );
+      await this.deleteFiles(filesToDelete).then(() => {
+        this.logger.log("All deletions processed.");
+      });
+    } else {
+      this.logger.log(
+        "No files need deletion at this time. Continuing to file processing.",
+      );
+    }
+
+    // check if any files need to be processed
     let filesToValidate = await this.fileParser.getQueuedFiles();
 
     if (filesToValidate.length < 1) {
@@ -664,14 +713,11 @@ export class CronJobService {
     try {
       for (const file of files) {
         try {
-          // Healthcheck for AQI before every file
-          const healthcheckUrl = process.env.AQI_BASE_URL + "/v1/status";
-          let aqiStatus = (await axios.get(healthcheckUrl)).status;
 
-          if (aqiStatus != 200) {
-            this.logger.warn(
-              `Third party service, AQI, is currently unavailable. No files will be processed.`,
-            );
+          // Healthcheck for AQI before every file
+          const aqiHealthy = await this.AQSSHealthCheck();
+
+          if (!aqiHealthy) {
             return;
           }
 
@@ -730,7 +776,6 @@ export class CronJobService {
     }
   }
 
-  @Cron(CronExpression.EVERY_5_MINUTES) // every 2 hours
   private async beginDelete() {
     /*
     TODO:
