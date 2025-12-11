@@ -1349,7 +1349,7 @@ export class FileParseValidateService {
       ) {
         const present = await this.aqiService.databaseLookup(
           "aqi_preservatives",
-          rowData.FieldPreservative.toUpperCase(),
+          rowData.FieldPreservative,
         );
         if (!present) {
           let errorLog = {
@@ -1476,7 +1476,7 @@ export class FileParseValidateService {
       ) {
         const present = await this.aqiService.databaseLookup(
           "aqi_detection_conditions",
-          rowData.DetectionCondition.toUpperCase(),
+          rowData.DetectionCondition,
         );
         if (!present) {
           let errorLog = {
@@ -1509,7 +1509,7 @@ export class FileParseValidateService {
       if (rowData.hasOwnProperty("Fraction") && rowData.Fraction) {
         const present = await this.aqiService.databaseLookup(
           "aqi_sample_fractions",
-          rowData.Fraction.toUpperCase(),
+          rowData.Fraction,
         );
         if (!present) {
           let errorLog = {
@@ -2400,20 +2400,39 @@ export class FileParseValidateService {
       strict: true,
       strictSeparator: true,
     });
+    // Enforce offset: must contain + or - after the time
+    const offsetPattern = /[+-]\d{2}:\d{2}$/;
+    const startTimehasOffset = offsetPattern.test(rowData.FieldVisitStartTime);
+    if (!startTimehasOffset) {
+      validFieldVisitStartTime = false;
+    }
 
     if (rowData.FieldVisitStartTime != "" && validFieldVisitStartTime) {
       // check to see if a field visit for that given day already exists for the location
       const rawDateFromRow = rowData.FieldVisitStartTime;
+      // Create a copy with the opposite offset (+ to -, - to +)
+      let oppositeOffsetDate = rawDateFromRow;
+      const offsetRegex = /([+-])(\d{2}:\d{2})$/;
+      const match = rawDateFromRow.match(offsetRegex);
+      if (match) {
+        const currentSign = match[1];
+        const offsetValue = match[2];
+        const newSign = currentSign === '+' ? '-' : '+';
+        oppositeOffsetDate = rawDateFromRow.replace(offsetRegex, `${newSign}${offsetValue}`);
+      }
+
       const formattedDateFromRow = rawDateFromRow.match(/^(.*?)T/)[1]; // without time
       const locationID = rowData.LocationID;
-
       // Initialize an array for that location if it has not been checked
       if (!fieldVisitStartTimes[locationID]) {
         fieldVisitStartTimes[locationID] = [];
       }
 
       // Check to make sure that the exact timestamp DOES NOT exist for that location
-      if (!fieldVisitStartTimes[locationID].includes(rawDateFromRow)) {
+      if (
+        !fieldVisitStartTimes[locationID].includes(rawDateFromRow) &&
+        !fieldVisitStartTimes[locationID].includes(oppositeOffsetDate)
+      ) {
         // check to see if a visit has already happened on that day - i.e. timestamp but only YYYY-MM-DD
         const sameDayVisit = fieldVisitStartTimes[locationID].some(
           (startTime) => startTime.match(/^(.*?)T/)[1] === formattedDateFromRow,
@@ -3008,12 +3027,14 @@ export class FileParseValidateService {
 
     if (rowData.DataClassification !== "FIELD_RESULT") {
       if (validationApisCalled.some((item) => item.url === activityURL)) {
-        // visit url has been called before
+        // activity url has been called before
+        this.logger.log(`Activity URL seen, getting from lookup`);
         let seenActivityUrl = validationApisCalled.find(
           (item) => item.url === activityURL,
         );
 
         if (seenActivityUrl.count > 0) {
+          this.logger.log(`Activity URL seen, activity already exists`);
           // send PUT to AQI
           fieldActivity["id"] = seenActivityUrl.GUID;
           specimen["activity"] = {
@@ -3026,7 +3047,9 @@ export class FileParseValidateService {
             `Added activity GUID ${seenActivityUrl.GUID} to list of imported items`,
           );
         } else {
-          // send POST to AQI
+          this.logger.log(`Activity URL seen, activity does not exist`);
+
+          // send POST to AQI abd add activity data to specimen
           this.logger.log("POSTED the activity");
           activityInfo = await this.fieldActivityJson(
             fieldActivity,
@@ -3051,16 +3074,20 @@ export class FileParseValidateService {
             `Added activity GUID ${activityInfo.activity.id} to list of imported items`,
           );
 
+          this.logger.log(`Updating the seen URL`);
+
           seenActivityUrl.count = 1;
           seenActivityUrl.GUID = activityInfo.activity.id;
         }
       } else {
+        this.logger.log(`Activity URL not seen, making GET call`);
         let activityExists = await this.aqiService.getActivities(
           rowNumber,
           activityURL,
         );
 
         if (activityExists.count > 0) {
+          this.logger.log(`Activity URL not seen, activity already exists`);
           // send PUT to AQI
           fieldActivity["id"] = activityExists.GUID;
           specimen["activity"] = {
@@ -3073,7 +3100,10 @@ export class FileParseValidateService {
             `Added activity GUID ${activityExists.GUID} to list of imported items`,
           );
         } else {
-          // send POST to AQI
+          this.logger.log(`Activity URL not seen, activity does not exist`);
+
+          // send POST to AQI and add activity data to specimen
+          this.logger.log("POSTED the activity");
           activityInfo = await this.fieldActivityJson(
             fieldActivity,
             rowNumber,
@@ -3096,6 +3126,8 @@ export class FileParseValidateService {
           this.logger.log(
             `Added activity GUID ${activityInfo.activity.id} to list of imported items`,
           );
+
+          this.logger.log(`Added activity URL to seen list`);
 
           validationApisCalled.push(activityURL);
         }

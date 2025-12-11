@@ -409,7 +409,7 @@ function FileUpload() {
               component="h2"
               gutterBottom
             >
-              This screen allows an authorized user to upload EMS samples and
+              This screen allows an authorized user to upload EnMoDS samples and
               results.
             </Typography>
           </Box>

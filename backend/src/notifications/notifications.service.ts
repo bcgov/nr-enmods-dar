@@ -336,7 +336,7 @@ export class NotificationsService {
     );
 
     const emailsToSend = filteredUsers.map((user) => user.email);
-    console.log(emailsToSend);
+    this.logger.log(`Emails to send: ${emailsToSend.join(", ")}`);
 
     return emailsToSend;
   }
@@ -462,7 +462,7 @@ export class NotificationsService {
     },
   ): Promise<string> {
     const chesToken = await this.getChesToken();
-    this.logger.log("sending email");
+    this.logger.log("sending email to " + emails);
     // file_error_log is a string, convert it to base64
     const base64ErrorLog = btoa(variables.file_error_log);
 
@@ -502,9 +502,10 @@ export class NotificationsService {
       },
       data: data,
     };
-
+    
     try {
-      await lastValueFrom(this.httpService.request(config));
+      const response = await lastValueFrom(this.httpService.request(config));
+      this.logger.log(`Email sent to ${emails} with status: ${response.status}`);
       return "Email Sent";
     } catch (error) {
       if (error.response) {
@@ -541,9 +542,11 @@ export class NotificationsService {
   async notifyUserOfError(file_submission_id: string) {
     // Notify the Data Submitter
     await this.sendDataSubmitterNotification(file_submission_id);
+    this.logger.log(`Data submitter notified for submission ID: ${file_submission_id}`);
 
     // Notify the Ministry Contact (if they have not disabled notifications)
     await this.sendContactNotification(file_submission_id);
+    this.logger.log(`Ministry contact(s) notified for submission ID: ${file_submission_id}`);
   }
 
   /**
