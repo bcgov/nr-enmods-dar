@@ -19,6 +19,8 @@ export class CronJobService {
   private isProcessing = false;
 
   private dataPullDownComplete: boolean = false;
+  // Track the last hour when pulldown was performed
+  private lastPulldownHour: number | null = null;
   constructor(
     private prisma: PrismaService,
     private readonly fileParser: FileParseValidateService,
@@ -475,6 +477,8 @@ export class CronJobService {
       }
     } finally {
       this.logger.log(`Data pull down from AQI completed.`);
+      this.logger.log(`Completed pulldown at hour: ${new Date().getHours()}`);
+      this.lastPulldownHour = new Date().getHours();
       // this.operationLockService.releaseLock("PULLDOWN");
     }
   }
@@ -651,9 +655,14 @@ export class CronJobService {
    * As this loops over all QUEUED files, it will do the first check again.
    */
   private async beginFileValidation() {
+    // Block file processing during maintenance window
+    if (this.maintenanceWindowActive) {
+      this.logger.warn("Maintenance window active. Skipping file processing.");
+      return;
+    }
+
     // Try to acquire the lock, if not able to, exit the function
     if (!this.operationLockService.acquireLock("FILE_PROCESSING")) {
-      this.logger.warn("Data pull down from AQI did not complete");
       return;
     }
 
@@ -670,7 +679,7 @@ export class CronJobService {
 
     // check if system time is at the top of the hour
     const currentDate = new Date();
-    const isHourMark = currentDate.getMinutes() === 0;
+    const isHourMark = currentDate.getMinutes() === 16;
 
     if (isHourMark) {
       this.logger.log(
@@ -734,6 +743,16 @@ export class CronJobService {
     try {
       for (const file of files) {
         try {
+          // Check if the hour has changed since the last file was processed
+          const now = new Date();
+          if (this.lastPulldownHour === null) {
+            this.lastPulldownHour = now.getHours();
+          } else if (now.getHours() !== this.lastPulldownHour) {
+            this.logger.log("Hour change detected during file processing. Initiating data pull down from AQI before next file.");
+            await this.fetchAQSSData();
+            this.lastPulldownHour = now.getHours(); // keep both in sync
+            this.logger.log("Continuing to file processing after pulldown.");
+          }
 
           // Healthcheck for AQI before every file
           const aqiHealthy = await this.AQSSHealthCheck();
