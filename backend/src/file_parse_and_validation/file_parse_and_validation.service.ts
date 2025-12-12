@@ -1056,6 +1056,37 @@ export class FileParseValidateService {
       }
     }
 
+    // Ensure that if Data Classification is FIELD_RESULT or VERTICAL_PROFILE, Field Visit Start Time must be the same as Observed Date Time
+    try {
+      if (rowData.hasOwnProperty("DataClassification")) {
+        if (
+          rowData["DataClassification"] == "FIELD_RESULT" ||
+          rowData["DataClassification"] == "VERTICAL_PROFILE"
+        ) {
+          let visitStartTime = rowData["FieldVisitStartTime"];
+          let observedDateTime = rowData["ObservedDateTime"];
+
+          // Compare only the date part (YYYY-MM-DD) of the timestamps
+          const visitStartDate = typeof visitStartTime === 'string' ? visitStartTime.split('T')[0] : '';
+          const observedDate = typeof observedDateTime === 'string' ? observedDateTime.split('T')[0] : '';
+          if (visitStartDate !== observedDate) {
+            let errorLog = {
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                ObservedDateTime: `Date must be the same as Field Visit Start Date for data classification ${rowData["DataClassification"]}`,
+              },
+            };
+            errorLogs.push(errorLog);
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Runtime error validating Field Visit Start Time and Observed Date Time for classification ${rowData["DataClassification"]} in row ${rowNumber}:`,
+      );
+    }
+
     // check all numerical fields
     numericalFields.forEach(async (field) => {
       try {
@@ -2417,8 +2448,11 @@ export class FileParseValidateService {
       if (match) {
         const currentSign = match[1];
         const offsetValue = match[2];
-        const newSign = currentSign === '+' ? '-' : '+';
-        oppositeOffsetDate = rawDateFromRow.replace(offsetRegex, `${newSign}${offsetValue}`);
+        const newSign = currentSign === "+" ? "-" : "+";
+        oppositeOffsetDate = rawDateFromRow.replace(
+          offsetRegex,
+          `${newSign}${offsetValue}`,
+        );
       }
 
       const formattedDateFromRow = rawDateFromRow.match(/^(.*?)T/)[1]; // without time
