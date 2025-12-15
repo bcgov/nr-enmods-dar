@@ -120,10 +120,12 @@ export class FileSubmissionsAPIController {
       throw new Error("Invalid API key");
     }
 
-    // Rate limiting logic
+    // Rate limiting logic: 10 files per 5 minutes
     const now = new Date();
     const windowStart = new Date(now);
-    windowStart.setSeconds(0, 0); // round down to start of minute
+    // Round down to the start of the current 5-minute window
+    const minutes = windowStart.getMinutes();
+    windowStart.setMinutes(minutes - (minutes % 5), 0, 0);
 
     const usage = await this.prisma.api_key_usage.upsert({
       where: {
@@ -143,13 +145,13 @@ export class FileSubmissionsAPIController {
     });
 
     const MAX_REQUESTS_PER_MINUTE = parseInt(
-      process.env.API_KEY_RATE_LIMIT_PER_MINUTE || "10",
+      process.env.API_KEY_RATE_LIMIT_PER_MINUTE  || "10",
       10,
     );
 
     if (usage.request_count > MAX_REQUESTS_PER_MINUTE) {
       throw new HttpException(
-        "Rate limit exceeded",
+        "Rate limit exceeded (10 files per 5 minutes)",
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
