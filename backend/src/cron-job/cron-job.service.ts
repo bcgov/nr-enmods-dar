@@ -399,13 +399,6 @@ export class CronJobService {
       this.operationLockService.releaseLock("REFRESH");
     }
 
-    // if (!this.operationLockService.acquireLock("PULLDOWN")) {
-    //   this.logger.log(
-    //     "Skipping cron procedure of data pull down: Another process underway.",
-    //   );
-    //   return;
-    // }
-
     this.logger.log(`Starting Code Table Cron Job`);
     axios.defaults.method = "GET";
     axios.defaults.headers.common["Authorization"] =
@@ -479,7 +472,6 @@ export class CronJobService {
       this.logger.log(`Data pull down from AQI completed.`);
       this.logger.log(`Completed pulldown at hour: ${new Date().getHours()}`);
       this.lastPulldownHour = new Date().getHours();
-      // this.operationLockService.releaseLock("PULLDOWN");
     }
   }
 
