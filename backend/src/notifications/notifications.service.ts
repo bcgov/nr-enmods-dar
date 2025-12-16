@@ -506,6 +506,23 @@ export class NotificationsService {
     try {
       const response = await lastValueFrom(this.httpService.request(config));
       this.logger.log(`Email sent to ${emails} with status: ${response.status}`);
+      this.logger.log(`Sent email message id: ${response.data.messages[0].msgId}`);
+      let statusURL = `${process.env.CHES_STATUS_URL}${response.data.messages[0].msgId}`;
+
+      await new Promise((resolve) => setTimeout(resolve, 10000)); 
+
+      this.logger.log(`Checking email status`);
+      const statusConfig = {
+        method: "get",
+        url: statusURL,
+        headers: {
+          Authorization: `Bearer ${chesToken}`,
+        },
+      };
+
+      const statusResponse = await lastValueFrom(this.httpService.request(statusConfig));
+      this.logger.log(`Email status: ${statusResponse.data.status}`);
+
       return "Email Sent";
     } catch (error) {
       if (error.response) {
