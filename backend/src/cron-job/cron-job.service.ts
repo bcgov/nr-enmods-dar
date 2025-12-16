@@ -625,7 +625,12 @@ export class CronJobService {
       aqiStatus = (await axios.get(healthcheckUrl)).status;
       this.logger.log(aqiStatus ? `AQI is healthy.` : `AQI is unhealthy.`);
     } catch (err) {
-      aqiStatus = err.response.status;
+      if (err && err.response && typeof err.response.status !== 'undefined') {
+        aqiStatus = err.response.status;
+      } else {
+        this.logger.error('AQI health check failed and no response status is available:', err);
+        aqiStatus = null;
+      }
     }
 
     if (aqiStatus != 200) {
