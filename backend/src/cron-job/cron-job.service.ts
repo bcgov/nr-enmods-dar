@@ -359,7 +359,8 @@ export class CronJobService {
 
     // Wait for AQSS health check to pass before acquiring REFRESH lock
     while (new Date() < deadline) {
-      const aqiHealthy = await this.AQSSHealthCheck();
+      let aqiHealthy = await this.AQSSHealthCheck();
+      
       if (aqiHealthy) {
         break;
       } else {
@@ -399,6 +400,7 @@ export class CronJobService {
       this.logger.warn(
         "REFRESH lock not acquired by 4am. Skipping drop and replace.",
       );
+      this.operationLockService.releaseLock("REFRESH");
       this.maintenanceWindowActive = false;
       this.logger.log("Maintenance window ended (REFRESH skipped).");
     }
