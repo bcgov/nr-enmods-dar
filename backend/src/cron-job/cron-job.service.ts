@@ -357,8 +357,20 @@ export class CronJobService {
       await new Promise((resolve) => setTimeout(resolve, 60000)); // wait 1 minute
     }
 
+    // Wait for AQSS health check to pass before acquiring REFRESH lock
+    while (new Date() < deadline) {
+      let aqiHealthy = await this.AQSSHealthCheck();
+      
+      if (aqiHealthy) {
+        break;
+      } else {
+        this.logger.warn("AQSS health check failed. Retrying in 1 minute until 4am or success.");
+        await new Promise((resolve) => setTimeout(resolve, 60000)); // wait 1 minute
+      }
+    }
+
     // Try to acquire REFRESH lock
-    if (this.operationLockService.acquireLock("REFRESH")) {
+    if (this.operationLockService.acquireLock("REFRESH") && new Date() < deadline) {
       refreshStarted = true;
       try {
         this.logger.log(`Starting the database drop and replace`);
@@ -388,6 +400,7 @@ export class CronJobService {
       this.logger.warn(
         "REFRESH lock not acquired by 4am. Skipping drop and replace.",
       );
+      this.operationLockService.releaseLock("REFRESH");
       this.maintenanceWindowActive = false;
       this.logger.log("Maintenance window ended (REFRESH skipped).");
     }
@@ -422,9 +435,9 @@ export class CronJobService {
               : `${baseUrl + api.endpoint}${api.paramsEnabled ? (cursor ? `?limit=1000&cursor=${cursor}` : "?limit=1000") : ""}`;
           const response = await axios.get(url);
 
-          if (response.status != 200) {
+          if (!response || typeof response.status === 'undefined' || response.status != 200) {
             this.logger.error(
-              `Could not ping AQI API for ${api.endpoint}. Response Code: ${response.status}`,
+              `Could not ping AQI API for ${api.endpoint}. Response Code: ${response && typeof response.status !== 'undefined' ? response.status : 'No response status'}`,
             );
             return;
           }
@@ -625,12 +638,17 @@ export class CronJobService {
       aqiStatus = (await axios.get(healthcheckUrl)).status;
       this.logger.log(aqiStatus ? `AQI is healthy.` : `AQI is unhealthy.`);
     } catch (err) {
-      aqiStatus = err.response.status;
+      if (err && err.response && typeof err.response.status !== 'undefined') {
+        aqiStatus = err.response.status;
+      } else {
+        this.logger.error('AQI health check failed and no response status is available:', err);
+        aqiStatus = null;
+      }
     }
 
     if (aqiStatus != 200) {
       this.logger.warn(
-        `Third party service, AQI, is currently unavailable. No files will be processed.`,
+        `Third party service, AQI, is currently unavailable. Operations will be skipped until AQS is back online.`,
       );
       return false;
     }else{
