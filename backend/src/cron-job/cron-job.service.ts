@@ -422,9 +422,9 @@ export class CronJobService {
               : `${baseUrl + api.endpoint}${api.paramsEnabled ? (cursor ? `?limit=1000&cursor=${cursor}` : "?limit=1000") : ""}`;
           const response = await axios.get(url);
 
-          if (response.status != 200) {
+          if (!response || typeof response.status === 'undefined' || response.status != 200) {
             this.logger.error(
-              `Could not ping AQI API for ${api.endpoint}. Response Code: ${response.status}`,
+              `Could not ping AQI API for ${api.endpoint}. Response Code: ${response && typeof response.status !== 'undefined' ? response.status : 'No response status'}`,
             );
             return;
           }
