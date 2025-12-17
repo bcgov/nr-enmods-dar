@@ -1107,6 +1107,17 @@ export class FileParseValidateService {
                 };
                 errorLogs.push(errorLog);
               }
+
+              if (field == "ResultValue" && (rowData["DetectionCondition"] != "NOT_DETECTED" && rowData["DetectionCondition"] != "NOT_REPORTED" && rowData["DetectionCondition"] != "NOT_SAMPLED")) {
+               let errorLog = {
+                  rowNum: rowNumber,
+                  type: "ERROR",
+                  message: {
+                    [field]: `Cannot be empty when Detection Condition is ${rowData["DetectionCondition"] ? rowData["DetectionCondition"] : 'empty'}`,
+                  },
+                };
+                errorLogs.push(errorLog); 
+              }
             }
 
             if (OPResultType === "NUMERIC") {
