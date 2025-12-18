@@ -418,18 +418,24 @@ export class AqiApiService {
       "token " + process.env.AQI_ACCESS_TOKEN;
     axios.defaults.headers.common["x-api-key"] = process.env.AQI_ACCESS_TOKEN;
 
-    const statusURL = await this.prisma.aqi_obs_status.findFirst({
-      select: {
-        aqi_obs_status_id: true,
-        status_url: true,
-      },
-      where: {
-        active_ind: true,
-      },
-      orderBy: {
-        create_utc_timestamp: "desc",
-      },
-    });
+    let statusURL;
+    try {
+      statusURL = await this.prisma.aqi_obs_status.findFirst({
+        select: {
+          aqi_obs_status_id: true,
+          status_url: true,
+        },
+        where: {
+          active_ind: true,
+        },
+        orderBy: {
+          create_utc_timestamp: "desc",
+        },
+      });
+    } catch (err) {
+      this.logger.error("Failed to fetch aqi_obs_status in getObservationImportStatus:", err);
+      return;
+    }
 
     if (statusURL !== null && statusURL !== undefined) {
       try {
@@ -550,15 +556,21 @@ export class AqiApiService {
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
 
-    const resultURL = await this.prisma.aqi_obs_status.findFirst({
-      select: {
-        aqi_obs_status_id: true,
-        result_url: true,
-      },
-      orderBy: {
-        create_utc_timestamp: "desc",
-      },
-    });
+    let resultURL;
+    try {
+      resultURL = await this.prisma.aqi_obs_status.findFirst({
+        select: {
+          aqi_obs_status_id: true,
+          result_url: true,
+        },
+        orderBy: {
+          create_utc_timestamp: "desc",
+        },
+      });
+    } catch (err) {
+      this.logger.error("Failed to fetch aqi_obs_status in waitForObsStatus:", err);
+      return;
+    }
 
     this.goodObservationImporStatus = false;
     return resultURL;
