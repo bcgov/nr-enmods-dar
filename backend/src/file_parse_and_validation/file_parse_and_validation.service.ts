@@ -3874,7 +3874,7 @@ export class FileParseValidateService {
       const workbook = new ExcelJS.Workbook();
 
       await workbook.xlsx.read(file);
-      const worksheet = workbook.getWorksheet(1);
+      const worksheet = workbook.worksheets[0];
 
       if (worksheet === undefined) {
         this.logger.error("No worksheet found in the Excel file.");
