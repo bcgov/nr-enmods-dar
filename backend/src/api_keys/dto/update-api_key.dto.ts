@@ -21,4 +21,7 @@ export class UpdateApiKeyDto {
 
   @ApiProperty()
   update_user_id: string;
+
+  @ApiProperty()
+  update_utc_timestamp: Date;
 }
