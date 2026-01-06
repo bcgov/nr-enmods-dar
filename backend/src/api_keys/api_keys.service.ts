@@ -39,11 +39,13 @@ export class ApiKeysService {
   async update(id: string, data: UpdateApiKeyDto) {
     const updateData = { ...data };
 
-    // Only update the timestamp if more than just last_used_utc_timestamp changed
-    const isOnlyLastUsedChanged =
-      Object.keys(data).length === 1 && "last_used_utc_timestamp" in data;
+    // Only update the timestamp if it's not just a usage/tracking update
+    const allowedUsageFields = ["usage_count", "last_used_date"];
+    const isOnlyUsageUpdate = Object.keys(data).every((key) =>
+      allowedUsageFields.includes(key),
+    );
 
-    if (!isOnlyLastUsedChanged) {
+    if (!isOnlyUsageUpdate) {
       updateData.update_utc_timestamp = new Date();
     }
 
