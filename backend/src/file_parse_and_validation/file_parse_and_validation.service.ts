@@ -1067,8 +1067,14 @@ export class FileParseValidateService {
           let observedDateTime = rowData["ObservedDateTime"];
 
           // Compare only the date part (YYYY-MM-DD) of the timestamps
-          const visitStartDate = typeof visitStartTime === 'string' ? visitStartTime.split('T')[0] : '';
-          const observedDate = typeof observedDateTime === 'string' ? observedDateTime.split('T')[0] : '';
+          const visitStartDate =
+            typeof visitStartTime === "string"
+              ? visitStartTime.split("T")[0]
+              : "";
+          const observedDate =
+            typeof observedDateTime === "string"
+              ? observedDateTime.split("T")[0]
+              : "";
           if (visitStartDate !== observedDate) {
             let errorLog = {
               rowNum: rowNumber,
@@ -1108,15 +1114,20 @@ export class FileParseValidateService {
                 errorLogs.push(errorLog);
               }
 
-              if (field == "ResultValue" && (rowData["DetectionCondition"] != "NOT_DETECTED" && rowData["DetectionCondition"] != "NOT_REPORTED" && rowData["DetectionCondition"] != "NOT_SAMPLED")) {
-               let errorLog = {
+              if (
+                field == "ResultValue" &&
+                rowData["DetectionCondition"] != "NOT_DETECTED" &&
+                rowData["DetectionCondition"] != "NOT_REPORTED" &&
+                rowData["DetectionCondition"] != "NOT_SAMPLED"
+              ) {
+                let errorLog = {
                   rowNum: rowNumber,
                   type: "ERROR",
                   message: {
-                    [field]: `Cannot be empty when Detection Condition is ${rowData["DetectionCondition"] ? rowData["DetectionCondition"] : 'empty'}`,
+                    [field]: `Cannot be empty when Detection Condition is ${rowData["DetectionCondition"] ? rowData["DetectionCondition"] : "empty"}`,
                   },
                 };
-                errorLogs.push(errorLog); 
+                errorLogs.push(errorLog);
               }
             }
 
@@ -2159,6 +2170,7 @@ export class FileParseValidateService {
         const encodedVisitEndTime = encodeURIComponent(
           rowData.FieldVisitEndTime,
         );
+
         const encodedObservedDateTime = encodeURIComponent(
           rowData.ObservedDateTime,
         );
@@ -2270,7 +2282,7 @@ export class FileParseValidateService {
                 rowNum: rowNumber,
                 type: "ERROR",
                 message: {
-                  Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}`,
+                  Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}. Please correct the date time and re-upload the file.`,
                 },
               };
               errorLogs.push(errorLog);
@@ -3106,9 +3118,16 @@ export class FileParseValidateService {
             ? activityInfo.activity[0]
             : activityInfo.activity;
 
+          if (activityInfo.activity.id) {
+            activityGuid = activityInfo.activity.id[0];
+          }
+
           if (activityGuid === "partialUpload") {
             partialUpload = true;
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"PartialUpload": "Issued a rollback as a partial upload was detected. Cause of partial upload: ${activityInfo.activity[1]}"}}`;
+            let reason = activityInfo.activity.id
+              ? activityInfo.activity.id[1]
+              : activityInfo.activity[1];
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"PartialUpload": "Issued a rollback as a partial upload was detected. Cause of partial upload: ${reason}"}}`;
             validationErrors.push(JSON.parse(errorLog));
             return;
           }
@@ -4301,11 +4320,7 @@ export class FileParseValidateService {
                 "REJECTED",
               );
             }
-
-            await this.notificationsService.notifyUserOfError(
-              file_submission_id,
-            );
-
+            this.logger.log("Partial upload detected, leaving import process");
             return;
           }
 
@@ -4861,9 +4876,6 @@ export class FileParseValidateService {
               );
             }
             this.logger.log("Partial upload detected, leaving import process");
-            await this.notificationsService.notifyUserOfError(
-              file_submission_id,
-            );
             return;
           }
 

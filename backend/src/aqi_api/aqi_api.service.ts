@@ -147,7 +147,7 @@ export class AqiApiService {
         err.response.data,
       );
 
-      return ["partialUpload", err.response.data];
+      return ["partialUpload", err.response.data.message];
     }
   }
 
