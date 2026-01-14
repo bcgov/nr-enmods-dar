@@ -2167,15 +2167,11 @@ export class FileParseValidateService {
         const encodedVisitStartTime = encodeURIComponent(
           rowData.FieldVisitStartTime,
         );
-        const encodedVisitEndTime = encodeURIComponent(
-          rowData.FieldVisitEndTime,
-        );
-
         const encodedObservedDateTime = encodeURIComponent(
           rowData.ObservedDateTime,
         );
         const visitURLForDay = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${datePart}T00:00:00-08:00&end-startTime=${datePart}T23:59:59-08:00`;
-        const visitURLForTime = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${encodedVisitStartTime}&end-startTime=${encodedVisitEndTime}`;
+        const visitURLForTime = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${encodedVisitStartTime}&end-startTime=${encodedVisitStartTime}`;
         let visitExists = false;
         let visitExistsForDay = false;
         let activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${encodedObservedDateTime}&toStartTime=${encodedObservedDateTime}&customId=${rowData.ActivityName}`;
