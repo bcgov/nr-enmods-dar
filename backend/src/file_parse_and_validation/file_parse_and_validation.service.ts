@@ -1067,8 +1067,14 @@ export class FileParseValidateService {
           let observedDateTime = rowData["ObservedDateTime"];
 
           // Compare only the date part (YYYY-MM-DD) of the timestamps
-          const visitStartDate = typeof visitStartTime === 'string' ? visitStartTime.split('T')[0] : '';
-          const observedDate = typeof observedDateTime === 'string' ? observedDateTime.split('T')[0] : '';
+          const visitStartDate =
+            typeof visitStartTime === "string"
+              ? visitStartTime.split("T")[0]
+              : "";
+          const observedDate =
+            typeof observedDateTime === "string"
+              ? observedDateTime.split("T")[0]
+              : "";
           if (visitStartDate !== observedDate) {
             let errorLog = {
               rowNum: rowNumber,
@@ -1103,6 +1109,22 @@ export class FileParseValidateService {
                   type: "ERROR",
                   message: {
                     [field]: `Cannot be empty for data classification ${rowData["DataClassification"]}`,
+                  },
+                };
+                errorLogs.push(errorLog);
+              }
+
+              if (
+                field == "ResultValue" &&
+                rowData["DetectionCondition"] != "NOT_DETECTED" &&
+                rowData["DetectionCondition"] != "NOT_REPORTED" &&
+                rowData["DetectionCondition"] != "NOT_SAMPLED"
+              ) {
+                let errorLog = {
+                  rowNum: rowNumber,
+                  type: "ERROR",
+                  message: {
+                    [field]: `Cannot be empty when Detection Condition is ${rowData["DetectionCondition"] ? rowData["DetectionCondition"] : "empty"}`,
                   },
                 };
                 errorLogs.push(errorLog);
@@ -2145,14 +2167,11 @@ export class FileParseValidateService {
         const encodedVisitStartTime = encodeURIComponent(
           rowData.FieldVisitStartTime,
         );
-        const encodedVisitEndTime = encodeURIComponent(
-          rowData.FieldVisitEndTime,
-        );
         const encodedObservedDateTime = encodeURIComponent(
           rowData.ObservedDateTime,
         );
         const visitURLForDay = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${datePart}T00:00:00-08:00&end-startTime=${datePart}T23:59:59-08:00`;
-        const visitURLForTime = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${encodedVisitStartTime}&end-startTime=${encodedVisitEndTime}`;
+        const visitURLForTime = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${encodedVisitStartTime}&end-startTime=${encodedVisitStartTime}`;
         let visitExists = false;
         let visitExistsForDay = false;
         let activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${encodedObservedDateTime}&toStartTime=${encodedObservedDateTime}&customId=${rowData.ActivityName}`;
@@ -2259,7 +2278,7 @@ export class FileParseValidateService {
                 rowNum: rowNumber,
                 type: "ERROR",
                 message: {
-                  Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}`,
+                  Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}. Please correct the date time and re-upload the file.`,
                 },
               };
               errorLogs.push(errorLog);
@@ -3095,9 +3114,16 @@ export class FileParseValidateService {
             ? activityInfo.activity[0]
             : activityInfo.activity;
 
+          if (activityInfo.activity.id) {
+            activityGuid = activityInfo.activity.id[0];
+          }
+
           if (activityGuid === "partialUpload") {
             partialUpload = true;
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"PartialUpload": "Issued a rollback as a partial upload was detected. Cause of partial upload: ${activityInfo.activity[1]}"}}`;
+            let reason = activityInfo.activity.id
+              ? activityInfo.activity.id[1]
+              : activityInfo.activity[1];
+            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"PartialUpload": "Issued a rollback as a partial upload was detected. Cause of partial upload: ${reason}"}}`;
             validationErrors.push(JSON.parse(errorLog));
             return;
           }
@@ -3863,7 +3889,7 @@ export class FileParseValidateService {
       const workbook = new ExcelJS.Workbook();
 
       await workbook.xlsx.read(file);
-      const worksheet = workbook.getWorksheet(1);
+      const worksheet = workbook.worksheets[0];
 
       if (worksheet === undefined) {
         this.logger.error("No worksheet found in the Excel file.");
@@ -4290,11 +4316,7 @@ export class FileParseValidateService {
                 "REJECTED",
               );
             }
-
-            await this.notificationsService.notifyUserOfError(
-              file_submission_id,
-            );
-
+            this.logger.log("Partial upload detected, leaving import process");
             return;
           }
 
@@ -4850,9 +4872,6 @@ export class FileParseValidateService {
               );
             }
             this.logger.log("Partial upload detected, leaving import process");
-            await this.notificationsService.notifyUserOfError(
-              file_submission_id,
-            );
             return;
           }
 

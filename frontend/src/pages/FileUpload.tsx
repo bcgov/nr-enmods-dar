@@ -682,7 +682,7 @@ function FileUpload() {
             )}
 
             {expandList && (
-              <div className="all-file-action">
+              <div className="all-file-action" style={{ height: "auto"}}>
                 <Box sx={{ padding: "10px" }}>
                   {files && selectedFiles.length > 0 ? (
                     <ButtonGroup variant="text" style={{ color: "black" }}>

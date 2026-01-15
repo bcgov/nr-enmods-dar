@@ -1,5 +1,6 @@
+import _ from "~/cypress/types/lodash";
 import _kc from "../keycloak";
-
+import { jwtDecode } from "jwt-decode";
 export const AUTH_TOKEN = "__auth_token";
 
 /**
@@ -36,32 +37,37 @@ const initKeycloak = async (
       clearInterval(refreshTimer);
     }
     refreshTimer = setInterval(() => {
-      console.log('Polling to refresh token...');
-      const expiresIn = _kc.tokenParsed?.exp ? (_kc.tokenParsed.exp * 1000 - Date.now()) / 1000 : null;
+      console.log("Polling to refresh token...");
+      const expiresIn = _kc.tokenParsed?.exp
+        ? (_kc.tokenParsed.exp * 1000 - Date.now()) / 1000
+        : null;
       if (expiresIn !== null) {
         console.log(`Token expires in ${Math.round(expiresIn)} seconds.`);
         if (expiresIn <= 60) {
-          console.log('Token is about to expire (<= 60s), attempting to refresh...');
+          console.log(
+            "Token is about to expire (<= 60s), attempting to refresh...",
+          );
         }
       }
       _kc.updateToken(60).then((refreshed) => {
         if (refreshed) {
-          console.log('Token was refreshed by timer.');
+          console.log("Token was refreshed by timer.");
           localStorage.setItem(AUTH_TOKEN, `${_kc.token}`);
         }
       });
     }, 30000);
 
     _kc.onTokenExpired = () => {
-      console.log('Token is expiring (onTokenExpired event fired), attempting to refresh...');
+      console.log(
+        "Token is expiring (onTokenExpired event fired), attempting to refresh...",
+      );
       _kc.updateToken(5).then((refreshed) => {
         if (refreshed) {
-          console.log('Token was refreshed by onTokenExpired handler.');
+          console.log("Token was refreshed by onTokenExpired handler.");
           localStorage.setItem(AUTH_TOKEN, `${_kc.token}`);
         }
       });
     };
-
   } catch (error) {
     console.error("keycloak error", error);
   }
@@ -69,7 +75,20 @@ const initKeycloak = async (
 
 const doLogin = _kc.login;
 
-const doLogout = _kc.logout;
+/**
+ * Enhanced logout to clear tokens and use id_token_hint and post_logout_redirect_uri
+ */
+const doLogout = () => {
+  // Remove local token
+  localStorage.removeItem(AUTH_TOKEN);
+  // Call Keycloak logout with id_token_hint and post_logout_redirect_uri
+  let logoutUrl =
+    `${_kc.authServerUrl}/realms/${_kc.realm}/protocol/openid-connect/logout` +
+    `?id_token_hint=${_kc.idToken}` +
+    `&post_logout_redirect_uri=${encodeURIComponent(window.location.origin)}`;
+  window.location.href = logoutUrl;
+
+};
 
 const getToken = () => _kc.token;
 
