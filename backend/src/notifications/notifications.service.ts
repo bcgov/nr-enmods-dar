@@ -232,12 +232,8 @@ export class NotificationsService {
     `;
 
     if (file_submission.api_submission_ind === true) {
-      body = body
-        .concat(errorsAsHTML)
-        .concat(
-          `<p>Submission Notification</p>`,
-        );
-    }else{
+      body = body.concat(errorsAsHTML).concat(`<p>Submission Notification</p>`);
+    } else {
       body = body
         .concat(errorsAsHTML)
         .concat(
@@ -385,6 +381,14 @@ export class NotificationsService {
       const unsubscribeLink =
         process.env.WEBAPP_URL + `/unsubscribe/${notificationInfo.id}`;
 
+      let fileOperation = "";
+
+      if (file_submission.file_operation_code === "VALIDATE") {
+        fileOperation = "True"; // this means its a validation only file
+      } else {
+        fileOperation = "False";
+      }
+
       let body = `<p>Status: ${
         hasWarnings &&
         (submission_status_code === "SUBMITTED" ||
@@ -402,14 +406,58 @@ export class NotificationsService {
           `<p>Submission Notification</p><p><a href="${unsubscribeLink}">Unsubscribe</a></p>`,
         );
 
+      let emailSubject = "";
+      // File upload for validation and status validated without warnings
+      if (
+        fileOperation === "True" &&
+        submission_status_code === "VALIDATED" &&
+        !hasWarnings
+      ) {
+        emailSubject =
+          "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}";
+        // File updload for validation and status validated with warnings
+      } else if (
+        fileOperation === "True" &&
+        submission_status_code === "VALIDATED" &&
+        hasWarnings
+      ) {
+        emailSubject =
+          "EnMoDS Data {{submission_status_code}} with warnings {{original_file_name}} from {{submitter_user_id}}";
+        // File upload for validation and status rejected
+      } else if (
+        fileOperation === "True" &&
+        submission_status_code === "REJECTED"
+      ) {
+        emailSubject =
+          "EnMoDS Data VALIDATION-{{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}";
+        // File upload for submission and status submitted without warnings
+      } else if (
+        fileOperation === "False" &&
+        submission_status_code === "SUBMITTED" &&
+        !hasWarnings
+      ) {
+        emailSubject =
+          "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}";
+        // File upload for submission and status submitted with warnings
+      } else if (
+        fileOperation === "False" &&
+        submission_status_code === "SUBMITTED" &&
+        hasWarnings
+      ) {
+        emailSubject =
+          "EnMoDS Data {{submission_status_code}} with warnings {{original_file_name}} from {{submitter_user_id}}";
+        // File upload for submission and status rejected
+      } else if (
+        fileOperation === "False" &&
+        submission_status_code === "REJECTED"
+      ) {
+        emailSubject =
+          "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}";
+      }
+
       const emailTemplate = {
         from: "enmodshelp@gov.bc.ca",
-        subject:
-          hasWarnings &&
-          (submission_status_code === "SUBMITTED" ||
-            submission_status_code === "VALIDATED")
-            ? "EnMoDS Data {{submission_status_code}} with warnings {{original_file_name}} from {{submitter_user_id}}"
-            : "EnMoDS Data {{submission_status_code}} {{original_file_name}} from {{submitter_user_id}}",
+        subject: emailSubject,
         body: body,
       };
       const date = new Date();
@@ -502,14 +550,18 @@ export class NotificationsService {
       },
       data: data,
     };
-    
+
     try {
       const response = await lastValueFrom(this.httpService.request(config));
-      this.logger.log(`Email sent to ${emails} with status: ${response.status}`);
-      this.logger.log(`Sent email message id: ${response.data.messages[0].msgId}`);
+      this.logger.log(
+        `Email sent to ${emails} with status: ${response.status}`,
+      );
+      this.logger.log(
+        `Sent email message id: ${response.data.messages[0].msgId}`,
+      );
       let statusURL = `${process.env.CHES_STATUS_URL}${response.data.messages[0].msgId}`;
 
-      await new Promise((resolve) => setTimeout(resolve, 10000)); 
+      await new Promise((resolve) => setTimeout(resolve, 10000));
 
       this.logger.log(`Checking email status`);
       const statusConfig = {
@@ -520,7 +572,9 @@ export class NotificationsService {
         },
       };
 
-      const statusResponse = await lastValueFrom(this.httpService.request(statusConfig));
+      const statusResponse = await lastValueFrom(
+        this.httpService.request(statusConfig),
+      );
       this.logger.log(`Email status: ${statusResponse.data.status}`);
 
       return "Email Sent";
@@ -559,11 +613,15 @@ export class NotificationsService {
   async notifyUserOfError(file_submission_id: string) {
     // Notify the Data Submitter
     await this.sendDataSubmitterNotification(file_submission_id);
-    this.logger.log(`Data submitter notified for submission ID: ${file_submission_id}`);
+    this.logger.log(
+      `Data submitter notified for submission ID: ${file_submission_id}`,
+    );
 
     // Notify the Ministry Contact (if they have not disabled notifications)
     await this.sendContactNotification(file_submission_id);
-    this.logger.log(`Ministry contact(s) notified for submission ID: ${file_submission_id}`);
+    this.logger.log(
+      `Ministry contact(s) notified for submission ID: ${file_submission_id}`,
+    );
   }
 
   /**
