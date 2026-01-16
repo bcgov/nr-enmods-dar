@@ -90,7 +90,7 @@ function FileUpload() {
   const handleFileSelect = async (newFiles: FileList | File[]) => {
     if (!newFiles) return;
 
-    // Convert to array and filter out files with spaces in the name
+    // Convert to array and filter out files with spaces in the name for clarity
     const newFilesArray = Array.from(newFiles).filter(
       (file: File) => !file.name.includes(" "),
     );
