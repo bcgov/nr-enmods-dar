@@ -105,7 +105,7 @@ export class FileSubmissionsAPIController {
     @Body() body: any,
     @Req() req: Request,
   ) {
-    // Get API key from header
+    // Get API key from header to use for rate limiting
     const apiKey = req.headers["x-api-key"] as string;
     // Fetch API key record from DB
     const apiKeyRecord = await this.prisma.api_keys.findFirst({
