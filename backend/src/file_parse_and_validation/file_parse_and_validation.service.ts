@@ -3708,7 +3708,7 @@ export class FileParseValidateService {
       this.logger.warn(`Errors encountered during rollback deletion process.`);
       await this.fileSubmissionsService.updateFileStatus(
         file_submission_id,
-        "ROLLBACK ERR",
+        "REJECTED",
       );
     } else {
       // need to add an else here to set it to REJECTED
