@@ -21,11 +21,6 @@ CREATE INDEX IF NOT EXISTS idx_file_error_logs_file_submission_id ON enmods.file
 
 CREATE INDEX IF NOT EXISTS idx_file_error_logs_create_utc_timestamp ON enmods.file_error_logs (create_utc_timestamp);
 
--- ftp_users table indexes
-CREATE INDEX IF NOT EXISTS idx_ftp_users_username ON enmods.ftp_users (username);
-
-CREATE INDEX IF NOT EXISTS idx_ftp_users_email ON enmods.ftp_users (email);
-
 -- notifications table indexes
 CREATE INDEX IF NOT EXISTS idx_notifications_email ON enmods.notifications (email);
 
