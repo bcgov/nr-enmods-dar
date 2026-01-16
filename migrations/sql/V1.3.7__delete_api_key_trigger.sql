@@ -1,0 +1,1 @@
+DROP TRIGGER trg_set_update_timestamp ON enmods.api_keys;
