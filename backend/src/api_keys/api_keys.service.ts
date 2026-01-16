@@ -37,12 +37,21 @@ export class ApiKeysService {
   }
 
   async update(id: string, data: UpdateApiKeyDto) {
+    const updateData = { ...data };
+
+    // Only update the timestamp if it's not just a usage/tracking update
+    const allowedUsageFields = ["usage_count", "last_used_date"];
+    const isOnlyUsageUpdate = Object.keys(data).every((key) =>
+      allowedUsageFields.includes(key),
+    );
+
+    if (!isOnlyUsageUpdate) {
+      updateData.update_utc_timestamp = new Date();
+    }
+
     return this.prisma.api_keys.update({
       where: { api_key_id: id },
-      data: {
-        ...data,
-        update_utc_timestamp: new Date(),
-      },
+      data: updateData,
     });
   }
 
