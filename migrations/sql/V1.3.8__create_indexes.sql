@@ -48,7 +48,7 @@ CREATE INDEX IF NOT EXISTS idx_aqi_imported_data_file_name ON enmods.aqi_importe
 CREATE INDEX IF NOT EXISTS idx_aqi_imported_data_create_utc_timestamp ON enmods.aqi_imported_data (create_utc_timestamp);
 
 -- aqi_obs_status table indexes (if exists)
-CREATE INDEX IF NOT EXISTS idx_aqi_obs_status_guid ON enmods.aqi_obs_status (aqi_obs_status_guid);
+CREATE INDEX IF NOT EXISTS idx_aqi_obs_status_id ON enmods.aqi_obs_status (aqi_obs_status_id);
 
 -- common timestamp indexes for querying recent records
 CREATE INDEX IF NOT EXISTS idx_file_submission_create_utc_timestamp ON enmods.file_submission (create_utc_timestamp);
