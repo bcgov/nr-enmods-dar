@@ -47,13 +47,6 @@ CREATE INDEX IF NOT EXISTS idx_aqi_imported_data_file_name ON enmods.aqi_importe
 
 CREATE INDEX IF NOT EXISTS idx_aqi_imported_data_create_utc_timestamp ON enmods.aqi_imported_data (create_utc_timestamp);
 
--- aqi_units_xref table indexes
-CREATE INDEX IF NOT EXISTS idx_aqi_units_xref_edt_unit_xref ON enmods.aqi_units_xref (edt_unit_xref);
-
-CREATE INDEX IF NOT EXISTS idx_aqi_units_xref_aqi_units_code ON enmods.aqi_units_xref (aqi_units_code);
-
-CREATE INDEX IF NOT EXISTS idx_aqi_units_xref_ems_code ON enmods.aqi_units_xref (ems_code);
-
 -- aqi_obs_status table indexes (if exists)
 CREATE INDEX IF NOT EXISTS idx_aqi_obs_status_guid ON enmods.aqi_obs_status (aqi_obs_status_guid);
 
