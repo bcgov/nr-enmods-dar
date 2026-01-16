@@ -66,6 +66,9 @@ export class CacheService implements OnModuleInit {
       this.cache.aqi_obs_status = obsStatus || [];
       this.cache.aqi_analysis_methods = analysisMethods || [];
 
+      // Mark cache as initialized after successful refresh
+      this.cacheInitialized = true;
+
       this.logger.log(
         `Cache refreshed: locations=${this.cache.aqi_locations.length}, ` +
           `projects=${this.cache.aqi_projects.length}, ` +
