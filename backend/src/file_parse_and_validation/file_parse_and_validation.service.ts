@@ -9,6 +9,7 @@ import {
   Observations,
 } from "src/types/types";
 import { AqiApiService } from "src/aqi_api/aqi_api.service";
+import { CacheService } from "src/cache/cache.service";
 import ExcelJS from "exceljs";
 import fs from "fs";
 import { PrismaService } from "nestjs-prisma";
@@ -214,6 +215,25 @@ let rollBackHalted = false;
 let validationApisCalled = [];
 let fieldVisitStartTimes = {};
 
+/**
+ * FileParseValidateService
+ *
+ * Handles parsing, validation, and transformation of observation file data (CSV/XLSX)
+ * into AQI-compatible JSON format for storage in the database. Performs comprehensive
+ * data validation including field format, lookup table validation, and business logic checks.
+ *
+ * Key Responsibilities:
+ * - Parse CSV and XLSX file formats
+ * - Validate all data fields against AQI specifications
+ * - Transform parsed data into AQI API-compatible JSON structures
+ * - Execute file submissions and handle rollbacks
+ * - Generate detailed error logs for invalid records
+ *
+ * @example
+ * const service = new FileParseValidateService(prisma, fileSubmissions, aqi, notifications);
+ * const queuedFiles = await service.getQueuedFiles();
+ * const errorLogs = await service.validateAndParseFile(fileContent, 'XLSX');
+ */
 @Injectable()
 export class FileParseValidateService {
   private readonly logger = new Logger(FileParseValidateService.name);
@@ -223,60 +243,78 @@ export class FileParseValidateService {
     private readonly fileSubmissionsService: FileSubmissionsService,
     private readonly aqiService: AqiApiService,
     private readonly notificationsService: NotificationsService,
+    private readonly cacheService: CacheService,
   ) {}
 
+  /**
+   * Retrieves all files with 'QUEUED' status waiting for processing
+   * @returns {Promise<any[]>} Array of queued file submissions
+   */
   async getQueuedFiles() {
     return this.fileSubmissionsService.findByCode("QUEUED");
   }
 
+  /**
+   * Retrieves all files marked for rollback processing
+   * @returns {Promise<any[]>} Array of rollback file submissions
+   */
   async getRollBackFiles() {
     return this.fileSubmissionsService.findByCode("ROLLBACK");
   }
 
+  /**
+   * Retrieves all files marked for deletion ('DEL QUEUED' status)
+   * @returns {Promise<any[]>} Array of files pending deletion
+   */
   async getFilesToDelete() {
     return this.fileSubmissionsService.findByCode("DEL QUEUED");
   }
 
+  /**
+   * Deletes a file submission from the system
+   * @param {string} fileName - Name of the file to delete
+   * @param {any} fileId - Unique identifier of the file submission
+   * @returns {Promise<any>} Result of the deletion operation
+   */
   async deleteFile(fileName, fileId) {
     return this.fileSubmissionsService.remove(fileName, fileId);
   }
 
+  /**
+   * Queries AQI code tables to convert custom IDs to database references
+   * Supports: LOCATIONS, PROJECT, COLLECTION_METHODS, MEDIUM, LABS, TAGS,
+   * TAXONS, BioLifeStage, BioSex, EXTENDED_ATTRIB
+   *
+   * @param {string} tableName - Name of the code table to query
+   * @param {any} param - Parameter(s) to lookup (string, array, or tuple)
+   * @returns {Promise<any>} Object with database IDs and custom references
+   *
+   * @example
+   * const location = await service.queryCodeTables('LOCATIONS', 'LOC001');
+   * const tags = await service.queryCodeTables('TAGS', ['TAG1', 'TAG2']);
+   */
   async queryCodeTables(tableName: string, param: any) {
     switch (tableName) {
       case "LOCATIONS":
-        let locID = await this.prisma.aqi_locations.findMany({
-          where: {
-            custom_id: {
-              equals: param,
-            },
-          },
-          select: {
-            aqi_locations_id: true,
-          },
-        });
-        if (locID.length == 0) {
+        // Use in-memory cache for locations
+        const location = this.cacheService.findLocationByCustomId(param);
+        if (!location) {
           return {};
-        } else {
-          return {
-            samplingLocation: {
-              id: locID[0].aqi_locations_id,
-              custom_id: param,
-            },
-          };
         }
-      case "PROJECT":
-        let projectID = await this.prisma.aqi_projects.findMany({
-          where: {
-            custom_id: {
-              equals: param,
-            },
-          },
-          select: {
-            aqi_projects_id: true,
-          },
-        });
         return {
-          project: { id: projectID[0].aqi_projects_id, customId: param },
+          samplingLocation: {
+            id: location.aqi_locations_id,
+            custom_id: param,
+          },
+        };
+      case "PROJECT":
+        // Use in-memory cache for projects
+        const project = this.cacheService.findProjectByCustomId(param);
+        if (!project) {
+          return {};
+        }
+        return {
+          project: { id: project.aqi_projects_id, customId: param },
         };
       case "COLLECTION_METHODS":
         let cmID = await this.prisma.aqi_collection_methods.findMany({
@@ -392,6 +430,19 @@ export class FileParseValidateService {
     }
   }
 
+  /**
+   * Transforms field visit data into AQI-compatible JSON format for API submission
+   * Converts parsed CSV/XLSX row data into the structure required by the AQI API
+   * for creating or updating field visit records.
+   *
+   * @param {any} visitData - Parsed field visit row data from the file
+   * @param {number} row_number - Row number in the source file (for error tracking)
+   * @param {string} apiType - API operation type ('POST' for create, 'PUT' for update)
+   * @returns {Promise<any>} AQI-formatted field visit JSON object
+   *
+   * @example
+   * const visitJson = await service.fieldVisitJson(rowData, 5, 'POST');
+   */
   async fieldVisitJson(visitData: any, row_number: number, apiType: string) {
     let postData: any = {};
     const extendedAttribs = { extendedAttributes: [] };
@@ -562,6 +613,19 @@ export class FileParseValidateService {
     return currentActivity;
   }
 
+  /**
+   * Transforms specimen data into AQI-compatible JSON format for API submission
+   * Handles laboratory-specific specimen information including tissue type,
+   * lab arrival conditions, and QC type classifications.
+   *
+   * @param {any} specimenData - Parsed specimen row data from the file
+   * @param {number} row_number - Row number in the source file (for error tracking)
+   * @param {string} apiType - API operation type ('POST' for create, 'PUT' for update)
+   * @returns {Promise<any>} AQI-formatted specimen JSON object with extended attributes
+   *
+   * @example
+   * const specimenJson = await service.specimensJson(rowData, 5, 'POST');
+   */
   async specimensJson(specimenData: any, row_number: number, apiType: string) {
     let postData: any = {};
     const extendedAttribs = { extendedAttributes: [] };
@@ -778,6 +842,18 @@ export class FileParseValidateService {
     return filteredObj;
   }
 
+  /**
+   * Validates file headers against expected column definitions
+   * Checks that all required columns are present and warns about extra/missing columns.
+   * Supports both XLSX and CSV file formats with appropriate header offset handling.
+   *
+   * @param {any[]} rowHeaders - Array of header column names from the file
+   * @param {string} fileType - File format type ('xlsx' or 'csv')
+   * @returns {Promise<any[]>} Array of header validation errors/warnings (if any)
+   *
+   * @example
+   * const errors = await service.checkHeaders(['Observation ID', 'Location ID'], 'csv');
+   */
   async checkHeaders(rowHeaders: any[], fileType: string) {
     let headerErrors = [];
     let sourceHeaders = [];
@@ -863,16 +939,713 @@ export class FileParseValidateService {
     return headerErrors;
   }
 
-  async localValidation(rowNumber: number, rowData: any) {
-    let errorLogs = [];
-    let existingRecords = [];
-    // for (const [index, record] of allRecords.entries()) {
-    let existingGUIDS = {};
-    const isoDateTimeRegex =
-      /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(:(\d{2})(\.\d+)?)?(Z|([+-]\d{2}:\d{2}))?$/;
+  /**
+   * Validates unit-related fields (ResultUnit and DepthUnit)
+   * - ResultUnit: Required, must exist in aqi_units table
+   * - DepthUnit: When DepthUpper provided, must be 'metre'
+   *
+   * @param {any} rowData - Record data from file row
+   * @param {number} rowNumber - Row number for error tracking
+   * @returns {Promise<any[]>} Array of validation errors
+   */
+  private async validateUnitFields(
+    rowData: any,
+    rowNumber: number,
+  ): Promise<any[]> {
+    const errors = [];
+    const unitFields = "ResultUnit";
 
-    const numberRegex = /^-?\d+(\.\d+)?$/;
+    try {
+      if (rowData.hasOwnProperty(unitFields)) {
+        if (rowData[unitFields]) {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_units",
+            rowData[unitFields],
+          );
+          if (!present) {
+            errors.push({
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                [unitFields]: `${rowData[unitFields]} not found in EnMoDS Units`,
+              },
+            });
+          }
+        } else {
+          errors.push({
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              [unitFields]: "Cannot be empty",
+            },
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Runtime error validating ${unitFields} in row ${rowNumber}:`,
+        error,
+      );
+      errors.push({
+        rowNum: rowNumber,
+        type: "ERROR",
+        message: {
+          [unitFields]: `Failed to validate. Please contact an administrator.`,
+        },
+      });
+    }
 
+    try {
+      if (rowData.hasOwnProperty("Depth Unit")) {
+        if (rowData["Depth Upper"]) {
+          if (rowData["Depth Unit"] !== "metre") {
+            errors.push({
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                DepthUnit: `${rowData["Depth Unit"]} is not valid unit for Depth. Only 'Metre' is allowed`,
+              },
+            });
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Runtime error validating Depth Unit in row ${rowNumber}:`,
+        error,
+      );
+      errors.push({
+        rowNum: rowNumber,
+        type: "ERROR",
+        message: {
+          DepthUnit: `Failed to validate. Please contact an administrator.`,
+        },
+      });
+    }
+
+    return errors;
+  }
+
+  /**
+   * Validates FieldFiltered boolean field for LAB data
+   * - Only required for LAB and SURROGATE_RESULT data classifications
+   * - Must be 'true', 'false', or empty
+   *
+   * @param {any} rowData - Record data from file row
+   * @param {number} rowNumber - Row number for error tracking
+   * @returns {{errors: any[]}} Object containing validation errors array
+   */
+  private validateFieldFiltered(
+    rowData: any,
+    rowNumber: number,
+  ): { errors: any[] } {
+    const errors = [];
+
+    try {
+      if (rowData.hasOwnProperty("FieldFiltered")) {
+        if (
+          rowData["DataClassification"] === "LAB" ||
+          rowData["DataClassification"] === "SURROGATE_RESULT"
+        ) {
+          const val = String(rowData["FieldFiltered"]).toLowerCase();
+          if (val !== "true" && val !== "false" && val !== "") {
+            errors.push({
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                FieldFiltered: `Must be true, false, or empty. Received: ${rowData["FieldFiltered"]}`,
+              },
+            });
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Runtime error validating FieldFiltered in row ${rowNumber}:`,
+        error,
+      );
+      errors.push({
+        rowNum: rowNumber,
+        type: "ERROR",
+        message: {
+          FieldFiltered: "Failed to validate. Please contact an administrator.",
+        },
+      });
+    }
+
+    return { errors };
+  }
+
+  /**
+   * Validates SourceOfRoundedValue and RoundedValue relationship
+   * - If SourceOfRoundedValue provided, must be 'PROVIDED_BY_USER' or 'ROUNDING_SPECIFICATION'
+   * - If SourceOfRoundedValue is ROUNDING_SPECIFICATION, RoundingSpecification required
+   * - If RoundingSpecification exists, RoundedValue required
+   *
+   * @param {any} rowData - Record data from file row
+   * @param {number} rowNumber - Row number for error tracking
+   * @returns {{errors: any[]}} Object containing validation errors array
+   */
+  private validateRoundedValueLogic(
+    rowData: any,
+    rowNumber: number,
+  ): { errors: any[] } {
+    const errors = [];
+
+    try {
+      if (rowData.hasOwnProperty("SourceOfRoundedValue")) {
+        if (rowData["SourceOfRoundedValue"] !== "") {
+          if (
+            rowData["SourceOfRoundedValue"] !== "PROVIDED_BY_USER" &&
+            rowData["SourceOfRoundedValue"] !== "ROUNDING_SPECIFICATION"
+          ) {
+            errors.push({
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                SourceOfRoundedValue: `Invalid source. Must be PROVIDED_BY_USER or ROUNDING_SPECIFICATION`,
+              },
+            });
+          }
+        }
+      }
+
+      if (rowData.hasOwnProperty("RoundedValue")) {
+        if (
+          rowData["RoundedValue"] === "" &&
+          rowData["SourceOfRoundedValue"] === "PROVIDED_BY_USER"
+        ) {
+          errors.push({
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              RoundedValue: `Cannot be empty when SourceOfRoundedValue is PROVIDED_BY_USER`,
+            },
+          });
+        }
+      }
+
+      if (rowData.hasOwnProperty("RoundingSpecification")) {
+        if (
+          rowData["RoundingSpecification"] === "" &&
+          rowData["SourceOfRoundedValue"] === "ROUNDING_SPECIFICATION"
+        ) {
+          errors.push({
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              RoundingSpecification: `Cannot be empty when SourceOfRoundedValue is ROUNDING_SPECIFICATION`,
+            },
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Runtime error validating RoundedValue logic in row ${rowNumber}:`,
+        error,
+      );
+      errors.push({
+        rowNum: rowNumber,
+        type: "ERROR",
+        message: {
+          RoundedValue: "Failed to validate. Please contact an administrator.",
+        },
+      });
+    }
+
+    return { errors };
+  }
+
+  /**
+   * Generic async database lookup validator for any field
+   * Checks if field value exists in specified AQI lookup table
+   *
+   * @param {string} fieldName - Name of field being validated
+   * @param {string} tableName - AQI database table to lookup (e.g., 'aqi_projects')
+   * @param {any} value - Value to lookup in table
+   * @param {number} rowNumber - Row number for error tracking
+   * @param {boolean} required - Whether field is required (default: true)
+   * @returns {Promise<any[]>} Array of validation errors (empty if valid)
+   */
+  private async validateLookupField(
+    fieldName: string,
+    fieldValue: string,
+    tableName: string,
+    rowNumber: number,
+    isRequired: boolean = true,
+  ): Promise<any[]> {
+    const errors = [];
+
+    try {
+      if (!fieldValue || fieldValue === "") {
+        if (isRequired) {
+          errors.push({
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              [fieldName]: "Cannot be empty",
+            },
+          });
+        }
+      } else {
+        const present = await this.aqiService.databaseLookup(
+          tableName,
+          fieldValue,
+        );
+        if (!present) {
+          errors.push({
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              [fieldName]: `${fieldValue} not found in EnMoDS ${fieldName}`,
+            },
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Runtime error validating ${fieldName} in row ${rowNumber}:`,
+        error,
+      );
+      errors.push({
+        rowNum: rowNumber,
+        type: "ERROR",
+        message: {
+          [fieldName]: `Failed to validate. Please contact an administrator.`,
+        },
+      });
+    }
+
+    return errors;
+  }
+
+  /**
+   * Validates all required lookup fields in batch
+   * Checks: SamplingAgency, Project, Medium, DetectionCondition
+   * These fields are required for all observation types
+   *
+   * @param {any} rowData - Record data from file row
+   * @param {number} rowNumber - Row number for error tracking
+   * @returns {Promise<any[]>} Array of validation errors
+   */
+  private async validateRequiredLookups(
+    rowData: any,
+    rowNumber: number,
+  ): Promise<any[]> {
+    const errors = [];
+
+    const requiredLookups = [
+      { field: "SamplingAgency", table: "aqi_sampling_agency" },
+      { field: "Project", table: "aqi_projects" },
+      { field: "Medium", table: "aqi_mediums" },
+    ];
+
+    for (const lookup of requiredLookups) {
+      if (rowData.hasOwnProperty(lookup.field)) {
+        const fieldErrors = await this.validateLookupField(
+          lookup.field,
+          rowData[lookup.field],
+          lookup.table,
+          rowNumber,
+          true,
+        );
+        errors.push(...fieldErrors);
+      }
+    }
+
+    return errors;
+  }
+
+  /**
+   * Validates LocationID with special handling (required, different table name)
+   */
+  /**
+   * Validates LocationID field with special handling
+   * LocationID references locations table via custom_id and returns database GUID
+   * Uses queryCodeTables helper to resolve custom_id to database ID
+   *
+   * @param {any} rowData - Record data from file row
+   * @param {number} rowNumber - Row number for error tracking
+   * @returns {Promise<any[]>} Array of validation errors
+   */
+  private async validateLocationID(
+    rowData: any,
+    rowNumber: number,
+  ): Promise<any[]> {
+    const errors = [];
+
+    try {
+      if (
+        !rowData.hasOwnProperty("LocationID") ||
+        rowData["LocationID"] === ""
+      ) {
+        errors.push({
+          rowNum: rowNumber,
+          type: "ERROR",
+          message: {
+            LocationID: "Cannot be empty",
+          },
+        });
+      } else {
+        const present = await this.aqiService.databaseLookup(
+          "aqi_locations",
+          rowData.LocationID,
+        );
+        if (!present) {
+          errors.push({
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              LocationID: `${rowData.LocationID} not found in EnMoDS Locations`,
+            },
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Runtime error validating LocationID in row ${rowNumber}:`,
+        error,
+      );
+      errors.push({
+        rowNum: rowNumber,
+        type: "ERROR",
+        message: {
+          LocationID: "Failed to validate. Please contact an administrator.",
+        },
+      });
+    }
+
+    return errors;
+  }
+
+  /**
+   * Validates all optional lookup fields in batch
+   */
+  /**
+   * Validates optional lookup fields (if provided)
+   * Checks: FieldPreservative, DetectionCondition (if provided), Fraction
+   * These fields are conditional - validation only if values provided
+   *
+   * @param {any} rowData - Record data from file row
+   * @param {number} rowNumber - Row number for error tracking
+   * @returns {Promise<any[]>} Array of validation errors
+   */
+  private async validateOptionalLookups(
+    rowData: any,
+    rowNumber: number,
+  ): Promise<any[]> {
+    const errors = [];
+
+    const optionalLookups = [
+      { field: "FieldPreservative", table: "aqi_preservatives" },
+      { field: "DetectionCondition", table: "aqi_detection_conditions" },
+      { field: "Fraction", table: "aqi_sample_fractions" },
+    ];
+
+    for (const lookup of optionalLookups) {
+      if (rowData.hasOwnProperty(lookup.field) && rowData[lookup.field]) {
+        const fieldErrors = await this.validateLookupField(
+          lookup.field,
+          rowData[lookup.field],
+          lookup.table,
+          rowNumber,
+          false,
+        );
+        errors.push(...fieldErrors);
+      }
+    }
+
+    return errors;
+  }
+
+  /**
+   * Validates DataClassification and CompositeStat fields
+   */
+  /**
+   * Validates DataClassification field and related fields
+   * - DataClassification: Required lookup (FIELD_RESULT, LAB, VERTICAL_PROFILE, etc.)
+   * - CompositeStat: Optional lookup, only when DataClassification is COMPOSITE_RESULT
+   *
+   * @param {any} rowData - Record data from file row
+   * @param {number} rowNumber - Row number for error tracking
+   * @returns {Promise<any[]>} Array of validation errors
+   */
+  private async validateDataClassification(
+    rowData: any,
+    rowNumber: number,
+  ): Promise<any[]> {
+    const errors = [];
+
+    try {
+      if (rowData.hasOwnProperty("DataClassification")) {
+        if (rowData["DataClassification"] === "") {
+          errors.push({
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              DataClassification: "Cannot be empty",
+            },
+          });
+        } else {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_data_classifications",
+            rowData.DataClassification,
+          );
+          if (!present) {
+            errors.push({
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                DataClassification: `${rowData.DataClassification} not found in EnMoDS Data Classifications`,
+              },
+            });
+          }
+        }
+
+        // Validate CompositeStat only valid for LAB
+        if (
+          rowData.hasOwnProperty("CompositeStat") &&
+          rowData["CompositeStat"] !== ""
+        ) {
+          if (rowData["DataClassification"] !== "LAB") {
+            errors.push({
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                CompositeStat:
+                  "CompositeStatistic can only be specified for LAB data classification",
+              },
+            });
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Runtime error validating DataClassification in row ${rowNumber}:`,
+        error,
+      );
+      errors.push({
+        rowNum: rowNumber,
+        type: "ERROR",
+        message: {
+          DataClassification:
+            "Failed to validate. Please contact an administrator.",
+        },
+      });
+    }
+
+    return errors;
+  }
+
+  /**
+   * Validates LAB-specific lookup fields (CollectionMethod, AnalyzingAgency, AnalysisMethod)
+   */
+  /**
+   * Validates LAB-specific lookup fields
+   * Only applied when DataClassification is LAB or SURROGATE_RESULT:
+   * - AnalyzingAgency: Required lab identifier
+   * - AnalysisMethod: Required analysis procedure code
+   * - CollectionMethod: Sample collection procedure
+   *
+   * @param {any} rowData - Record data from file row
+   * @param {number} rowNumber - Row number for error tracking
+   * @returns {Promise<any[]>} Array of validation errors
+   */
+  private async validateLabLookups(
+    rowData: any,
+    rowNumber: number,
+  ): Promise<any[]> {
+    const errors = [];
+
+    const isLabData =
+      rowData["DataClassification"] === "LAB" ||
+      rowData["DataClassification"] === "SURROGATE_RESULT";
+
+    if (!isLabData) {
+      return errors;
+    }
+
+    try {
+      // CollectionMethod validation
+      if (rowData.hasOwnProperty("CollectionMethod")) {
+        if (rowData["CollectionMethod"] === "") {
+          errors.push({
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              CollectionMethod: `Cannot be empty when Data Classification is ${rowData["DataClassification"]}`,
+            },
+          });
+        } else {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_collection_methods",
+            rowData.CollectionMethod,
+          );
+          if (!present) {
+            errors.push({
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                CollectionMethod: `${rowData.CollectionMethod} not found in EnMoDS Collection Methods`,
+              },
+            });
+          }
+        }
+      }
+
+      // AnalyzingAgency validation
+      if (rowData.hasOwnProperty("AnalyzingAgency")) {
+        if (rowData["AnalyzingAgency"] === "") {
+          errors.push({
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              AnalyzingAgency: `Cannot be empty when Data Classification is ${rowData["DataClassification"]}`,
+            },
+          });
+        } else {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_analyzing_agency",
+            rowData.AnalyzingAgency,
+          );
+          if (!present) {
+            errors.push({
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                AnalyzingAgency: `${rowData.AnalyzingAgency} not found in EnMoDS Analyzing Agency`,
+              },
+            });
+          }
+        }
+      }
+
+      // AnalysisMethod validation
+      if (rowData.hasOwnProperty("AnalysisMethod")) {
+        if (rowData["AnalysisMethod"] === "") {
+          errors.push({
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              AnalysisMethod: `Cannot be empty when Data Classification is ${rowData["DataClassification"]}`,
+            },
+          });
+        } else {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_analysis_methods",
+            rowData.AnalysisMethod,
+          );
+          if (!present) {
+            errors.push({
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                AnalysisMethod: `${rowData.AnalysisMethod} not found in EnMoDS Analysis Methods`,
+              },
+            });
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Runtime error validating LAB-specific lookups in row ${rowNumber}:`,
+        error,
+      );
+      errors.push({
+        rowNum: rowNumber,
+        type: "ERROR",
+        message: {
+          AnalysisMethod:
+            "Failed to validate. Please contact an administrator.",
+        },
+      });
+    }
+
+    return errors;
+  }
+
+  /**
+   * Validates ObservedPropertyID and tracks result type classification
+   * Required field lookup in aqi_observed_properties table
+   * Returns both validation errors and the result_type (NUMERIC or STRING)
+   * which is used by subsequent numerical field validators
+   *
+   * @param {any} rowData - Record data from file row
+   * @param {number} rowNumber - Row number for error tracking
+   * @returns {Promise<{errors: any[], resultType: string}>} Errors and result type
+   */
+  private async validateObservedPropertyID(
+    rowData: any,
+    rowNumber: number,
+  ): Promise<{ errors: any[]; resultType: string }> {
+    const errors = [];
+    let resultType = "";
+
+    try {
+      if (rowData.hasOwnProperty("ObservedPropertyID")) {
+        if (rowData["ObservedPropertyID"] === "") {
+          errors.push({
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              ObservedPropertyID: "Cannot be empty",
+            },
+          });
+        } else {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_observed_properties",
+            rowData.ObservedPropertyID,
+          );
+
+          if (!present) {
+            errors.push({
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                ObservedPropertyID: `${rowData.ObservedPropertyID} not found in EnMoDS Observed Properties`,
+              },
+            });
+          } else {
+            resultType = present[0].result_type;
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Runtime error validating ObservedPropertyID in row ${rowNumber}:`,
+        error,
+      );
+      errors.push({
+        rowNum: rowNumber,
+        type: "ERROR",
+        message: {
+          ObservedPropertyID:
+            "Failed to validate. Please contact an administrator.",
+        },
+      });
+    }
+
+    return { errors, resultType };
+  }
+
+  /**
+   * Validates all datetime fields with ISO8601 format checking
+   * Validates 7 fields: FieldVisitStartTime, FieldVisitEndTime, ObservedDateTime,
+   * ObservedDateTimeEnd, AnalyzedDateTime, LabArrivalDateTime, LabPreparedDateTime
+   *
+   * Checks:
+   * - ISO8601 format with strict validation
+   * - Offset present (±hh:mm timezone required)
+   * - Year not in future
+   * - Required fields non-empty (FieldVisitStartTime, ObservedDateTime always required)
+   * - AnalyzedDateTime required when DataClassification is LAB or SURROGATE_RESULT
+   *
+   * @param {any} rowData - Record data from file row
+   * @param {number} rowNumber - Row number for error tracking
+   * @returns {any[]} Array of validation errors
+   */
+  private validateDateTimeFields(rowData: any, rowNumber: number): any[] {
+    const errors = [];
     const dateTimeFields = [
       "FieldVisitStartTime",
       "FieldVisitEndTime",
@@ -883,69 +1656,6 @@ export class FileParseValidateService {
       "LabPreparedDateTime",
     ];
 
-    const numericalFields = [
-      "DepthUpper",
-      "DepthLower",
-      "ResultValue",
-      "MethodDetectionLimit",
-      "MethodReportingLimit",
-      "LabArrivalTemperature",
-    ];
-
-    const unitFields = "ResultUnit";
-    let validObservedProperty = false;
-    let OPResultType = "";
-
-    if (rowData.hasOwnProperty("ObservedPropertyID")) {
-      try {
-        if (rowData["ObservedPropertyID"] == "") {
-          let errorLog = {
-            rowNum: rowNumber,
-            type: "ERROR",
-            message: {
-              ObservedPropertyID: "Cannot be empty",
-            },
-          };
-          errorLogs.push(errorLog);
-          validObservedProperty = false;
-        } else {
-          const present = await this.aqiService.databaseLookup(
-            "aqi_observed_properties",
-            rowData.ObservedPropertyID,
-          );
-
-          if (!present) {
-            let errorLog = {
-              rowNum: rowNumber,
-              type: "ERROR",
-              message: {
-                ObservedPropertyID: `${rowData.ObservedPropertyID} not found in EnMoDS Observed Properties`,
-              },
-            };
-            errorLogs.push(errorLog);
-            validObservedProperty = false;
-          } else {
-            validObservedProperty = true;
-            OPResultType = present[0].result_type;
-          }
-        }
-      } catch (error) {
-        this.logger.error(
-          `Runtime error validating ObservedPropertyID in row ${rowNumber}:`,
-          error,
-        );
-        let errorLog = {
-          rowNum: rowNumber,
-          type: "ERROR",
-          message: {
-            ObservedPropertyID: `Failed to validate. Please contact an administrator.`,
-          },
-        };
-        errorLogs.push(errorLog);
-      }
-    }
-
-    // check all datetimes
     dateTimeFields.forEach((field) => {
       try {
         if (rowData.hasOwnProperty(field) && rowData[field]) {
@@ -953,7 +1663,6 @@ export class FileParseValidateService {
             strict: true,
             strictSeparator: true,
           });
-          // Enforce offset: must contain + or - after the time
           const offsetPattern = /[+-]\d{2}:\d{2}$/;
           const hasOffset = offsetPattern.test(rowData[field]);
           const yearFromDate = new Date(rowData[field]).getFullYear();
@@ -962,38 +1671,35 @@ export class FileParseValidateService {
           if (yearFromDate > currentYear) valid = false;
 
           if (!valid || !hasOffset) {
-            let errorLog = {
+            errors.push({
               rowNum: rowNumber,
               type: "ERROR",
               message: {
                 [field]: `Invalid Date time in column "${field}" : ${rowData[field]}. Must be ISO8601, include +hh:mm or -hh:mm and year must not be in the future`,
               },
-            };
-            errorLogs.push(errorLog);
+            });
           }
         } else if (rowData.hasOwnProperty(field) && !rowData[field]) {
-          if (field == "FieldVisitStartTime" || field == "ObservedDateTime") {
-            let errorLog = {
+          if (field === "FieldVisitStartTime" || field === "ObservedDateTime") {
+            errors.push({
               rowNum: rowNumber,
               type: "ERROR",
               message: {
                 [field]: "Cannot be empty",
               },
-            };
-            errorLogs.push(errorLog);
+            });
           } else if (
-            field == "AnalyzedDateTime" &&
-            (rowData["DataClassification"] == "LAB" ||
-              rowData["DataClassification"] == "SURROGATE_RESULT")
+            field === "AnalyzedDateTime" &&
+            (rowData["DataClassification"] === "LAB" ||
+              rowData["DataClassification"] === "SURROGATE_RESULT")
           ) {
-            let errorLog = {
+            errors.push({
               rowNum: rowNumber,
               type: "ERROR",
               message: {
                 [field]: `Cannot be empty for data classification ${rowData["DataClassification"]}`,
               },
-            };
-            errorLogs.push(errorLog);
+            });
           }
         }
       } catch (error) {
@@ -1001,16 +1707,31 @@ export class FileParseValidateService {
           `Runtime error validating ${field} in row ${rowNumber}:`,
           error,
         );
-        let errorLog = {
+        errors.push({
           rowNum: rowNumber,
           type: "ERROR",
           message: {
-            [field]: `Failed to validate. Please contact an administrator.`,
+            [field]: "Failed to validate. Please contact an administrator.",
           },
-        };
-        errorLogs.push(errorLog);
+        });
       }
     });
+
+    return errors;
+  }
+
+  /**
+   * Validates time range relationships (start <= end)
+   * Ensures:
+   * - FieldVisitStartTime <= FieldVisitEndTime
+   * - ObservedDateTime <= ObservedDateTimeEnd
+   *
+   * @param {any} rowData - Record data from file row
+   * @param {number} rowNumber - Row number for error tracking
+   * @returns {any[]} Array of validation errors
+   */
+  private validateTimeRanges(rowData: any, rowNumber: number): any[] {
+    const errors = [];
 
     // Ensure visit start time is not greater than visit end time
     if (
@@ -1023,14 +1744,14 @@ export class FileParseValidateService {
       const endTime = new Date(rowData["FieldVisitEndTime"]);
 
       if (startTime > endTime) {
-        let errorLog = {
+        errors.push({
           rowNum: rowNumber,
           type: "ERROR",
           message: {
-            FieldVisitEndTime: `Field Visit Start Time MUST be earlier than or equal to Field Visit End Time`,
+            FieldVisitEndTime:
+              "Field Visit Start Time MUST be earlier than or equal to Field Visit End Time",
           },
-        };
-        errorLogs.push(errorLog);
+        });
       }
     }
 
@@ -1045,28 +1766,44 @@ export class FileParseValidateService {
       const observedDateTimeEnd = new Date(rowData["ObservedDateTimeEnd"]);
 
       if (observedDateTime > observedDateTimeEnd) {
-        let errorLog = {
+        errors.push({
           rowNum: rowNumber,
           type: "ERROR",
           message: {
-            ObservedDateTimeEnd: `Observed DateTime MUST be earlier than or equal to Observed DateTime End`,
+            ObservedDateTimeEnd:
+              "Observed DateTime MUST be earlier than or equal to Observed DateTime End",
           },
-        };
-        errorLogs.push(errorLog);
+        });
       }
     }
 
-    // Ensure that if Data Classification is FIELD_RESULT or VERTICAL_PROFILE, Field Visit Start Time must be the same as Observed Date Time
+    return errors;
+  }
+
+  /**
+   * Validates field visit/observed date relationships
+   * For FIELD_RESULT and VERTICAL_PROFILE data classifications,
+   * the date part of FieldVisitStartTime must match the date part of ObservedDateTime
+   *
+   * @param {any} rowData - Record data from file row
+   * @param {number} rowNumber - Row number for error tracking
+   * @returns {any[]} Array of validation errors
+   */
+  private validateDataClassificationDateRelationship(
+    rowData: any,
+    rowNumber: number,
+  ): any[] {
+    const errors = [];
+
     try {
       if (rowData.hasOwnProperty("DataClassification")) {
         if (
-          rowData["DataClassification"] == "FIELD_RESULT" ||
-          rowData["DataClassification"] == "VERTICAL_PROFILE"
+          rowData["DataClassification"] === "FIELD_RESULT" ||
+          rowData["DataClassification"] === "VERTICAL_PROFILE"
         ) {
-          let visitStartTime = rowData["FieldVisitStartTime"];
-          let observedDateTime = rowData["ObservedDateTime"];
+          const visitStartTime = rowData["FieldVisitStartTime"];
+          const observedDateTime = rowData["ObservedDateTime"];
 
-          // Compare only the date part (YYYY-MM-DD) of the timestamps
           const visitStartDate =
             typeof visitStartTime === "string"
               ? visitStartTime.split("T")[0]
@@ -1075,15 +1812,15 @@ export class FileParseValidateService {
             typeof observedDateTime === "string"
               ? observedDateTime.split("T")[0]
               : "";
+
           if (visitStartDate !== observedDate) {
-            let errorLog = {
+            errors.push({
               rowNum: rowNumber,
               type: "ERROR",
               message: {
                 ObservedDateTime: `Date must be the same as Field Visit Start Date for data classification ${rowData["DataClassification"]}`,
               },
-            };
-            errorLogs.push(errorLog);
+            });
           }
         }
       }
@@ -1093,45 +1830,80 @@ export class FileParseValidateService {
       );
     }
 
-    // check all numerical fields
-    numericalFields.forEach(async (field) => {
+    return errors;
+  }
+
+  /**
+   * Validates numerical fields based on OPResultType classification
+   * Different validation rules apply depending on result type (NUMERIC vs STRING):
+   * - NUMERIC: Values must be valid numbers (integers or decimals with optional sign)
+   * - STRING: Values must be non-empty strings (no numeric validation)
+   *
+   * Fields validated: DepthUpper, DepthLower, MethodDetectionLimit, MethodReportingLimit,
+   * ResultValue (conditional on DetectionCondition)
+   *
+   * - MethodDetectionLimit: Required for LAB/SURROGATE_RESULT
+   * - ResultValue: Required unless DetectionCondition is NOT_DETECTED/NOT_REPORTED/NOT_SAMPLED
+   *
+   * @param {any} rowData - Record data from file row
+   * @param {number} rowNumber - Row number for error tracking
+   * @param {boolean} validObservedProperty - Whether ObservedPropertyID is valid
+   * @param {string} resultType - OPResultType from aqi_observed_properties (NUMERIC or STRING)
+   * @returns {any[]} Array of validation errors
+   */
+  private validateNumericalFields(
+    rowData: any,
+    rowNumber: number,
+    validObservedProperty: boolean,
+    resultType: string,
+  ): any[] {
+    const errors = [];
+    const numberRegex = /^-?\d+(\.\d+)?$/;
+    const numericalFields = [
+      "DepthUpper",
+      "DepthLower",
+      "ResultValue",
+      "MethodDetectionLimit",
+      "MethodReportingLimit",
+      "LabArrivalTemperature",
+    ];
+
+    numericalFields.forEach((field) => {
       try {
         if (rowData.hasOwnProperty(field)) {
           if (validObservedProperty) {
             if (!rowData[field]) {
               if (
-                field == "MethodDetectionLimit" &&
-                (rowData["DataClassification"] == "LAB" ||
-                  rowData["DataClassification"] == "SURROGATE_RESULT")
+                field === "MethodDetectionLimit" &&
+                (rowData["DataClassification"] === "LAB" ||
+                  rowData["DataClassification"] === "SURROGATE_RESULT")
               ) {
-                let errorLog = {
+                errors.push({
                   rowNum: rowNumber,
                   type: "ERROR",
                   message: {
                     [field]: `Cannot be empty for data classification ${rowData["DataClassification"]}`,
                   },
-                };
-                errorLogs.push(errorLog);
+                });
               }
 
               if (
-                field == "ResultValue" &&
-                rowData["DetectionCondition"] != "NOT_DETECTED" &&
-                rowData["DetectionCondition"] != "NOT_REPORTED" &&
-                rowData["DetectionCondition"] != "NOT_SAMPLED"
+                field === "ResultValue" &&
+                rowData["DetectionCondition"] !== "NOT_DETECTED" &&
+                rowData["DetectionCondition"] !== "NOT_REPORTED" &&
+                rowData["DetectionCondition"] !== "NOT_SAMPLED"
               ) {
-                let errorLog = {
+                errors.push({
                   rowNum: rowNumber,
                   type: "ERROR",
                   message: {
                     [field]: `Cannot be empty when Detection Condition is ${rowData["DetectionCondition"] ? rowData["DetectionCondition"] : "empty"}`,
                   },
-                };
-                errorLogs.push(errorLog);
+                });
               }
             }
 
-            if (OPResultType === "NUMERIC") {
+            if (resultType === "NUMERIC") {
               const validNumber =
                 numberRegex.test(rowData[field]) &&
                 !isNaN(parseFloat(rowData[field]));
@@ -1140,39 +1912,31 @@ export class FileParseValidateService {
                 rowData[field].toString().trim() !== "" &&
                 !validNumber
               ) {
-                let errorLog;
+                let errorMessage = `${rowData[field]} is not valid number`;
                 if (rowData[field] === `""`) {
-                  errorLog = {
-                    rowNum: rowNumber,
-                    type: "ERROR",
-                    message: {
-                      [field]: "Empty quotes is not valid number",
-                    },
-                  };
-                } else {
-                  errorLog = {
-                    rowNum: rowNumber,
-                    type: "ERROR",
-                    message: {
-                      [field]: `${rowData[field]} is not valid number`,
-                    },
-                  };
+                  errorMessage = "Empty quotes is not valid number";
                 }
-                errorLogs.push(errorLog);
+
+                errors.push({
+                  rowNum: rowNumber,
+                  type: "ERROR",
+                  message: {
+                    [field]: errorMessage,
+                  },
+                });
               }
             } else {
               const validString =
                 typeof rowData[field] === "string" &&
                 rowData[field].trim().length > 0;
               if (rowData[field] !== "" && !validString) {
-                let errorLog = {
+                errors.push({
                   rowNum: rowNumber,
                   type: "ERROR",
                   message: {
                     [field]: `${rowData[field]} is not valid number`,
                   },
-                };
-                errorLogs.push(errorLog);
+                });
               }
             }
           }
@@ -1182,718 +1946,33 @@ export class FileParseValidateService {
           `Runtime error validating ${field} in row ${rowNumber}:`,
           error,
         );
-        let errorLog = {
+        errors.push({
           rowNum: rowNumber,
           type: "ERROR",
           message: {
-            [field]: `Failed to validate. Please contact an administrator.`,
+            [field]: "Failed to validate. Please contact an administrator.",
           },
-        };
-        errorLogs.push(errorLog);
+        });
       }
     });
 
-    // check all unit fields
-    try {
-      if (rowData.hasOwnProperty(unitFields)) {
-        if (rowData[unitFields]) {
-          const present = await this.aqiService.databaseLookup(
-            "aqi_units",
-            rowData[unitFields],
-          );
+    return errors;
+  }
 
-          if (!present) {
-            let errorLog = {
-              rowNum: rowNumber,
-              type: "ERROR",
-              message: {
-                [unitFields]: `${rowData[unitFields]} not found in EnMoDS Units`,
-              },
-            };
-            errorLogs.push(errorLog);
-          }
-        }
-      } else if (rowData.hasOwnProperty(unitFields)) {
-        let errorLog = {
-          rowNum: rowNumber,
-          type: "ERROR",
-          message: {
-            [unitFields]: "Cannot be empty",
-          },
-        };
-        errorLogs.push(errorLog);
-      }
-    } catch (error) {
-      this.logger.error(
-        `Runtime error validating ${unitFields} in row ${rowNumber}:`,
-        error,
-      );
-      let errorLog = {
-        rowNum: rowNumber,
-        type: "ERROR",
-        message: {
-          [unitFields]: `Failed to validate. Please contact an administrator.`,
-        },
-      };
-      errorLogs.push(errorLog);
-    }
-
-    try {
-      if (rowData.hasOwnProperty("Depth Unit")) {
-        if (rowData["Depth Upper"]) {
-          if (rowData["Depth Unit"] != "metre") {
-            let errorLog = {
-              rowNum: rowNumber,
-              type: "ERROR",
-              message: {
-                DepthUnit: `${rowData["Depth Unit"]} is not valid unit for Depth. Only 'Metre' is allowed`,
-              },
-            };
-            errorLogs.push(errorLog);
-          }
-        }
-      }
-    } catch (error) {
-      this.logger.error(
-        `Runtime error validating Depth Unit in row ${rowNumber}:`,
-        error,
-      );
-      let errorLog = {
-        rowNum: rowNumber,
-        type: "ERROR",
-        message: {
-          DepthUnit: `Failed to validate. Please contact an administrator.`,
-        },
-      };
-      errorLogs.push(errorLog);
-    }
-
-    try {
-      if (rowData.hasOwnProperty("SamplingAgency")) {
-        if (rowData["SamplingAgency"] == "") {
-          let errorLog = {
-            rowNum: rowNumber,
-            type: "ERROR",
-            message: {
-              SamplingAgency: "Cannot be empty",
-            },
-          };
-          errorLogs.push(errorLog);
-        } else {
-          const present = await this.aqiService.databaseLookup(
-            "aqi_sampling_agency",
-            rowData.SamplingAgency,
-          );
-          if (!present) {
-            let errorLog = {
-              rowNum: rowNumber,
-              type: "ERROR",
-              message: {
-                SamplingAgency: `${rowData.SamplingAgency} not found in EnMoDS Sampling Agency`,
-              },
-            };
-            errorLogs.push(errorLog);
-          }
-        }
-      }
-    } catch (error) {
-      this.logger.error(
-        `Runtime error validating SamplingAgency in row ${rowNumber}:`,
-        error,
-      );
-      let errorLog = {
-        rowNum: rowNumber,
-        type: "ERROR",
-        message: {
-          SamplingAgency: `Failed to validate. Please contact an administrator.`,
-        },
-      };
-      errorLogs.push(errorLog);
-    }
-
-    try {
-      if (rowData.hasOwnProperty("Project")) {
-        if (rowData.Project == "") {
-          let errorLog = {
-            rowNum: rowNumber,
-            type: "ERROR",
-            message: {
-              Project: `Project cannot be empty`,
-            },
-          };
-          errorLogs.push(errorLog);
-        } else {
-          const present = await this.aqiService.databaseLookup(
-            "aqi_projects",
-            rowData.Project,
-          );
-          if (!present) {
-            let errorLog = {
-              rowNum: rowNumber,
-              type: "ERROR",
-              message: {
-                Project: `${rowData.Project} not found in EnMoDS Projects`,
-              },
-            };
-            errorLogs.push(errorLog);
-          }
-        }
-      }
-    } catch (error) {
-      this.logger.error(
-        `Runtime error validating Project in row ${rowNumber}:`,
-        error,
-      );
-      let errorLog = {
-        rowNum: rowNumber,
-        type: "ERROR",
-        message: {
-          Project: `Failed to validate. Please contact an administrator.`,
-        },
-      };
-      errorLogs.push(errorLog);
-    }
-
-    try {
-      if (rowData.hasOwnProperty("LocationID") && rowData["LocationID"] != "") {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_locations",
-          rowData.LocationID,
-        );
-        if (!present) {
-          let errorLog = {
-            rowNum: rowNumber,
-            type: "ERROR",
-            message: {
-              LocationID: `${rowData.LocationID} not found in EnMoDS Locations`,
-            },
-          };
-          errorLogs.push(errorLog);
-        }
-      } else {
-        let errorLog = {
-          rowNum: rowNumber,
-          type: "ERROR",
-          message: {
-            LocationID: "Cannot be empty",
-          },
-        };
-        errorLogs.push(errorLog);
-      }
-    } catch (error) {
-      this.logger.error(
-        `Runtime error validating LocationID in row ${rowNumber}:`,
-        error,
-      );
-      let errorLog = {
-        rowNum: rowNumber,
-        type: "ERROR",
-        message: {
-          LocationID: "Failed to validate. Please contact an administrator.",
-        },
-      };
-      errorLogs.push(errorLog);
-    }
-
-    try {
-      if (
-        rowData.hasOwnProperty("FieldPreservative") &&
-        rowData.FieldPreservative !== ""
-      ) {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_preservatives",
-          rowData.FieldPreservative,
-        );
-        if (!present) {
-          let errorLog = {
-            rowNum: rowNumber,
-            type: "ERROR",
-            message: {
-              Preservative: `${rowData.FieldPreservative} not found in EnMoDS Preservatives`,
-            },
-          };
-          errorLogs.push(errorLog);
-        }
-      }
-    } catch (error) {
-      this.logger.error(
-        `Runtime error validating FieldPreservative in row ${rowNumber}:`,
-        error,
-      );
-      let errorLog = {
-        rowNum: rowNumber,
-        type: "ERROR",
-        message: {
-          Preservative: "Failed to validate. Please contact an administrator.",
-        },
-      };
-      errorLogs.push(errorLog);
-    }
-
-    try {
-      if (rowData.hasOwnProperty("CollectionMethod")) {
-        if (
-          rowData["DataClassification"] == "LAB" ||
-          rowData["DataClassification"] == "SURROGATE_RESULT"
-        ) {
-          if (rowData["CollectionMethod"] == "") {
-            let errorLog = {
-              rowNum: rowNumber,
-              type: "ERROR",
-              message: {
-                CollectionMethod: `Cannot be empty when Data Classification is ${rowData["DataClassification"]}`,
-              },
-            };
-            errorLogs.push(errorLog);
-          } else {
-            const present = await this.aqiService.databaseLookup(
-              "aqi_collection_methods",
-              rowData.CollectionMethod,
-            );
-            if (!present) {
-              let errorLog = {
-                rowNum: rowNumber,
-                type: "ERROR",
-                message: {
-                  CollectionMethod: `${rowData.CollectionMethod} not found in EnMoDS Collection Methods`,
-                },
-              };
-              errorLogs.push(errorLog);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      this.logger.error(
-        `Runtime error validating CollectionMethod in row ${rowNumber}:`,
-        error,
-      );
-      let errorLog = {
-        rowNum: rowNumber,
-        type: "ERROR",
-        message: {
-          CollectionMethod:
-            "Failed to validate. Please contact an administrator.",
-        },
-      };
-      errorLogs.push(errorLog);
-    }
-
-    try {
-      if (rowData.hasOwnProperty("Medium")) {
-        if (rowData["Medium"] == "") {
-          let errorLog = {
-            rowNum: rowNumber,
-            type: "ERROR",
-            message: {
-              Medium: "Cannot be empty",
-            },
-          };
-          errorLogs.push(errorLog);
-        } else {
-          const present = await this.aqiService.databaseLookup(
-            "aqi_mediums",
-            rowData.Medium,
-          );
-          if (!present) {
-            let errorLog = {
-              rowNum: rowNumber,
-              type: "ERROR",
-              message: {
-                Medium: `${rowData.Medium} not found in EnMoDS Mediums`,
-              },
-            };
-            errorLogs.push(errorLog);
-          }
-        }
-      }
-    } catch (error) {
-      this.logger.error(
-        `Runtime error validating Medium in row ${rowNumber}:`,
-        error,
-      );
-      let errorLog = {
-        rowNum: rowNumber,
-        type: "ERROR",
-        message: {
-          Medium: "Failed to validate. Please contact an administrator.",
-        },
-      };
-      errorLogs.push(errorLog);
-    }
-
-    try {
-      if (
-        rowData.hasOwnProperty("DetectionCondition") &&
-        rowData.DetectionCondition
-      ) {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_detection_conditions",
-          rowData.DetectionCondition,
-        );
-        if (!present) {
-          let errorLog = {
-            rowNum: rowNumber,
-            type: "ERROR",
-            message: {
-              DetectionCondition: `${rowData.DetectionCondition} not found in EnMoDS Detection Conditions`,
-            },
-          };
-          errorLogs.push(errorLog);
-        }
-      }
-    } catch (error) {
-      this.logger.error(
-        `Runtime error validating DetectionCondition in row ${rowNumber}:`,
-        error,
-      );
-      let errorLog = {
-        rowNum: rowNumber,
-        type: "ERROR",
-        message: {
-          DetectionCondition:
-            "Failed to validate. Please contact an administrator.",
-        },
-      };
-      errorLogs.push(errorLog);
-    }
-
-    try {
-      if (rowData.hasOwnProperty("Fraction") && rowData.Fraction) {
-        const present = await this.aqiService.databaseLookup(
-          "aqi_sample_fractions",
-          rowData.Fraction,
-        );
-        if (!present) {
-          let errorLog = {
-            rowNum: rowNumber,
-            type: "ERROR",
-            message: {
-              Fraction: `${rowData.Fraction} not found in EnMoDS Fractions`,
-            },
-          };
-          errorLogs.push(errorLog);
-        }
-      }
-    } catch (error) {
-      this.logger.error(
-        `Runtime error validating Fraction in row ${rowNumber}:`,
-        error,
-      );
-      let errorLog = {
-        rowNum: rowNumber,
-        type: "ERROR",
-        message: {
-          Fraction: "Failed to validate. Please contact an administrator.",
-        },
-      };
-      errorLogs.push(errorLog);
-    }
-
-    if (rowData.hasOwnProperty("DataClassification")) {
-      try {
-        if (rowData["DataClassification"] == "") {
-          let errorLog = {
-            rowNum: rowNumber,
-            type: "ERROR",
-            message: {
-              DataClassification: "Cannot be empty",
-            },
-          };
-          errorLogs.push(errorLog);
-        } else {
-          const present = await this.aqiService.databaseLookup(
-            "aqi_data_classifications",
-            rowData.DataClassification,
-          );
-          if (!present) {
-            let errorLog = {
-              rowNum: rowNumber,
-              type: "ERROR",
-              message: {
-                DataClassification: `${rowData.DataClassification} not found in EnMoDS Data Classifications`,
-              },
-            };
-            errorLogs.push(errorLog);
-          }
-        }
-
-        if (rowData["CompositeStat"] != "") {
-          if (rowData["DataClassification"] != "LAB") {
-            let errorLog = {
-              rowNum: rowNumber,
-              type: "ERROR",
-              message: {
-                DataClassification:
-                  "Must be LAB when Composite Stat is provided.",
-              },
-            };
-            errorLogs.push(errorLog);
-          }
-
-          if (rowData["DataClassification"] == "LAB") {
-            if (rowData["SpecimenName"] == "") {
-              let errorLog = {
-                rowNum: rowNumber,
-                type: "ERROR",
-                message: {
-                  SpecimenName:
-                    "Cannot be empty when Composite Stat is present and Data Classification is LAB.",
-                },
-              };
-              errorLogs.push(errorLog);
-            }
-          }
-        }
-      } catch (error) {
-        this.logger.error(
-          `Runtime error validating DataClassification in row ${rowNumber}:`,
-          error,
-        );
-        let errorLog = {
-          rowNum: rowNumber,
-          type: "ERROR",
-          message: {
-            DataClassification:
-              "Failed to validate. Please contact an administrator.",
-          },
-        };
-        errorLogs.push(errorLog);
-      }
-    }
-
-    if (rowData.hasOwnProperty("FieldFiltered")) {
-      try {
-        if (
-          rowData["DataClassification"] == "LAB" ||
-          rowData["DataClassification"] == "SURROGATE_RESULT"
-        ) {
-          const val = String(rowData["FieldFiltered"]).toLowerCase();
-          if (val !== "true" && val !== "false" && val !== "") {
-            let errorLog = {
-              rowNum: rowNumber,
-              type: "ERROR",
-              message: {
-                FieldFiltered: `Value must either be True or False or empty. Value entered is ${rowData["FieldFiltered"]}`,
-              },
-            };
-            errorLogs.push(errorLog);
-          }
-        }
-      } catch (error) {
-        this.logger.error(
-          `Runtime error validating FieldFiltered in row ${rowNumber}:`,
-          error,
-        );
-        let errorLog = {
-          rowNum: rowNumber,
-          type: "ERROR",
-          message: {
-            FieldFiltered:
-              "Failed to validate. Please contact an administrator.",
-          },
-        };
-        errorLogs.push(errorLog);
-      }
-    }
-
-    if (rowData.hasOwnProperty("SourcefRoundedValue")) {
-      try {
-        if (rowData["SourceOfRoundedValue"] != "") {
-          if (
-            rowData["SourceOfRoundedValue"] != "PROVIDED_BY_USER" &&
-            rowData["SourceOfRoundedValue"] != "ROUNDING_SPECIFICATION"
-          ) {
-            let errorLog = {
-              rowNum: rowNumber,
-              type: "ERROR",
-              message: {
-                SourceOfRoundedValue:
-                  "Must be PROVIDED_BY_USER or ROUNDING_SPECIFICATION.",
-              },
-            };
-            errorLogs.push(errorLog);
-          }
-        }
-      } catch (error) {
-        this.logger.error(
-          `Runtime error validating SourceOfRoundedValue in row ${rowNumber}:`,
-          error,
-        );
-        let errorLog = {
-          rowNum: rowNumber,
-          type: "ERROR",
-          message: {
-            SourceOfRoundedValue:
-              "Failed to validate. Please contact an administrator.",
-          },
-        };
-        errorLogs.push(errorLog);
-      }
-    }
-
-    if (rowData.hasOwnProperty("RoundedValue")) {
-      try {
-        if (
-          rowData["RoundedValue"] == "" &&
-          rowData["SourceOfRoundedValue"] == "PROVIDED_BY_USER"
-        ) {
-          let errorLog = {
-            rowNum: rowNumber,
-            type: "ERROR",
-            message: {
-              RoundedValue:
-                "Cannot be empty when Source of Rounded Value is PROVIDED_BY_USER.",
-            },
-          };
-          errorLogs.push(errorLog);
-        }
-      } catch (error) {
-        this.logger.error(
-          `Runtime error validating RoundedValue in row ${rowNumber}:`,
-          error,
-        );
-        let errorLog = {
-          rowNum: rowNumber,
-          type: "ERROR",
-          message: {
-            RoundedValue:
-              "Failed to validate. Please contact an administrator.",
-          },
-        };
-        errorLogs.push(errorLog);
-      }
-    }
-
-    if (rowData.hasOwnProperty("RoundingSpecification")) {
-      try {
-        if (
-          rowData["RoundingSpecification"] == "" &&
-          rowData["SourceOfRoundedValue"] == "ROUNDING_SPECIFICATION"
-        ) {
-          let errorLog = {
-            rowNum: rowNumber,
-            type: "ERROR",
-            message: {
-              RoundingSpecification:
-                "Cannot be empty when Source of Rounded Value is ROUNDING_SPECIFICATION.",
-            },
-          };
-          errorLogs.push(errorLog);
-        }
-      } catch (error) {
-        this.logger.error(
-          `Runtime error validating RoundingSpecification in row ${rowNumber}:`,
-          error,
-        );
-        let errorLog = {
-          rowNum: rowNumber,
-          type: "ERROR",
-          message: {
-            RoundingSpecification:
-              "Failed to validate. Please contact an administrator.",
-          },
-        };
-        errorLogs.push(errorLog);
-      }
-    }
-
-    if (rowData.hasOwnProperty("AnalyzingAgency")) {
-      try {
-        if (
-          rowData["DataClassification"] == "LAB" ||
-          rowData["DataClassification"] == "SURROGATE_RESULT"
-        ) {
-          if (rowData["AnalyzingAgency"] == "") {
-            let errorLog = {
-              rowNum: rowNumber,
-              type: "ERROR",
-              message: {
-                AnalyzingAgency: `Cannot be empty when Data Classification is ${rowData["DataClassification"]}`,
-              },
-            };
-            errorLogs.push(errorLog);
-          } else {
-            const present = await this.aqiService.databaseLookup(
-              "aqi_laboratories",
-              rowData.AnalyzingAgency,
-            );
-            if (!present) {
-              let errorLog = {
-                rowNum: rowNumber,
-                type: "ERROR",
-                message: {
-                  AnalyzingAgency: `${rowData.AnalyzingAgency} not found in EnMoDS Agencies`,
-                },
-              };
-              errorLogs.push(errorLog);
-            }
-          }
-        }
-      } catch (error) {
-        this.logger.error(
-          `Runtime error validating AnalyzingAgency in row ${rowNumber}:`,
-          error,
-        );
-        let errorLog = {
-          rowNum: rowNumber,
-          type: "ERROR",
-          message: {
-            AnalyzingAgency:
-              "Failed to validate. Please contact an administrator.",
-          },
-        };
-        errorLogs.push(errorLog);
-      }
-    }
-
-    if (rowData.hasOwnProperty("AnalysisMethod")) {
-      try {
-        // if data classification is LAB/SURROGATE ensure Analysis Method is entered
-        if (
-          rowData["DataClassification"] == "LAB" ||
-          rowData["DataClassification"] == "SURROGATE_RESULT"
-        ) {
-          if (rowData["AnalysisMethod"] == "") {
-            let errorLog = `{"rowNum": ${rowNumber}, "type": "ERROR", "message": {"AnalysisMethod": "Cannot be empty when Data Classification is ${rowData["DataClassification"]}"}}`;
-            errorLogs.push(JSON.parse(errorLog));
-          } else {
-            // if valid OP, then check if the analysis method is an associated method for that OP
-            if (validObservedProperty) {
-              const present: any = await this.aqiService.databaseLookup(
-                "aqi_analysis_methods",
-                rowData.AnalysisMethod,
-              );
-
-              if (!present) {
-                let errorLog = {
-                  rowNum: rowNumber,
-                  type: "ERROR",
-                  message: {
-                    AnalysisMethod: `${rowData.AnalysisMethod} not found in EnMoDS Analysis Methods`,
-                  },
-                };
-                errorLogs.push(errorLog);
-              }
-            }
-          }
-        }
-      } catch (error) {
-        this.logger.error(
-          `Runtime error validating AnalysisMethod in row ${rowNumber}:`,
-          error,
-        );
-        let errorLog = {
-          rowNum: rowNumber,
-          type: "ERROR",
-          message: {
-            AnalysisMethod:
-              "Failed to validate. Please contact an administrator.",
-          },
-        };
-        errorLogs.push(errorLog);
-      }
-    }
+  /**
+   * Validates Result Status and Grade database lookups
+   * - ResultStatus: Optional lookup in aqi_result_status table
+   * - ResultGrade: Optional lookup in aqi_result_grade table
+   *
+   * @param {any} rowData - Record data from file row
+   * @param {number} rowNumber - Row number for error tracking
+   * @returns {Promise<any[]>} Array of validation errors
+   */
+  private async validateResultFields(
+    rowData: any,
+    rowNumber: number,
+  ): Promise<any[]> {
+    const errors = [];
 
     if (rowData.hasOwnProperty("ResultStatus")) {
       try {
@@ -1902,29 +1981,27 @@ export class FileParseValidateService {
           rowData.ResultStatus,
         );
         if (!present) {
-          let errorLog = {
+          errors.push({
             rowNum: rowNumber,
             type: "ERROR",
             message: {
               ResultStatus: `${rowData.ResultStatus} not found in EnMoDS Result Statuses`,
             },
-          };
-          errorLogs.push(errorLog);
+          });
         }
       } catch (error) {
         this.logger.error(
           `Runtime error validating ResultStatus in row ${rowNumber}:`,
           error,
         );
-        let errorLog = {
+        errors.push({
           rowNum: rowNumber,
           type: "ERROR",
           message: {
             ResultStatus:
               "Failed to validate. Please contact an administrator.",
           },
-        };
-        errorLogs.push(errorLog);
+        });
       }
     }
 
@@ -1935,61 +2012,81 @@ export class FileParseValidateService {
           rowData.ResultGrade,
         );
         if (!present) {
-          let errorLog = {
+          errors.push({
             rowNum: rowNumber,
             type: "ERROR",
             message: {
               ResultGrade: `${rowData.ResultGrade} not found in EnMoDS Result Grades`,
             },
-          };
-          errorLogs.push(errorLog);
+          });
         }
       } catch (error) {
         this.logger.error(
           `Runtime error validating ResultGrade in row ${rowNumber}:`,
           error,
         );
-        let errorLog = {
+        errors.push({
           rowNum: rowNumber,
           type: "ERROR",
           message: {
             ResultGrade: "Failed to validate. Please contact an administrator.",
           },
-        };
-        errorLogs.push(errorLog);
+        });
       }
     }
 
+    return errors;
+  }
+
+  /**
+   * Validates Specimen-related fields (TissueType, SpecimenName, QCType)
+   * These fields are LAB-specific (when DataClassification is LAB or SURROGATE_RESULT):
+   *
+   * - TissueType: Required when Medium="Animal - Fish" in LAB classification
+   *               Must exist in aqi_tissue_types table
+   * - SpecimenName: Required when Medium starts with "Animal" in LAB classification
+   * - QCType: Required in LAB classification
+   *           Must be one of: REGULAR, BLANK, REPLICATE, SPIKE, OTHER_QC
+   *
+   * @param {any} rowData - Record data from file row
+   * @param {number} rowNumber - Row number for error tracking
+   * @returns {Promise<any[]>} Array of validation errors
+   */
+  private async validateSpecimenFields(
+    rowData: any,
+    rowNumber: number,
+  ): Promise<any[]> {
+    const errors = [];
+
+    // TissueType validation
     if (rowData.hasOwnProperty("TissueType")) {
       try {
         if (
-          rowData["DataClassification"] == "LAB" ||
-          rowData["DataClassification"] == "SURROGATE_RESULT"
+          rowData["DataClassification"] === "LAB" ||
+          rowData["DataClassification"] === "SURROGATE_RESULT"
         ) {
-          if (rowData["Medium"] == "Animal - Fish") {
-            if (rowData["TissueType"] == "") {
-              let errorLog = {
+          if (rowData["Medium"] === "Animal - Fish") {
+            if (rowData["TissueType"] === "") {
+              errors.push({
                 rowNum: rowNumber,
                 type: "ERROR",
                 message: {
                   TissueType: `Cannot be empty when Data Classification is ${rowData.DataClassification} and Medium is ${rowData.Medium}`,
                 },
-              };
-              errorLogs.push(errorLog);
+              });
             } else if (rowData["TissueType"]) {
               const present = await this.aqiService.databaseLookup(
                 "aqi_tissue_types",
                 rowData.TissueType,
               );
               if (!present) {
-                let errorLog = {
+                errors.push({
                   rowNum: rowNumber,
                   type: "ERROR",
                   message: {
                     TissueType: `${rowData.TissueType} not found in EnMoDS Tissue Types`,
                   },
-                };
-                errorLogs.push(errorLog);
+                });
               }
             }
           }
@@ -1999,48 +2096,45 @@ export class FileParseValidateService {
           `Runtime error validating TissueType in row ${rowNumber}:`,
           error,
         );
-        let errorLog = {
+        errors.push({
           rowNum: rowNumber,
           type: "ERROR",
           message: {
             TissueType: "Failed to validate. Please contact an administrator.",
           },
-        };
-        errorLogs.push(errorLog);
+        });
       }
     }
 
+    // QCType validation
     if (rowData.hasOwnProperty("QCType")) {
       try {
         if (
-          rowData["DataClassification"] == "LAB" ||
-          rowData["DataClassification"] == "SURROGATE_RESULT"
+          rowData["DataClassification"] === "LAB" ||
+          rowData["DataClassification"] === "SURROGATE_RESULT"
         ) {
-          if (rowData["QCType"].toUpperCase() == "") {
-            let errorLog = {
+          if (rowData["QCType"].toUpperCase() === "") {
+            errors.push({
               rowNum: rowNumber,
               type: "ERROR",
               message: {
                 QCType: `QC Type cannot be empty when data classification is ${rowData.DataClassification}`,
               },
-            };
-            errorLogs.push(errorLog);
+            });
           } else if (
-            rowData["QCType"].toUpperCase() != "REGULAR" &&
-            rowData["QCType"].toUpperCase() != "BLANK" &&
-            rowData["QCType"].toUpperCase() != "REPLICATE" &&
-            rowData["QCType"].toUpperCase() != "SPIKE" &&
-            rowData["QCType"].toUpperCase() != "OTHER_QC"
+            rowData["QCType"].toUpperCase() !== "REGULAR" &&
+            rowData["QCType"].toUpperCase() !== "BLANK" &&
+            rowData["QCType"].toUpperCase() !== "REPLICATE" &&
+            rowData["QCType"].toUpperCase() !== "SPIKE" &&
+            rowData["QCType"].toUpperCase() !== "OTHER_QC"
           ) {
-            // null because the AQI api considers the type REGULAR as NULL
-            let errorLog = {
+            errors.push({
               rowNum: rowNumber,
               type: "ERROR",
               message: {
                 QCType: `${rowData.QCType} not found in EnMoDS QC Types`,
               },
-            };
-            errorLogs.push(errorLog);
+            });
           }
         }
       } catch (error) {
@@ -2048,35 +2142,34 @@ export class FileParseValidateService {
           `Runtime error validating QCType in row ${rowNumber}:`,
           error,
         );
-        let errorLog = {
+        errors.push({
           rowNum: rowNumber,
           type: "ERROR",
           message: {
             QCType: "Failed to validate. Please contact an administrator.",
           },
-        };
-        errorLogs.push(errorLog);
+        });
       }
     }
 
+    // SpecimenName validation
     if (rowData.hasOwnProperty("SpecimenName")) {
       try {
         if (
-          rowData["DataClassification"] == "LAB" ||
-          rowData["DataClassification"] == "SURROGATE_RESULT"
+          rowData["DataClassification"] === "LAB" ||
+          rowData["DataClassification"] === "SURROGATE_RESULT"
         ) {
           if (
             /^Animal\b/.test(rowData["Medium"]) &&
-            rowData["SpecimenName"] == ""
+            rowData["SpecimenName"] === ""
           ) {
-            let errorLog = {
+            errors.push({
               rowNum: rowNumber,
               type: "ERROR",
               message: {
                 SpecimenName: `Cannot be empty when Medium is ${rowData.Medium} and Data Classification is ${rowData.DataClassification}`,
               },
-            };
-            errorLogs.push(errorLog);
+            });
           }
         }
       } catch (error) {
@@ -2084,17 +2177,132 @@ export class FileParseValidateService {
           `Runtime error validating SpecimenName in row ${rowNumber}:`,
           error,
         );
-        let errorLog = {
+        errors.push({
           rowNum: rowNumber,
           type: "ERROR",
           message: {
             SpecimenName:
               "Failed to validate. Please contact an administrator.",
           },
-        };
-        errorLogs.push(errorLog);
+        });
       }
     }
+
+    return errors;
+  }
+
+  /**
+   * Orchestrates comprehensive local validation of a single observation record
+   * Executes all field validators and business rule checks:
+   * - Observed property lookup and result type classification
+   * - DateTime format and value validation
+   * - Field visit and activity existence checking
+   * - Result record deduplication
+   *
+   * Leverages 16 focused validator helper methods for modular, testable validation logic.
+   *
+   * @param {number} rowNumber - Row number in source file (for error tracking)
+   * @param {any} rowData - Parsed observation record from file row
+   * @returns {Promise<any>} Object with validation results: {valid: boolean, errors: any[], records: any[]}
+   *
+   * @example
+   * const result = await service.localValidation(5, rowData);
+   * if (result.valid) { // process the record
+   */
+  async localValidation(rowNumber: number, rowData: any) {
+    let errorLogs = [];
+    let existingRecords = [];
+    let existingGUIDS = {};
+
+    // Validate ObservedPropertyID and get result type
+    const observedPropertyResult = await this.validateObservedPropertyID(
+      rowData,
+      rowNumber,
+    );
+    errorLogs.push(...observedPropertyResult.errors);
+    const validObservedProperty = observedPropertyResult.errors.length === 0;
+    const resultType = observedPropertyResult.resultType;
+
+    // Validate all datetime fields
+    const dateTimeErrors = this.validateDateTimeFields(rowData, rowNumber);
+    errorLogs.push(...dateTimeErrors);
+
+    // Validate time ranges
+    const timeRangeErrors = this.validateTimeRanges(rowData, rowNumber);
+    errorLogs.push(...timeRangeErrors);
+
+    // Validate field visit/observed date relationships
+    const dateRelationErrors = this.validateDataClassificationDateRelationship(
+      rowData,
+      rowNumber,
+    );
+    errorLogs.push(...dateRelationErrors);
+
+    // Validate numerical fields
+    const numericalErrors = this.validateNumericalFields(
+      rowData,
+      rowNumber,
+      validObservedProperty,
+      resultType,
+    );
+    errorLogs.push(...numericalErrors);
+
+    // Validate unit fields using helper
+    const unitFieldErrors = await this.validateUnitFields(rowData, rowNumber);
+    errorLogs.push(...unitFieldErrors);
+
+    // Validate required lookups using helpers
+    const requiredLookupErrors = await this.validateRequiredLookups(
+      rowData,
+      rowNumber,
+    );
+    errorLogs.push(...requiredLookupErrors);
+
+    const locationErrors = await this.validateLocationID(rowData, rowNumber);
+    errorLogs.push(...locationErrors);
+
+    // Validate optional lookups using helper
+    const optionalLookupErrors = await this.validateOptionalLookups(
+      rowData,
+      rowNumber,
+    );
+    errorLogs.push(...optionalLookupErrors);
+
+    // Validate DataClassification using helper
+    const dataClassificationErrors = await this.validateDataClassification(
+      rowData,
+      rowNumber,
+    );
+    errorLogs.push(...dataClassificationErrors);
+
+    // Validate FieldFiltered using helper
+    const fieldFilteredResult = this.validateFieldFiltered(rowData, rowNumber);
+    errorLogs.push(...fieldFilteredResult.errors);
+
+    // Validate RoundedValue logic using helper
+    const roundedValueResult = this.validateRoundedValueLogic(
+      rowData,
+      rowNumber,
+    );
+    errorLogs.push(...roundedValueResult.errors);
+
+    // Validate LAB-specific lookups using helper
+    const labLookupErrors = await this.validateLabLookups(rowData, rowNumber);
+    errorLogs.push(...labLookupErrors);
+
+    // Validate Result Status and Grade
+    const resultFieldErrors = await this.validateResultFields(
+      rowData,
+      rowNumber,
+    );
+    errorLogs.push(...resultFieldErrors);
+
+    // Validate Specimen-related fields
+    const specimenErrors = await this.validateSpecimenFields(
+      rowData,
+      rowNumber,
+    );
+    errorLogs.push(...specimenErrors);
 
     // check if the visit/activity already exists -- check if visit timetsamp for that location already exists or activity at that time with that name (or type) exists
     if (rowData["LocationID"] != "") {
@@ -2513,6 +2721,20 @@ export class FileParseValidateService {
     return [errorLogs, existingRecords];
   }
 
+  /**
+   * Validates observation file structure and performs dry-run validation
+   * Checks:
+   * - File has correct number of columns
+   * - Header names match specification
+   * - Header order is correct (first row skipped for XLSX)
+   * - Performs dry-run validation of all observations without committing to database
+   *
+   * @param {string} observationFilePath - Path to observation CSV file
+   * @param {string} fileSubmissionId - ID of the file submission record
+   * @param {string} fileOperationCode - Operation type (IMPORT, UPDATE, DELETE, etc.)
+   * @param {any} errorLogs - Array to accumulate validation errors
+   * @returns {Promise<any>} Validation result with error summary
+   */
   async validateObsFile(
     observationFilePath: string,
     fileSubmissionId: string,
@@ -2797,6 +3019,23 @@ export class FileParseValidateService {
     return cleanedRow;
   }
 
+  /**
+   * Validates and transforms a single row of observation data
+   * Orchestrates the complete validation workflow for one record:
+   * - Calls localValidation() for all field-level and business rule checks
+   * - Transforms valid records into AQI API-compatible JSON structures
+   * - Creates field visits, activities, specimens, and observations
+   * - Handles CSV streaming and error reporting
+   *
+   * @param {any} rowData - Parsed observation record
+   * @param {any} ministryContacts - Available ministry contact options
+   * @param {any} csvStream - CSV output stream for processed records
+   * @param {any} allNonObsErrors - Accumulated non-observation validation errors
+   * @param {any} allExistingRecords - Records that already exist in database
+   * @param {any} originalFileName - Original file name (for error context)
+   * @param {any} rowNumber - Row number in source file
+   * @returns {Promise<any>} Transformed record data ready for API submission
+   */
   async validateRowData(
     rowData: any,
     ministryContacts: any,
@@ -3781,6 +4020,14 @@ export class FileParseValidateService {
     });
   }
 
+  /**
+   * Validates file delimiter is comma (not semicolon or other delimiters)
+   * Scans the file for any semicolon delimiters which indicate wrong format
+   * Reports error if semicolon-delimited file detected
+   *
+   * @param {any} file - File stream to validate
+   * @returns {Promise<any[]>} Array of delimiter-related validation errors
+   */
   async checkDelimiterErrors(file) {
     let delimiterErrors = [];
     const txtFile = readline.createInterface({
@@ -3812,6 +4059,1105 @@ export class FileParseValidateService {
     return delimiterErrors;
   }
 
+  /**
+   * Initializes the parse file operation with required setup and state
+   * Creates database tracking record, sets up output CSV stream, and returns configuration
+   *
+   * @param {string} fileName - Processed file name
+   * @param {string} originalFileName - Original file name from user
+   * @param {string} file_submission_id - Database ID of the file submission record
+   * @returns {Promise<{filePath: string, csvStream: any, ministryContacts: Set}>} Configuration object with paths and streams
+   * @private
+   */
+  private async initializeParseFile(
+    fileName: string,
+    originalFileName: string,
+    file_submission_id: string,
+  ) {
+    const path = require("path");
+
+    const imported_guids_data = {
+      file_name: fileName,
+      original_file_name: originalFileName,
+      imported_guids: {
+        visits: [],
+        activities: [],
+        specimens: [],
+        observations: [],
+      },
+      create_utc_timestamp: new Date(),
+    };
+
+    await this.prisma.$transaction(async (prisma) => {
+      await prisma.aqi_imported_data.create({
+        data: imported_guids_data,
+      });
+    });
+
+    const ministryContacts = new Set();
+    const baseFileName = path.basename(fileName, path.extname(fileName));
+    const filePath = path.join(
+      "./src/tempObsFiles/",
+      `obs-${baseFileName}.csv`,
+    );
+
+    const writeStream = fs.createWriteStream(`${filePath}`);
+    const headers = Object.keys(obsFile);
+    const csvStream = format({ headers: true, quoteColumns: true });
+    csvStream.pipe(writeStream);
+    csvStream.write(headers);
+
+    return { filePath, csvStream, ministryContacts };
+  }
+
+  /**
+   * Handles XLSX file format processing and validation
+   * Processes rows in batches, validates each row, and orchestrates downstream processing
+   *
+   * @param {any} workbook - Excel workbook object
+   * @param {string} fileName - File name for logging
+   * @param {string} extention - File extension (.xlsx, .csv, .txt)
+   * @param {string} file_submission_id - File submission ID
+   * @param {string} file_operation_code - Type of operation
+   * @param {string} originalFileName - Original file name
+   * @param {string} filePath - Path to output CSV file
+   * @param {any} csvStream - CSV output stream
+   * @param {Set<any>} ministryContacts - Set of ministry contacts
+   * @returns {Promise<{timings: any, hasError: boolean}>} Processing result with timing info and error flag
+   * @private
+   */
+  private async processXlsxFile(
+    workbook: any,
+    fileName: string,
+    extention: string,
+    file_submission_id: string,
+    file_operation_code: string,
+    originalFileName: string,
+    filePath: string,
+    csvStream: any,
+    ministryContacts: Set<any>,
+  ) {
+    const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
+    let batch: any[] = [];
+    let batchNumber = 1;
+    let startValidation = 0,
+      endValidation = 0,
+      startObsValidation = 0,
+      endObsValidation = 0,
+      startRejectFile = 0,
+      endRejectFile = 0,
+      startReportValidated = 0,
+      endReportValidated = 0,
+      startImportNonObs = 0,
+      endImportNonObs = 0,
+      startImportObs = 0,
+      endImportObs = 0;
+
+    const worksheet = workbook.worksheets[0];
+
+    if (worksheet === undefined) {
+      this.logger.error("No worksheet found in the Excel file.");
+      let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"File": "Incorrect file content. Please check the file and try again."}}`;
+
+      const file_error_log_data = {
+        file_submission_id: file_submission_id,
+        file_name: fileName,
+        original_file_name: originalFileName,
+        file_operation_code: file_operation_code,
+        ministry_contact: null,
+        error_log: [JSON.parse(errorLog)],
+        create_utc_timestamp: new Date(),
+      };
+
+      await this.prisma.file_error_logs.create({
+        data: file_error_log_data,
+      });
+
+      await this.fileSubmissionsService.updateFileStatus(
+        file_submission_id,
+        "REJECTED",
+      );
+
+      fs.unlink(filePath, (err) => {
+        if (err) {
+          this.logger.error(`Error cleaning up tempObsFiles`, err);
+        } else {
+          this.logger.log(`Successfully cleaned up tempObsFiles.`);
+        }
+      });
+
+      await this.notificationsService.notifyUserOfError(file_submission_id);
+      return { timings: {}, hasError: true };
+    }
+
+    const rowHeaders = (worksheet?.getRow(1).values as string[])
+      .slice(1)
+      .map((key) => key.replace(/\s+/g, ""));
+
+    const allNonObsErrors: any[] = [];
+    const allExistingRecords: any[] = [];
+
+    const headerErrors = await this.checkHeaders(
+      worksheet?.getRow(1).values as string[],
+      "xlsx",
+    );
+
+    if (headerErrors.length > 0) {
+      const file_error_log_data = {
+        file_submission_id: file_submission_id,
+        file_name: fileName,
+        original_file_name: originalFileName,
+        file_operation_code: file_operation_code,
+        ministry_contact: null,
+        error_log: headerErrors,
+        create_utc_timestamp: new Date(),
+      };
+
+      await this.prisma.file_error_logs.create({
+        data: file_error_log_data,
+      });
+
+      await this.fileSubmissionsService.updateFileStatus(
+        file_submission_id,
+        "REJECTED",
+      );
+
+      fs.unlink(filePath, (err) => {
+        if (err) {
+          this.logger.error(`Error cleaning up tempObsFiles`, err);
+        } else {
+          this.logger.log(`Successfully cleaned up tempObsFiles.`);
+        }
+      });
+
+      await this.notificationsService.notifyUserOfError(file_submission_id);
+      return { timings: {}, hasError: true };
+    }
+
+    console.time("Validation");
+    startValidation = performance.now();
+    for (let rowNumber = 2; rowNumber <= worksheet?.rowCount; rowNumber++) {
+      const row = worksheet?.getRow(rowNumber);
+
+      if (rowNumber === 1) {
+        return { timings: {}, hasError: false };
+      }
+
+      this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
+      batch.push(row);
+
+      if (batch.length === BATCH_SIZE) {
+        this.logger.log(`Created batch ${batchNumber}`);
+        this.logger.log(
+          `Starting to process batch ${batchNumber} ******************`,
+        );
+
+        for (const [index, row] of batch.entries()) {
+          let actualRowNumber =
+            index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+          await this.cleanAndValidate(
+            row,
+            rowHeaders,
+            actualRowNumber + 1,
+            ministryContacts,
+            csvStream,
+            allNonObsErrors,
+            allExistingRecords,
+            fileName,
+            extention,
+          );
+        }
+        this.logger.log(
+          `Finished processing batch ${batchNumber} ******************`,
+        );
+
+        batchNumber++;
+        batch = [];
+      }
+    }
+
+    if (batch.length > 0) {
+      this.logger.log(
+        `Starting to process (final) batch ${batchNumber} ******************`,
+      );
+
+      for (const [index, row] of batch.entries()) {
+        let actualRowNumber = index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+        await this.cleanAndValidate(
+          row,
+          rowHeaders,
+          actualRowNumber + 1,
+          ministryContacts,
+          csvStream,
+          allNonObsErrors,
+          allExistingRecords,
+          fileName,
+          extention,
+        );
+      }
+      this.logger.log(
+        `Finished processing (final) batch ${batchNumber} ******************`,
+      );
+    }
+
+    console.timeEnd("Validation");
+    endValidation = performance.now();
+
+    csvStream.end();
+    console.time("obsValidation");
+    startObsValidation = performance.now();
+    const contactsAndValidationResults = await this.finalValidationStep(
+      ministryContacts,
+      filePath,
+      file_submission_id,
+      file_operation_code,
+      allNonObsErrors,
+    );
+    console.timeEnd("obsValidation");
+    endObsValidation = performance.now();
+
+    const hasError = contactsAndValidationResults[1].some(
+      (item) => item.type === "ERROR",
+    );
+    const hasWarn = contactsAndValidationResults[1].some(
+      (item) => item.type === "WARN",
+    );
+
+    if (hasError) {
+      console.time("RejectFile");
+      startRejectFile = performance.now();
+      await this.rejectFileAndLogErrors(
+        file_submission_id,
+        fileName,
+        originalFileName,
+        file_operation_code,
+        contactsAndValidationResults[0],
+        contactsAndValidationResults[1],
+      );
+
+      fs.unlink(filePath, (err) => {
+        if (err) {
+          this.logger.error(`Error cleaning up tempObsFiles`, err);
+        } else {
+          this.logger.log(`Successfully cleaned up tempObsFiles.`);
+        }
+      });
+
+      console.timeEnd("RejectFile");
+      await this.notificationsService.notifyUserOfError(file_submission_id);
+      endRejectFile = performance.now();
+
+      return {
+        timings: {
+          startValidation,
+          endValidation,
+          startObsValidation,
+          endObsValidation,
+          startRejectFile,
+          endRejectFile,
+        },
+        hasError: true,
+      };
+    } else {
+      console.time("ReportValidated");
+      startReportValidated = performance.now();
+      if (file_operation_code === "VALIDATE") {
+        const file_error_log_data = {
+          file_submission_id: file_submission_id,
+          file_name: fileName,
+          original_file_name: originalFileName,
+          file_operation_code: file_operation_code,
+          ministry_contact: contactsAndValidationResults[0],
+          error_log: contactsAndValidationResults[1],
+          create_utc_timestamp: new Date(),
+        };
+
+        await this.fileSubmissionsService.updateFileStatus(
+          file_submission_id,
+          "VALIDATED",
+        );
+
+        await this.prisma.file_error_logs.create({
+          data: file_error_log_data,
+        });
+
+        fs.unlink(filePath, (err) => {
+          if (err) {
+            this.logger.error(`Error cleaning up tempObsFiles`, err);
+          } else {
+            this.logger.log(`Successfully cleaned up tempObsFiles.`);
+          }
+        });
+        console.timeEnd("ReportValidated");
+
+        await this.notificationsService.notifyUserOfError(file_submission_id);
+        endReportValidated = performance.now();
+
+        return {
+          timings: {
+            startValidation,
+            endValidation,
+            startObsValidation,
+            endObsValidation,
+            startReportValidated,
+            endReportValidated,
+          },
+          hasError: false,
+        };
+      } else {
+        const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
+        let batch: any[] = [];
+        let batchNumber = 1;
+
+        console.time("ImportNonObs");
+        startImportNonObs = performance.now();
+        this.logger.log(`Starting the import process`);
+        for (let rowNumber = 2; rowNumber <= worksheet?.rowCount; rowNumber++) {
+          const row = worksheet?.getRow(rowNumber);
+
+          if (rowNumber === 1) {
+            return {
+              timings: {
+                startValidation,
+                endValidation,
+                startObsValidation,
+                endObsValidation,
+              },
+              hasError: false,
+            };
+          }
+
+          this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
+          batch.push(row);
+          this.logger.log(`Beginning processing row: ${rowNumber}`);
+
+          if (batch.length === BATCH_SIZE) {
+            this.logger.log(`Created batch ${batchNumber}`);
+            this.logger.log(
+              `Starting to process batch ${batchNumber} ******************`,
+            );
+
+            for (const [index, row] of batch.entries()) {
+              let actualRowNumber =
+                index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+
+              let GuidsToSave = {
+                visits: [],
+                activities: [],
+                specimens: [],
+                observations: [],
+              };
+              await this.importRow(
+                row,
+                rowHeaders,
+                actualRowNumber,
+                fileName,
+                GuidsToSave,
+                extention,
+                file_submission_id,
+                originalFileName,
+                file_operation_code,
+                ministryContacts,
+                contactsAndValidationResults[1],
+                filePath,
+              );
+
+              if (partialUpload) {
+                this.logger.warn(
+                  `Partial upload detected, stopped processing the batch`,
+                );
+                break;
+              }
+            }
+
+            if (partialUpload) {
+              break;
+            }
+
+            this.logger.log(
+              `Finished processing batch ${batchNumber} ******************`,
+            );
+
+            batchNumber++;
+            batch = [];
+          }
+        }
+        if (!partialUpload && batch.length > 0) {
+          this.logger.log(
+            `Starting to process (final) batch ${batchNumber} ******************`,
+          );
+
+          for (const [index, row] of batch.entries()) {
+            let actualRowNumber =
+              index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+            let GuidsToSave = {
+              visits: [],
+              activities: [],
+              specimens: [],
+              observations: [],
+            };
+            await this.importRow(
+              row,
+              rowHeaders,
+              actualRowNumber,
+              fileName,
+              GuidsToSave,
+              extention,
+              file_submission_id,
+              originalFileName,
+              file_operation_code,
+              ministryContacts,
+              contactsAndValidationResults[1],
+              filePath,
+            );
+            if (partialUpload) {
+              this.logger.warn(
+                `Partial upload detected, stopped processing the batch`,
+              );
+              break;
+            }
+          }
+
+          this.logger.log(
+            `Finished processing (final) batch ${batchNumber} ******************`,
+          );
+        }
+        console.timeEnd("ImportNonObs");
+        endImportNonObs = performance.now();
+
+        if (partialUpload) {
+          if (!rollBackHalted) {
+            await this.fileSubmissionsService.updateFileStatus(
+              file_submission_id,
+              "REJECTED",
+            );
+          }
+          this.logger.log("Partial upload detected, leaving import process");
+          return {
+            timings: {
+              startValidation,
+              endValidation,
+              startObsValidation,
+              endObsValidation,
+              startImportNonObs,
+              endImportNonObs,
+            },
+            hasError: false,
+          };
+        }
+
+        console.time("ImportObs");
+        startImportObs = performance.now();
+        this.logger.log(`Starting import of observations`);
+        await this.insertObservations(
+          fileName,
+          originalFileName,
+          filePath,
+          file_submission_id,
+          file_operation_code,
+          contactsAndValidationResults[0],
+          contactsAndValidationResults[1],
+        );
+        this.logger.log(`Completed import for observations`);
+        console.timeEnd("ImportObs");
+        endImportObs = performance.now();
+
+        return {
+          timings: {
+            startValidation,
+            endValidation,
+            startObsValidation,
+            endObsValidation,
+            startImportNonObs,
+            endImportNonObs,
+            startImportObs,
+            endImportObs,
+          },
+          hasError: false,
+        };
+      }
+    }
+  }
+
+  /**
+   * Handles CSV/TXT file format processing and validation
+   * Validates delimiters, headers, parses rows in batches, and orchestrates downstream processing
+   *
+   * @param {Readable} file - File stream (CSV or TXT content)
+   * @param {string} fileName - File name for logging
+   * @param {string} extention - File extension (.csv or .txt)
+   * @param {string} file_submission_id - File submission ID
+   * @param {string} file_operation_code - Type of operation
+   * @param {string} originalFileName - Original file name
+   * @param {string} filePath - Path to output CSV file
+   * @param {any} csvStream - CSV output stream
+   * @param {Set<any>} ministryContacts - Set of ministry contacts
+   * @returns {Promise<{timings: any, hasError: boolean}>} Processing result with timing info and error flag
+   * @private
+   */
+  private async processCsvFile(
+    file: Readable,
+    fileName: string,
+    extention: string,
+    file_submission_id: string,
+    file_operation_code: string,
+    originalFileName: string,
+    filePath: string,
+    csvStream: any,
+    ministryContacts: Set<any>,
+  ) {
+    const path = require("path");
+    const allNonObsErrors: any[] = [];
+    const allExistingRecords: any[] = [];
+    const headersForValidation: string[] = [];
+    const headers: string[] = [];
+    let delimiterErrors = [];
+
+    if (extention == ".txt") {
+      delimiterErrors = await this.checkDelimiterErrors(file);
+    }
+
+    if (delimiterErrors.length > 0) {
+      const file_error_log_data = {
+        file_submission_id: file_submission_id,
+        file_name: fileName,
+        original_file_name: originalFileName,
+        file_operation_code: file_operation_code,
+        ministry_contact: null,
+        error_log: delimiterErrors,
+        create_utc_timestamp: new Date(),
+      };
+
+      await this.prisma.file_error_logs.create({
+        data: file_error_log_data,
+      });
+
+      await this.fileSubmissionsService.updateFileStatus(
+        file_submission_id,
+        "REJECTED",
+      );
+
+      fs.unlink(filePath, (err) => {
+        if (err) {
+          this.logger.error(`Error cleaning up tempObsFiles`, err);
+        } else {
+          this.logger.log(`Successfully cleaned up tempObsFiles.`);
+        }
+      });
+
+      return { timings: {}, hasError: true };
+    }
+
+    let isFirstRow = true;
+    file
+      .pipe(
+        parse({
+          columns: false,
+          trim: true,
+        }),
+      )
+      .on("data", (row: string[]) => {
+        if (isFirstRow) {
+          isFirstRow = false;
+
+          headers.push(...row.map((key) => key.replace(/\s+/g, "")));
+          headersForValidation.push(...row);
+        }
+      })
+      .on("end", () => {
+        this.logger.log("Got the file headers");
+      })
+      .on("error", (err) => {
+        this.logger.error("Error while parsing file for headers:", err.message);
+      });
+
+    await new Promise((f) => setTimeout(f, 1000));
+
+    const headerErrors = await this.checkHeaders(headersForValidation, "csv");
+
+    if (headerErrors.length > 0) {
+      const file_error_log_data = {
+        file_submission_id: file_submission_id,
+        file_name: fileName,
+        original_file_name: originalFileName,
+        file_operation_code: file_operation_code,
+        ministry_contact: null,
+        error_log: headerErrors,
+        create_utc_timestamp: new Date(),
+      };
+
+      await this.prisma.file_error_logs.create({
+        data: file_error_log_data,
+      });
+
+      await this.fileSubmissionsService.updateFileStatus(
+        file_submission_id,
+        "REJECTED",
+      );
+
+      fs.unlink(filePath, (err) => {
+        if (err) {
+          this.logger.error(`Error cleaning up tempObsFiles`, err);
+        } else {
+          this.logger.log(`Successfully cleaned up tempObsFiles.`);
+        }
+      });
+
+      await this.notificationsService.notifyUserOfError(file_submission_id);
+
+      return { timings: {}, hasError: true };
+    }
+
+    const fileStreamPath = path.join("./src/tempObsFiles/", fileName);
+    const rowValidationStream = fs.createReadStream(fileStreamPath);
+
+    const parser = parse({
+      columns: headers,
+      trim: true,
+    });
+    rowValidationStream.pipe(parser);
+
+    const startTime = Date.now();
+
+    rowValidationStream.on("error", async (err) => {
+      const duration = Date.now() - startTime;
+      this.logger.error(`Stream error after ${duration}ms:`, err.message);
+      this.logger.error(`Name: ${err.name}`);
+      this.logger.error(`Stack: ${err.stack}`);
+
+      this.logger.error(`full error: ${err}`);
+      await this.fileSubmissionsService.updateFileStatus(
+        file_submission_id,
+        "ERROR",
+      );
+      await this.notificationsService.notifyUserOfError(file_submission_id);
+      return;
+    });
+
+    parser.on("error", (err) => {
+      this.logger.error("Parser error:", err.message);
+    });
+
+    parser.on("end", () => {
+      this.logger.log("Finished parsing file.");
+    });
+
+    let startValidation = 0,
+      endValidation = 0,
+      startObsValidation = 0,
+      endObsValidation = 0,
+      startRejectFile = 0,
+      endRejectFile = 0,
+      startReportValidated = 0,
+      endReportValidated = 0,
+      startImportNonObs = 0,
+      endImportNonObs = 0,
+      startImportObs = 0,
+      endImportObs = 0;
+
+    console.time("Validation");
+    startValidation = performance.now();
+
+    const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
+    let batch: any[] = [];
+    let rowNumber = 0;
+    let batchNumber = 1;
+
+    for await (const row of parser) {
+      rowNumber++;
+
+      if (rowNumber === 1) {
+        continue;
+      }
+
+      this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
+      batch.push(row);
+
+      if (batch.length === BATCH_SIZE) {
+        this.logger.log(`Created batch ${batchNumber}`);
+        this.logger.log(
+          `Starting to process batch ${batchNumber} ******************`,
+        );
+
+        for (const [index, row] of batch.entries()) {
+          let actualRowNumber =
+            index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+          await this.cleanAndValidate(
+            row,
+            headers,
+            actualRowNumber + 1,
+            ministryContacts,
+            csvStream,
+            allNonObsErrors,
+            allExistingRecords,
+            fileName,
+            extention,
+          );
+        }
+        this.logger.log(
+          `Finished processing batch ${batchNumber} ******************`,
+        );
+
+        batchNumber++;
+        batch = [];
+      }
+    }
+
+    if (batch.length > 0) {
+      this.logger.log(
+        `Starting to process (final) batch ${batchNumber} ******************`,
+      );
+
+      for (const [index, row] of batch.entries()) {
+        let actualRowNumber = index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+        await this.cleanAndValidate(
+          row,
+          headers,
+          actualRowNumber + 1,
+          ministryContacts,
+          csvStream,
+          allNonObsErrors,
+          allExistingRecords,
+          fileName,
+          extention,
+        );
+      }
+      this.logger.log(
+        `Finished processing (final) batch ${batchNumber} ******************`,
+      );
+    }
+
+    this.logger.log(`✅ All done. Processed ${rowNumber} rows.`);
+
+    console.timeEnd("Validation");
+    endValidation = performance.now();
+
+    csvStream.end();
+    console.time("obsValidation");
+    startObsValidation = performance.now();
+    const contactsAndValidationResults = await this.finalValidationStep(
+      ministryContacts,
+      filePath,
+      file_submission_id,
+      file_operation_code,
+      allNonObsErrors,
+    );
+    console.timeEnd("obsValidation");
+    endObsValidation = performance.now();
+
+    const hasError = contactsAndValidationResults[1].some(
+      (item) => item.type === "ERROR",
+    );
+
+    if (hasError) {
+      console.time("RejectFile");
+      startRejectFile = performance.now();
+      await this.rejectFileAndLogErrors(
+        file_submission_id,
+        fileName,
+        originalFileName,
+        file_operation_code,
+        contactsAndValidationResults[0],
+        contactsAndValidationResults[1],
+      );
+
+      fs.unlink(filePath, (err) => {
+        if (err) {
+          this.logger.error(`Error cleaning up tempObsFiles`, err);
+        } else {
+          this.logger.log(`Successfully cleaned up tempObsFiles.`);
+        }
+      });
+      console.timeEnd("RejectFile");
+      await this.notificationsService.notifyUserOfError(file_submission_id);
+      endRejectFile = performance.now();
+
+      return {
+        timings: {
+          startValidation,
+          endValidation,
+          startObsValidation,
+          endObsValidation,
+          startRejectFile,
+          endRejectFile,
+        },
+        hasError: true,
+      };
+    } else {
+      console.time("ReportValidated");
+      startReportValidated = performance.now();
+
+      if (file_operation_code === "VALIDATE") {
+        const file_error_log_data = {
+          file_submission_id: file_submission_id,
+          file_name: fileName,
+          original_file_name: originalFileName,
+          file_operation_code: file_operation_code,
+          ministry_contact: contactsAndValidationResults[0],
+          error_log: contactsAndValidationResults[1],
+          create_utc_timestamp: new Date(),
+        };
+
+        await this.fileSubmissionsService.updateFileStatus(
+          file_submission_id,
+          "VALIDATED",
+        );
+
+        await this.prisma.file_error_logs.create({
+          data: file_error_log_data,
+        });
+
+        fs.unlink(filePath, (err) => {
+          if (err) {
+            this.logger.error(`Error cleaning up tempObsFiles`, err);
+          } else {
+            this.logger.log(`Successfully cleaned up tempObsFiles.`);
+          }
+        });
+        console.timeEnd("ReportValidated");
+        endReportValidated = performance.now();
+        await this.notificationsService.notifyUserOfError(file_submission_id);
+
+        return {
+          timings: {
+            startValidation,
+            endValidation,
+            startObsValidation,
+            endObsValidation,
+            startReportValidated,
+            endReportValidated,
+          },
+          hasError: false,
+        };
+      } else {
+        const fileStreamPath = path.join("./src/tempObsFiles/", fileName);
+        const rowImportStream = fs.createReadStream(fileStreamPath);
+
+        const parser = parse({
+          columns: headers,
+          trim: true,
+        });
+
+        const startTime = Date.now();
+
+        rowImportStream.on("error", async (err) => {
+          const duration = Date.now() - startTime;
+          this.logger.error(`Stream error after ${duration}ms:`, err.message);
+          this.logger.error(`Name: ${err.name}`);
+          this.logger.error(`Stack: ${err.stack}`);
+
+          this.logger.error(`full error: ${err}`);
+          await this.fileSubmissionsService.updateFileStatus(
+            file_submission_id,
+            "ERROR",
+          );
+          await this.notificationsService.notifyUserOfError(file_submission_id);
+          return;
+        });
+
+        parser.on("error", (err) => {
+          this.logger.error("Parser error:", err.message);
+        });
+
+        parser.on("end", () => {
+          this.logger.log("Finished parsing file.");
+        });
+
+        rowImportStream.pipe(parser);
+
+        const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
+        let batch: any[] = [];
+        let rowNumber = 0;
+        let batchNumber = 1;
+
+        console.time("ImportNonObs");
+        startImportNonObs = performance.now();
+        this.logger.log(`Starting the import process`);
+
+        for await (const row of parser) {
+          rowNumber++;
+
+          if (rowNumber === 1) {
+            continue;
+          }
+
+          this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
+          batch.push(row);
+
+          if (batch.length === BATCH_SIZE) {
+            this.logger.log(`Created batch ${batchNumber}`);
+            this.logger.log(
+              `Starting to process batch ${batchNumber} ******************`,
+            );
+
+            for (const [index, row] of batch.entries()) {
+              let actualRowNumber =
+                index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+
+              let GuidsToSave = {
+                visits: [],
+                activities: [],
+                specimens: [],
+                observations: [],
+              };
+
+              await this.importRow(
+                row,
+                headers,
+                actualRowNumber,
+                fileName,
+                GuidsToSave,
+                extention,
+                file_submission_id,
+                originalFileName,
+                file_operation_code,
+                contactsAndValidationResults[0],
+                contactsAndValidationResults[1],
+                filePath,
+              );
+
+              if (partialUpload) {
+                this.logger.warn(
+                  `Partial upload detected, stopped processing the batch`,
+                );
+
+                break;
+              }
+            }
+
+            if (partialUpload) {
+              this.logger.warn("Partial upload, breaking out of loop");
+              break;
+            }
+
+            this.logger.log(
+              `Finished processing batch ${batchNumber} ******************`,
+            );
+
+            batchNumber++;
+            batch = [];
+          }
+        }
+
+        if (!partialUpload && batch.length > 0) {
+          this.logger.log(
+            `Starting to process (final) batch ${batchNumber} ******************`,
+          );
+
+          for (const [index, row] of batch.entries()) {
+            let actualRowNumber =
+              index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+            let GuidsToSave = {
+              visits: [],
+              activities: [],
+              specimens: [],
+              observations: [],
+            };
+
+            await this.importRow(
+              row,
+              headers,
+              actualRowNumber,
+              fileName,
+              GuidsToSave,
+              extention,
+              file_submission_id,
+              originalFileName,
+              file_operation_code,
+              ministryContacts,
+              contactsAndValidationResults[1],
+              filePath,
+            );
+            if (partialUpload) {
+              this.logger.warn(
+                `Partial upload detected, stopped processing the batch`,
+              );
+              break;
+            }
+          }
+
+          this.logger.log(
+            `Finished processing (final) batch ${batchNumber} ******************`,
+          );
+        }
+        console.timeEnd("ImportNonObs");
+        endImportNonObs = performance.now();
+
+        if (partialUpload) {
+          if (!rollBackHalted) {
+            await this.fileSubmissionsService.updateFileStatus(
+              file_submission_id,
+              "REJECTED",
+            );
+          }
+          this.logger.log("Partial upload detected, leaving import process");
+          return {
+            timings: {
+              startValidation,
+              endValidation,
+              startObsValidation,
+              endObsValidation,
+              startImportNonObs,
+              endImportNonObs,
+            },
+            hasError: false,
+          };
+        }
+
+        this.logger.log(`Starting import of observations`);
+
+        console.time("ImportObs");
+        startImportObs = performance.now();
+        await this.insertObservations(
+          fileName,
+          originalFileName,
+          filePath,
+          file_submission_id,
+          file_operation_code,
+          contactsAndValidationResults[0],
+          contactsAndValidationResults[1],
+        );
+        this.logger.log(`Completed import of observations`);
+
+        console.timeEnd("ImportObs");
+        endImportObs = performance.now();
+
+        return {
+          timings: {
+            startValidation,
+            endValidation,
+            startObsValidation,
+            endObsValidation,
+            startImportNonObs,
+            endImportNonObs,
+            startImportObs,
+            endImportObs,
+          },
+          hasError: false,
+        };
+      }
+    }
+  }
+
+  /**
+   * Main entry point for parsing and validating observation files
+   * Orchestrates the complete file processing workflow:
+   * 1. Detects file format (CSV or XLSX)
+   * 2. Validates headers and structure
+   * 3. Parses all rows into objects
+   * 4. Validates each record against business rules and AQI specifications
+   * 5. Handles file submission status and error reporting
+   *
+   * @param {Readable} file - File stream (CSV or XLSX content)
+   * @param {string} fileName - Processed file name (standardized)
+   * @param {string} originalFileName - Original file name from user
+   * @param {string} file_submission_id - Database ID of the file submission record
+   * @param {string} file_operation_code - Type of operation (IMPORT, UPDATE, DELETE, etc.)
+   * @returns {Promise<any>} Result object with status, error summary, and processed record counts
+   *
+   * @example
+   * const result = await service.parseFile(fileStream, 'obs_20240115_001.csv', 'observations.csv', 'sub123', 'IMPORT');
+   */
   async parseFile(
     file: Readable,
     fileName: string,
@@ -3847,1053 +5193,41 @@ export class FileParseValidateService {
       "INPROGRESS",
     );
 
-    const imported_guids_data = {
-      file_name: fileName,
-      original_file_name: originalFileName,
-      imported_guids: {
-        visits: [],
-        activities: [],
-        specimens: [],
-        observations: [],
-      },
-      create_utc_timestamp: new Date(),
-    };
+    const { filePath, csvStream, ministryContacts } =
+      await this.initializeParseFile(
+        fileName,
+        originalFileName,
+        file_submission_id,
+      );
 
-    await this.prisma.$transaction(async (prisma) => {
-      await prisma.aqi_imported_data.create({
-        data: imported_guids_data,
-      });
-    });
-
-    const ministryContacts = new Set();
-
-    const baseFileName = path.basename(fileName, path.extname(fileName));
-    const filePath = path.join(
-      "./src/tempObsFiles/",
-      `obs-${baseFileName}.csv`,
-    );
-
-    const writeStream = fs.createWriteStream(`${filePath}`);
-
-    const headers = Object.keys(obsFile);
-    const csvStream = format({ headers: true, quoteColumns: true });
-    csvStream.pipe(writeStream);
-    csvStream.write(headers);
+    let result: any = {};
 
     if (extention == ".xlsx") {
-      const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
-      let batch: any[] = [];
-      let batchNumber = 1;
-
-      // set up the observation csv file for the AQI APIs
       const workbook = new ExcelJS.Workbook();
-
       await workbook.xlsx.read(file);
-      const worksheet = workbook.worksheets[0];
-
-      if (worksheet === undefined) {
-        this.logger.error("No worksheet found in the Excel file.");
-        let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"File": "Incorrect file content. Please check the file and try again."}}`;
-
-        const file_error_log_data = {
-          file_submission_id: file_submission_id,
-          file_name: fileName,
-          original_file_name: originalFileName,
-          file_operation_code: file_operation_code,
-          ministry_contact: null,
-          error_log: [JSON.parse(errorLog)],
-          create_utc_timestamp: new Date(),
-        };
-
-        await this.prisma.file_error_logs.create({
-          data: file_error_log_data,
-        });
-
-        await this.fileSubmissionsService.updateFileStatus(
-          file_submission_id,
-          "REJECTED",
-        );
-        await this.benchmarkImport(
-          file_submission_id,
-          fileName,
-          originalFileName,
-          endValidation,
-          endObsValidation,
-          endImportNonObs,
-          endImportObs,
-          startValidation,
-          startObsValidation,
-          startImportNonObs,
-          startImportObs,
-        );
-
-        fs.unlink(filePath, (err) => {
-          if (err) {
-            this.logger.error(`Error cleaning up tempObsFiles`, err);
-          } else {
-            this.logger.log(`Successfully cleaned up tempObsFiles.`);
-          }
-        });
-
-        await this.notificationsService.notifyUserOfError(file_submission_id);
-
-        return;
-      }
-
-      const rowHeaders = (worksheet?.getRow(1).values as string[])
-        .slice(1) // Remove the first empty cell
-        .map((key) => key.replace(/\s+/g, "")); // Remove all whitespace from headers
-
-      const allNonObsErrors: any[] = [];
-      const allExistingRecords: any[] = [];
-
-      // do a validation on the headers
-      const headerErrors = await this.checkHeaders(
-        worksheet?.getRow(1).values as string[],
-        "xlsx",
-      );
-
-      if (headerErrors.length > 0) {
-        // there is an error in the headers. Report to the user and reject the file
-        const file_error_log_data = {
-          file_submission_id: file_submission_id,
-          file_name: fileName,
-          original_file_name: originalFileName,
-          file_operation_code: file_operation_code,
-          ministry_contact: null,
-          error_log: headerErrors,
-          create_utc_timestamp: new Date(),
-        };
-
-        await this.prisma.file_error_logs.create({
-          data: file_error_log_data,
-        });
-
-        await this.fileSubmissionsService.updateFileStatus(
-          file_submission_id,
-          "REJECTED",
-        );
-        await this.benchmarkImport(
-          file_submission_id,
-          fileName,
-          originalFileName,
-          endValidation,
-          endObsValidation,
-          endImportNonObs,
-          endImportObs,
-          startValidation,
-          startObsValidation,
-          startImportNonObs,
-          startImportObs,
-        );
-
-        fs.unlink(filePath, (err) => {
-          if (err) {
-            this.logger.error(`Error cleaning up tempObsFiles`, err);
-          } else {
-            this.logger.log(`Successfully cleaned up tempObsFiles.`);
-          }
-        });
-
-        await this.notificationsService.notifyUserOfError(file_submission_id);
-
-        return;
-      }
-
-      console.time("Validation");
-      startValidation = performance.now();
-      for (let rowNumber = 2; rowNumber <= worksheet?.rowCount; rowNumber++) {
-        const row = worksheet?.getRow(rowNumber);
-
-        if (rowNumber === 1) {
-          return; // Skip header row
-        }
-
-        this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
-        batch.push(row);
-
-        if (batch.length === BATCH_SIZE) {
-          this.logger.log(`Created batch ${batchNumber}`);
-          this.logger.log(
-            `Starting to process batch ${batchNumber} ******************`,
-          );
-
-          for (const [index, row] of batch.entries()) {
-            let actualRowNumber =
-              index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
-            await this.cleanAndValidate(
-              row,
-              rowHeaders,
-              actualRowNumber + 1,
-              ministryContacts,
-              csvStream,
-              allNonObsErrors,
-              allExistingRecords,
-              fileName,
-              extention,
-            );
-          }
-          this.logger.log(
-            `Finished processing batch ${batchNumber} ******************`,
-          );
-
-          batchNumber++;
-          batch = [];
-        }
-      }
-
-      if (batch.length > 0) {
-        this.logger.log(
-          `Starting to process (final) batch ${batchNumber} ******************`,
-        );
-
-        for (const [index, row] of batch.entries()) {
-          let actualRowNumber =
-            index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
-          await this.cleanAndValidate(
-            row,
-            rowHeaders,
-            actualRowNumber + 1,
-            ministryContacts,
-            csvStream,
-            allNonObsErrors,
-            allExistingRecords,
-            fileName,
-            extention,
-          );
-        }
-        this.logger.log(
-          `Finished processing (final) batch ${batchNumber} ******************`,
-        );
-      }
-
-      console.timeEnd("Validation");
-      endValidation = performance.now();
-
-      csvStream.end();
-      console.time("obsValidation");
-      startObsValidation = performance.now();
-      const contactsAndValidationResults = await this.finalValidationStep(
-        ministryContacts,
-        filePath,
+      result = await this.processXlsxFile(
+        workbook,
+        fileName,
+        extention,
         file_submission_id,
         file_operation_code,
-        allNonObsErrors,
+        originalFileName,
+        filePath,
+        csvStream,
+        ministryContacts,
       );
-      console.timeEnd("obsValidation");
-      endObsValidation = performance.now();
-
-      const hasError = contactsAndValidationResults[1].some(
-        (item) => item.type === "ERROR",
-      );
-      const hasWarn = contactsAndValidationResults[1].some(
-        (item) => item.type === "WARN",
-      );
-
-      if (hasError) {
-        /*
-         * If there are any errors then
-         * Set the file status to 'REJECTED'
-         * Save the error logs to the database table
-         * Send the an email to the submitter and the ministry contact that is inside the file
-         */
-        console.time("RejectFile");
-        startRejectFile = performance.now();
-        await this.rejectFileAndLogErrors(
-          file_submission_id,
-          fileName,
-          originalFileName,
-          file_operation_code,
-          contactsAndValidationResults[0], // ministry contacts
-          contactsAndValidationResults[1], // validation results
-        );
-
-        fs.unlink(filePath, (err) => {
-          if (err) {
-            this.logger.error(`Error cleaning up tempObsFiles`, err);
-          } else {
-            this.logger.log(`Successfully cleaned up tempObsFiles.`);
-          }
-        });
-
-        console.timeEnd("RejectFile");
-
-        await this.notificationsService.notifyUserOfError(file_submission_id);
-        endRejectFile = performance.now();
-        await this.benchmarkImport(
-          file_submission_id,
-          fileName,
-          originalFileName,
-          endValidation,
-          endObsValidation,
-          endImportNonObs,
-          endImportObs,
-          startValidation,
-          startObsValidation,
-          startImportNonObs,
-          startImportObs,
-        );
-
-        return;
-      } else {
-        /*
-         * If there are no errors then
-         * i.e. the file may have WARNINGS - if records already exist
-         */
-        // If there are no errors or warnings
-        console.time("ReportValidated");
-        startReportValidated = performance.now();
-        if (file_operation_code === "VALIDATE") {
-          const file_error_log_data = {
-            file_submission_id: file_submission_id,
-            file_name: fileName,
-            original_file_name: originalFileName,
-            file_operation_code: file_operation_code,
-            ministry_contact: contactsAndValidationResults[0],
-            error_log: contactsAndValidationResults[1],
-            create_utc_timestamp: new Date(),
-          };
-
-          await this.fileSubmissionsService.updateFileStatus(
-            file_submission_id,
-            "VALIDATED",
-          );
-
-          await this.prisma.file_error_logs.create({
-            data: file_error_log_data,
-          });
-
-          fs.unlink(filePath, (err) => {
-            if (err) {
-              this.logger.error(`Error cleaning up tempObsFiles`, err);
-            } else {
-              this.logger.log(`Successfully cleaned up tempObsFiles.`);
-            }
-          });
-          console.timeEnd("ReportValidated");
-
-          await this.notificationsService.notifyUserOfError(file_submission_id);
-          endReportValidated = performance.now();
-          await this.benchmarkImport(
-            file_submission_id,
-            fileName,
-            originalFileName,
-            endValidation,
-            endObsValidation,
-            endImportNonObs,
-            endImportObs,
-            startValidation,
-            startObsValidation,
-            startImportNonObs,
-            startImportObs,
-          );
-
-          return;
-        } else {
-          const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
-          let batch: any[] = [];
-          let batchNumber = 1;
-
-          console.time("ImportNonObs");
-          startImportNonObs = performance.now();
-          this.logger.log(`Starting the import process`);
-          for (
-            let rowNumber = 2;
-            rowNumber <= worksheet?.rowCount;
-            rowNumber++
-          ) {
-            const row = worksheet?.getRow(rowNumber);
-
-            if (rowNumber === 1) {
-              return; // Skip header row
-            }
-
-            this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
-            batch.push(row);
-            this.logger.log(`Beginning processing row: ${rowNumber}`);
-
-            if (batch.length === BATCH_SIZE) {
-              this.logger.log(`Created batch ${batchNumber}`);
-              this.logger.log(
-                `Starting to process batch ${batchNumber} ******************`,
-              );
-
-              for (const [index, row] of batch.entries()) {
-                let actualRowNumber =
-                  index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
-
-                let GuidsToSave = {
-                  visits: [],
-                  activities: [],
-                  specimens: [],
-                  observations: [],
-                };
-                await this.importRow(
-                  row,
-                  rowHeaders,
-                  actualRowNumber,
-                  fileName,
-                  GuidsToSave,
-                  extention,
-                  file_submission_id,
-                  originalFileName,
-                  file_operation_code,
-                  ministryContacts,
-                  contactsAndValidationResults[1],
-                  filePath,
-                );
-
-                // if a partial upload then stop processing the batch and return
-                if (partialUpload) {
-                  this.logger.warn(
-                    `Partial upload detected, stopped processing the batch`,
-                  );
-                  break;
-                }
-              }
-
-              // leave the for loop for row iteration
-              if (partialUpload) {
-                break;
-              }
-
-              this.logger.log(
-                `Finished processing batch ${batchNumber} ******************`,
-              );
-
-              batchNumber++;
-              batch = [];
-            }
-          }
-          if (!partialUpload && batch.length > 0) {
-            this.logger.log(
-              `Starting to process (final) batch ${batchNumber} ******************`,
-            );
-
-            for (const [index, row] of batch.entries()) {
-              let actualRowNumber =
-                index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
-              let GuidsToSave = {
-                visits: [],
-                activities: [],
-                specimens: [],
-                observations: [],
-              };
-              await this.importRow(
-                row,
-                rowHeaders,
-                actualRowNumber,
-                fileName,
-                GuidsToSave,
-                extention,
-                file_submission_id,
-                originalFileName,
-                file_operation_code,
-                ministryContacts,
-                contactsAndValidationResults[1],
-                filePath,
-              );
-              // if a partial upload then stop processing the batch and do the rollback
-              if (partialUpload) {
-                this.logger.warn(
-                  `Partial upload detected, stopped processing the batch`,
-                );
-                break;
-              }
-            }
-
-            this.logger.log(
-              `Finished processing (final) batch ${batchNumber} ******************`,
-            );
-          }
-          console.timeEnd("ImportNonObs");
-          endImportNonObs = performance.now();
-
-          if (partialUpload) {
-            if (!rollBackHalted) {
-              await this.fileSubmissionsService.updateFileStatus(
-                file_submission_id,
-                "REJECTED",
-              );
-            }
-            this.logger.log("Partial upload detected, leaving import process");
-            return;
-          }
-
-          console.time("ImportObs");
-          startImportObs = performance.now();
-          this.logger.log(`Starting import of observations`);
-          await this.insertObservations(
-            fileName,
-            originalFileName,
-            filePath,
-            file_submission_id,
-            file_operation_code,
-            contactsAndValidationResults[0],
-            contactsAndValidationResults[1],
-          );
-          this.logger.log(`Completed import for observations`);
-          console.timeEnd("ImportObs");
-          endImportObs = performance.now();
-        }
-      }
     } else if (extention == ".csv" || extention == ".txt") {
-      const allNonObsErrors: any[] = [];
-      const allExistingRecords: any[] = [];
-      const headersForValidation: string[] = [];
-      const headers: string[] = [];
-      let delimiterErrors = [];
-
-      if (extention == ".txt") {
-        delimiterErrors = await this.checkDelimiterErrors(file);
-      }
-
-      if (delimiterErrors.length > 0) {
-        // there is an error in the file delimiter. Report to the user and reject the file
-        const file_error_log_data = {
-          file_submission_id: file_submission_id,
-          file_name: fileName,
-          original_file_name: originalFileName,
-          file_operation_code: file_operation_code,
-          ministry_contact: null,
-          error_log: delimiterErrors,
-          create_utc_timestamp: new Date(),
-        };
-
-        await this.prisma.file_error_logs.create({
-          data: file_error_log_data,
-        });
-
-        await this.fileSubmissionsService.updateFileStatus(
-          file_submission_id,
-          "REJECTED",
-        );
-        await this.benchmarkImport(
-          file_submission_id,
-          fileName,
-          originalFileName,
-          endValidation,
-          endObsValidation,
-          endImportNonObs,
-          endImportObs,
-          startValidation,
-          startObsValidation,
-          startImportNonObs,
-          startImportObs,
-        );
-
-        return;
-      }
-
-      let isFirstRow = true;
-      file
-        .pipe(
-          parse({
-            columns: false,
-            trim: true,
-          }),
-        )
-        .on("data", (row: string[]) => {
-          if (isFirstRow) {
-            isFirstRow = false;
-
-            headers.push(...row.map((key) => key.replace(/\s+/g, "")));
-            headersForValidation.push(...row);
-          }
-        })
-        .on("end", () => {
-          this.logger.log("Got the file headers");
-        })
-        .on("error", (err) => {
-          this.logger.error(
-            "Error while parsing file for headers:",
-            err.message,
-          );
-        });
-
-      await new Promise((f) => setTimeout(f, 1000));
-
-      // do a validation on the headers
-      const headerErrors = await this.checkHeaders(headersForValidation, "csv");
-
-      if (headerErrors.length > 0) {
-        // there is an error in the headers. Report to the user and reject the file
-        const file_error_log_data = {
-          file_submission_id: file_submission_id,
-          file_name: fileName,
-          original_file_name: originalFileName,
-          file_operation_code: file_operation_code,
-          ministry_contact: null,
-          error_log: headerErrors,
-          create_utc_timestamp: new Date(),
-        };
-
-        await this.prisma.file_error_logs.create({
-          data: file_error_log_data,
-        });
-
-        await this.fileSubmissionsService.updateFileStatus(
-          file_submission_id,
-          "REJECTED",
-        );
-        await this.benchmarkImport(
-          file_submission_id,
-          fileName,
-          originalFileName,
-          endValidation,
-          endObsValidation,
-          endImportNonObs,
-          endImportObs,
-          startValidation,
-          startObsValidation,
-          startImportNonObs,
-          startImportObs,
-        );
-
-        fs.unlink(filePath, (err) => {
-          if (err) {
-            this.logger.error(`Error cleaning up tempObsFiles`, err);
-          } else {
-            this.logger.log(`Successfully cleaned up tempObsFiles.`);
-          }
-        });
-
-        await this.notificationsService.notifyUserOfError(file_submission_id);
-
-        return;
-      }
-
-      // re-fetch the file from the temp directory for validation
-      const fileStreamPath = path.join("./src/tempObsFiles/", fileName);
-      const rowValidationStream = fs.createReadStream(fileStreamPath);
-
-      const parser = parse({
-        columns: headers,
-        trim: true,
-      });
-      rowValidationStream.pipe(parser);
-
-      const startTime = Date.now();
-
-      // Set up the error and end handlers *before* piping
-      rowValidationStream.on("error", async (err) => {
-        const duration = Date.now() - startTime;
-        this.logger.error(`Stream error after ${duration}ms:`, err.message);
-        this.logger.error(`Name: ${err.name}`);
-        this.logger.error(`Stack: ${err.stack}`);
-
-        this.logger.error(`full error: ${err}`);
-        await this.fileSubmissionsService.updateFileStatus(
-          file_submission_id,
-          "ERROR",
-        );
-        await this.notificationsService.notifyUserOfError(file_submission_id);
-        return;
-      });
-
-      parser.on("error", (err) => {
-        this.logger.error("Parser error:", err.message);
-      });
-
-      parser.on("end", () => {
-        this.logger.log("Finished parsing file.");
-      });
-
-      console.time("Validation");
-      startValidation = performance.now();
-      // Pipe immediately after setting up handlers
-
-      const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
-      let batch: any[] = [];
-      let rowNumber = 0;
-      let batchNumber = 1;
-
-      for await (const row of parser) {
-        rowNumber++;
-
-        if (rowNumber === 1) {
-          continue;
-        }
-
-        this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
-        batch.push(row);
-
-        if (batch.length === BATCH_SIZE) {
-          this.logger.log(`Created batch ${batchNumber}`);
-          this.logger.log(
-            `Starting to process batch ${batchNumber} ******************`,
-          );
-
-          for (const [index, row] of batch.entries()) {
-            let actualRowNumber =
-              index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
-            await this.cleanAndValidate(
-              row,
-              headers,
-              actualRowNumber + 1,
-              ministryContacts,
-              csvStream,
-              allNonObsErrors,
-              allExistingRecords,
-              fileName,
-              extention,
-            );
-          }
-          this.logger.log(
-            `Finished processing batch ${batchNumber} ******************`,
-          );
-
-          batchNumber++;
-          batch = [];
-        }
-      }
-
-      if (batch.length > 0) {
-        this.logger.log(
-          `Starting to process (final) batch ${batchNumber} ******************`,
-        );
-
-        for (const [index, row] of batch.entries()) {
-          let actualRowNumber =
-            index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
-          await this.cleanAndValidate(
-            row,
-            headers,
-            actualRowNumber + 1,
-            ministryContacts,
-            csvStream,
-            allNonObsErrors,
-            allExistingRecords,
-            fileName,
-            extention,
-          );
-        }
-        this.logger.log(
-          `Finished processing (final) batch ${batchNumber} ******************`,
-        );
-      }
-
-      this.logger.log(`✅ All done. Processed ${rowNumber} rows.`);
-
-      console.timeEnd("Validation");
-      endValidation = performance.now();
-
-      csvStream.end();
-      console.time("obsValidation");
-      startObsValidation = performance.now();
-      const contactsAndValidationResults = await this.finalValidationStep(
-        ministryContacts,
-        filePath,
+      result = await this.processCsvFile(
+        file,
+        fileName,
+        extention,
         file_submission_id,
         file_operation_code,
-        allNonObsErrors,
+        originalFileName,
+        filePath,
+        csvStream,
+        ministryContacts,
       );
-      console.timeEnd("obsValidation");
-      endObsValidation = performance.now();
-
-      const hasError = contactsAndValidationResults[1].some(
-        (item) => item.type === "ERROR",
-      );
-      const hasWarn = contactsAndValidationResults[1].some(
-        (item) => item.type === "WARN",
-      );
-
-      if (hasError) {
-        /*
-         * If there are any errors then
-         * Set the file status to 'REJECTED'
-         * Save the error logs to the database table
-         * Send the an email to the submitter and the ministry contact that is inside the file
-         */
-        console.time("RejectFile");
-        startRejectFile = performance.now();
-        await this.rejectFileAndLogErrors(
-          file_submission_id,
-          fileName,
-          originalFileName,
-          file_operation_code,
-          contactsAndValidationResults[0],
-          contactsAndValidationResults[1],
-        );
-
-        fs.unlink(filePath, (err) => {
-          if (err) {
-            this.logger.error(`Error cleaning up tempObsFiles`, err);
-          } else {
-            this.logger.log(`Successfully cleaned up tempObsFiles.`);
-          }
-        });
-        console.timeEnd("RejectFile");
-        await this.notificationsService.notifyUserOfError(file_submission_id);
-        endRejectFile = performance.now();
-        await this.benchmarkImport(
-          file_submission_id,
-          fileName,
-          originalFileName,
-          endValidation,
-          endObsValidation,
-          endImportNonObs,
-          endImportObs,
-          startValidation,
-          startObsValidation,
-          startImportNonObs,
-          startImportObs,
-        );
-
-        return;
-      } else {
-        /*
-         * If there are no errors then
-         * i.e. the file may have WARNINGS - if records already exist
-         */
-        // If there are no errors or warnings
-        console.time("ReportValidated");
-        startReportValidated = performance.now();
-
-        if (file_operation_code === "VALIDATE") {
-          const file_error_log_data = {
-            file_submission_id: file_submission_id,
-            file_name: fileName,
-            original_file_name: originalFileName,
-            file_operation_code: file_operation_code,
-            ministry_contact: contactsAndValidationResults[0],
-            error_log: contactsAndValidationResults[1],
-            create_utc_timestamp: new Date(),
-          };
-
-          await this.fileSubmissionsService.updateFileStatus(
-            file_submission_id,
-            "VALIDATED",
-          );
-
-          await this.prisma.file_error_logs.create({
-            data: file_error_log_data,
-          });
-
-          fs.unlink(filePath, (err) => {
-            if (err) {
-              this.logger.error(`Error cleaning up tempObsFiles`, err);
-            } else {
-              this.logger.log(`Successfully cleaned up tempObsFiles.`);
-            }
-          });
-          console.timeEnd("ReportValidated");
-          endReportValidated = performance.now();
-          await this.benchmarkImport(
-            file_submission_id,
-            fileName,
-            originalFileName,
-            endValidation,
-            endObsValidation,
-            endImportNonObs,
-            endImportObs,
-            startValidation,
-            startObsValidation,
-            startImportNonObs,
-            startImportObs,
-          );
-
-          await this.notificationsService.notifyUserOfError(file_submission_id);
-
-          return;
-        } else {
-          /*
-           * If the local validation passed then split the file into 4 and process with the AQI API calls
-           * Get unique records to prevent redundant API calls
-           * Post the unique records to the API
-           * Expand the returned list of object - this will be used for finding unique activities
-           */
-
-          // re-fetch the file for import purposes - cannot use previously fetched stream
-          console.time("ImportNonObs");
-          startImportNonObs = performance.now();
-          this.logger.log(`Starting the import process`);
-          const fileStreamPath = path.join("./src/tempObsFiles/", fileName);
-          const rowImportStream = fs.createReadStream(fileStreamPath);
-
-          const parser = parse({
-            columns: headers,
-            trim: true,
-          });
-
-          const startTime = Date.now();
-
-          // Set up the error and end handlers *before* piping
-          rowImportStream.on("error", async (err) => {
-            const duration = Date.now() - startTime;
-            this.logger.error(`Stream error after ${duration}ms:`, err.message);
-            this.logger.error(`Name: ${err.name}`);
-            this.logger.error(`Stack: ${err.stack}`);
-
-            this.logger.error(`full error: ${err}`);
-            await this.fileSubmissionsService.updateFileStatus(
-              file_submission_id,
-              "ERROR",
-            );
-            await this.notificationsService.notifyUserOfError(
-              file_submission_id,
-            );
-            return;
-          });
-
-          parser.on("error", (err) => {
-            this.logger.error("Parser error:", err.message);
-          });
-
-          parser.on("end", () => {
-            this.logger.log("Finished parsing file.");
-          });
-
-          // Pipe + iterate
-          rowImportStream.pipe(parser);
-
-          const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
-          let batch: any[] = [];
-          let rowNumber = 0;
-          let batchNumber = 1;
-
-          for await (const row of parser) {
-            rowNumber++;
-
-            if (rowNumber === 1) {
-              continue;
-            }
-
-            this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
-            batch.push(row);
-
-            if (batch.length === BATCH_SIZE) {
-              this.logger.log(`Created batch ${batchNumber}`);
-              this.logger.log(
-                `Starting to process batch ${batchNumber} ******************`,
-              );
-
-              for (const [index, row] of batch.entries()) {
-                let actualRowNumber =
-                  index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
-
-                let GuidsToSave = {
-                  visits: [],
-                  activities: [],
-                  specimens: [],
-                  observations: [],
-                };
-
-                await this.importRow(
-                  row,
-                  headers,
-                  actualRowNumber,
-                  fileName,
-                  GuidsToSave,
-                  extention,
-                  file_submission_id,
-                  originalFileName,
-                  file_operation_code,
-                  contactsAndValidationResults[0],
-                  contactsAndValidationResults[1],
-                  filePath,
-                );
-
-                // if a partial upload then stop processing the batch
-                if (partialUpload) {
-                  this.logger.warn(
-                    `Partial upload detected, stopped processing the batch`,
-                  );
-
-                  break;
-                }
-              }
-
-              // leave the for loop for row iteration
-              if (partialUpload) {
-                this.logger.warn("Partial upload, breaking out of loop");
-                break;
-              }
-
-              this.logger.log(
-                `Finished processing batch ${batchNumber} ******************`,
-              );
-
-              batchNumber++;
-              batch = [];
-            }
-          }
-
-          if (!partialUpload && batch.length > 0) {
-            this.logger.log(
-              `Starting to process (final) batch ${batchNumber} ******************`,
-            );
-
-            for (const [index, row] of batch.entries()) {
-              let actualRowNumber =
-                index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
-              let GuidsToSave = {
-                visits: [],
-                activities: [],
-                specimens: [],
-                observations: [],
-              };
-
-              await this.importRow(
-                row,
-                headers,
-                actualRowNumber,
-                fileName,
-                GuidsToSave,
-                extention,
-                file_submission_id,
-                originalFileName,
-                file_operation_code,
-                ministryContacts,
-                contactsAndValidationResults[1],
-                filePath,
-              );
-              // if a partial upload then stop processing the batch
-              if (partialUpload) {
-                this.logger.warn(
-                  `Partial upload detected, stopped processing the batch`,
-                );
-                break;
-              }
-            }
-
-            this.logger.log(
-              `Finished processing (final) batch ${batchNumber} ******************`,
-            );
-          }
-          console.timeEnd("ImportNonObs");
-          endImportNonObs = performance.now();
-
-          if (partialUpload) {
-            if (!rollBackHalted) {
-              await this.fileSubmissionsService.updateFileStatus(
-                file_submission_id,
-                "REJECTED",
-              );
-            }
-            this.logger.log("Partial upload detected, leaving import process");
-            return;
-          }
-
-          this.logger.log(`Starting import of observations`);
-
-          console.time("ImportObs");
-          startImportObs = performance.now();
-          await this.insertObservations(
-            fileName,
-            originalFileName,
-            filePath,
-            file_submission_id,
-            file_operation_code,
-            contactsAndValidationResults[0],
-            contactsAndValidationResults[1],
-          );
-          this.logger.log(`Completed import of observations`);
-
-          console.timeEnd("ImportObs");
-          endImportObs = performance.now();
-        }
-      }
     }
 
     console.timeEnd("parseFile");

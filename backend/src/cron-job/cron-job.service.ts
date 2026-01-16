@@ -5,6 +5,7 @@ import { PrismaService } from "nestjs-prisma";
 import { FileParseValidateService } from "src/file_parse_and_validation/file_parse_and_validation.service";
 import { ObjectStoreService } from "src/objectStore/objectStore.service";
 import { OperationLockService } from "src/operationLock/operationLock.service";
+import { CacheService } from "src/cache/cache.service";
 import * as fs from "fs";
 import path from "path";
 
@@ -26,6 +27,7 @@ export class CronJobService {
     private readonly fileParser: FileParseValidateService,
     private readonly objectStore: ObjectStoreService,
     private readonly operationLockService: OperationLockService,
+    private readonly cacheService: CacheService,
   ) {
     this.tableModels = new Map<string, any>([
       ["aqi_projects", this.prisma.aqi_projects],
@@ -346,7 +348,12 @@ export class CronJobService {
     let refreshStarted = false;
     let refreshCompleted = false;
     const deadline = new Date();
-    deadline.setHours(parseInt(process.env.MAINTENANCE_WINDOW_DEADLINE) || 4, 0, 0, 0); // 4:00 AM today
+    deadline.setHours(
+      parseInt(process.env.MAINTENANCE_WINDOW_DEADLINE) || 4,
+      0,
+      0,
+      0,
+    ); // 4:00 AM today
 
     // Wait for FILE_PROCESSING to finish if running
     while (
@@ -360,17 +367,22 @@ export class CronJobService {
     // Wait for AQSS health check to pass before acquiring REFRESH lock
     while (new Date() < deadline) {
       let aqiHealthy = await this.AQSSHealthCheck();
-      
+
       if (aqiHealthy) {
         break;
       } else {
-        this.logger.warn("AQSS health check failed. Retrying in 1 minute until 4am or success.");
+        this.logger.warn(
+          "AQSS health check failed. Retrying in 1 minute until 4am or success.",
+        );
         await new Promise((resolve) => setTimeout(resolve, 60000)); // wait 1 minute
       }
     }
 
     // Try to acquire REFRESH lock
-    if (this.operationLockService.acquireLock("REFRESH") && new Date() < deadline) {
+    if (
+      this.operationLockService.acquireLock("REFRESH") &&
+      new Date() < deadline
+    ) {
       refreshStarted = true;
       try {
         this.logger.log(`Starting the database drop and replace`);
@@ -435,9 +447,13 @@ export class CronJobService {
               : `${baseUrl + api.endpoint}${api.paramsEnabled ? (cursor ? `?limit=1000&cursor=${cursor}` : "?limit=1000") : ""}`;
           const response = await axios.get(url);
 
-          if (!response || typeof response.status === 'undefined' || response.status != 200) {
+          if (
+            !response ||
+            typeof response.status === "undefined" ||
+            response.status != 200
+          ) {
             this.logger.error(
-              `Could not ping AQI API for ${api.endpoint}. Response Code: ${response && typeof response.status !== 'undefined' ? response.status : 'No response status'}`,
+              `Could not ping AQI API for ${api.endpoint}. Response Code: ${response && typeof response.status !== "undefined" ? response.status : "No response status"}`,
             );
             return;
           }
@@ -485,6 +501,15 @@ export class CronJobService {
       this.logger.log(`Data pull down from AQI completed.`);
       this.logger.log(`Completed pulldown at hour: ${new Date().getHours()}`);
       this.lastPulldownHour = new Date().getHours();
+
+      // Refresh the cache with newly updated data
+      try {
+        this.logger.log("Refreshing in-memory cache with updated data");
+        await this.cacheService.refreshCache();
+        this.logger.log("Cache refresh completed successfully");
+      } catch (error) {
+        this.logger.error("Error refreshing cache after data pull:", error);
+      }
     }
   }
 
@@ -638,10 +663,13 @@ export class CronJobService {
       aqiStatus = (await axios.get(healthcheckUrl)).status;
       this.logger.log(aqiStatus ? `AQI is healthy.` : `AQI is unhealthy.`);
     } catch (err) {
-      if (err && err.response && typeof err.response.status !== 'undefined') {
+      if (err && err.response && typeof err.response.status !== "undefined") {
         aqiStatus = err.response.status;
       } else {
-        this.logger.error('AQI health check failed and no response status is available:', err);
+        this.logger.error(
+          "AQI health check failed and no response status is available:",
+          err,
+        );
         aqiStatus = null;
       }
     }
@@ -651,7 +679,7 @@ export class CronJobService {
         `Third party service, AQI, is currently unavailable. Operations will be skipped until AQS is back online.`,
       );
       return false;
-    }else{
+    } else {
       return true;
     }
   }
@@ -758,7 +786,9 @@ export class CronJobService {
           if (this.lastPulldownHour === null) {
             this.lastPulldownHour = now.getHours();
           } else if (now.getHours() !== this.lastPulldownHour) {
-            this.logger.log("Hour change detected during file processing. Initiating data pull down from AQI before next file.");
+            this.logger.log(
+              "Hour change detected during file processing. Initiating data pull down from AQI before next file.",
+            );
             await this.fetchAQSSData();
             this.lastPulldownHour = now.getHours(); // keep both in sync
             this.logger.log("Continuing to file processing after pulldown.");
