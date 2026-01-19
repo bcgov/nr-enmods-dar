@@ -28,6 +28,7 @@ import { ObjectStoreModule } from "./objectStore/objectStore.module";
 import { FileErrorLogsModule } from "./file_error_logs/file_error_logs.module";
 import { OperationLockService } from "./operationLock/operationLock.service";
 import { ApiKeysModule } from "./api_keys/api_keys.module";
+import { CacheModule } from "./cache/cache.module";
 
 const DB_HOST = process.env.POSTGRES_HOST || "localhost";
 const DB_USER = process.env.POSTGRES_USER || "postgres";
@@ -78,6 +79,7 @@ function getMiddlewares() {
     ObjectStoreModule,
     FileErrorLogsModule,
     ApiKeysModule,
+    CacheModule,
   ],
   controllers: [AppController, MetricsController, HealthController],
   providers: [AppService, CronJobService, OperationLockService],
