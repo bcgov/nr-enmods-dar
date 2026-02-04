@@ -1,6 +1,6 @@
 import _ from "~/cypress/types/lodash";
 import _kc from "../keycloak";
-import config from "@/config";
+import config from "../config"
 
 export const AUTH_TOKEN = "__auth_token";
 
