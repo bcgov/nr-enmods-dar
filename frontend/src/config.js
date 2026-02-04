@@ -11,7 +11,7 @@ const config = {
 
   KEYCLOAK_URL: window.VITE_APP_KEYCLOAK_URL || import.meta.env.VITE_APP_KEYCLOAK_URL || window.REACT_APP_KEYCLOAK_URL || process.env.REACT_APP_KEYCLOAK_URL,
 
-  SMT_URL: window.VITE_APP_SMT_URL || import.meta.env.VITE_APP_SMT_URL || window.REACT_APP_SMT_URL || process.env.REACT_APP_SMT_URL,
+  SMT_URL: window.VITE_SMT_URL || import.meta.env.VITE_SMT_URL || window.REACT_APP_SMT_URL || process.env.REACT_APP_SMT_URL,
 
   KEYCLOAK_REALM: window.VITE_APP_KEYCLOAK_REALM || import.meta.env.VITE_APP_KEYCLOAK_REALM || "standard",
 
