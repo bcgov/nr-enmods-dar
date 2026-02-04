@@ -97,7 +97,7 @@ const doLogout = () => {
   console.log("Redirecting to logout URL:", smLogoutUrl);
   console.log("App logout URL:", appLogoutUrl);
 
-  window.location.href = smLogoutUrl;
+  // window.location.href = smLogoutUrl;
 };
 
 const getToken = () => _kc.token;
