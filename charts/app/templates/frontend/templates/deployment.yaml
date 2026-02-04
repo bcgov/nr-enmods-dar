@@ -55,11 +55,6 @@ spec:
                 secretKeyRef:
                   name: react-app
                   key: keycloak-client-id
-            - name: SMT_URL
-              valueFrom:
-                secretKeyRef:
-                  name: react-app
-                  key: smt-url
           ports:
             - name: http
               containerPort: 3000
