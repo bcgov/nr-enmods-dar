@@ -20,6 +20,7 @@
 		}
 		respond `
 				window.REACT_APP_KEYCLOAK_URL="{$KEYCLOAK_URL}";
+				window.REACT_APP_SMT_URL="{$SMT_URL}";
 				window.REACT_APP_KEYCLOAK_REALM="standard";
 				window.REACT_APP_KEYCLOAK_CLIENT_ID="enmods-5391";
 				window.REACT_APP_API_URL="{$BACKEND_URL}";

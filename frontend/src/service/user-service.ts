@@ -1,6 +1,7 @@
 import _ from "~/cypress/types/lodash";
 import _kc from "../keycloak";
-import { jwtDecode } from "jwt-decode";
+import config from "../config"
+
 export const AUTH_TOKEN = "__auth_token";
 
 /**
@@ -79,15 +80,21 @@ const doLogin = _kc.login;
  * Enhanced logout to clear tokens and use id_token_hint and post_logout_redirect_uri
  */
 const doLogout = () => {
-  // Remove local token
   localStorage.removeItem(AUTH_TOKEN);
-  // Call Keycloak logout with id_token_hint and post_logout_redirect_uri
-  let logoutUrl =
-    `${_kc.authServerUrl}/realms/${_kc.realm}/protocol/openid-connect/logout` +
-    `?id_token_hint=${_kc.idToken}` +
-    `&post_logout_redirect_uri=${encodeURIComponent(window.location.origin)}`;
-  window.location.href = logoutUrl;
 
+  // Clear all cookies
+  document.cookie.split(";").forEach((c) => {
+    const eqPos = c.indexOf("=");
+    const name = eqPos > -1 ? c.substr(0, eqPos).trim() : c.trim();
+    document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; Secure; SameSite=Strict`;
+  });
+ 
+  // Redirect to Keycloak logout
+  const appLogoutUrl = `${_kc.authServerUrl}/realms/${_kc.realm}/protocol/openid-connect/logout?id_token_hint=${_kc.idToken}&post_logout_redirect_uri=${encodeURIComponent(window.location.origin)}`;
+
+  const smLogoutUrl = `${config.SMT_URL}/clp-cgi/logoff.cgi?retnow=1&returl=${encodeURIComponent(appLogoutUrl)}`;
+
+  window.location.href = smLogoutUrl;
 };
 
 const getToken = () => _kc.token;
