@@ -1462,6 +1462,7 @@ export class FileParseValidateService {
       rowData["DataClassification"] === "SURROGATE_RESULT";
 
     if (!isLabData) {
+      console.log('returning')
       return errors;
     }
 
@@ -1505,7 +1506,7 @@ export class FileParseValidateService {
           });
         } else {
           const present = await this.aqiService.databaseLookup(
-            "aqi_analyzing_agency",
+            "aqi_laboratories",
             rowData.AnalyzingAgency,
           );
           if (!present) {
