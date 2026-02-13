@@ -17,7 +17,6 @@ import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import { OperationLockService } from "src/operationLock/operationLock.service";
 import { equals } from "class-validator";
-import { distinct } from "rxjs";
 import { Role } from "src/enum/role.enum";
 
 @Injectable()
