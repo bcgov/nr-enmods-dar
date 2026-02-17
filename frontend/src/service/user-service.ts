@@ -92,7 +92,7 @@ const doLogout = () => {
   // Redirect to Keycloak logout
   const appLogoutUrl = `${_kc.authServerUrl}/realms/${_kc.realm}/protocol/openid-connect/logout?id_token_hint=${_kc.idToken}&post_logout_redirect_uri=${encodeURIComponent(window.location.origin)}`;
 
-  const smLogoutUrl = `${config.SMT_URL}/clp-cgi/logoff.cgi?retnow=1&returl=${encodeURIComponent(appLogoutUrl)}`;
+  const smLogoutUrl = `${config.SMT_URL}/clp-cgi/logoff.cgi?retnow=1&returl=${encodeURIComponent(appLogoutUrl)}`; 
 
   window.location.href = smLogoutUrl;
 };
