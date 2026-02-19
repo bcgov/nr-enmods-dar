@@ -3,7 +3,6 @@ kind: CronJob
 metadata:
   name: obs-file-cleanup-cron
   namespace: "{{ .Release.Namespace }}"
-restartPolicy: OnFailure
 spec:
   schedule: "0 0 * * *" # At midnight every day
   successfulJobsHistoryLimit: 2
@@ -21,4 +20,5 @@ spec:
               - |
                 cd src/tempObsFiles
                 ls -al /data
+          restartPolicy: OnFailure
               
