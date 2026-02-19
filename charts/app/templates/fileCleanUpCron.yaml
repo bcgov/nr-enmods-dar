@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: obs-file-cleanup-cron
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  schedule: "0 0 * * *" # At midnight every day
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: file-cleanup
+              image: "{{.Values.global.registry}}/{{.Values.global.repository}}/backend:{{ .Values.global.tag | default .Chart.AppVersion }}"
+              args: 
+              - /bin/sh
+              - -c
+              - |
+                cd src/tempObsFiles
+                ls -al /data
+              
