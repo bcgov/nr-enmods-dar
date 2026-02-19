@@ -4,7 +4,7 @@ metadata:
   name: obs-file-cleanup-cron
   namespace: "{{ .Release.Namespace }}"
 spec:
-  schedule: "*/5 * * * *" # Every 5 minutes
+  schedule: "0 * * * *" # Every 60 minutes
   successfulJobsHistoryLimit: 2
   failedJobsHistoryLimit: 2
   jobTemplate:
