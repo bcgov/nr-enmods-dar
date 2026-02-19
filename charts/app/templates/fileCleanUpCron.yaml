@@ -4,7 +4,7 @@ metadata:
   name: obs-file-cleanup-cron
   namespace: "{{ .Release.Namespace }}"
 spec:
-  schedule: "0 0 * * *" # At midnight every day
+  schedule: "*/5 * * * *" # Every 5 minutes
   successfulJobsHistoryLimit: 2
   failedJobsHistoryLimit: 2
   jobTemplate:
@@ -18,7 +18,15 @@ spec:
               - /bin/sh
               - -c
               - |
-                cd src/tempObsFiles
-                ls -al /data
+                pwd
+                ls 
+                cd src
+              volumeMounts:
+                - name: obs-temp-files
+                  mountPath: /app/src/tempObsFiles
           restartPolicy: OnFailure
+          volumes:
+            - name: obs-temp-files
+              persistentVolumeClaim:
+                claimName: "{{.Values.global.repository}}-obs-temp-files-pvc"
               
