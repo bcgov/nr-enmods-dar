@@ -10,7 +10,7 @@ export const AUTH_TOKEN = "__auth_token";
  * @param onAuthenticatedCallback
  */
 let refreshTimer: NodeJS.Timeout | null = null;
-
+  
 const initKeycloak = async (
   route: string,
   onAuthenticatedCallback: (authenticated: boolean) => void,
