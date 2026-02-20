@@ -18,12 +18,21 @@ spec:
                 - /bin/sh
                 - -c
                 - |
-                  echo "Deleting files starting with obs- and older than 24 hours in /app/src/tempObsFiles"
-                  ls
-                  cd src
-                  ls
-                  cd tempObsFiles
-                  ls
+                  echo "[START] File cleanup job at $(date)"
+                  echo "Current directory: $(pwd)"
+                  echo "Listing root contents:"
+                  ls -al
+                  echo "Changing to src/tempObsFiles"
+                  cd src/tempObsFiles
+                  echo "Listing files in src/tempObsFiles before cleanup:"
+                  ls -al
+                  echo "Finding files starting with obs- and older than 24 hours:"
+                  find . -maxdepth 1 -type f -name 'obs-*' -mmin +1440 -print
+                  echo "Deleting files..."
+                  find . -maxdepth 1 -type f -name 'obs-*' -mmin +1440 -print -delete
+                  echo "Listing files in src/tempObsFiles after cleanup:"
+                  ls -al
+                  echo "[END] File cleanup job at $(date)"
               volumeMounts:
               - name: obs-temp-files
                 mountPath: /app/src/tempObsFiles
