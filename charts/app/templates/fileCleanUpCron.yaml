@@ -22,15 +22,15 @@ spec:
                   echo "Current directory: $(pwd)"
                   echo "Listing root contents:"
                   ls -al
-                  echo "Changing to src/tempObsFiles"
-                  cd src/tempObsFiles
-                  echo "Listing files in src/tempObsFiles before cleanup:"
+                  echo "Changing to /app/src/tempObsFiles"
+                  cd /app/src/tempObsFiles
+                  echo "Listing files in /app/src/tempObsFiles before cleanup:"
                   ls -al
                   echo "Finding files starting with obs- and older than 24 hours:"
-                  find . -maxdepth 1 -type f -name 'obs-*' -mmin +1440 -print
+                  find . -maxdepth 1 -type f -name 'obs-*' -mmin +120 -print
                   echo "Deleting files..."
-                  find . -maxdepth 1 -type f -name 'obs-*' -mmin +1440 -print -delete
-                  echo "Listing files in src/tempObsFiles after cleanup:"
+                  find . -maxdepth 1 -type f -name 'obs-*' -mmin +120 -print -delete
+                  echo "Listing files in /app/src/tempObsFiles after cleanup:"
                   ls -al
                   echo "[END] File cleanup job at $(date)"
               volumeMounts:
