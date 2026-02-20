@@ -21,11 +21,11 @@ spec:
                   echo "Deleting files starting with obs- and older than 24 hours in /app/src/tempObsFiles"
                   find /app/src/tempObsFiles -maxdepth 1 -type f -name 'obs-*' -mmin +1440 -print -delete
               volumeMounts:
-                - name: obs-temp-files
-                  mountPath: /app/src/tempObsFiles
+              - name: obs-temp-files
+                mountPath: /app/src/tempObsFiles
           restartPolicy: OnFailure
           volumes:
             - name: obs-temp-files
               persistentVolumeClaim:
-                claimName: "{{.Values.global.repository}}-{{ .Values.global.tag | default .Chart.AppVersion }}-obs-temp-files-pvc"
+                claimName: {{ regexReplaceAll "^bcgov/" .Release.Name "" }}-obs-temp-files-pvc
               
