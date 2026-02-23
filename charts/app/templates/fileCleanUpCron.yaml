@@ -4,7 +4,7 @@ metadata:
   name: obs-file-cleanup-cron
   namespace: "{{ .Release.Namespace }}"
 spec:
-  schedule: "0 * * * *" # Every 60 minutes
+  schedule: "0 5 * * 0" # 5 AM every Sunday
   successfulJobsHistoryLimit: 2
   failedJobsHistoryLimit: 2
   jobTemplate:
@@ -26,10 +26,10 @@ spec:
                   cd /app/src/tempObsFiles
                   echo "Listing files in /app/src/tempObsFiles before cleanup:"
                   ls -al
-                  echo "Finding files starting with obs- and older than 1440 minutes (24 hours):"
-                  find . -maxdepth 1 -type f -name 'obs-*' -mmin +1440 -print
+                  echo "Finding files starting with obs- and older than 10080 minutes (7 days):"
+                  find . -maxdepth 1 -type f -name 'obs-*' -mmin +10080 -print
                   echo "Deleting files..."
-                  find . -maxdepth 1 -type f -name 'obs-*' -mmin +1440 -print -delete
+                  find . -maxdepth 1 -type f -name 'obs-*' -mmin +10080 -print -delete
                   echo "Listing files in /app/src/tempObsFiles after cleanup:"
                   ls -al
                   echo "[END] File cleanup job at $(date)"
