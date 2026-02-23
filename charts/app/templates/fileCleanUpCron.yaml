@@ -26,10 +26,10 @@ spec:
                   cd /app/src/tempObsFiles
                   echo "Listing files in /app/src/tempObsFiles before cleanup:"
                   ls -al
-                  echo "Finding files starting with obs- and older than 24 hours:"
-                  find . -maxdepth 1 -type f -name 'obs-*' -mmin +120 -print
+                  echo "Finding files starting with obs- and older than 1440 minutes (24 hours):"
+                  find . -maxdepth 1 -type f -name 'obs-*' -mmin +1440 -print
                   echo "Deleting files..."
-                  find . -maxdepth 1 -type f -name 'obs-*' -mmin +120 -print -delete
+                  find . -maxdepth 1 -type f -name 'obs-*' -mmin +1440 -print -delete
                   echo "Listing files in /app/src/tempObsFiles after cleanup:"
                   ls -al
                   echo "[END] File cleanup job at $(date)"
