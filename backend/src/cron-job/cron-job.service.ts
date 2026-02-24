@@ -740,7 +740,7 @@ export class CronJobService {
 
     // check if system time is at the top of the hour
     const currentDate = new Date();
-    const isHourMark = currentDate.getMinutes() === 14;
+    const isHourMark = currentDate.getMinutes() === 0;
 
     if (isHourMark) {
       this.logger.log(
