@@ -1,0 +1,44 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: obs-file-cleanup-cron
+  namespace: "{{ .Release.Namespace }}"
+spec:
+  schedule: "0 5 * * 0" # 5 AM every Sunday
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: file-cleanup
+              image: "{{.Values.global.registry}}/{{.Values.global.repository}}/backend:{{ .Values.global.tag | default .Chart.AppVersion }}"
+              args:
+                - /bin/sh
+                - -c
+                - |
+                  echo "[START] File cleanup job at $(date)"
+                  echo "Current directory: $(pwd)"
+                  echo "Listing root contents:"
+                  ls -al
+                  echo "Changing to /app/src/tempObsFiles"
+                  cd /app/src/tempObsFiles
+                  echo "Listing files in /app/src/tempObsFiles before cleanup:"
+                  ls -al
+                  echo "Finding files starting with obs- and older than 10080 minutes (7 days):"
+                  find . -maxdepth 1 -type f -name 'obs-*' -mmin +10080 -print
+                  echo "Deleting files..."
+                  find . -maxdepth 1 -type f -name 'obs-*' -mmin +10080 -print -delete
+                  echo "Listing files in /app/src/tempObsFiles after cleanup:"
+                  ls -al
+                  echo "[END] File cleanup job at $(date)"
+              volumeMounts:
+              - name: obs-temp-files
+                mountPath: /app/src/tempObsFiles
+          restartPolicy: OnFailure
+          volumes:
+            - name: obs-temp-files
+              persistentVolumeClaim:
+                claimName: {{ regexReplaceAll "^bcgov/" .Release.Name "" }}-obs-temp-files-pvc
+              

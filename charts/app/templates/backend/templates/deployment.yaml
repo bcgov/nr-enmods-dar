@@ -27,7 +27,7 @@ spec:
       volumes:
         - name: obs-temp-files
           persistentVolumeClaim:
-          claimName: {{ .Release.Name }}-obs-temp-files-pvc
+            claimName: {{ regexReplaceAll "^bcgov/" .Release.Name "" }}-obs-temp-files-pvc
       {{- if .Values.backend.podSecurityContext }}
       securityContext:
         {{- toYaml .Values.backend.podSecurityContext | nindent 12 }}
