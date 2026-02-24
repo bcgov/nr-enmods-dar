@@ -3623,15 +3623,6 @@ export class FileParseValidateService {
         active_ind: false,
       },
     });
-
-    // fs.unlink(filePath, (err) => {
-    //   if (err) {
-    //     this.logger.error(`Error cleaning up tempObsFiles`, err);
-    //   } else {
-    //     this.logger.log(`Successfully cleaned up tempObsFiles.`);
-    //   }
-    // });
-
     await this.notificationsService.notifyUserOfError(file_submission_id);
 
     return;
@@ -3959,14 +3950,6 @@ export class FileParseValidateService {
     }
 
     await this.notificationsService.notifyUserOfError(file_submission_id);
-
-    // fs.unlink(filePath, (err) => {
-    //   if (err) {
-    //     this.logger.error(`Error cleaning up tempObsFiles`, err);
-    //   } else {
-    //     this.logger.log(`Successfully cleaned up tempObsFiles.`);
-    //   }
-    // });
   }
 
   async benchmarkImport(
@@ -4179,14 +4162,6 @@ export class FileParseValidateService {
         "REJECTED",
       );
 
-      // fs.unlink(filePath, (err) => {
-      //   if (err) {
-      //     this.logger.error(`Error cleaning up tempObsFiles`, err);
-      //   } else {
-      //     this.logger.log(`Successfully cleaned up tempObsFiles.`);
-      //   }
-      // });
-
       await this.notificationsService.notifyUserOfError(file_submission_id);
       return { timings: {}, hasError: true };
     }
@@ -4222,14 +4197,6 @@ export class FileParseValidateService {
         file_submission_id,
         "REJECTED",
       );
-
-      // fs.unlink(filePath, (err) => {
-      //   if (err) {
-      //     this.logger.error(`Error cleaning up tempObsFiles`, err);
-      //   } else {
-      //     this.logger.log(`Successfully cleaned up tempObsFiles.`);
-      //   }
-      // });
 
       await this.notificationsService.notifyUserOfError(file_submission_id);
       return { timings: {}, hasError: true };
@@ -4336,14 +4303,6 @@ export class FileParseValidateService {
         contactsAndValidationResults[1],
       );
 
-      // fs.unlink(filePath, (err) => {
-      //   if (err) {
-      //     this.logger.error(`Error cleaning up tempObsFiles`, err);
-      //   } else {
-      //     this.logger.log(`Successfully cleaned up tempObsFiles.`);
-      //   }
-      // });
-
       console.timeEnd("RejectFile");
       await this.notificationsService.notifyUserOfError(file_submission_id);
       endRejectFile = performance.now();
@@ -4382,13 +4341,6 @@ export class FileParseValidateService {
           data: file_error_log_data,
         });
 
-        // fs.unlink(filePath, (err) => {
-        //   if (err) {
-        //     this.logger.error(`Error cleaning up tempObsFiles`, err);
-        //   } else {
-        //     this.logger.log(`Successfully cleaned up tempObsFiles.`);
-        //   }
-        // });
         console.timeEnd("ReportValidated");
 
         await this.notificationsService.notifyUserOfError(file_submission_id);
@@ -4638,14 +4590,6 @@ export class FileParseValidateService {
         "REJECTED",
       );
 
-      // fs.unlink(filePath, (err) => {
-      //   if (err) {
-      //     this.logger.error(`Error cleaning up tempObsFiles`, err);
-      //   } else {
-      //     this.logger.log(`Successfully cleaned up tempObsFiles.`);
-      //   }
-      // });
-
       return { timings: {}, hasError: true };
     }
 
@@ -4695,14 +4639,6 @@ export class FileParseValidateService {
         file_submission_id,
         "REJECTED",
       );
-
-      // fs.unlink(filePath, (err) => {
-      //   if (err) {
-      //     this.logger.error(`Error cleaning up tempObsFiles`, err);
-      //   } else {
-      //     this.logger.log(`Successfully cleaned up tempObsFiles.`);
-      //   }
-      // });
 
       await this.notificationsService.notifyUserOfError(file_submission_id);
 
@@ -4862,13 +4798,6 @@ export class FileParseValidateService {
         contactsAndValidationResults[1],
       );
 
-      // fs.unlink(filePath, (err) => {
-      //   if (err) {
-      //     this.logger.error(`Error cleaning up tempObsFiles`, err);
-      //   } else {
-      //     this.logger.log(`Successfully cleaned up tempObsFiles.`);
-      //   }
-      // });
       console.timeEnd("RejectFile");
       await this.notificationsService.notifyUserOfError(file_submission_id);
       endRejectFile = performance.now();
@@ -4908,13 +4837,6 @@ export class FileParseValidateService {
           data: file_error_log_data,
         });
 
-        // fs.unlink(filePath, (err) => {
-        //   if (err) {
-        //     this.logger.error(`Error cleaning up tempObsFiles`, err);
-        //   } else {
-        //     this.logger.log(`Successfully cleaned up tempObsFiles.`);
-        //   }
-        // });
         console.timeEnd("ReportValidated");
         endReportValidated = performance.now();
         await this.notificationsService.notifyUserOfError(file_submission_id);
