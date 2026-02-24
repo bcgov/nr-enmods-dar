@@ -117,14 +117,14 @@ export class CronJobService {
     },
     {
       endpoint:
-        "/v1/extendedattributes/6f7d5be0-f91a-4353-9d31-13983205cbe0/dropdownlistitems",
+        "/v1/extendedattributes/specimenTissueType",
       method: "GET",
       dbTable: "aqi_tissue_types",
       paramsEnabled: false,
     },
     {
       endpoint:
-        "/v1/extendedattributes/65d94fac-aac5-498f-bc73-b63a322ce350/dropdownlistitems",
+        "/v1/extendedattributes/samplingAgency",
       method: "GET",
       dbTable: "aqi_sampling_agency",
       paramsEnabled: false,
@@ -418,6 +418,17 @@ export class CronJobService {
     }
   }
 
+  private async getExtendedAttributeGuid(attributeName: string): Promise<string | null> {
+    this.logger.log(`Fetching extended attribute GUID for ${attributeName}`);
+    try {
+      const response = await axios.get(`${process.env.AQI_BASE_URL}/v1/extendedattributes?customId=${attributeName}`);
+      return response.data.domainObjects[0].id;
+    } catch (error) {
+      this.logger.error(`Error calling extended attribute ${attributeName}:`, error);
+      return null;
+    }
+  }
+
   private async fetchAQSSData() {
     if (this.operationLockService.getCurrentLock() === "REFRESH") {
       this.logger.log("Releaseing REFRESH lock to allow pulldown of new data.");
@@ -435,6 +446,15 @@ export class CronJobService {
     try {
       for (const api of this.apisToCall) {
         this.logger.log(`Getting data from ${api.endpoint}`);
+
+        if (api.endpoint.endsWith("/specimenTissueType")){
+          const extAttribGuid = await this.getExtendedAttributeGuid("Specimen Tissue Type");
+          api.endpoint = `/v1/extendedattributes/${extAttribGuid}/dropdownlistitems`;
+        }else if (api.endpoint.endsWith("/samplingAgency")){
+          const extAttribGuid = await this.getExtendedAttributeGuid("Sampling Agency");
+          api.endpoint = `/v1/extendedattributes/${extAttribGuid}/dropdownlistitems`;
+        }
+
         let cursor = "";
         let total = 0;
         let processedCount = 0;
@@ -468,7 +488,7 @@ export class CronJobService {
           );
 
           // Process and filter the data
-          const filteredData = await this.filterData(api.endpoint, entries);
+          const filteredData = await this.filterData(api.endpoint, entries, api.dbTable);
 
           // Stream data into the database in small batches
           await this.updateDatabase(api.dbTable, filteredData, 100);
@@ -513,7 +533,7 @@ export class CronJobService {
     }
   }
 
-  private async filterData(endpoint: string, entries: any) {
+  private async filterData(endpoint: string, entries: any, dbTable?: string): Promise<any> {
     const filterAttributes = (obj: any): any => {
       const { id, customId, description, auditAttributes } = obj;
       const creationUserProfileId = auditAttributes.creationUserProfileId;
@@ -634,17 +654,20 @@ export class CronJobService {
     };
 
     const filterArray = (array: any): any => {
+
+      if (
+        dbTable ==
+          "aqi_tissue_types" ||
+        dbTable ==
+          "aqi_sampling_agency"
+      ) {
+        return array.map(filterEELists);
+      }
+
       if (endpoint == "/v1/tags") {
         return array.map(filterNameAttributes);
       } else if (endpoint == "/v1/analysismethods") {
         return array.map(filerAnalysisMethodAttributes);
-      } else if (
-        endpoint ==
-          "/v1/extendedattributes/6f7d5be0-f91a-4353-9d31-13983205cbe0/dropdownlistitems" ||
-        endpoint ==
-          "/v1/extendedattributes/65d94fac-aac5-498f-bc73-b63a322ce350/dropdownlistitems"
-      ) {
-        return array.map(filterEELists);
       } else if (endpoint == "/v1/units") {
         return array.map(filterResultUnits);
       } else if (endpoint == "/v1/observedproperties") {
@@ -717,7 +740,7 @@ export class CronJobService {
 
     // check if system time is at the top of the hour
     const currentDate = new Date();
-    const isHourMark = currentDate.getMinutes() === 0;
+    const isHourMark = currentDate.getMinutes() === 14;
 
     if (isHourMark) {
       this.logger.log(
