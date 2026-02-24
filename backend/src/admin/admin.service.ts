@@ -12,6 +12,8 @@ export class AdminService {
   private readonly logger = new Logger(AdminService.name);
 
   async getToken() {
+
+    
     const url = process.env.USERS_API_TOKEN_URL;
     const token = `${process.env.USERS_API_CLIENT_ID}:${process.env.USERS_API_CLIENT_SECRET}`;
     const encodedToken = Buffer.from(token).toString("base64");
