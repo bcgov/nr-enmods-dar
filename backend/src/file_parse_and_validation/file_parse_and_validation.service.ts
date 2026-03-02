@@ -1462,7 +1462,7 @@ export class FileParseValidateService {
       rowData["DataClassification"] === "SURROGATE_RESULT";
 
     if (!isLabData) {
-      console.log('returning')
+      console.log("returning");
       return errors;
     }
 
@@ -3965,6 +3965,10 @@ export class FileParseValidateService {
     startImportNonObs,
     startImportObs,
   ) {
+    this.logger.log(`Calculating time taken for each step.`);
+    this.logger.log(
+      `Timing info: startValidation:\n ${startValidation}, endValidation: ${endValidation} \n startObsValidation: ${startObsValidation}, endObsValidation: ${endObsValidation} \n startImportNonObs: ${startImportNonObs}, endImportNonObs: ${endImportNonObs} \n startImportObs: ${startImportObs}, endImportObs: ${endImportObs}`,
+    );
     // all times in ms, divide by 1000 to make them in s
     const validationTime = (endValidation - startValidation) / 1000;
     const obsValidationTime = (endObsValidation - startObsValidation) / 1000;
@@ -5139,6 +5143,20 @@ export class FileParseValidateService {
         csvStream,
         ministryContacts,
       );
+      console.timeEnd("parseFile");
+      await this.benchmarkImport(
+        file_submission_id,
+        fileName,
+        originalFileName,
+        result.timings.endValidation === undefined ? 0 : result.timings.endValidation,
+        result.timings.endObsValidation === undefined ? 0 : result.timings.endObsValidation,
+        result.timings.endImportNonObs === undefined ? 0 : result.timings.endImportNonObs,
+        result.timings.endImportObs === undefined ? 0 : result.timings.endImportObs,
+        result.timings.startValidation === undefined ? 0 : result.timings.startValidation,
+        result.timings.startObsValidation === undefined ? 0 : result.timings.startObsValidation,
+        result.timings.startImportNonObs === undefined ? 0 : result.timings.startImportNonObs,
+        result.timings.startImportObs === undefined ? 0 : result.timings.startImportObs,
+      );
     } else if (extention == ".csv" || extention == ".txt") {
       result = await this.processCsvFile(
         file,
@@ -5151,22 +5169,21 @@ export class FileParseValidateService {
         csvStream,
         ministryContacts,
       );
+      console.timeEnd("parseFile");
+      await this.benchmarkImport(
+        file_submission_id,
+        fileName,
+        originalFileName,
+        result.timings.endValidation === undefined ? 0 : result.timings.endValidation,
+        result.timings.endObsValidation === undefined ? 0 : result.timings.endObsValidation,
+        result.timings.endImportNonObs === undefined ? 0 : result.timings.endImportNonObs,
+        result.timings.endImportObs === undefined ? 0 : result.timings.endImportObs,
+        result.timings.startValidation === undefined ? 0 : result.timings.startValidation,
+        result.timings.startObsValidation === undefined ? 0 : result.timings.startObsValidation,
+        result.timings.startImportNonObs === undefined ? 0 : result.timings.startImportNonObs,
+        result.timings.startImportObs === undefined ? 0 : result.timings.startImportObs,
+      );
     }
-
-    console.timeEnd("parseFile");
-    await this.benchmarkImport(
-      file_submission_id,
-      fileName,
-      originalFileName,
-      endValidation,
-      endObsValidation,
-      endImportNonObs,
-      endImportObs,
-      startValidation,
-      startObsValidation,
-      startImportNonObs,
-      startImportObs,
-    );
     partialUpload = false;
     rollBackHalted = false;
   }
