@@ -11,6 +11,7 @@ import {
   BadRequestException,
   HttpException,
   HttpStatus,
+  Logger
 } from "@nestjs/common";
 import { FileSubmissionsService } from "./file_submissions.service";
 import { ApiTags } from "@nestjs/swagger";
@@ -34,6 +35,8 @@ import ExcelJS from "exceljs";
 @Controller({ path: "file_submissions_api_key", version: "1" })
 @Public()
 export class FileSubmissionsAPIController {
+  private readonly logger = new Logger(FileSubmissionsAPIController.name);
+
   constructor(
     private readonly fileSubmissionsService: FileSubmissionsService,
     private readonly sanitizeService: SanitizeService,
@@ -149,6 +152,8 @@ export class FileSubmissionsAPIController {
       process.env.API_KEY_RATE_LIMIT_PER_WINDOW  || "10",
       10,
     );
+
+    this.logger.log(`Max requests per window: ${MAX_REQUESTS_PER_WINDOW}`);
 
     if (usage.request_count > MAX_REQUESTS_PER_WINDOW) {
       throw new HttpException(
