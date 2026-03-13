@@ -857,13 +857,14 @@ export class FileParseValidateService {
   async checkHeaders(rowHeaders: any[], fileType: string) {
     let headerErrors = [];
     let sourceHeaders = [];
-    const targetHeaders = Object.keys(fileHeaders);
-
-    if (fileType == "xlsx") {
-      sourceHeaders = rowHeaders.slice(1);
-    } else {
-      sourceHeaders = rowHeaders;
+    let targetHeaders = []
+    if (fileType === "xlsx") {
+      targetHeaders = Object.keys(fileHeaders).map(item => item.replace(/\s+/g, ""));
+    }else{
+      targetHeaders = Object.keys(fileHeaders)
     }
+
+    sourceHeaders = rowHeaders
 
     // Normalize by trimming for all comparisons
     const normalizedSourceHeaders = sourceHeaders.map((h) =>
@@ -4098,6 +4099,16 @@ export class FileParseValidateService {
     return { filePath, csvStream, ministryContacts };
   }
 
+  private cellToString(value: ExcelJS.CellValue): string {
+    if (!value) return "";
+    if (typeof value === "string") return value.replace(/\s+/g, "");
+    if (typeof value === "object" && "richText" in value){
+      return value.richText.map((part) => part.text).join("").replace(/\s+/g, "");
+    }
+
+    return String(value).replace(/\s+/g, "");
+  }
+
   /**
    * Handles XLSX file format processing and validation
    * Processes rows in batches, validates each row, and orchestrates downstream processing
@@ -4172,13 +4183,14 @@ export class FileParseValidateService {
 
     const rowHeaders = (worksheet?.getRow(1).values as string[])
       .slice(1)
-      .map((key) => key.replace(/\s+/g, ""));
+      .map(this.cellToString)
+      .filter(Boolean);
 
     const allNonObsErrors: any[] = [];
     const allExistingRecords: any[] = [];
 
     const headerErrors = await this.checkHeaders(
-      worksheet?.getRow(1).values as string[],
+      rowHeaders,
       "xlsx",
     );
 
