@@ -34,6 +34,32 @@ export class AdminService {
     }
   }
 
+  async paginatedGet(url: string, config: any): Promise<any> {
+    let isPageEmpty = false
+    let page = 1
+    let returnList = []
+    let urlCopy = url
+
+    while (!isPageEmpty) {
+      this.logger.log(`Making request with page=${page}`);
+      urlCopy = `${url}?page=${page}`;
+      const response = await firstValueFrom(this.httpService.get(urlCopy, config));
+      const data = response.data.data;
+      if (data.length === 0) {
+        isPageEmpty = true;
+        this.logger.log("Page is empty. No incrementing anymore.")
+      }else{
+        returnList = returnList.concat(data);
+        isPageEmpty = false;
+        this.logger.log('Page ' + page + ' has ' + data.length + ' items');
+        this.logger.log("Incrementing page to check for more users.")
+        page++;
+      }
+    }
+    this.logger.log(`Returning ${returnList.length} users`);
+    return returnList;
+  }
+
   /**
    * Gets a list of all users with the Enmods_Admin or the Enmods_User role
    *
@@ -49,14 +75,11 @@ export class AdminService {
     };
 
     try {
-      const adminResponse = await firstValueFrom(
-        this.httpService.get(adminUrl, config),
-      );
-
+      const adminData = await this.paginatedGet(adminUrl, config);
+      this.logger.log(`Received ${adminData.length} users with ${Role.ENMODS_ADMIN} role`);
       // TODO: Check to see what the account type is of the logged in user, based on that pass along an additional filter of the business name. This is to ensure that bceid users can only see users in their company
 
       const returnData: UserInfo[] = [];
-      const adminData = adminResponse.data.data;
       adminData.map((admin: any) => {
         let accountType = admin?.username?.endsWith("@idir") ? "idir" : "bceid";
         const adminId =
@@ -89,10 +112,8 @@ export class AdminService {
           });
         }
       });
-      const userResponse = await firstValueFrom(
-        this.httpService.get(userUrl, config),
-      );
-      const userData = userResponse.data.data;
+      const userData = await this.paginatedGet(userUrl, config);
+      this.logger.log(`Received ${userData.length} users with ${Role.ENMODS_USER} role`);
       userData.map((user: any) => {
         let accountType = user?.username?.endsWith("@idir") ? "idir" : "bceid";
         const userId =
@@ -129,10 +150,8 @@ export class AdminService {
           }
         }
       });
-      const deleteResponse = await firstValueFrom(
-        this.httpService.get(deleteUrl, config),
-      );
-      const deleteData = deleteResponse.data.data;
+      const deleteData = await this.paginatedGet(deleteUrl, config)
+      this.logger.log(`Received ${deleteData.length} users with ${Role.ENMODS_DELETE} role`);
       deleteData.map((deleteUser: any) => {
         let accountType = deleteUser?.username?.endsWith("@idir")
           ? "idir"
@@ -250,10 +269,10 @@ export class AdminService {
         console.log(err.response.data);
         throw new Error("No users found");
       });
-    let correctUserInfo: BCeIDUserInfo = searchData[0]
-    let name = searchData[0].firstName.split(" ")
-    correctUserInfo.firstName = name[0]
-    correctUserInfo.lastName = name[1]
+    let correctUserInfo: BCeIDUserInfo = searchData[0];
+    let name = searchData[0].firstName.split(" ");
+    correctUserInfo.firstName = name[0];
+    correctUserInfo.lastName = name[1];
 
     return correctUserInfo || null;
   }
