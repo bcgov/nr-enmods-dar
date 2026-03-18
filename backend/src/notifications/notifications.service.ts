@@ -8,6 +8,7 @@ import { UpdateNotificationEntryDto } from "./dto/update-notification_entry.dto"
 import { EmailTemplate } from "src/types/types";
 import { FileErrorLogsService } from "src/file_error_logs/file_error_logs.service";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
+import { Inject, forwardRef } from "@nestjs/common";
 import { AdminService } from "src/admin/admin.service";
 import { JsonValue } from "@prisma/client/runtime/library";
 
@@ -19,6 +20,7 @@ export class NotificationsService {
     private readonly httpService: HttpService,
     private readonly fileErrorLogsService: FileErrorLogsService,
     private readonly fileSubmissionsService: FileSubmissionsService,
+    @Inject(forwardRef(() => AdminService))
     private readonly adminService: AdminService,
     private prisma: PrismaService,
   ) {}
@@ -104,9 +106,9 @@ export class NotificationsService {
    */
   async deleteNotificationEntry(email: string): Promise<string> {
     console.log(`Deleting notification entry for email: ${email}`);
-    // await this.prisma.notifications.delete({
-    //   where: { email: email },
-    // });
+    await this.prisma.notifications.delete({
+      where: { email: email },
+    });
     return "Notification Entry Deleted";
   }
 

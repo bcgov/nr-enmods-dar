@@ -5,12 +5,14 @@ import { Role } from "src/enum/role.enum";
 import { BCeIDUserInfo, IdirUserInfo, UserInfo } from "src/types/types";
 import { UserRolesDto } from "./dto/user-roles.dto";
 import axios from "axios";
+import { Inject, forwardRef } from "@nestjs/common";
 import { NotificationsService } from "src/notifications/notifications.service";
 
 @Injectable()
 export class AdminService {
   constructor(
     private readonly httpService: HttpService,
+    @Inject(forwardRef(() => NotificationsService))
     private readonly notificationsService: NotificationsService,
   ) {}
   private readonly logger = new Logger(AdminService.name);
