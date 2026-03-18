@@ -560,7 +560,12 @@ export class AdminService {
       this.logger.log(
         `User has no roles, removing notification entry if it exists for email: ${email}`,
       );
-      await this.notificationsService.deleteNotificationEntry(email);
+      // check if a notification entry exists for the user's email, if it does then delete it
+      const exists = await this.notificationsService.checkNotificationEntryExists(email);
+      if (exists) {
+        this.logger.log(`Notification entry exists for email: ${email}, deleting entry.`);
+        await this.notificationsService.deleteNotificationEntry(email);
+      }
     } else {
       this.logger.log(`User has roles, not removing notification entry`);
     }

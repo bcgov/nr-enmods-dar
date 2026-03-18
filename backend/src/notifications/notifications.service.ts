@@ -34,6 +34,19 @@ export class NotificationsService {
   }
 
   /**
+   * Checks if a notification entry exists for the given email.
+   * @param email 
+   * @returns boolean indicating if the notification entry exists
+   */
+  async checkNotificationEntryExists(email: string): Promise<boolean> {
+    const notificationEntry = await this.prisma.notifications.findUnique({
+      where: { email: email },
+    });
+    console.log(`Checked for notification entry with email: ${email}, exists: ${!!notificationEntry}`);
+    return !!notificationEntry;
+  }
+
+  /**
    * Receives email and username. Creates a notification entry with specified email and enabled status as true.
    * @param email
    * @param username
