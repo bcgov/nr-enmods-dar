@@ -30,6 +30,26 @@ export async function getNotificationData(): Promise<NotificationInfo[]> {
 }
 
 /**
+ * Used to create a notification entry for a user when they are added to EDT
+ * @param email
+ * @param username
+ * @param enabled
+ */
+export async function createNotification(
+  email: string,
+  username: string,
+  enabled: boolean,
+): Promise<void> {
+  const createNotificationUrl: string = `${config.API_BASE_URL}/notifications/create-notification`;
+  const postParameters = api.generateApiParameters(createNotificationUrl, {
+    email: email,
+    username: username,
+    enabled: enabled,
+  });
+  await api.post(postParameters);
+}
+
+/**
  * Used to enable or disable notifications for a Ministry Contact
  * @param email
  * @param username

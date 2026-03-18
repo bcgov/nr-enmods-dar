@@ -40,9 +40,12 @@ export default function AdminPage() {
     }
   }, []);
 
-  const getUserData = async () => {
+  const getUserAndNotificationData = async () => {
     const users: UserInfo[] = await getUsers();
     setUserData(users);
+
+    const nd: NotificationInfo[] = await getNotificationData();
+    setNotificationData(nd);
   };
 
   const getNotificationInfo = async () => {
@@ -51,8 +54,8 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    getUserData();
-    getNotificationInfo();
+    getUserAndNotificationData();
+    // getNotificationInfo();
   }, []);
 
   const handleOpenEdit = (username: string) => {
@@ -203,13 +206,13 @@ export default function AdminPage() {
         <AddRoles
           show={showAddRoles}
           existingUsers={userData}
-          refreshTable={getUserData}
+          refreshTable={getUserAndNotificationData}
           onHide={handleCloseAddRoles}
         />
         <EditRoles
           show={showRemoveRoles}
           userObject={selectedUserInfo}
-          refreshTable={getUserData}
+          refreshTable={getUserAndNotificationData}
           apiStatus={ssoOutage}
           setApiStatus={setSsoOutage}
           onHide={handleCloseRemoveRoles}

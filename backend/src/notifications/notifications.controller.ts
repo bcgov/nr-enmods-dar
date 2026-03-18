@@ -38,6 +38,17 @@ export class NotificationsController {
     // return this.notificationsService.sendContactNotification(email, variables);
   }
 
+   @Post("create-notification")
+  createNotification(
+    @Body() userData: { email: string; username: string; enabled: boolean },
+  ) {
+    return this.notificationsService.createNotificationEntry(
+      userData.email,
+      userData.username,
+      userData.enabled,
+    );
+  }
+
   @Post("update-notification")
   updateNotification(
     @Body() userData: { email: string; username: string; enabled: boolean },
