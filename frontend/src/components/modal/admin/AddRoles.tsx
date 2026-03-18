@@ -82,7 +82,7 @@ const AddRoles = ({
       setShowError(false);
       setLoading(true);
       try {
-        const updateResponse = await updateRoles(userObject?.username, [], rolesToAdd);
+        const updateResponse = await updateRoles(userObject?.username, userObject?.email,  [], rolesToAdd);
         const addUserToNotifications = await createNotification(userObject?.email, userObject?.username, true);
         console.log(addUserToNotifications)
         refreshTable();

@@ -53,6 +53,15 @@ export class NotificationsService {
     const newNotificationEntryPostData: Prisma.notificationsCreateInput =
       createNotificationDto;
 
+    // Check if a record exists with this email
+    const existingRecord = await this.prisma.notifications.findUnique({
+      where: { email: email },
+    });
+
+    if (existingRecord) {
+      return "Notification Entry Already Exists";
+    }
+
     await this.prisma.$transaction([
       this.prisma.notifications.create({ data: newNotificationEntryPostData }),
     ]);
@@ -86,6 +95,19 @@ export class NotificationsService {
       data: updateNotificationEntryPostData,
     });
     return "Notification Entry Updated";
+  }
+
+  /**
+   * receives email and deletes the notification entry
+   * @param email
+   * @returns
+   */
+  async deleteNotificationEntry(email: string): Promise<string> {
+    console.log(`Deleting notification entry for email: ${email}`);
+    // await this.prisma.notifications.delete({
+    //   where: { email: email },
+    // });
+    return "Notification Entry Deleted";
   }
 
   /**

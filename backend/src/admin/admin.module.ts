@@ -2,9 +2,10 @@ import { Module } from "@nestjs/common";
 import { AdminController } from "./admin.controller";
 import { AdminService } from "./admin.service";
 import { HttpModule } from "@nestjs/axios";
+import { NotificationsModule } from "src/notifications/notifications.module";
 
 @Module({
-  imports: [HttpModule],
+  imports: [HttpModule, NotificationsModule],
   controllers: [AdminController],
   providers: [AdminService],
 })
