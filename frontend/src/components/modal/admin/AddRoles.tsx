@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import { findIdirUser, findBCeIDUser, updateRoles } from "@/common/admin";
 import { BCeIDUserInfo, IdirUserInfo, UserInfo } from "@/types/types";
+import { createNotification, updateNotification } from "@/common/notifications";
 import Roles from "@/roles";
 import theme from "@/theme";
 
@@ -81,8 +82,9 @@ const AddRoles = ({
       setShowError(false);
       setLoading(true);
       try {
-        const updateResponse = await updateRoles(userObject?.username, [], rolesToAdd);
-        console.log(updateResponse)
+        const updateResponse = await updateRoles(userObject?.username, userObject?.email,  [], rolesToAdd);
+        const addUserToNotifications = await createNotification(userObject?.email, userObject?.username, true);
+        console.log(addUserToNotifications)
         refreshTable();
       } catch (err) {
         setError("Failed to add role to user.");

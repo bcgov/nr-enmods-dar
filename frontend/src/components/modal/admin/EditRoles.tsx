@@ -45,6 +45,7 @@ const EditRoles = ({
       try {
         const updateResponse = await updateRoles(
           userObject.guidUsername,
+          userObject.email,
           userObject.role,
           updatedRoles,
         );

@@ -73,12 +73,14 @@ export async function removeRoles(
  */
 export async function updateRoles(
   idirUsername: string,
+  email: string, 
   existingRoles: string[],
   roles: string[],
 ): Promise<boolean> {
   const updateRolesUrl: string = `${config.API_BASE_URL}/admin/update-roles`;
   const postParameters = api.generateApiParameters(updateRolesUrl, {
     idirUsername,
+    email,
     existingRoles,
     roles,
   });

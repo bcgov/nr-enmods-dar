@@ -38,6 +38,17 @@ export class NotificationsController {
     // return this.notificationsService.sendContactNotification(email, variables);
   }
 
+  @Post("create-notification")
+  createNotification(
+    @Body() userData: { email: string; username: string; enabled: boolean },
+  ) {
+    return this.notificationsService.createNotificationEntry(
+      userData.email,
+      userData.username,
+      userData.enabled,
+    );
+  }
+
   @Post("update-notification")
   updateNotification(
     @Body() userData: { email: string; username: string; enabled: boolean },
@@ -63,6 +74,11 @@ export class NotificationsController {
     return this.notificationsService.subscribe(data.guid);
   }
 
+  @Post("delete-notification")
+  deleteNotification(@Body() data: { email: string }) {
+    return this.notificationsService.deleteNotificationEntry(data.email);
+  }
+
   @Public()
   @Post("unsubscribe")
   unsubscribe(@Body() data: { guid: string }) {
@@ -72,7 +88,7 @@ export class NotificationsController {
     return this.notificationsService.unsubscribe(data.guid);
   }
 
-   @Public()
+  @Public()
   @Post("request-access")
   requestAccess(@Body() data: { email: string, accountType: string, fullname: string, username: string, edtURL: string }): Promise<string> {
     return this.notificationsService.requestAccess(data);

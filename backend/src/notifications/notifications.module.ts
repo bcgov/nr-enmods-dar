@@ -1,15 +1,15 @@
-import { Module } from "@nestjs/common";
+import { Module, forwardRef } from "@nestjs/common";
 import { NotificationsController } from "./notifications.controller";
 import { NotificationsService } from "./notifications.service";
 import { HttpModule } from "@nestjs/axios";
 import { FileErrorLogsService } from "src/file_error_logs/file_error_logs.service";
 import { FileSubmissionsModule } from "src/file_submissions/file_submissions.module";
-import { AdminService } from "src/admin/admin.service";
+import { AdminModule } from "src/admin/admin.module";
 
 @Module({
-  imports: [HttpModule, FileSubmissionsModule],
+  imports: [HttpModule, FileSubmissionsModule, forwardRef(() => AdminModule)],
   controllers: [NotificationsController],
-  providers: [NotificationsService, FileErrorLogsService, AdminService],
+  providers: [NotificationsService, FileErrorLogsService],
   exports: [NotificationsService],
 })
 export class NotificationsModule {}
