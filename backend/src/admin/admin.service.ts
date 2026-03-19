@@ -5,10 +5,16 @@ import { Role } from "src/enum/role.enum";
 import { BCeIDUserInfo, IdirUserInfo, UserInfo } from "src/types/types";
 import { UserRolesDto } from "./dto/user-roles.dto";
 import axios from "axios";
+import { Inject, forwardRef } from "@nestjs/common";
+import { NotificationsService } from "src/notifications/notifications.service";
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly httpService: HttpService) {}
+  constructor(
+    private readonly httpService: HttpService,
+    @Inject(forwardRef(() => NotificationsService))
+    private readonly notificationsService: NotificationsService,
+  ) {}
   private readonly logger = new Logger(AdminService.name);
 
   async getToken() {
@@ -35,24 +41,26 @@ export class AdminService {
   }
 
   async paginatedGet(url: string, config: any): Promise<any> {
-    let isPageEmpty = false
-    let page = 1
-    let returnList = []
-    let urlCopy = url
+    let isPageEmpty = false;
+    let page = 1;
+    let returnList = [];
+    let urlCopy = url;
 
     while (!isPageEmpty) {
       this.logger.log(`Making request with page=${page}`);
       urlCopy = `${url}?page=${page}`;
-      const response = await firstValueFrom(this.httpService.get(urlCopy, config));
+      const response = await firstValueFrom(
+        this.httpService.get(urlCopy, config),
+      );
       const data = response.data.data;
       if (data.length === 0) {
         isPageEmpty = true;
-        this.logger.log("Page is empty. No incrementing anymore.")
-      }else{
+        this.logger.log("Page is empty. No incrementing anymore.");
+      } else {
         returnList = returnList.concat(data);
         isPageEmpty = false;
-        this.logger.log('Page ' + page + ' has ' + data.length + ' items');
-        this.logger.log("Incrementing page to check for more users.")
+        this.logger.log("Page " + page + " has " + data.length + " items");
+        this.logger.log("Incrementing page to check for more users.");
         page++;
       }
     }
@@ -76,7 +84,9 @@ export class AdminService {
 
     try {
       const adminData = await this.paginatedGet(adminUrl, config);
-      this.logger.log(`Received ${adminData.length} users with ${Role.ENMODS_ADMIN} role`);
+      this.logger.log(
+        `Received ${adminData.length} users with ${Role.ENMODS_ADMIN} role`,
+      );
       // TODO: Check to see what the account type is of the logged in user, based on that pass along an additional filter of the business name. This is to ensure that bceid users can only see users in their company
 
       const returnData: UserInfo[] = [];
@@ -113,7 +123,9 @@ export class AdminService {
         }
       });
       const userData = await this.paginatedGet(userUrl, config);
-      this.logger.log(`Received ${userData.length} users with ${Role.ENMODS_USER} role`);
+      this.logger.log(
+        `Received ${userData.length} users with ${Role.ENMODS_USER} role`,
+      );
       userData.map((user: any) => {
         let accountType = user?.username?.endsWith("@idir") ? "idir" : "bceid";
         const userId =
@@ -150,8 +162,10 @@ export class AdminService {
           }
         }
       });
-      const deleteData = await this.paginatedGet(deleteUrl, config)
-      this.logger.log(`Received ${deleteData.length} users with ${Role.ENMODS_DELETE} role`);
+      const deleteData = await this.paginatedGet(deleteUrl, config);
+      this.logger.log(
+        `Received ${deleteData.length} users with ${Role.ENMODS_DELETE} role`,
+      );
       deleteData.map((deleteUser: any) => {
         let accountType = deleteUser?.username?.endsWith("@idir")
           ? "idir"
@@ -414,6 +428,7 @@ export class AdminService {
    */
   async updateRoles(
     idirUsername: string,
+    email: string,
     existingRoles: string[],
     roles: string[],
   ): Promise<any> {
@@ -526,6 +541,33 @@ export class AdminService {
             this.logger.error(`Failed to add ${Role.ENMODS_DELETE} role`);
           });
       }
+    }
+
+    // clean up notifications entry
+    // Find the roles assigned to the user
+    const userAssgignedRoles = await firstValueFrom(
+      this.httpService.get(url, config),
+    ).then((res) => {
+      return res.data;
+    });
+
+    this.logger.log(
+      `User has ${userAssgignedRoles.data.length} roles after update.`,
+    );
+
+    // if the user has no roles, then remove the notification entry for their email
+    if (userAssgignedRoles.data.length == 0) {
+      this.logger.log(
+        `User has no roles, removing notification entry if it exists for email: ${email}`,
+      );
+      // check if a notification entry exists for the user's email, if it does then delete it
+      const exists = await this.notificationsService.checkNotificationEntryExists(email);
+      if (exists) {
+        this.logger.log(`Notification entry exists for email: ${email}, deleting entry.`);
+        await this.notificationsService.deleteNotificationEntry(email);
+      }
+    } else {
+      this.logger.log(`User has roles, not removing notification entry`);
     }
 
     if (validStatus >= 200 && validStatus <= 299) {

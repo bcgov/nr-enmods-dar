@@ -8,6 +8,7 @@ import { UpdateNotificationEntryDto } from "./dto/update-notification_entry.dto"
 import { EmailTemplate } from "src/types/types";
 import { FileErrorLogsService } from "src/file_error_logs/file_error_logs.service";
 import { FileSubmissionsService } from "src/file_submissions/file_submissions.service";
+import { Inject, forwardRef } from "@nestjs/common";
 import { AdminService } from "src/admin/admin.service";
 import { JsonValue } from "@prisma/client/runtime/library";
 
@@ -19,6 +20,7 @@ export class NotificationsService {
     private readonly httpService: HttpService,
     private readonly fileErrorLogsService: FileErrorLogsService,
     private readonly fileSubmissionsService: FileSubmissionsService,
+    @Inject(forwardRef(() => AdminService))
     private readonly adminService: AdminService,
     private prisma: PrismaService,
   ) {}
@@ -29,6 +31,19 @@ export class NotificationsService {
    */
   async getNotificationData(): Promise<any> {
     return this.prisma.notifications.findMany({});
+  }
+
+  /**
+   * Checks if a notification entry exists for the given email.
+   * @param email 
+   * @returns boolean indicating if the notification entry exists
+   */
+  async checkNotificationEntryExists(email: string): Promise<boolean> {
+    const notificationEntry = await this.prisma.notifications.findUnique({
+      where: { email: email },
+    });
+    console.log(`Checked for notification entry with email: ${email}, exists: ${!!notificationEntry}`);
+    return !!notificationEntry;
   }
 
   /**
@@ -52,6 +67,15 @@ export class NotificationsService {
 
     const newNotificationEntryPostData: Prisma.notificationsCreateInput =
       createNotificationDto;
+
+    // Check if a record exists with this email
+    const existingRecord = await this.prisma.notifications.findUnique({
+      where: { email: email },
+    });
+
+    if (existingRecord) {
+      return "Notification Entry Already Exists";
+    }
 
     await this.prisma.$transaction([
       this.prisma.notifications.create({ data: newNotificationEntryPostData }),
@@ -86,6 +110,19 @@ export class NotificationsService {
       data: updateNotificationEntryPostData,
     });
     return "Notification Entry Updated";
+  }
+
+  /**
+   * receives email and deletes the notification entry
+   * @param email
+   * @returns
+   */
+  async deleteNotificationEntry(email: string): Promise<string> {
+    console.log(`Deleting notification entry for email: ${email}`);
+    await this.prisma.notifications.delete({
+      where: { email: email },
+    });
+    return "Notification Entry Deleted";
   }
 
   /**

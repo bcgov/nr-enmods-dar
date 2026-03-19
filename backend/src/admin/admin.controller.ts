@@ -59,12 +59,14 @@ export class AdminController {
     @Body()
     data: {
       idirUsername: string;
+      email: string;
       existingRoles: string[];
       roles: string[];
     },
   ): Promise<any> {
     return this.adminService.updateRoles(
       data.idirUsername,
+      data.email,
       data.existingRoles,
       data.roles,
     );
