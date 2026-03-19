@@ -32,6 +32,7 @@ model file_submission {
   submitter_agency_name  String                 @db.VarChar(200)
   sample_count           Int?
   results_count          Int?
+  results_count_old      Int?
   active_ind             Boolean                @default(true)
   error_log              String?
   organization_guid      String?                @db.Uuid

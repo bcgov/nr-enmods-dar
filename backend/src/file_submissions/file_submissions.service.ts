@@ -58,7 +58,8 @@ export class FileSubmissionsService {
     createFileSubmissionDto.file_operation_code = body.operation;
     createFileSubmissionDto.submitter_agency_name = body.agency;
     createFileSubmissionDto.sample_count = 0;
-    createFileSubmissionDto.result_count = 0;
+    createFileSubmissionDto.results_count = 0;
+    createFileSubmissionDto.results_count_old = 0;
     // createFileSubmissionDto.file_row_count = body.file_row_count
     createFileSubmissionDto.organization_guid = body.orgGUID; // TODO: change this once BCeID is set up
     createFileSubmissionDto.data_submitter_email = body.notification == 'true' ? body.dataSubmitterEmail : "";
@@ -83,7 +84,8 @@ export class FileSubmissionsService {
       },
       submitter_agency_name: createFileSubmissionDto.submitter_agency_name,
       sample_count: createFileSubmissionDto.sample_count,
-      results_count: createFileSubmissionDto.result_count,
+      results_count: createFileSubmissionDto.results_count,
+      results_count_old: createFileSubmissionDto.results_count_old,
       // file_row_count: parseInt(createFileSubmissionDto.file_row_count, 10),
       active_ind: createFileSubmissionDto.active_ind,
       error_log: createFileSubmissionDto.error_log,
@@ -133,7 +135,8 @@ export class FileSubmissionsService {
     createFileSubmissionDto.submitter_agency_name =
       body.agency === undefined ? body.userID : body.agency;
     createFileSubmissionDto.sample_count = 0;
-    createFileSubmissionDto.result_count = 0;
+    createFileSubmissionDto.results_count = 0;
+    createFileSubmissionDto.results_count_old = 0;
     createFileSubmissionDto.organization_guid =
       body.orgGUID === undefined ? null : body.orgGUID;
     createFileSubmissionDto.data_submitter_email = body.data_submitter_email,
@@ -158,7 +161,8 @@ export class FileSubmissionsService {
       submitter_agency_name: createFileSubmissionDto.submitter_agency_name,
       data_submitter_email: createFileSubmissionDto.data_submitter_email,
       sample_count: createFileSubmissionDto.sample_count,
-      results_count: createFileSubmissionDto.result_count,
+      results_count: createFileSubmissionDto.results_count,
+      results_count_old: createFileSubmissionDto.results_count_old,
       active_ind: createFileSubmissionDto.active_ind,
       error_log: createFileSubmissionDto.error_log,
       organization_guid: createFileSubmissionDto.organization_guid,

@@ -54,7 +54,12 @@ export class FileSubmissionDto {
   @ApiProperty({
     description: 'Result count',
   })
-  result_count: number;
+  results_count: number;
+
+  @ApiProperty({
+    description: 'Result count old',
+  })
+  results_count_old: number;
 
   @ApiProperty({
     description: 'True if active, false otherwise',
