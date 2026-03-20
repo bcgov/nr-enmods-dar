@@ -216,6 +216,16 @@ export class AqiApiService {
     }
   }
 
+  async getObservationCountFromURL(url: any) {
+    try{
+      const response = await this.axiosInstance.get(url);
+      return response.data.successCount;
+    } catch (err) {
+      this.logger.error("API CALL TO GET Observation Count from URL failed: ", err);
+      return null;
+    }
+  }
+
   async getObservationsFromFile(fileName: string) {
     try {
       let allObservationsFromFile = [];

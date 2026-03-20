@@ -3589,6 +3589,21 @@ export class FileParseValidateService {
       });
     });
 
+    // make the api call to obs status to get the successCount
+    const resultURL = await this.prisma.$transaction(async (prisma) => {
+      let url = await this.prisma.aqi_obs_status.findFirst({
+        where: {
+          file_submission_id: file_submission_id
+        },
+        select: {
+          result_url: true
+        }
+      })
+      return url.result_url;
+    });
+
+    const observationsResult = await this.aqiService.getObservationCountFromURL(resultURL);
+
     await this.prisma.$transaction(async (prisma) => {
       const updateStatus = await this.prisma.file_submission.update({
         where: {
@@ -3596,7 +3611,8 @@ export class FileParseValidateService {
         },
         data: {
           sample_count: guidsToUpdate[0].imported_guids["activities"].length,
-          results_count: observationGUIDS.length,
+          results_count_old: observationGUIDS.length, // old way to getting the import count. 
+          results_count: observationsResult, // new way to get the import count from the result URL
         },
       });
     });
