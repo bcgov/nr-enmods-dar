@@ -16,8 +16,8 @@ import { AqiApiService } from "src/aqi_api/aqi_api.service";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 import { OperationLockService } from "src/operationLock/operationLock.service";
-import { equals } from "class-validator";
 import { Role } from "src/enum/role.enum";
+import { jwtDecode } from "jwt-decode";
 
 @Injectable()
 export class FileSubmissionsService {
@@ -421,32 +421,68 @@ export class FileSubmissionsService {
 async function grantBucketAccess(token: string) {
   const axios = require("axios");
 
-  let config = {
-    method: "put",
-    url: `${process.env.COMS_URI}/v1/bucket`,
-    headers: {
-      Authorization: "Bearer " + token,
-      "Content-Type": "application/json",
-    },
-    data: {
-      accessKeyId: process.env.OBJECTSTORE_ACCESS_KEY,
-      bucket: process.env.OBJECTSTORE_BUCKET,
-      bucketName: process.env.OBJECTSTORE_BUCKET,
-      endpoint: process.env.OBJECTSTORE_URL,
-      secretAccessKey: process.env.OBJECTSTORE_SECRET_KEY,
-      active: true,
-      key: "/",
-      permCodes: ["CREATE"],
-    },
-  };
+  const decodedToken: any = jwtDecode(token);
 
-  await axios
-    .request(config)
-    .then((res) => res)
-    .catch((err) => {
-      console.log("create bucket failed");
-      console.log(err);
-    });
+  if(decodedToken?.identity_provider !== "idir") {
+    let config = {
+      method: "put",
+      url: `${process.env.COMS_URI}/v1/bucket`,
+      headers: {
+        "x-amz-bucket": process.env.OBJECTSTORE_BUCKET,
+        "x-amz-endpoint": process.env.OBJECTSTORE_URL,
+        "Content-Type": "application/json"
+      },
+      auth: {
+        username: process.env.OBJECTSTORE_ACCESS_KEY,
+        password: process.env.OBJECTSTORE_SECRET_KEY,
+      },
+      data: {
+        accessKeyId: process.env.OBJECTSTORE_ACCESS_KEY,
+        secretAccessKey: process.env.OBJECTSTORE_SECRET_KEY,
+        bucket: process.env.OBJECTSTORE_BUCKET,
+        bucketName: process.env.OBJECTSTORE_BUCKET,
+        endpoint: process.env.OBJECTSTORE_URL,
+        active: true,
+        key: "/",
+        permCodes: ["CREATE"],
+      },
+    };
+
+    await axios
+      .request(config)
+      .then(res => res)
+      .catch((err) => {
+        console.log("create bucket failed");
+        console.log(err);
+      });
+  }else{
+    let config = {
+      method: "put",
+      url: `${process.env.COMS_URI}/v1/bucket`,
+      headers: {
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+      },
+      data: {
+        accessKeyId: process.env.OBJECTSTORE_ACCESS_KEY,
+        bucket: process.env.OBJECTSTORE_BUCKET,
+        bucketName: process.env.OBJECTSTORE_BUCKET,
+        endpoint: process.env.OBJECTSTORE_URL,
+        secretAccessKey: process.env.OBJECTSTORE_SECRET_KEY,
+        active: true,
+        key: "/",
+        permCodes: ["CREATE"],
+      },
+    };
+
+    await axios
+      .request(config)
+      .then(res => res)
+      .catch((err) => {
+        console.log("create bucket failed");
+        console.log(err);
+      });
+    }
 }
 
 async function saveToS3(token: any, file: Express.Multer.File) {
@@ -540,8 +576,5 @@ async function saveToS3WithSftp(file: Express.Multer.File) {
     console.error("Error uploading file to object store:", error);
     throw error;
   }
-}
-function jwtDecode(arg0: any) {
-  throw new Error("Function not implemented.");
 }
 
