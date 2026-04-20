@@ -42,7 +42,7 @@ export class FileSubmissionsService {
     */
 
     // Call to function that makes API call to save file in the S3 bucket via COMS
-    let [comsSubmissionID, newFileName] = await saveToS3(body.token, file);
+    let [comsSubmissionID, newFileName] = await saveToS3(body.token, file, this.logger);
 
     // Creating file DTO and inserting it in the database with the file GUID from the S3 bucket
     createFileSubmissionDto.submission_id = comsSubmissionID;
@@ -467,7 +467,7 @@ async function grantBucketAccess(token: string) {
     });
 }
 
-async function saveToS3(token: any, file: Express.Multer.File) {
+async function saveToS3(token: any, file: Express.Multer.File, logger: any) {
   const path = require("path");
   let fileGUID = null;
   const originalFileName = file.originalname;
@@ -479,9 +479,13 @@ async function saveToS3(token: any, file: Express.Multer.File) {
 
   const axios = require("axios");
 
+  logger.log(`GRANTING bucket access for file upload: ${newFileName}`);
   await grantBucketAccess(token);
+  logger.log(`Bucket access GRANTED for file upload: ${newFileName}`);
+  const decodedToken: any = jwtDecode(token);
 
-  let config = {
+  logger.log(`FORMULATING request to COMS for file upload.`)
+  let config: any = {
     method: "put",
     maxBodyLength: Infinity,
     url: `${process.env.COMS_URI}/v1/object?bucketId=${process.env.COMS_BUCKET_ID}`,
@@ -494,8 +498,33 @@ async function saveToS3(token: any, file: Express.Multer.File) {
     data: file.buffer,
   };
 
+  if (decodedToken?.identity_provider !== "idir") {
+    config.headers = {
+      "Content-Disposition": 'attachment; filename="' + newFileName + '"',
+      "x-amz-meta-complaint-id": "23-000076",
+      "Content-Type": file.mimetype,
+      "x-amz-bucket": process.env.OBJECTSTORE_BUCKET,
+      "x-amz-endpoint": process.env.OBJECTSTORE_URL,
+    };
+    config.auth = {
+      username: process.env.OBJECTSTORE_ACCESS_KEY,
+      password: process.env.OBJECTSTORE_SECRET_KEY,
+    }
+  }else{
+    config.headers = {
+      "Content-Disposition": 'attachment; filename="' + newFileName + '"',
+      "x-amz-meta-complaint-id": "23-000076",
+      "Content-Type": file.mimetype,
+      Authorization: "Bearer " + token,
+    }
+  }
+
+  logger.log(`SENDING request to COMS for file upload.`)
   await axios.request(config).then((response) => {
     fileGUID = response.data.id;
+    logger.log(`File upload SUCCESSFUL. COMS submission ID: ${fileGUID}`);
+  }).catch((err) => {
+    logger.error(`File upload FAILED for file ${newFileName}. Error: ${err.message}`);
   });
 
   return [fileGUID, newFileName];
