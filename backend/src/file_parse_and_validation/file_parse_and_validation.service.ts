@@ -4957,6 +4957,14 @@ export class FileParseValidateService {
             continue;
           }
 
+          const isEmpty = Object.values(row).every(
+            (value) => value === undefined || value === null || value === "",
+          );
+          if (isEmpty) {
+            this.logger.log(`Skipping empty row ${rowNumber}`);
+            continue;
+          }
+
           this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
           batch.push(row);
 
