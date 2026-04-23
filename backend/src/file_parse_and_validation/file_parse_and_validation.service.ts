@@ -4761,7 +4761,7 @@ export class FileParseValidateService {
       }
 
       this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
-      batch.push(row);
+      batch.push({ row, rowNumber });
 
       if (batch.length === BATCH_SIZE) {
         this.logger.log(`Created batch ${batchNumber}`);
@@ -4769,13 +4769,11 @@ export class FileParseValidateService {
           `Starting to process batch ${batchNumber} ******************`,
         );
 
-        for (const [index, row] of batch.entries()) {
-          let actualRowNumber =
-            index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+        for (const { row, rowNumber } of batch) {
           await this.cleanAndValidate(
             row,
             headers,
-            actualRowNumber + 1,
+            rowNumber,
             ministryContacts,
             csvStream,
             allNonObsErrors,
@@ -4798,12 +4796,11 @@ export class FileParseValidateService {
         `Starting to process (final) batch ${batchNumber} ******************`,
       );
 
-      for (const [index, row] of batch.entries()) {
-        let actualRowNumber = index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+      for (const { row, rowNumber } of batch) {
         await this.cleanAndValidate(
           row,
           headers,
-          actualRowNumber + 1,
+          rowNumber,
           ministryContacts,
           csvStream,
           allNonObsErrors,
@@ -4966,7 +4963,7 @@ export class FileParseValidateService {
           }
 
           this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
-          batch.push(row);
+          batch.push({ row, rowNumber });
 
           if (batch.length === BATCH_SIZE) {
             this.logger.log(`Created batch ${batchNumber}`);
@@ -4974,10 +4971,7 @@ export class FileParseValidateService {
               `Starting to process batch ${batchNumber} ******************`,
             );
 
-            for (const [index, row] of batch.entries()) {
-              let actualRowNumber =
-                index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
-
+            for (const { row, rowNumber } of batch) {
               let GuidsToSave = {
                 visits: [],
                 activities: [],
@@ -4988,7 +4982,7 @@ export class FileParseValidateService {
               await this.importRow(
                 row,
                 headers,
-                actualRowNumber,
+                rowNumber,
                 fileName,
                 GuidsToSave,
                 extention,
@@ -5028,9 +5022,7 @@ export class FileParseValidateService {
             `Starting to process (final) batch ${batchNumber} ******************`,
           );
 
-          for (const [index, row] of batch.entries()) {
-            let actualRowNumber =
-              index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+          for (const { row, rowNumber } of batch) {
             let GuidsToSave = {
               visits: [],
               activities: [],
@@ -5041,7 +5033,7 @@ export class FileParseValidateService {
             await this.importRow(
               row,
               headers,
-              actualRowNumber,
+              rowNumber,
               fileName,
               GuidsToSave,
               extention,
