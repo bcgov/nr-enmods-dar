@@ -857,14 +857,16 @@ export class FileParseValidateService {
   async checkHeaders(rowHeaders: any[], fileType: string) {
     let headerErrors = [];
     let sourceHeaders = [];
-    let targetHeaders = []
+    let targetHeaders = [];
     if (fileType === "xlsx") {
-      targetHeaders = Object.keys(fileHeaders).map(item => item.replace(/\s+/g, ""));
-    }else{
-      targetHeaders = Object.keys(fileHeaders)
+      targetHeaders = Object.keys(fileHeaders).map((item) =>
+        item.replace(/\s+/g, ""),
+      );
+    } else {
+      targetHeaders = Object.keys(fileHeaders);
     }
 
-    sourceHeaders = rowHeaders
+    sourceHeaders = rowHeaders;
 
     // Normalize by trimming for all comparisons
     const normalizedSourceHeaders = sourceHeaders.map((h) =>
@@ -3595,16 +3597,17 @@ export class FileParseValidateService {
     const resultURL = await this.prisma.$transaction(async (prisma) => {
       let url = await this.prisma.aqi_obs_status.findFirst({
         where: {
-          file_submission_id: file_submission_id
+          file_submission_id: file_submission_id,
         },
         select: {
-          result_url: true
-        }
-      })
+          result_url: true,
+        },
+      });
       return url.result_url;
     });
 
-    const observationsResult = await this.aqiService.getObservationCountFromURL(resultURL);
+    const observationsResult =
+      await this.aqiService.getObservationCountFromURL(resultURL);
 
     await this.prisma.$transaction(async (prisma) => {
       const updateStatus = await this.prisma.file_submission.update({
@@ -3613,7 +3616,7 @@ export class FileParseValidateService {
         },
         data: {
           sample_count: guidsToUpdate[0].imported_guids["activities"].length,
-          results_count_old: observationGUIDS.length, // old way to getting the import count. 
+          results_count_old: observationGUIDS.length, // old way to getting the import count.
           results_count: observationsResult, // new way to get the import count from the result URL
         },
       });
@@ -4120,8 +4123,11 @@ export class FileParseValidateService {
   private cellToString(value: ExcelJS.CellValue): string {
     if (!value) return "";
     if (typeof value === "string") return value.replace(/\s+/g, "");
-    if (typeof value === "object" && "richText" in value){
-      return value.richText.map((part) => part.text).join("").replace(/\s+/g, "");
+    if (typeof value === "object" && "richText" in value) {
+      return value.richText
+        .map((part) => part.text)
+        .join("")
+        .replace(/\s+/g, "");
     }
 
     return String(value).replace(/\s+/g, "");
@@ -4207,10 +4213,7 @@ export class FileParseValidateService {
     const allNonObsErrors: any[] = [];
     const allExistingRecords: any[] = [];
 
-    const headerErrors = await this.checkHeaders(
-      rowHeaders,
-      "xlsx",
-    );
+    const headerErrors = await this.checkHeaders(rowHeaders, "xlsx");
 
     if (headerErrors.length > 0) {
       const file_error_log_data = {
@@ -4240,7 +4243,15 @@ export class FileParseValidateService {
     startValidation = performance.now();
     for (let rowNumber = 2; rowNumber <= worksheet?.rowCount; rowNumber++) {
       const row = worksheet?.getRow(rowNumber);
-
+      const isEmpty =
+        !row.hasValues ||
+        row.values.every(
+          (cell) => cell === null || cell === undefined || cell === "",
+        );
+      if (isEmpty) {
+        this.logger.log(`Skipping empty row ${rowNumber}`);
+        continue;
+      }
       if (rowNumber === 1) {
         return { timings: {}, hasError: false };
       }
@@ -4254,13 +4265,12 @@ export class FileParseValidateService {
           `Starting to process batch ${batchNumber} ******************`,
         );
 
-        for (const [index, row] of batch.entries()) {
-          let actualRowNumber =
-            index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+        for (const row of batch) {
+          // row.number gives the worksheet's row number
           await this.cleanAndValidate(
             row,
             rowHeaders,
-            actualRowNumber + 1,
+            row.number,
             ministryContacts,
             csvStream,
             allNonObsErrors,
@@ -4283,12 +4293,11 @@ export class FileParseValidateService {
         `Starting to process (final) batch ${batchNumber} ******************`,
       );
 
-      for (const [index, row] of batch.entries()) {
-        let actualRowNumber = index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+      for (const row of batch) {
         await this.cleanAndValidate(
           row,
           rowHeaders,
-          actualRowNumber + 1,
+          row.number,
           ministryContacts,
           csvStream,
           allNonObsErrors,
@@ -4414,6 +4423,16 @@ export class FileParseValidateService {
             };
           }
 
+          const isEmpty =
+            !row.hasValues ||
+            row.values.every(
+              (cell) => cell === null || cell === undefined || cell === "",
+            );
+          if (isEmpty) {
+            this.logger.log(`Skipping empty row ${rowNumber}`);
+            continue;
+          }
+
           this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
           batch.push(row);
           this.logger.log(`Beginning processing row: ${rowNumber}`);
@@ -4424,10 +4443,7 @@ export class FileParseValidateService {
               `Starting to process batch ${batchNumber} ******************`,
             );
 
-            for (const [index, row] of batch.entries()) {
-              let actualRowNumber =
-                index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
-
+            for (const row of batch) {
               let GuidsToSave = {
                 visits: [],
                 activities: [],
@@ -4437,7 +4453,7 @@ export class FileParseValidateService {
               await this.importRow(
                 row,
                 rowHeaders,
-                actualRowNumber,
+                row.number,
                 fileName,
                 GuidsToSave,
                 extention,
@@ -4474,9 +4490,7 @@ export class FileParseValidateService {
             `Starting to process (final) batch ${batchNumber} ******************`,
           );
 
-          for (const [index, row] of batch.entries()) {
-            let actualRowNumber =
-              index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+          for (const row of batch) {
             let GuidsToSave = {
               visits: [],
               activities: [],
@@ -4486,7 +4500,7 @@ export class FileParseValidateService {
             await this.importRow(
               row,
               rowHeaders,
-              actualRowNumber,
+              row.number,
               fileName,
               GuidsToSave,
               extention,
@@ -4741,8 +4755,16 @@ export class FileParseValidateService {
         continue;
       }
 
+      const isEmpty = Object.values(row).every(
+        (value) => value === undefined || value === null || value === "",
+      );
+      if (isEmpty) {
+        this.logger.log(`Skipping empty row ${rowNumber}`);
+        continue;
+      }
+
       this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
-      batch.push(row);
+      batch.push({ row, rowNumber });
 
       if (batch.length === BATCH_SIZE) {
         this.logger.log(`Created batch ${batchNumber}`);
@@ -4750,13 +4772,11 @@ export class FileParseValidateService {
           `Starting to process batch ${batchNumber} ******************`,
         );
 
-        for (const [index, row] of batch.entries()) {
-          let actualRowNumber =
-            index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+        for (const { row, rowNumber } of batch) {
           await this.cleanAndValidate(
             row,
             headers,
-            actualRowNumber + 1,
+            rowNumber,
             ministryContacts,
             csvStream,
             allNonObsErrors,
@@ -4779,12 +4799,11 @@ export class FileParseValidateService {
         `Starting to process (final) batch ${batchNumber} ******************`,
       );
 
-      for (const [index, row] of batch.entries()) {
-        let actualRowNumber = index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+      for (const { row, rowNumber } of batch) {
         await this.cleanAndValidate(
           row,
           headers,
-          actualRowNumber + 1,
+          rowNumber,
           ministryContacts,
           csvStream,
           allNonObsErrors,
@@ -4938,8 +4957,16 @@ export class FileParseValidateService {
             continue;
           }
 
+          const isEmpty = Object.values(row).every(
+            (value) => value === undefined || value === null || value === "",
+          );
+          if (isEmpty) {
+            this.logger.log(`Skipping empty row ${rowNumber}`);
+            continue;
+          }
+
           this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
-          batch.push(row);
+          batch.push({ row, rowNumber });
 
           if (batch.length === BATCH_SIZE) {
             this.logger.log(`Created batch ${batchNumber}`);
@@ -4947,10 +4974,7 @@ export class FileParseValidateService {
               `Starting to process batch ${batchNumber} ******************`,
             );
 
-            for (const [index, row] of batch.entries()) {
-              let actualRowNumber =
-                index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
-
+            for (const { row, rowNumber } of batch) {
               let GuidsToSave = {
                 visits: [],
                 activities: [],
@@ -4961,7 +4985,7 @@ export class FileParseValidateService {
               await this.importRow(
                 row,
                 headers,
-                actualRowNumber,
+                rowNumber,
                 fileName,
                 GuidsToSave,
                 extention,
@@ -5001,9 +5025,7 @@ export class FileParseValidateService {
             `Starting to process (final) batch ${batchNumber} ******************`,
           );
 
-          for (const [index, row] of batch.entries()) {
-            let actualRowNumber =
-              index + batchNumber * BATCH_SIZE + 1 - BATCH_SIZE;
+          for (const { row, rowNumber } of batch) {
             let GuidsToSave = {
               visits: [],
               activities: [],
@@ -5014,7 +5036,7 @@ export class FileParseValidateService {
             await this.importRow(
               row,
               headers,
-              actualRowNumber,
+              rowNumber,
               fileName,
               GuidsToSave,
               extention,
@@ -5178,14 +5200,30 @@ export class FileParseValidateService {
         file_submission_id,
         fileName,
         originalFileName,
-        result.timings.endValidation === undefined ? 0 : result.timings.endValidation,
-        result.timings.endObsValidation === undefined ? 0 : result.timings.endObsValidation,
-        result.timings.endImportNonObs === undefined ? 0 : result.timings.endImportNonObs,
-        result.timings.endImportObs === undefined ? 0 : result.timings.endImportObs,
-        result.timings.startValidation === undefined ? 0 : result.timings.startValidation,
-        result.timings.startObsValidation === undefined ? 0 : result.timings.startObsValidation,
-        result.timings.startImportNonObs === undefined ? 0 : result.timings.startImportNonObs,
-        result.timings.startImportObs === undefined ? 0 : result.timings.startImportObs,
+        result.timings.endValidation === undefined
+          ? 0
+          : result.timings.endValidation,
+        result.timings.endObsValidation === undefined
+          ? 0
+          : result.timings.endObsValidation,
+        result.timings.endImportNonObs === undefined
+          ? 0
+          : result.timings.endImportNonObs,
+        result.timings.endImportObs === undefined
+          ? 0
+          : result.timings.endImportObs,
+        result.timings.startValidation === undefined
+          ? 0
+          : result.timings.startValidation,
+        result.timings.startObsValidation === undefined
+          ? 0
+          : result.timings.startObsValidation,
+        result.timings.startImportNonObs === undefined
+          ? 0
+          : result.timings.startImportNonObs,
+        result.timings.startImportObs === undefined
+          ? 0
+          : result.timings.startImportObs,
       );
     } else if (extention == ".csv" || extention == ".txt") {
       result = await this.processCsvFile(
@@ -5204,14 +5242,30 @@ export class FileParseValidateService {
         file_submission_id,
         fileName,
         originalFileName,
-        result.timings.endValidation === undefined ? 0 : result.timings.endValidation,
-        result.timings.endObsValidation === undefined ? 0 : result.timings.endObsValidation,
-        result.timings.endImportNonObs === undefined ? 0 : result.timings.endImportNonObs,
-        result.timings.endImportObs === undefined ? 0 : result.timings.endImportObs,
-        result.timings.startValidation === undefined ? 0 : result.timings.startValidation,
-        result.timings.startObsValidation === undefined ? 0 : result.timings.startObsValidation,
-        result.timings.startImportNonObs === undefined ? 0 : result.timings.startImportNonObs,
-        result.timings.startImportObs === undefined ? 0 : result.timings.startImportObs,
+        result.timings.endValidation === undefined
+          ? 0
+          : result.timings.endValidation,
+        result.timings.endObsValidation === undefined
+          ? 0
+          : result.timings.endObsValidation,
+        result.timings.endImportNonObs === undefined
+          ? 0
+          : result.timings.endImportNonObs,
+        result.timings.endImportObs === undefined
+          ? 0
+          : result.timings.endImportObs,
+        result.timings.startValidation === undefined
+          ? 0
+          : result.timings.startValidation,
+        result.timings.startObsValidation === undefined
+          ? 0
+          : result.timings.startObsValidation,
+        result.timings.startImportNonObs === undefined
+          ? 0
+          : result.timings.startImportNonObs,
+        result.timings.startImportObs === undefined
+          ? 0
+          : result.timings.startImportObs,
       );
     }
     partialUpload = false;
