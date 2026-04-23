@@ -59,6 +59,7 @@ export class AqiApiService {
         id: rowNumber,
         url: url,
         count: response.data.totalCount,
+        visitStartTime: response.data.domainObjects.length > 0 ? response.data.domainObjects[0].startTime : '',
         error: null,
         GUID:
           response.data.domainObjects.length > 0
@@ -75,6 +76,7 @@ export class AqiApiService {
         id: rowNumber,
         url: url,
         count: 0,
+        visitStartTime: null,
         error: err.response.data.message,
         GUID: null,
       }

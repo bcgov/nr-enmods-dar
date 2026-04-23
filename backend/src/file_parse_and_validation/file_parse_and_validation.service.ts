@@ -1463,7 +1463,6 @@ export class FileParseValidateService {
       rowData["DataClassification"] === "SURROGATE_RESULT";
 
     if (!isLabData) {
-      console.log("returning");
       return errors;
     }
 
@@ -2386,6 +2385,7 @@ export class FileParseValidateService {
         let visitExistsForDay = false;
         let activityURL = `/v1/activities?samplingLocationIds=${locationGUID.samplingLocation.id}&fromStartTime=${encodedObservedDateTime}&toStartTime=${encodedObservedDateTime}&customId=${rowData.ActivityName}`;
         let activityExists = false;
+        let visitTimeForDay = null;
 
         this.logger.log(`visitUrlForDay: ${visitURLForDay}`);
         this.logger.log(`visitUrlForTime: ${visitURLForTime}`);
@@ -2404,6 +2404,7 @@ export class FileParseValidateService {
           );
           if (seenVisitUrlForDay.count > 0) {
             visitExistsForDay = true;
+            visitTimeForDay = seenVisitUrlForDay.visitStartTime;
             this.logger.log(
               `[Row ${rowNumber}] Day visit check - found ${seenVisitUrlForDay.count} existing visits for the day`,
             );
@@ -2420,6 +2421,7 @@ export class FileParseValidateService {
             rowNumber,
             visitURLForDay,
           );
+          visitTimeForDay = visitURLCalledForDay.visitStartTime;
           if (visitURLCalledForDay.error == null) {
             // this means no error in the api call
             if (visitURLCalledForDay.count > 0) {
@@ -2488,7 +2490,7 @@ export class FileParseValidateService {
                 rowNum: rowNumber,
                 type: "ERROR",
                 message: {
-                  Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}. Please correct the date time and re-upload the file.`,
+                  Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}. The existing field visit start time is ${visitTimeForDay}. Please correct the date time and re-upload the file.`,
                 },
               };
               errorLogs.push(errorLog);
@@ -2527,7 +2529,7 @@ export class FileParseValidateService {
                   rowNum: rowNumber,
                   type: "ERROR",
                   message: {
-                    Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}. Please correct the date time and re-upload the file.`,
+                    Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}. The existing field visit start time is ${visitTimeForDay}. Please correct the date time and re-upload the file.`,
                   },
                 };
                 errorLogs.push(errorLog);
