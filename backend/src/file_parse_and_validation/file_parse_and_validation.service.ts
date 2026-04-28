@@ -4759,7 +4759,10 @@ export class FileParseValidateService {
       }
 
       const isEmpty = Object.values(row).every(
-        (value) => value === undefined || value === null || value === "",
+        (value) =>
+          value === undefined ||
+          value === null ||
+          (typeof value === "string" && value.trim() === "")
       );
       if (isEmpty) {
         this.logger.log(`Skipping empty row ${rowNumber}`);
