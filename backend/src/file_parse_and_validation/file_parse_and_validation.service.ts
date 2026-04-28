@@ -2375,13 +2375,15 @@ export class FileParseValidateService {
 
         // Extract YYYY-MM-DD from FieldVisitStartTime and append time components
         const datePart = rowData.FieldVisitStartTime.split("T")[0]; // Extract YYYY-MM-DD part
+        const match = rowData.FieldVisitStartTime.match(/([+-]\d{2}:\d{2})$/);
+        const timeZone = match ? match[1] : "-07:00"; // Default to -07:00 if no timezone found
         const encodedVisitStartTime = encodeURIComponent(
           rowData.FieldVisitStartTime,
         );
         const encodedObservedDateTime = encodeURIComponent(
           rowData.ObservedDateTime,
         );
-        const visitURLForDay = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${datePart}T00:00:00-08:00&end-startTime=${datePart}T23:59:59-08:00`;
+        const visitURLForDay = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${datePart}T00:00:00${timeZone}&end-startTime=${datePart}T23:59:59${timeZone}`;
         const visitURLForTime = `/v1/fieldvisits?samplingLocationIds=${locationGUID.samplingLocation.id}&start-startTime=${encodedVisitStartTime}&end-startTime=${encodedVisitStartTime}`;
         let visitExists = false;
         let visitExistsForDay = false;
