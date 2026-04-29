@@ -4246,7 +4246,10 @@ export class FileParseValidateService {
       const isEmpty =
         !row.hasValues ||
         row.values.every(
-          (cell) => cell === null || cell === undefined || cell === "",
+          (cell) =>
+            cell === null ||
+            cell === undefined ||
+            (typeof cell === "string" && cell.trim() === "")
         );
       if (isEmpty) {
         this.logger.log(`Skipping empty row ${rowNumber}`);
@@ -4756,7 +4759,10 @@ export class FileParseValidateService {
       }
 
       const isEmpty = Object.values(row).every(
-        (value) => value === undefined || value === null || value === "",
+        (value) =>
+          value === undefined ||
+          value === null ||
+          (typeof value === "string" && value.trim() === "")
       );
       if (isEmpty) {
         this.logger.log(`Skipping empty row ${rowNumber}`);
