@@ -405,7 +405,7 @@ export class FileParseValidateService {
           },
         });
 
-        if (param[0] == "Specimen Lab Arrival Temperature (°C)") {
+        if (param[0] == "Specimen Lab Arrival Temperature (°C)" || param[0] == "Depth Lower" ) {
           return {
             attributeId: eaID[0].aqi_extended_attributes_id,
             customId: param[0],
