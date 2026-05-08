@@ -127,7 +127,7 @@ backend:
   persistence:
     enabled: true
     accessMode: ReadWriteMany
-    size: 150Mi
+    size: 4Gi
     storageClassName: netapp-file-standard
     swapFiles:
       enabled: true
