@@ -3666,7 +3666,7 @@ export class FileParseValidateService {
     try {
       let rowData: Record<string, string> = {};
       this.logger.log(`Started creating object for row ${rowNumber}`);
-      if (fileType == ".xlsx") {
+      if (fileType == ".xlsx" || fileType == ".XLSX") {
         // Get the row values, remove the first empty cell, and map to headers
         rowData = headers
           .map((header, colNumber) => {
@@ -3695,7 +3695,7 @@ export class FileParseValidateService {
           .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
         rowData = await this.cleanRowBasedOnDataClassification(rowData);
-      } else if (fileType == ".csv" || fileType == ".txt") {
+      } else if (fileType == ".csv" || fileType == ".CSV" || fileType == ".txt" || fileType == ".TXT") {
         headers.forEach((header) => {
           rowData[header] = String(row[header] ?? "").replace(/\r?\n/g, " ");
         });
@@ -3716,7 +3716,6 @@ export class FileParseValidateService {
       }
 
       this.logger.log(`Finished creating object for row ${rowNumber}`);
-
       this.logger.log(`Sent row ${rowNumber} for validation`);
       await this.validateRowData(
         rowData,
@@ -3752,7 +3751,7 @@ export class FileParseValidateService {
     try {
       let rowData: Record<string, string> = {};
       this.logger.log(`Started creating object for row ${rowNumber}`);
-      if (fileType == ".xlsx") {
+      if (fileType == ".xlsx" || fileType == ".XLSX") {
         // Get the row values, remove the first empty cell, and map to headers
         rowData = headers
           .map((header, colNumber) => {
@@ -3770,7 +3769,7 @@ export class FileParseValidateService {
           .reduce((acc, curr) => ({ ...acc, ...curr }), {});
 
         rowData = await this.cleanRowBasedOnDataClassification(rowData);
-      } else if (fileType == ".csv" || fileType == ".txt") {
+      } else if (fileType == ".csv" || fileType == ".CSV" || fileType == ".txt" || fileType == ".TXT") {
         headers.forEach((header) => {
           rowData[header] = String(row[header] ?? "").replace(/\r?\n/g, " ");
         });
@@ -5189,7 +5188,7 @@ export class FileParseValidateService {
 
     let result: any = {};
 
-    if (extention == ".xlsx") {
+    if (extention == ".xlsx" || extention == ".XLSX") {
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.read(file);
       result = await this.processXlsxFile(
@@ -5233,7 +5232,7 @@ export class FileParseValidateService {
           ? 0
           : result.timings.startImportObs,
       );
-    } else if (extention == ".csv" || extention == ".txt") {
+    } else if (extention == ".csv" || extention == ".CSV" || extention == ".txt" || extention == ".TXT") {
       result = await this.processCsvFile(
         file,
         fileName,
