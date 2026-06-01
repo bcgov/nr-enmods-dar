@@ -405,7 +405,10 @@ export class FileParseValidateService {
           },
         });
 
-        if (param[0] == "Specimen Lab Arrival Temperature (°C)" || param[0] == "Depth Lower" ) {
+        if (
+          param[0] == "Specimen Lab Arrival Temperature (°C)" ||
+          param[0] == "Depth Lower"
+        ) {
           return {
             attributeId: eaID[0].aqi_extended_attributes_id,
             customId: param[0],
@@ -4152,6 +4155,7 @@ export class FileParseValidateService {
    * @private
    */
   private async processXlsxFile(
+    file: Readable,
     workbook: any,
     fileName: string,
     extention: string,
@@ -4163,8 +4167,6 @@ export class FileParseValidateService {
     ministryContacts: Set<any>,
   ) {
     const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
-    let batch: any[] = [];
-    let batchNumber = 1;
     let startValidation = 0,
       endValidation = 0,
       startObsValidation = 0,
@@ -4178,104 +4180,129 @@ export class FileParseValidateService {
       startImportObs = 0,
       endImportObs = 0;
 
-    const worksheet = workbook.worksheets[0];
-
-    if (worksheet === undefined) {
-      this.logger.error("No worksheet found in the Excel file.");
-      let errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"File": "Incorrect file content. Please check the file and try again."}}`;
-
-      const file_error_log_data = {
-        file_submission_id: file_submission_id,
-        file_name: fileName,
-        original_file_name: originalFileName,
-        file_operation_code: file_operation_code,
-        ministry_contact: null,
-        error_log: [JSON.parse(errorLog)],
-        create_utc_timestamp: new Date(),
-      };
-
-      await this.prisma.file_error_logs.create({
-        data: file_error_log_data,
-      });
-
-      await this.fileSubmissionsService.updateFileStatus(
-        file_submission_id,
-        "REJECTED",
-      );
-
-      await this.notificationsService.notifyUserOfError(file_submission_id);
-      return { timings: {}, hasError: true };
-    }
-
-    const rowHeaders = (worksheet?.getRow(1).values as string[])
-      .slice(1)
-      .map(this.cellToString)
-      .filter(Boolean);
-
+    // ── PASS 1: Validation ───────────────────────────────────────────────────
+    let rowHeaders: string[] = [];
     const allNonObsErrors: any[] = [];
     const allExistingRecords: any[] = [];
+    let isFirstRow = true;
+    let foundWorksheet = false;
 
-    const headerErrors = await this.checkHeaders(rowHeaders, "xlsx");
-
-    if (headerErrors.length > 0) {
-      const file_error_log_data = {
-        file_submission_id: file_submission_id,
-        file_name: fileName,
-        original_file_name: originalFileName,
-        file_operation_code: file_operation_code,
-        ministry_contact: null,
-        error_log: headerErrors,
-        create_utc_timestamp: new Date(),
-      };
-
-      await this.prisma.file_error_logs.create({
-        data: file_error_log_data,
-      });
-
-      await this.fileSubmissionsService.updateFileStatus(
-        file_submission_id,
-        "REJECTED",
-      );
-
-      await this.notificationsService.notifyUserOfError(file_submission_id);
-      return { timings: {}, hasError: true };
-    }
-
-    console.time("Validation");
-    startValidation = performance.now();
-    for (let rowNumber = 2; rowNumber <= worksheet?.rowCount; rowNumber++) {
-      const row = worksheet?.getRow(rowNumber);
-      const isEmpty =
-        !row.hasValues ||
-        row.values.every(
-          (cell) =>
-            cell === null ||
-            cell === undefined ||
-            (typeof cell === "string" && cell.trim() === "")
+    for await (const worksheetReader of workbook) {
+      if (worksheetReader === undefined) {
+        this.logger.error("No worksheet found in the Excel file.");
+        const errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"File": "Incorrect file content. Please check the file and try again."}}`;
+        await this.prisma.file_error_logs.create({
+          data: {
+            file_submission_id,
+            file_name: fileName,
+            original_file_name: originalFileName,
+            file_operation_code,
+            ministry_contact: null,
+            error_log: [JSON.parse(errorLog)],
+            create_utc_timestamp: new Date(),
+          },
+        });
+        await this.fileSubmissionsService.updateFileStatus(
+          file_submission_id,
+          "REJECTED",
         );
-      if (isEmpty) {
-        this.logger.log(`Skipping empty row ${rowNumber}`);
-        continue;
-      }
-      if (rowNumber === 1) {
-        return { timings: {}, hasError: false };
+        await this.notificationsService.notifyUserOfError(file_submission_id);
+        return { timings: {}, hasError: true };
       }
 
-      this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
-      batch.push(row);
+      foundWorksheet = true;
+      isFirstRow = true;
+      let batch: any[] = [];
+      let batchNumber = 1;
 
-      if (batch.length === BATCH_SIZE) {
-        this.logger.log(`Created batch ${batchNumber}`);
+      startValidation = performance.now();
+      console.time("Validation");
+
+      this.logger.log("Starting to process the rows");
+
+      for await (const row of worksheetReader) {
+        // ── Header row ──────────────────────────────────────────────────────
+        if (isFirstRow) {
+          rowHeaders = row.values
+            .slice(1)
+            .map(this.cellToString)
+            .filter(Boolean);
+          isFirstRow = false;
+
+          const headerErrors = await this.checkHeaders(rowHeaders, "xlsx");
+          if (headerErrors.length > 0) {
+            await this.prisma.file_error_logs.create({
+              data: {
+                file_submission_id,
+                file_name: fileName,
+                original_file_name: originalFileName,
+                file_operation_code,
+                ministry_contact: null,
+                error_log: headerErrors,
+                create_utc_timestamp: new Date(),
+              },
+            });
+            await this.fileSubmissionsService.updateFileStatus(
+              file_submission_id,
+              "REJECTED",
+            );
+            await this.notificationsService.notifyUserOfError(
+              file_submission_id,
+            );
+            return { timings: {}, hasError: true };
+          }
+          continue;
+        }
+
+        // ── Skip empty rows ─────────────────────────────────────────────────
+        const isEmpty =
+          !row.hasValues ||
+          row.values.every(
+            (cell) =>
+              cell === null ||
+              cell === undefined ||
+              (typeof cell === "string" && cell.trim() === ""),
+          );
+        if (isEmpty) {
+          this.logger.log(`Skipping empty row ${row.number}`);
+          continue;
+        }
+
+        batch.push(row);
+        this.logger.log(`Added row ${row.number} to batch ${batchNumber}`);
+
+        // ── Flush full batch ─────────────────────────────────────────────────
+        if (batch.length === BATCH_SIZE) {
+          this.logger.log(`Processing batch ${batchNumber} ******************`);
+          for (const batchRow of batch) {
+            await this.cleanAndValidate(
+              batchRow,
+              rowHeaders,
+              batchRow.number,
+              ministryContacts,
+              csvStream,
+              allNonObsErrors,
+              allExistingRecords,
+              fileName,
+              extention,
+            );
+          }
+          this.logger.log(`Finished batch ${batchNumber} ******************`);
+          batchNumber++;
+          batch = [];
+        }
+      }
+
+      // ── Flush final partial batch ──────────────────────────────────────────
+      if (batch.length > 0) {
         this.logger.log(
-          `Starting to process batch ${batchNumber} ******************`,
+          `Processing final batch ${batchNumber} ******************`,
         );
-
-        for (const row of batch) {
-          // row.number gives the worksheet's row number
+        for (const batchRow of batch) {
           await this.cleanAndValidate(
-            row,
+            batchRow,
             rowHeaders,
-            row.number,
+            batchRow.number,
             ministryContacts,
             csvStream,
             allNonObsErrors,
@@ -4285,115 +4312,82 @@ export class FileParseValidateService {
           );
         }
         this.logger.log(
-          `Finished processing batch ${batchNumber} ******************`,
-        );
-
-        batchNumber++;
-        batch = [];
-      }
-    }
-
-    if (batch.length > 0) {
-      this.logger.log(
-        `Starting to process (final) batch ${batchNumber} ******************`,
-      );
-
-      for (const row of batch) {
-        await this.cleanAndValidate(
-          row,
-          rowHeaders,
-          row.number,
-          ministryContacts,
-          csvStream,
-          allNonObsErrors,
-          allExistingRecords,
-          fileName,
-          extention,
+          `Finished final batch ${batchNumber} ******************`,
         );
       }
-      this.logger.log(
-        `Finished processing (final) batch ${batchNumber} ******************`,
-      );
-    }
 
-    console.timeEnd("Validation");
-    endValidation = performance.now();
+      console.timeEnd("Validation");
+      endValidation = performance.now();
 
-    csvStream.end();
-    console.time("obsValidation");
-    startObsValidation = performance.now();
-    const contactsAndValidationResults = await this.finalValidationStep(
-      ministryContacts,
-      filePath,
-      file_submission_id,
-      file_operation_code,
-      allNonObsErrors,
-    );
-    console.timeEnd("obsValidation");
-    endObsValidation = performance.now();
+      csvStream.end();
 
-    const hasError = contactsAndValidationResults[1].some(
-      (item) => item.type === "ERROR",
-    );
-    const hasWarn = contactsAndValidationResults[1].some(
-      (item) => item.type === "WARN",
-    );
-
-    if (hasError) {
-      console.time("RejectFile");
-      startRejectFile = performance.now();
-      await this.rejectFileAndLogErrors(
+      // ── Observation validation ─────────────────────────────────────────────
+      console.time("obsValidation");
+      startObsValidation = performance.now();
+      const contactsAndValidationResults = await this.finalValidationStep(
+        ministryContacts,
+        filePath,
         file_submission_id,
-        fileName,
-        originalFileName,
         file_operation_code,
-        contactsAndValidationResults[0],
-        contactsAndValidationResults[1],
+        allNonObsErrors,
+      );
+      console.timeEnd("obsValidation");
+      endObsValidation = performance.now();
+
+      const hasError = contactsAndValidationResults[1].some(
+        (item) => item.type === "ERROR",
       );
 
-      console.timeEnd("RejectFile");
-      await this.notificationsService.notifyUserOfError(file_submission_id);
-      endRejectFile = performance.now();
-
-      return {
-        timings: {
-          startValidation,
-          endValidation,
-          startObsValidation,
-          endObsValidation,
-          startRejectFile,
-          endRejectFile,
-        },
-        hasError: true,
-      };
-    } else {
-      console.time("ReportValidated");
-      startReportValidated = performance.now();
-      if (file_operation_code === "VALIDATE") {
-        const file_error_log_data = {
-          file_submission_id: file_submission_id,
-          file_name: fileName,
-          original_file_name: originalFileName,
-          file_operation_code: file_operation_code,
-          ministry_contact: contactsAndValidationResults[0],
-          error_log: contactsAndValidationResults[1],
-          create_utc_timestamp: new Date(),
+      // ── Reject ─────────────────────────────────────────────────────────────
+      if (hasError) {
+        console.time("RejectFile");
+        startRejectFile = performance.now();
+        await this.rejectFileAndLogErrors(
+          file_submission_id,
+          fileName,
+          originalFileName,
+          file_operation_code,
+          contactsAndValidationResults[0],
+          contactsAndValidationResults[1],
+        );
+        console.timeEnd("RejectFile");
+        endRejectFile = performance.now();
+        await this.notificationsService.notifyUserOfError(file_submission_id);
+        return {
+          timings: {
+            startValidation,
+            endValidation,
+            startObsValidation,
+            endObsValidation,
+            startRejectFile,
+            endRejectFile,
+          },
+          hasError: true,
         };
+      }
 
+      // ── Validate-only mode ─────────────────────────────────────────────────
+      if (file_operation_code === "VALIDATE") {
+        console.time("ReportValidated");
+        startReportValidated = performance.now();
         await this.fileSubmissionsService.updateFileStatus(
           file_submission_id,
           "VALIDATED",
         );
-
         await this.prisma.file_error_logs.create({
-          data: file_error_log_data,
+          data: {
+            file_submission_id,
+            file_name: fileName,
+            original_file_name: originalFileName,
+            file_operation_code,
+            ministry_contact: contactsAndValidationResults[0],
+            error_log: contactsAndValidationResults[1],
+            create_utc_timestamp: new Date(),
+          },
         });
-
         console.timeEnd("ReportValidated");
-
-        await this.notificationsService.notifyUserOfError(file_submission_id);
         endReportValidated = performance.now();
-
+        await this.notificationsService.notifyUserOfError(file_submission_id);
         return {
           timings: {
             startValidation,
@@ -4405,60 +4399,60 @@ export class FileParseValidateService {
           },
           hasError: false,
         };
-      } else {
-        const BATCH_SIZE = parseInt(process.env.FILE_BATCH_SIZE);
-        let batch: any[] = [];
-        let batchNumber = 1;
+      }
 
-        console.time("ImportNonObs");
-        startImportNonObs = performance.now();
-        this.logger.log(`Starting the import process`);
-        for (let rowNumber = 2; rowNumber <= worksheet?.rowCount; rowNumber++) {
-          const row = worksheet?.getRow(rowNumber);
+      // ── PASS 2: Import — re-read the original file ─────────────────────────
+      console.time("ImportNonObs");
+      startImportNonObs = performance.now();
+      this.logger.log("Starting the import process");
 
-          if (rowNumber === 1) {
-            return {
-              timings: {
-                startValidation,
-                endValidation,
-                startObsValidation,
-                endObsValidation,
-              },
-              hasError: false,
-            };
+      const importWorkbook = new ExcelJS.stream.xlsx.WorkbookReader(file, {});
+      let importBatch: any[] = [];
+      let importBatchNumber = 1;
+      let importIsFirstRow = true;
+
+      for await (const importSheet of importWorkbook) {
+        for await (const row of importSheet) {
+          // Skip header row
+          if (importIsFirstRow) {
+            importIsFirstRow = false;
+            continue;
           }
 
           const isEmpty =
             !row.hasValues ||
-            row.values.every(
-              (cell) => cell === null || cell === undefined || cell === "",
+            (row.values as ExcelJS.CellValue[]).every(
+              (cell) =>
+                cell === null ||
+                cell === undefined ||
+                (typeof cell === "string" && cell.trim() === ""),
             );
           if (isEmpty) {
-            this.logger.log(`Skipping empty row ${rowNumber}`);
+            this.logger.log(`Skipping empty row ${row.number}`);
             continue;
           }
 
-          this.logger.log(`Added ${rowNumber} to batch ${batchNumber}`);
-          batch.push(row);
-          this.logger.log(`Beginning processing row: ${rowNumber}`);
+          importBatch.push(row);
+          this.logger.log(
+            `Added row ${row.number} to import batch ${importBatchNumber}`,
+          );
 
-          if (batch.length === BATCH_SIZE) {
-            this.logger.log(`Created batch ${batchNumber}`);
+          // ── Flush full import batch ──────────────────────────────────────
+          if (importBatch.length === BATCH_SIZE) {
             this.logger.log(
-              `Starting to process batch ${batchNumber} ******************`,
+              `Processing import batch ${importBatchNumber} ******************`,
             );
-
-            for (const row of batch) {
-              let GuidsToSave = {
+            for (const batchRow of importBatch) {
+              const GuidsToSave = {
                 visits: [],
                 activities: [],
                 specimens: [],
                 observations: [],
               };
               await this.importRow(
-                row,
+                batchRow,
                 rowHeaders,
-                row.number,
+                batchRow.number,
                 fileName,
                 GuidsToSave,
                 extention,
@@ -4469,43 +4463,39 @@ export class FileParseValidateService {
                 contactsAndValidationResults[1],
                 filePath,
               );
-
               if (partialUpload) {
                 this.logger.warn(
-                  `Partial upload detected, stopped processing the batch`,
+                  "Partial upload detected, stopped processing the batch",
                 );
                 break;
               }
             }
-
-            if (partialUpload) {
-              break;
-            }
-
             this.logger.log(
-              `Finished processing batch ${batchNumber} ******************`,
+              `Finished import batch ${importBatchNumber} ******************`,
             );
+            importBatchNumber++;
+            importBatch = [];
 
-            batchNumber++;
-            batch = [];
+            if (partialUpload) break;
           }
         }
-        if (!partialUpload && batch.length > 0) {
-          this.logger.log(
-            `Starting to process (final) batch ${batchNumber} ******************`,
-          );
 
-          for (const row of batch) {
-            let GuidsToSave = {
+        // ── Flush final partial import batch ──────────────────────────────
+        if (!partialUpload && importBatch.length > 0) {
+          this.logger.log(
+            `Processing final import batch ${importBatchNumber} ******************`,
+          );
+          for (const batchRow of importBatch) {
+            const GuidsToSave = {
               visits: [],
               activities: [],
               specimens: [],
               observations: [],
             };
             await this.importRow(
-              row,
+              batchRow,
               rowHeaders,
-              row.number,
+              batchRow.number,
               fileName,
               GuidsToSave,
               extention,
@@ -4518,56 +4508,31 @@ export class FileParseValidateService {
             );
             if (partialUpload) {
               this.logger.warn(
-                `Partial upload detected, stopped processing the batch`,
+                "Partial upload detected, stopped processing the batch",
               );
               break;
             }
           }
-
           this.logger.log(
-            `Finished processing (final) batch ${batchNumber} ******************`,
+            `Finished final import batch ${importBatchNumber} ******************`,
           );
         }
-        console.timeEnd("ImportNonObs");
-        endImportNonObs = performance.now();
 
-        if (partialUpload) {
-          if (!rollBackHalted) {
-            await this.fileSubmissionsService.updateFileStatus(
-              file_submission_id,
-              "REJECTED",
-            );
-          }
-          this.logger.log("Partial upload detected, leaving import process");
-          return {
-            timings: {
-              startValidation,
-              endValidation,
-              startObsValidation,
-              endObsValidation,
-              startImportNonObs,
-              endImportNonObs,
-            },
-            hasError: false,
-          };
+        break; // Only process the first sheet
+      }
+
+      console.timeEnd("ImportNonObs");
+      endImportNonObs = performance.now();
+
+      // ── Partial upload bail-out ────────────────────────────────────────────
+      if (partialUpload) {
+        if (!rollBackHalted) {
+          await this.fileSubmissionsService.updateFileStatus(
+            file_submission_id,
+            "REJECTED",
+          );
         }
-
-        console.time("ImportObs");
-        startImportObs = performance.now();
-        this.logger.log(`Starting import of observations`);
-        await this.insertObservations(
-          fileName,
-          originalFileName,
-          filePath,
-          file_submission_id,
-          file_operation_code,
-          contactsAndValidationResults[0],
-          contactsAndValidationResults[1],
-        );
-        this.logger.log(`Completed import for observations`);
-        console.timeEnd("ImportObs");
-        endImportObs = performance.now();
-
+        this.logger.log("Partial upload detected, leaving import process");
         return {
           timings: {
             startValidation,
@@ -4576,12 +4541,43 @@ export class FileParseValidateService {
             endObsValidation,
             startImportNonObs,
             endImportNonObs,
-            startImportObs,
-            endImportObs,
           },
           hasError: false,
         };
       }
+
+      // ── Import observations ────────────────────────────────────────────────
+      console.time("ImportObs");
+      startImportObs = performance.now();
+      this.logger.log("Starting import of observations");
+      await this.insertObservations(
+        fileName,
+        originalFileName,
+        filePath,
+        file_submission_id,
+        file_operation_code,
+        contactsAndValidationResults[0],
+        contactsAndValidationResults[1],
+      );
+      this.logger.log("Completed import for observations");
+      console.timeEnd("ImportObs");
+      endImportObs = performance.now();
+
+      return {
+        timings: {
+          startValidation,
+          endValidation,
+          startObsValidation,
+          endObsValidation,
+          startImportNonObs,
+          endImportNonObs,
+          startImportObs,
+          endImportObs,
+        },
+        hasError: false,
+      };
+
+      break; // Only process the first sheet of the validation workbook
     }
   }
 
@@ -4764,7 +4760,7 @@ export class FileParseValidateService {
         (value) =>
           value === undefined ||
           value === null ||
-          (typeof value === "string" && value.trim() === "")
+          (typeof value === "string" && value.trim() === ""),
       );
       if (isEmpty) {
         this.logger.log(`Skipping empty row ${rowNumber}`);
@@ -5190,10 +5186,10 @@ export class FileParseValidateService {
     let result: any = {};
 
     if (extention == ".xlsx") {
-      const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.read(file);
+      const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(file, {});
       result = await this.processXlsxFile(
-        workbook,
+        file,
+        workbookReader,
         fileName,
         extention,
         file_submission_id,
