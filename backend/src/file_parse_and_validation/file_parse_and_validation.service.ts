@@ -18,7 +18,8 @@ import { Readable } from "stream";
 import { format } from "fast-csv";
 import { parse } from "csv-parse";
 import * as readline from "readline";
-import { isISO8601 } from "validator";
+import { isISO8601 } from "validator"
+import path from "path";
 
 const fileHeaders: FileHeaders = {
   "Observation ID": "Observation ID",
@@ -4155,7 +4156,6 @@ export class FileParseValidateService {
    * @private
    */
   private async processXlsxFile(
-    file: Readable,
     workbook: any,
     fileName: string,
     extention: string,
@@ -4405,8 +4405,12 @@ export class FileParseValidateService {
       console.time("ImportNonObs");
       startImportNonObs = performance.now();
       this.logger.log("Starting the import process");
-
-      const importWorkbook = new ExcelJS.stream.xlsx.WorkbookReader(file, {});
+      const xlsxFilePath = path.join("./src/tempObsFiles/", fileName);
+      const importFileStream = fs.createReadStream(xlsxFilePath);
+      const importWorkbook = new ExcelJS.stream.xlsx.WorkbookReader(
+        importFileStream,
+        {},
+      );
       let importBatch: any[] = [];
       let importBatchNumber = 1;
       let importIsFirstRow = true;
@@ -4578,6 +4582,28 @@ export class FileParseValidateService {
       };
 
       break; // Only process the first sheet of the validation workbook
+    }
+
+    if (!foundWorksheet) {
+      this.logger.error("No worksheet found in the Excel file.");
+      const errorLog = `{"rowNum": "N/A", "type": "ERROR", "message": {"File": "Incorrect file content. Please check the file and try again."}}`;
+      await this.prisma.file_error_logs.create({
+        data: {
+          file_submission_id,
+          file_name: fileName,
+          original_file_name: originalFileName,
+          file_operation_code,
+          ministry_contact: null,
+          error_log: [JSON.parse(errorLog)],
+          create_utc_timestamp: new Date(),
+        },
+      });
+      await this.fileSubmissionsService.updateFileStatus(
+        file_submission_id,
+        "REJECTED",
+      );
+      await this.notificationsService.notifyUserOfError(file_submission_id);
+      return { timings: {}, hasError: true };
     }
   }
 
@@ -5188,7 +5214,6 @@ export class FileParseValidateService {
     if (extention == ".xlsx") {
       const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(file, {});
       result = await this.processXlsxFile(
-        file,
         workbookReader,
         fileName,
         extention,
