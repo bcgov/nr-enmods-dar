@@ -5195,7 +5195,7 @@ export class FileParseValidateService {
     const startParseFile = performance.now();
 
     const path = require("path");
-    const extention = path.extname(fileName);
+    const extension = path.extname(fileName).toLowerCase();
 
     await this.fileSubmissionsService.updateFileStatus(
       file_submission_id,
@@ -5211,12 +5211,12 @@ export class FileParseValidateService {
 
     let result: any = {};
 
-    if (extention == ".xlsx") {
+    if (extension == ".xlsx") {
       const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(file, {});
       result = await this.processXlsxFile(
         workbookReader,
         fileName,
-        extention,
+        extension,
         file_submission_id,
         file_operation_code,
         originalFileName,
@@ -5254,11 +5254,11 @@ export class FileParseValidateService {
           ? 0
           : result.timings.startImportObs,
       );
-    } else if (extention == ".csv" || extention == ".txt") {
+    } else if (extension == ".csv") {
       result = await this.processCsvFile(
         file,
         fileName,
-        extention,
+        extension,
         file_submission_id,
         file_operation_code,
         originalFileName,
@@ -5296,6 +5296,37 @@ export class FileParseValidateService {
           ? 0
           : result.timings.startImportObs,
       );
+    } else {
+      this.logger.error(`Unsupported file extension: ${extension}`);
+      const fileErrors = [
+        {
+          rowNum: "N/A",
+          type: "ERROR",
+          message: {
+            File: `Invalid file type ${originalFileName}. Only .xlsx or .csv files are acceptable.`,
+          },
+        },
+      ];
+      const file_error_log_data = {
+        file_submission_id: file_submission_id,
+        file_name: fileName,
+        original_file_name: originalFileName,
+        file_operation_code: file_operation_code,
+        ministry_contact: null,
+        error_log: fileErrors,
+        create_utc_timestamp: new Date(),
+      };
+
+      await this.prisma.file_error_logs.create({
+        data: file_error_log_data,
+      });
+
+      await this.fileSubmissionsService.updateFileStatus(
+        file_submission_id,
+        "REJECTED",
+      );
+
+      await this.notificationsService.notifyUserOfError(file_submission_id);
     }
     partialUpload = false;
     rollBackHalted = false;
