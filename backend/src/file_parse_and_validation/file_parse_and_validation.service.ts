@@ -18,7 +18,7 @@ import { Readable } from "stream";
 import { format } from "fast-csv";
 import { parse } from "csv-parse";
 import * as readline from "readline";
-import { isISO8601 } from "validator"
+import { isISO8601 } from "validator";
 import path from "path";
 
 const fileHeaders: FileHeaders = {
@@ -4138,7 +4138,7 @@ export class FileParseValidateService {
 
     return String(value).replace(/\s+/g, "");
   }
-
+  
   /**
    * Handles XLSX file format processing and validation
    * Processes rows in batches, validates each row, and orchestrates downstream processing
@@ -4640,6 +4640,7 @@ export class FileParseValidateService {
     const headersForValidation: string[] = [];
     const headers: string[] = [];
     let delimiterErrors = [];
+    let headerErrors = [];
 
     if (extention == ".txt") {
       delimiterErrors = await this.checkDelimiterErrors(file);
@@ -4689,11 +4690,15 @@ export class FileParseValidateService {
       })
       .on("error", (err) => {
         this.logger.error("Error while parsing file for headers:", err.message);
+        let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "Ensure non-header rows have same number of columns as header row. Error details: ${err.message}"}}`;
+        headerErrors.push(JSON.parse(errorLog));
       });
 
     await new Promise((f) => setTimeout(f, 1000));
 
-    const headerErrors = await this.checkHeaders(headersForValidation, "csv");
+    if (headers.length === 0) {
+      headerErrors = await this.checkHeaders(headersForValidation, "csv");
+    }
 
     if (headerErrors.length > 0) {
       const file_error_log_data = {
