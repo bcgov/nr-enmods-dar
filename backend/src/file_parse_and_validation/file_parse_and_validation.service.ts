@@ -862,6 +862,7 @@ export class FileParseValidateService {
     let headerErrors = [];
     let sourceHeaders = [];
     let targetHeaders = [];
+
     if (fileType === "xlsx") {
       targetHeaders = Object.keys(fileHeaders).map((item) =>
         item.replace(/\s+/g, ""),
@@ -872,7 +873,6 @@ export class FileParseValidateService {
 
     sourceHeaders = rowHeaders;
 
-    // Normalize by trimming for all comparisons
     const normalizedSourceHeaders = sourceHeaders.map((h) =>
       h !== undefined && h !== null ? `${h}`.trim() : h,
     );
@@ -880,7 +880,6 @@ export class FileParseValidateService {
       h !== undefined && h !== null ? `${h}`.trim() : h,
     );
 
-    // Count matched headers for comparison
     const matchedHeaders = normalizedSourceHeaders.filter(
       (h) =>
         h !== "" &&
@@ -892,31 +891,52 @@ export class FileParseValidateService {
       (h) => h !== "" && h !== null && h !== undefined,
     );
 
-    if (matchedHeaders.length != nonEmptyTargetHeaders.length) {
-      // Find missing headers by comparing target headers with source headers
+    if (matchedHeaders.length !== nonEmptyTargetHeaders.length) {
       const missingHeaders = normalizedTargetHeaders.filter(
-        (header) => !normalizedSourceHeaders.includes(header),
+        (header) =>
+          header !== "" &&
+          header !== null &&
+          header !== undefined &&
+          !normalizedSourceHeaders.includes(header),
       );
+
+      const wrongPositionHeaders = normalizedTargetHeaders.filter(
+        (header, index) => {
+          if (header === "" || header === null || header === undefined)
+            return false;
+          const sourceIndex = normalizedSourceHeaders.indexOf(header);
+          return sourceIndex !== -1 && sourceIndex !== index;
+        },
+      );
+
       const extraHeaders = normalizedSourceHeaders.filter(
-        (header) => !normalizedTargetHeaders.includes(header),
+        (header) =>
+          header !== "" &&
+          header !== null &&
+          header !== undefined &&
+          !normalizedTargetHeaders.includes(header),
       );
 
-      let errorMessage = `Invalid number of headers. Got ${matchedHeaders.length}, expected ${nonEmptyTargetHeaders.length}`;
+      const allMissingOrMisplaced = [
+        ...missingHeaders,
+        ...wrongPositionHeaders,
+      ];
 
-      if (missingHeaders.length > 0) {
-        const missingWithPositions = missingHeaders.map((header) => {
+      let errorMessage = `Invalid number of headers.`;
+
+      if (allMissingOrMisplaced.length > 0) {
+        const missingWithPositions = allMissingOrMisplaced.map((header) => {
           const expectedIndex = normalizedTargetHeaders.indexOf(header);
           return expectedIndex >= 0
             ? `${header} (position ${expectedIndex + 1})`
             : header;
         });
-        errorMessage += `. Missing headers: ${missingWithPositions.join(", ")}`;
+        errorMessage += ` Missing headers: ${missingWithPositions.join(", ")}`;
       }
 
       if (extraHeaders.length > 0) {
-        // Find all positions of extra headers, ensuring each position is only reported once
-        const extraWithPositions = [];
-        const processedPositions = new Set();
+        const extraWithPositions: string[] = [];
+        const processedPositions = new Set<number>();
 
         for (let i = 0; i < normalizedSourceHeaders.length; i++) {
           const header = normalizedSourceHeaders[i];
@@ -925,6 +945,8 @@ export class FileParseValidateService {
             processedPositions.add(i);
           }
         }
+
+        errorMessage += `. Extra headers: ${extraWithPositions.join(", ")}`;
       }
 
       let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${errorMessage}"}}`;
@@ -932,20 +954,8 @@ export class FileParseValidateService {
       return headerErrors;
     }
 
-    for (let i = 0; i < normalizedSourceHeaders.length; i++) {
-      if (normalizedSourceHeaders[i] !== normalizedTargetHeaders[i]) {
-        if (normalizedTargetHeaders[i] === undefined) {
-          let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${normalizedSourceHeaders[i]} is invalid. Please check submission file."}}`;
-          headerErrors.push(JSON.parse(errorLog));
-        } else {
-          let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${normalizedSourceHeaders[i]}, should be ${normalizedTargetHeaders[i]}"}}`;
-          headerErrors.push(JSON.parse(errorLog));
-        }
-      }
-    }
     return headerErrors;
   }
-
   /**
    * Validates unit-related fields (ResultUnit and DepthUnit)
    * - ResultUnit: Required, must exist in aqi_units table
@@ -4138,7 +4148,7 @@ export class FileParseValidateService {
 
     return String(value).replace(/\s+/g, "");
   }
-  
+
   /**
    * Handles XLSX file format processing and validation
    * Processes rows in batches, validates each row, and orchestrates downstream processing
@@ -4696,7 +4706,7 @@ export class FileParseValidateService {
 
     await new Promise((f) => setTimeout(f, 1000));
 
-    if (headers.length === 0) {
+    if (headers.length > 0) {
       headerErrors = await this.checkHeaders(headersForValidation, "csv");
     }
 
