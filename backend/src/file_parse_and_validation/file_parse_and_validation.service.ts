@@ -961,7 +961,7 @@ export class FileParseValidateService {
   ): Promise<any[]> {
     const errors = [];
     const unitFields = "ResultUnit";
-
+    const allowNull =rowData["DetectionCondition"] === "PRESENT" &&((/^Animal\b/.test(rowData["Medium"]) || (/^Plant\b/.test(rowData["Medium"])) ));
     try {
       if (rowData.hasOwnProperty(unitFields)) {
         if (rowData[unitFields]) {
@@ -979,6 +979,7 @@ export class FileParseValidateService {
             });
           }
         } else {
+          if (!rowData[unitFields] && !allowNull) {
           errors.push({
             rowNum: rowNumber,
             type: "ERROR",
@@ -986,6 +987,7 @@ export class FileParseValidateService {
               [unitFields]: "Cannot be empty",
             },
           });
+        }
         }
       }
     } catch (error) {
@@ -1444,6 +1446,66 @@ export class FileParseValidateService {
     return errors;
   }
 
+
+  /**
+   * Validates DetectionConditionFields fields
+   */
+  /**
+   * Validates DetectionCondition field and related fields
+   *
+   *
+   * @param {any} rowData - Record data from file row
+   * @param {number} rowNumber - Row number for error tracking
+   * @returns {Promise<any[]>} Array of validation errors
+   */
+  private async validateDetectionConditionFields(
+    rowData: any,
+    rowNumber: number,
+  ): Promise<any[]> {
+    const errors = [];
+
+    try {
+      if (rowData.hasOwnProperty("DetectionCondition")) {
+          if (rowData["DetectionCondition"] === "PRESENT" && ! ((/^Animal\b/.test(rowData["Medium"]) || (/^Plant\b/.test(rowData["Medium"])) )))
+          errors.push({
+            rowNum: rowNumber,
+            type: "ERROR",
+            message: {
+              DetectionCondition: `Cannot be PRESENT if Medium is ${rowData.Medium}`,
+            },
+          });
+        } else {
+          const present = await this.aqiService.databaseLookup(
+            "aqi_detection_conditions",
+            rowData.DetectionCondition,
+          );
+          if (!present) {
+            errors.push({
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                DetectionCondition: `${rowData.DetectionCondition} not found in EnMoDS Data Classifications`,
+              },
+            });
+          }
+        }
+    } catch (error) {
+      this.logger.error(
+        `Runtime error validating DetectionCondition in row ${rowNumber}:`,
+        error,
+      );
+      errors.push({
+        rowNum: rowNumber,
+        type: "ERROR",
+        message: {
+          DetectionCondition:
+            "Failed to validate. Please contact an administrator.",
+        },
+      });
+    }
+
+    return errors;
+  }
   /**
    * Validates LAB-specific lookup fields (CollectionMethod, AnalyzingAgency, AnalysisMethod)
    */
@@ -1874,6 +1936,7 @@ export class FileParseValidateService {
       "MethodReportingLimit",
       "LabArrivalTemperature",
     ];
+    const allowEmptyResultValue =rowData["DetectionCondition"] === "PRESENT" &&(/^Animal\b/.test(rowData["Medium"] || "") || /^Plant\b/.test(rowData["Medium"] || ""));
 
     numericalFields.forEach((field) => {
       try {
@@ -1893,21 +1956,21 @@ export class FileParseValidateService {
                   },
                 });
               }
-
               if (
-                field === "ResultValue" &&
-                rowData["DetectionCondition"] !== "NOT_DETECTED" &&
-                rowData["DetectionCondition"] !== "NOT_REPORTED" &&
-                rowData["DetectionCondition"] !== "NOT_SAMPLED"
-              ) {
-                errors.push({
-                  rowNum: rowNumber,
-                  type: "ERROR",
-                  message: {
-                    [field]: `Cannot be empty when Detection Condition is ${rowData["DetectionCondition"] ? rowData["DetectionCondition"] : "empty"}`,
-                  },
-                });
-              }
+                  field === "ResultValue" &&
+                  !allowEmptyResultValue &&
+                  rowData["DetectionCondition"] !== "NOT_DETECTED" &&
+                  rowData["DetectionCondition"] !== "NOT_REPORTED" &&
+                  rowData["DetectionCondition"] !== "NOT_SAMPLED"
+                ) {
+                  errors.push({
+                    rowNum: rowNumber,
+                    type: "ERROR",
+                    message: {
+                     [field]: `Cannot be empty when Detection Condition is ${rowData["DetectionCondition"] ? rowData["DetectionCondition"] : "empty"}`,
+                    },
+                  });
+                }
             }
 
             if (resultType === "NUMERIC") {
@@ -2303,6 +2366,13 @@ export class FileParseValidateService {
       rowNumber,
     );
     errorLogs.push(...resultFieldErrors);
+
+     // Validate Result Status and Grade
+    const detectionConditionErrors = await this.validateDetectionConditionFields(
+      rowData,
+      rowNumber,
+    );
+    errorLogs.push(...detectionConditionErrors);
 
     // Validate Specimen-related fields
     const specimenErrors = await this.validateSpecimenFields(
