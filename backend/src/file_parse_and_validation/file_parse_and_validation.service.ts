@@ -1471,7 +1471,7 @@ export class FileParseValidateService {
             rowNum: rowNumber,
             type: "ERROR",
             message: {
-              DetectionCondition: `DetectionCondition - Cannot be PRESENT if medium is ${rowData.Medium}`,
+              DetectionCondition: `Cannot be PRESENT if Medium is ${rowData.Medium}`,
             },
           });
         } else {
