@@ -100,13 +100,30 @@ function formulateErrorFile(logs: any, fileSubmissionTime: any) {
       `Ministry Contact: ${logs[0].ministry_contact}\n` +
       `-----------------------------------------------------------------------\n\n`;
 
-    logs[0].error_log.forEach((log) => {
+    /*logs[0].error_log.forEach((log) => {
       const rowNum = log.rowNum;
 
       for (const [key, msg] of Object.entries(log.message)) {
         formattedMessages += `${log.type}: Row ${rowNum}: ${key} - ${msg}\n`;
       }
-    });
+    });*/
+    //Added this logic because of ENMODSEDT-22
+    logs[0].error_log.forEach((log) => {
+        const rowNum = log.rowNum;
+        const order = {
+          DetectionCondition: 1,
+          ResultValue: 2,
+        };
+        const sortedKeys = Object.keys(log.message).sort((a, b) => {
+          const aOrder = order[a] ?? 999;
+          const bOrder = order[b] ?? 999;
+          return aOrder - bOrder;
+        });
+
+        for (const key of sortedKeys) {
+          formattedMessages += `${log.type}: Row ${rowNum}: ${key} - ${log.message[key]}\n`;
+        }
+      });
 
     const strippedErrorLogs = formattedMessages.replace(
       /[\s\S]*?Ministry Contact:.*?\n[-]+\n\n/,

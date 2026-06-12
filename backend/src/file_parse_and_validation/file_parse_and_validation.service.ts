@@ -2311,6 +2311,13 @@ export class FileParseValidateService {
     const timeRangeErrors = this.validateTimeRanges(rowData, rowNumber);
     errorLogs.push(...timeRangeErrors);
 
+    // Validate Detection Condition
+    const detectionConditionErrors = await this.validateDetectionConditionFields(
+      rowData,
+      rowNumber,
+    );
+    errorLogs.push(...detectionConditionErrors);
+
     // Validate field visit/observed date relationships
     const dateRelationErrors = this.validateDataClassificationDateRelationship(
       rowData,
@@ -2376,13 +2383,6 @@ export class FileParseValidateService {
       rowNumber,
     );
     errorLogs.push(...resultFieldErrors);
-
-     // Validate Result Status and Grade
-    const detectionConditionErrors = await this.validateDetectionConditionFields(
-      rowData,
-      rowNumber,
-    );
-    errorLogs.push(...detectionConditionErrors);
 
     // Validate Specimen-related fields
     const specimenErrors = await this.validateSpecimenFields(
