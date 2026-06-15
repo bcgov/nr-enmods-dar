@@ -2311,6 +2311,13 @@ export class FileParseValidateService {
     const timeRangeErrors = this.validateTimeRanges(rowData, rowNumber);
     errorLogs.push(...timeRangeErrors);
 
+    // Validate Detection Condition
+    const detectionConditionErrors = await this.validateDetectionConditionFields(
+      rowData,
+      rowNumber,
+    );
+    errorLogs.push(...detectionConditionErrors);
+
     // Validate field visit/observed date relationships
     const dateRelationErrors = this.validateDataClassificationDateRelationship(
       rowData,
@@ -2376,13 +2383,6 @@ export class FileParseValidateService {
       rowNumber,
     );
     errorLogs.push(...resultFieldErrors);
-
-     // Validate Result Status and Grade
-    const detectionConditionErrors = await this.validateDetectionConditionFields(
-      rowData,
-      rowNumber,
-    );
-    errorLogs.push(...detectionConditionErrors);
 
     // Validate Specimen-related fields
     const specimenErrors = await this.validateSpecimenFields(
@@ -4771,7 +4771,17 @@ export class FileParseValidateService {
       .on("error", (err) => {
         this.logger.error("Error while parsing file for headers:", err.message);
         let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "Ensure non-header rows have same number of columns as header row. Error details: ${err.message}"}}`;
-        headerErrors.push(JSON.parse(errorLog));
+        try{ 
+          headerErrors.push(JSON.parse(errorLog));
+        }catch (e) {
+          headerErrors.push({
+            rowNum: "N/A",
+            type: "ERROR",
+            message: {
+              Header: `${originalFileName} is an unrecognized format or is corrupted. If this your first time seeing this error re-save your file as .csv or .xlsx and try again.`,
+            },
+          });
+        }
       });
 
     await new Promise((f) => setTimeout(f, 1000));
