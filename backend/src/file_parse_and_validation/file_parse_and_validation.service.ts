@@ -865,7 +865,7 @@ export class FileParseValidateService {
 
     if (fileType === "xlsx") {
       targetHeaders = Object.keys(fileHeaders).map((item) =>
-        item.replace(/\s+/g, ""),
+        item.trim(),
       );
     } else {
       targetHeaders = Object.keys(fileHeaders);
@@ -922,7 +922,7 @@ export class FileParseValidateService {
         ...wrongPositionHeaders,
       ];
 
-      let errorMessage = `Invalid number of headers. Missing, misplaced, and extra headers detected. See details below:`;
+      let errorMessage = `Invalid number of headers. Missing, misplaced, and/or extra headers detected. See details below:`;
 
       if (allMissingOrMisplaced.length > 0) {
         const missingWithPositions = allMissingOrMisplaced.map((header) => {
@@ -4225,6 +4225,19 @@ export class FileParseValidateService {
     return String(value).replace(/\s+/g, "");
   }
 
+    private compareHeader(value: ExcelJS.CellValue): string {
+    if (!value) return "";
+    if (typeof value === "string") return value.trim();
+    if (typeof value === "object" && "richText" in value) {
+      return value.richText
+        .map((part) => part.text)
+        .join("")
+        .replace(/\s+/g, "");
+    }
+
+    return String(value).replace(/\s+/g, "");
+  }
+
   /**
    * Handles XLSX file format processing and validation
    * Processes rows in batches, validates each row, and orchestrates downstream processing
@@ -4272,6 +4285,7 @@ export class FileParseValidateService {
     const allExistingRecords: any[] = [];
     let isFirstRow = true;
     let foundWorksheet = false;
+    let rowHeadersCompare: string[] = [];
 
     for await (const worksheetReader of workbook) {
       if (worksheetReader === undefined) {
@@ -4314,8 +4328,12 @@ export class FileParseValidateService {
             .map(this.cellToString)
             .filter(Boolean);
           isFirstRow = false;
+          rowHeadersCompare = row.values
+            .slice(1)
+            .map(this.compareHeader)
+            .filter(Boolean);
 
-          const headerErrors = await this.checkHeaders(rowHeaders, "xlsx");
+          const headerErrors = await this.checkHeaders(rowHeadersCompare, "xlsx");
           if (headerErrors.length > 0) {
             await this.prisma.file_error_logs.create({
               data: {
