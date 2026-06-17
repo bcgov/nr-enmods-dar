@@ -922,7 +922,7 @@ export class FileParseValidateService {
         ...wrongPositionHeaders,
       ];
 
-      let errorMessage = `Invalid number of headers.`;
+      let errorMessage = `Invalid number of headers. Missing, misplaced, and extra headers detected. See details below:`;
 
       if (allMissingOrMisplaced.length > 0) {
         const missingWithPositions = allMissingOrMisplaced.map((header) => {
@@ -931,7 +931,7 @@ export class FileParseValidateService {
             ? `${header} (position ${expectedIndex + 1})`
             : header;
         });
-        errorMessage += ` Missing headers: ${missingWithPositions.join(", ")}`;
+        errorMessage += `\nMissing headers: ${missingWithPositions.join(", ")}`;
       }
 
       if (extraHeaders.length > 0) {
@@ -946,10 +946,16 @@ export class FileParseValidateService {
           }
         }
 
-        errorMessage += `. Extra headers: ${extraWithPositions.join(", ")}`;
+        errorMessage += `. \nExtra headers: ${extraWithPositions.join(", ")}`;
       }
 
-      let errorLog = `{"rowNum": 1, "type": "ERROR", "message": {"Header": "${errorMessage}"}}`;
+      const errorLog = JSON.stringify({
+        rowNum: 1,
+        type: "ERROR",
+        message: {
+          Header: errorMessage
+        }
+      });
       headerErrors.push(JSON.parse(errorLog));
       return headerErrors;
     }
