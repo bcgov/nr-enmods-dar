@@ -916,7 +916,6 @@ export class FileParseValidateService {
           header !== undefined &&
           !normalizedTargetHeaders.includes(header),
       );
-
       const allMissingOrMisplaced = [
         ...missingHeaders,
         ...wrongPositionHeaders,
@@ -932,6 +931,18 @@ export class FileParseValidateService {
             : header;
         });
         errorMessage += `\nMissing headers: ${missingWithPositions.join(", ")}`;
+      }
+
+      if (wrongPositionHeaders.length > 0) {
+        const wrongWithPositions = wrongPositionHeaders.map((header) => {
+          const expectedIndex = normalizedTargetHeaders.indexOf(header);
+          const positionedIndex = normalizedSourceHeaders.indexOf(header);
+          return expectedIndex >= 0
+            ? `${header} (expected position ${expectedIndex + 1}, found position ${positionedIndex + 1})`
+            : header;
+        });
+
+        errorMessage += `. \nMisplaced headers: ${wrongWithPositions.join(", ")}`;
       }
 
       if (extraHeaders.length > 0) {
@@ -4325,13 +4336,13 @@ export class FileParseValidateService {
         if (isFirstRow) {
           rowHeaders = row.values
             .slice(1)
-            .map(this.cellToString)
-            .filter(Boolean);
+            .map(this.cellToString);
+            //.filter(Boolean); commented this because XLSX side maps cells to strings ('' for blanks) but then filters out the empty ones, shifting every header after a gap to a lower index than it actually has in the file, which is causing the error message index number differnt than the one when csv is uploaded.
           isFirstRow = false;
           rowHeadersCompare = row.values
             .slice(1)
-            .map(this.compareHeader)
-            .filter(Boolean);
+            .map(this.compareHeader);
+           // .filter(Boolean);
 
           const headerErrors = await this.checkHeaders(rowHeadersCompare, "xlsx");
           if (headerErrors.length > 0) {
