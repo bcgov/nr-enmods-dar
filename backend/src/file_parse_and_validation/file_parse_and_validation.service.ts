@@ -4821,7 +4821,7 @@ export class FileParseValidateService {
 
     await new Promise((f) => setTimeout(f, 1000));
 
-    if (headers.length > 0) {
+    if (headerErrors.length === 0 && headers.length > 0) {
       headerErrors = await this.checkHeaders(headersForValidation, "csv");
     }
 
