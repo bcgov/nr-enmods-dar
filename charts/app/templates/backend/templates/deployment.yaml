@@ -91,7 +91,7 @@ spec:
           resources: # this is optional
             requests:
               cpu: 100m
-              memory: 500Mi
+              memory: 2Gi
           volumeMounts:
             - name: obs-temp-files
               mountPath: /app/src/tempObsFiles
