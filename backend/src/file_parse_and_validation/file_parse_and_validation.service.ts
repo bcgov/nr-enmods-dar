@@ -1767,6 +1767,15 @@ export class FileParseValidateService {
           if (yearFromDate > currentYear) valid = false;
 
           if (!valid || !hasOffset) {
+            if (field === "FieldVisitStartTime" || field === "FieldVisitEndTime") {
+              errors.push({
+                rowNum: rowNumber,
+                type: "ERROR",
+                message: {
+                  [field]: `Invalid format in column "${field}" : ${rowData[field]}. Must be in YYYY-MM-DD format`,
+                },
+              });
+            } else {
             errors.push({
               rowNum: rowNumber,
               type: "ERROR",
@@ -1776,12 +1785,20 @@ export class FileParseValidateService {
             });
           }
         } else if (rowData.hasOwnProperty(field) && !rowData[field]) {
-          if (field === "FieldVisitStartTime" || field === "ObservedDateTime") {
+          if (field === "ObservedDateTime") {
             errors.push({
               rowNum: rowNumber,
               type: "ERROR",
               message: {
-                [field]: "Cannot be empty",
+                [field]: "Cannot be empty.",
+              },
+            });
+          } else if (field === "FieldVisitStartTime") {
+            errors.push({
+              rowNum: rowNumber,
+              type: "ERROR",
+              message: {
+                [field]: "Cannot be empty for field visit start time, YYYY-MM-DD format is required.",
               },
             });
           } else if (
@@ -2595,7 +2612,7 @@ export class FileParseValidateService {
                 rowNum: rowNumber,
                 type: "ERROR",
                 message: {
-                  Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}. The existing field visit start time is ${visitTimeForDay}. Please correct the date time and re-upload the file.`,
+                  Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}. The existing field visit start time is ${visitTimeForDay}. Please submit a Service Portal request including this error message to edit this record.`,
                 },
               };
               errorLogs.push(errorLog);
@@ -2634,7 +2651,7 @@ export class FileParseValidateService {
                   rowNum: rowNumber,
                   type: "ERROR",
                   message: {
-                    Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}. The existing field visit start time is ${visitTimeForDay}. Please correct the date time and re-upload the file.`,
+                    Visit: `A field visit exists for Location ${rowData.LocationID} on this day, but not at the specified Start Time ${rowData.FieldVisitStartTime}. The existing field visit start time is ${visitTimeForDay}. Please submit a Service Portal request including this error message to edit this record.`,
                   },
                 };
                 errorLogs.push(errorLog);
@@ -3050,6 +3067,86 @@ export class FileParseValidateService {
     return newActivityName;
   }
 
+  /**
+   * Normalizes the Field Visit Start Time to a -07:00 offset, date-only value
+   * (time component fixed at 00:00:00). Handles two input shapes:
+   * - Date only (YYYY-MM-DD): treated as 00:00:00-07:00 directly.
+   * - Full datetime with offset: converted to -07:00, then the date part is
+   *   kept and the time is overwritten to 00:00:00, since the date component
+   *   can shift when the timezone conversion crosses midnight.
+   * Empty values, and values that are neither of the two accepted shapes
+   * (e.g. "June 15 2025"), are returned unchanged so downstream datetime
+   * validation reports the missing/invalid-format error instead of this
+   * method guessing at a loosely-parsed date.
+   *
+   * @param {string} value - Raw Field Visit Start Time value from the file
+   * @returns {string} Normalized value, e.g. "2026-04-22T00:00:00-07:00"
+   */
+  private normalizeFieldVisitStartTime(value: string): string {
+    if (!value) return value;
+
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return `${trimmed}T00:00:00-07:00`;
+    }
+
+    const offsetPattern = /[+-]\d{2}:\d{2}$/;
+    const isValidIsoDateTime =
+      isISO8601(trimmed, { strict: true, strictSeparator: true }) &&
+      offsetPattern.test(trimmed);
+
+    if (!isValidIsoDateTime) {
+      return value;
+    }
+
+    const parsed = new Date(trimmed);
+    const shifted = new Date(parsed.getTime() - 7 * 60 * 60 * 1000);
+    const year = shifted.getUTCFullYear();
+    const month = String(shifted.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(shifted.getUTCDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}T00:00:00-07:00`;
+  }
+
+  /**
+   * Normalizes the Field Visit End Time to a -07:00 offset, date-only value
+   * (time component fixed at 23:59:59). Handles two input shapes:
+   * - Date only (YYYY-MM-DD): treated as 23:59:59-07:00 directly.
+   * - Full datetime with offset: converted to -07:00, then the date part is
+   *   kept and the time is overwritten to 23:59:59, since the date component
+   *   can shift when the timezone conversion crosses midnight.
+   * Empty values are returned unchanged so the required-field validation can
+   * report the missing date error.
+   *
+   * @param {string} value - Raw Field Visit End Time value from the file
+   * @returns {string} Normalized value, e.g. "2026-04-22T23:59:59-07:00"
+   */
+  private normalizeFieldVisitEndTime(value: string): string {
+    if (!value) return value;
+
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return `${trimmed}T23:59:59-07:00`;
+    }
+
+    const offsetPattern = /[+-]\d{2}:\d{2}$/;
+    const isValidIsoDateTime =
+      isISO8601(trimmed, { strict: true, strictSeparator: true }) &&
+      offsetPattern.test(trimmed);
+
+    if (!isValidIsoDateTime) {
+      return value;
+    }
+
+    const parsed = new Date(trimmed);
+    const shifted = new Date(parsed.getTime() - 7 * 60 * 60 * 1000);
+    const year = shifted.getUTCFullYear();
+    const month = String(shifted.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(shifted.getUTCDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}T23:59:59-07:00`;
+  }
+
   cleanRowBasedOnDataClassification(rowData: any) {
     let cleanedRow = rowData;
 
@@ -3061,6 +3158,12 @@ export class FileParseValidateService {
     cleanedRow.FieldPreservative =
       rowData.FieldPreservative.toUpperCase().replace(/ /g, "_");
     cleanedRow.Fraction = rowData.Fraction.toUpperCase();
+    cleanedRow.FieldVisitStartTime = this.normalizeFieldVisitStartTime(
+      rowData.FieldVisitStartTime,
+    );
+    cleanedRow.FieldVisitEndTime = this.normalizeFieldVisitEndTime(
+      rowData.FieldVisitEndTime,
+    );
 
     let concatActivityName = this.formulateActivityName(rowData);
 
