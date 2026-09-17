@@ -1776,13 +1776,14 @@ export class FileParseValidateService {
                 },
               });
             } else {
-            errors.push({
-              rowNum: rowNumber,
-              type: "ERROR",
-              message: {
-                [field]: `Invalid Date time in column "${field}" : ${rowData[field]}. Must be ISO8601, include +hh:mm or -hh:mm and year must not be in the future`,
-              },
-            });
+              errors.push({
+                rowNum: rowNumber,
+                type: "ERROR",
+                message: {
+                  [field]: `Invalid Date time in column "${field}" : ${rowData[field]}. Must be ISO8601, include +hh:mm or -hh:mm and year must not be in the future`,
+                },
+              });
+            }
           }
         } else if (rowData.hasOwnProperty(field) && !rowData[field]) {
           if (field === "ObservedDateTime") {
