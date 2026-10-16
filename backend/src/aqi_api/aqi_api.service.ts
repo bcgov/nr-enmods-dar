@@ -14,6 +14,28 @@ export class AqiApiService {
   private axiosInstance: AxiosInstance;
   private goodObservationImporStatus: boolean = false;
 
+  /**
+   * Logs the raw size of an AQI response before it is parsed, so the size is
+   * recorded even if parsing a very large response runs out of heap memory.
+   */
+  private logSizeThenParse(label: string) {
+    return [
+      (data: any, headers: any) => {
+        this.logger.log(
+          `${label} response received: ${typeof data === "string" ? data.length : "n/a"} chars, content-length=${headers?.["content-length"] ?? "unknown"} ${heapUsage()}`,
+        );
+        if (typeof data !== "string" || data.length === 0) {
+          return data;
+        }
+        try {
+          return JSON.parse(data);
+        } catch {
+          return data;
+        }
+      },
+    ];
+  }
+
   constructor(private prisma: PrismaService) {
     this.axiosInstance = axios.create({
       baseURL: process.env.AQI_BASE_URL,
@@ -460,6 +482,9 @@ export class AqiApiService {
             Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
             "x-api-key": process.env.AQI_ACCESS_TOKEN,
           },
+          transformResponse: this.logSizeThenParse(
+            `Observation import status (aqi_obs_status_id=${statusURL.aqi_obs_status_id})`,
+          ),
         });
         this.logger.log(
           `Observation import status response for aqi_obs_status_id=${statusURL.aqi_obs_status_id}: HTTP ${response.status}, content-length=${response.headers["content-length"] ?? "unknown"} ${heapUsage()}`,
@@ -605,6 +630,9 @@ export class AqiApiService {
           Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
           "x-api-key": process.env.AQI_ACCESS_TOKEN,
         },
+        transformResponse: this.logSizeThenParse(
+          `Observation result (aqi_obs_status_id=${resultURL.aqi_obs_status_id})`,
+        ),
       });
 
       this.logger.log(
