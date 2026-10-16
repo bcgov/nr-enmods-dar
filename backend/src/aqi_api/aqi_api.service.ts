@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import axios, { AxiosError, AxiosInstance } from "axios";
+import { heapUsage } from "src/utils/memory";
 import * as fs from "fs";
 import FormData from "form-data";
 import { PrismaService } from "nestjs-prisma";
@@ -451,12 +452,18 @@ export class AqiApiService {
 
     if (statusURL !== null && statusURL !== undefined) {
       try {
+        this.logger.log(
+          `Fetching observation import status for aqi_obs_status_id=${statusURL.aqi_obs_status_id}: ${statusURL.status_url} ${heapUsage()}`,
+        );
         const response = await axios.get(statusURL.status_url, {
           headers: {
             Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
             "x-api-key": process.env.AQI_ACCESS_TOKEN,
           },
         });
+        this.logger.log(
+          `Observation import status response for aqi_obs_status_id=${statusURL.aqi_obs_status_id}: HTTP ${response.status}, content-length=${response.headers["content-length"] ?? "unknown"} ${heapUsage()}`,
+        );
 
         if (!response.data.hasOwnProperty("importProcessorTransactionStatus")) {
           const resultURL = statusURL.status_url.replace("status", "result");
@@ -590,6 +597,9 @@ export class AqiApiService {
 
   async getObsResult(resultURL: any) {
     try {
+      this.logger.log(
+        `Fetching observation result for aqi_obs_status_id=${resultURL.aqi_obs_status_id}: ${resultURL.result_url} ${heapUsage()}`,
+      );
       const obsResultResponse = await axios.get(resultURL.result_url, {
         headers: {
           Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
@@ -598,7 +608,7 @@ export class AqiApiService {
       });
 
       this.logger.log(
-        `API call to Observations Result succeeded: ${obsResultResponse.status}`,
+        `API call to Observations Result succeeded: ${obsResultResponse.status}, content-length=${obsResultResponse.headers["content-length"] ?? "unknown"} ${heapUsage()}`,
       );
       return obsResultResponse;
     } catch (err) {
