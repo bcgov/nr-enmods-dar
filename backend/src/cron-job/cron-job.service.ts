@@ -8,6 +8,7 @@ import { OperationLockService } from "src/operationLock/operationLock.service";
 import { CacheService } from "src/cache/cache.service";
 import * as fs from "fs";
 import path from "path";
+import { heapUsage } from "src/utils/memory";
 
 /**
  * Cron Job service for filling code tables with data from AQI API
@@ -727,7 +728,7 @@ export class CronJobService {
       return;
     }
 
-    this.logger.log("Beginning file processing cron job...");
+    this.logger.log(`Beginning file processing cron job... ${heapUsage()}`);
 
     // Healthcheck for AQI before all files are picked up for processing
     const aqiHealthy = await this.AQSSHealthCheck();
@@ -788,7 +789,7 @@ export class CronJobService {
     let filesToValidate = await this.fileParser.getQueuedFiles();
 
     if (filesToValidate.length < 1) {
-      this.logger.log("************** NO FILES TO PROCESS **************");
+      this.logger.log(`************** NO FILES TO PROCESS ************** ${heapUsage()}`);
       this.operationLockService.releaseLock("FILE_PROCESSING");
       return;
     } else {
@@ -882,6 +883,7 @@ export class CronJobService {
         }
       }
     } finally {
+      this.logger.log(`File processing cron job finished. ${heapUsage()}`);
       this.operationLockService.releaseLock("FILE_PROCESSING");
       return;
     }

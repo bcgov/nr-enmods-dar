@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import axios, { AxiosError, AxiosInstance } from "axios";
+import { heapUsage } from "src/utils/memory";
 import * as fs from "fs";
 import FormData from "form-data";
 import { PrismaService } from "nestjs-prisma";
@@ -12,6 +13,28 @@ export class AqiApiService {
   private readonly logger = new Logger(AqiApiService.name);
   private axiosInstance: AxiosInstance;
   private goodObservationImporStatus: boolean = false;
+
+  /**
+   * Logs the raw size of an AQI response before it is parsed, so the size is
+   * recorded even if parsing a very large response runs out of heap memory.
+   */
+  private logSizeThenParse(label: string) {
+    return [
+      (data: any, headers: any) => {
+        this.logger.log(
+          `${label} response received: ${typeof data === "string" ? data.length : "n/a"} chars, content-length=${headers?.["content-length"] ?? "unknown"} ${heapUsage()}`,
+        );
+        if (typeof data !== "string" || data.length === 0) {
+          return data;
+        }
+        try {
+          return JSON.parse(data);
+        } catch {
+          return data;
+        }
+      },
+    ];
+  }
 
   constructor(private prisma: PrismaService) {
     this.axiosInstance = axios.create({
@@ -430,6 +453,33 @@ export class AqiApiService {
       "token " + process.env.AQI_ACCESS_TOKEN;
     axios.defaults.headers.common["x-api-key"] = process.env.AQI_ACCESS_TOKEN;
 
+    // Log status rows still active after 2 hours (well past the 1-hour wait in waitForObsStatus).
+    // Nothing is waiting on them any more (e.g. after a timeout or pod restart),
+    // and leaving them active makes this job re-fetch them from AQI every 30 seconds.
+    // They are only logged for now, so we can confirm whether they cause the heap OOM crashes.
+    try {
+      const staleCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      const staleRows = await this.prisma.aqi_obs_status.findMany({
+        select: {
+          aqi_obs_status_id: true,
+          file_name: true,
+          file_submission_id: true,
+          create_utc_timestamp: true,
+        },
+        where: {
+          active_ind: true,
+          create_utc_timestamp: { lt: staleCutoff },
+        },
+      });
+      for (const row of staleRows) {
+        this.logger.error(
+          `aqi_obs_status row still active after 2 hours: aqi_obs_status_id=${row.aqi_obs_status_id}, file=${row.file_name}, file_submission_id=${row.file_submission_id}, created=${row.create_utc_timestamp.toISOString()}`,
+        );
+      }
+    } catch (err) {
+      this.logger.error("Failed to check for stale aqi_obs_status rows:", err);
+    }
+
     let statusURL;
     try {
       statusURL = await this.prisma.aqi_obs_status.findFirst({
@@ -451,12 +501,21 @@ export class AqiApiService {
 
     if (statusURL !== null && statusURL !== undefined) {
       try {
+        this.logger.log(
+          `Fetching observation import status for aqi_obs_status_id=${statusURL.aqi_obs_status_id}: ${statusURL.status_url} ${heapUsage()}`,
+        );
         const response = await axios.get(statusURL.status_url, {
           headers: {
             Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
             "x-api-key": process.env.AQI_ACCESS_TOKEN,
           },
+          transformResponse: this.logSizeThenParse(
+            `Observation import status (aqi_obs_status_id=${statusURL.aqi_obs_status_id})`,
+          ),
         });
+        this.logger.log(
+          `Observation import status response for aqi_obs_status_id=${statusURL.aqi_obs_status_id}: HTTP ${response.status}, content-length=${response.headers["content-length"] ?? "unknown"} ${heapUsage()}`,
+        );
 
         if (!response.data.hasOwnProperty("importProcessorTransactionStatus")) {
           const resultURL = statusURL.status_url.replace("status", "result");
@@ -590,15 +649,21 @@ export class AqiApiService {
 
   async getObsResult(resultURL: any) {
     try {
+      this.logger.log(
+        `Fetching observation result for aqi_obs_status_id=${resultURL.aqi_obs_status_id}: ${resultURL.result_url} ${heapUsage()}`,
+      );
       const obsResultResponse = await axios.get(resultURL.result_url, {
         headers: {
           Authorization: `token ${process.env.AQI_ACCESS_TOKEN}`,
           "x-api-key": process.env.AQI_ACCESS_TOKEN,
         },
+        transformResponse: this.logSizeThenParse(
+          `Observation result (aqi_obs_status_id=${resultURL.aqi_obs_status_id})`,
+        ),
       });
 
       this.logger.log(
-        `API call to Observations Result succeeded: ${obsResultResponse.status}`,
+        `API call to Observations Result succeeded: ${obsResultResponse.status}, content-length=${obsResultResponse.headers["content-length"] ?? "unknown"} ${heapUsage()}`,
       );
       return obsResultResponse;
     } catch (err) {
