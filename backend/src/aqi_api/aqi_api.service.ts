@@ -453,6 +453,33 @@ export class AqiApiService {
       "token " + process.env.AQI_ACCESS_TOKEN;
     axios.defaults.headers.common["x-api-key"] = process.env.AQI_ACCESS_TOKEN;
 
+    // Log status rows still active after 2 hours (well past the 1-hour wait in waitForObsStatus).
+    // Nothing is waiting on them any more (e.g. after a timeout or pod restart),
+    // and leaving them active makes this job re-fetch them from AQI every 30 seconds.
+    // They are only logged for now, so we can confirm whether they cause the heap OOM crashes.
+    try {
+      const staleCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      const staleRows = await this.prisma.aqi_obs_status.findMany({
+        select: {
+          aqi_obs_status_id: true,
+          file_name: true,
+          file_submission_id: true,
+          create_utc_timestamp: true,
+        },
+        where: {
+          active_ind: true,
+          create_utc_timestamp: { lt: staleCutoff },
+        },
+      });
+      for (const row of staleRows) {
+        this.logger.error(
+          `aqi_obs_status row still active after 2 hours: aqi_obs_status_id=${row.aqi_obs_status_id}, file=${row.file_name}, file_submission_id=${row.file_submission_id}, created=${row.create_utc_timestamp.toISOString()}`,
+        );
+      }
+    } catch (err) {
+      this.logger.error("Failed to check for stale aqi_obs_status rows:", err);
+    }
+
     let statusURL;
     try {
       statusURL = await this.prisma.aqi_obs_status.findFirst({
